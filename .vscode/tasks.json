@@ -1,11 +1,15 @@
 {
   "version": "2.0.0",
+  "options": {
+    "cwd": "${workspaceFolder}/app/"
+  },
   "tasks": [
     {
       "label": "Papyrus (web)",
       "type": "shell",
-      "command": "flutter run",
+      "command": "flutter",
       "args": [
+        "run",
         "-d",
         "chrome",
          "--dart-define-from-file",
@@ -15,8 +19,9 @@
     {
       "label": "Papyrus (android)",
       "type": "shell",
-      "command": "flutter run",
+      "command": "flutter",
       "args": [
+        "run",
         "-d",
         "android",
          "--dart-define-from-file",
@@ -26,8 +31,9 @@
     {
       "label": "Papyrus (iOS)",
       "type": "shell",
-      "command": "flutter run",
+      "command": "flutter",
       "args": [
+        "run",
         "-d",
         "ios",
          "--dart-define-from-file",
@@ -35,12 +41,13 @@
       ]
     },
     {
-      "label": "Papyrus (desktop)",
+      "label": "Papyrus (Linux)",
       "type": "shell",
-      "command": "flutter run",
+      "command": "flutter",
       "args": [
+        "run",
         "-d",
-        "desktop",
+        "linux",
          "--dart-define-from-file",
          ".dart_defines"
       ]
