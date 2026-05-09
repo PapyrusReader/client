@@ -9,6 +9,7 @@ import 'package:papyrus/platform/web_redirect.dart';
 
 class AuthRepository {
   static const nativeOAuthRedirectUri = 'papyrus://auth/callback';
+  static const desktopOAuthRedirectUri = 'http://localhost:43821/auth/callback';
 
   final AuthApiClient apiClient;
   final TokenStore tokenStore;
@@ -18,6 +19,14 @@ class AuthRepository {
   AuthRepository({required this.apiClient, required this.tokenStore});
 
   String? get accessToken => tokenStore.accessToken;
+
+  bool get _usesDesktopLoopbackOAuth {
+    if (kIsWeb) {
+      return false;
+    }
+
+    return defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.windows;
+  }
 
   Future<AuthTokens?> bootstrap() async {
     final refreshToken = await tokenStore.readRefreshToken();
@@ -90,7 +99,12 @@ class AuthRepository {
   }
 
   Future<AuthTokens?> signInWithGoogle({required String clientType, String? deviceLabel}) async {
-    final redirectUri = kIsWeb ? _webOAuthRedirectUri() : nativeOAuthRedirectUri;
+    final redirectUri = kIsWeb
+        ? _webOAuthRedirectUri()
+        : _usesDesktopLoopbackOAuth
+        ? desktopOAuthRedirectUri
+        : nativeOAuthRedirectUri;
+
     final startUri = apiClient.googleOAuthStartUri(redirectUri);
 
     if (kIsWeb) {
@@ -98,7 +112,12 @@ class AuthRepository {
       return null;
     }
 
-    final callbackUrl = await FlutterWebAuth2.authenticate(url: startUri.toString(), callbackUrlScheme: 'papyrus');
+    final callbackUrl = await FlutterWebAuth2.authenticate(
+      url: startUri.toString(),
+      callbackUrlScheme: _usesDesktopLoopbackOAuth ? desktopOAuthRedirectUri : Uri.parse(nativeOAuthRedirectUri).scheme,
+      options: const FlutterWebAuth2Options(useWebview: false),
+    );
+
     final callbackUri = Uri.parse(callbackUrl);
     return completeGoogleSignIn(callbackUri, clientType: clientType, deviceLabel: deviceLabel);
   }
