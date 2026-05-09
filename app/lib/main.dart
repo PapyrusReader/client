@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/auth/auth_repository.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
@@ -17,6 +18,8 @@ import 'config/app_router.dart';
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  usePathUrlStrategy();
+
   final prefs = await SharedPreferences.getInstance();
   runApp(Papyrus(prefs: prefs));
 }

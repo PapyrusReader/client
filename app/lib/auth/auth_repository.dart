@@ -181,6 +181,13 @@ class AuthRepository {
   }
 
   String _webOAuthRedirectUri() {
-    return Uri.base.replace(path: '/auth/callback', query: '').toString();
+    final base = Uri.base;
+
+    return Uri(
+      scheme: base.scheme,
+      host: base.host,
+      port: base.hasPort ? base.port : null,
+      path: '/auth/callback',
+    ).toString();
   }
 }
