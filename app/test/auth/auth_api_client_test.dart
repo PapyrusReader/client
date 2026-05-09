@@ -78,4 +78,52 @@ void main() {
     expect(uri.path, '/v1/auth/oauth/google/start');
     expect(uri.queryParameters['redirect_uri'], 'papyrus://auth/callback');
   });
+
+  test('powerSyncToken maps Papyrus token response', () async {
+    final client = AuthApiClient(
+      config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test')),
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/v1/auth/powersync-token');
+        expect(request.headers['Authorization'], 'Bearer access-token');
+
+        return http.Response(jsonEncode({'token': 'powersync-token', 'expires_in': 300}), 200);
+      }),
+    );
+
+    final token = await client.powerSyncToken('access-token');
+
+    expect(token.token, 'powersync-token');
+    expect(token.expiresIn, 300);
+  });
+
+  test('uploadPowerSyncBatch posts PowerSync mutations', () async {
+    final client = AuthApiClient(
+      config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test')),
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/v1/sync/powersync-upload');
+        expect(request.headers['Authorization'], 'Bearer access-token');
+        expect(jsonDecode(request.body), {
+          'batch': [
+            {
+              'type': 'books',
+              'op': 'PUT',
+              'id': 'book-id',
+              'data': {'title': 'Book'},
+            },
+          ],
+        });
+
+        return http.Response(jsonEncode({'applied_count': 1}), 200);
+      }),
+    );
+
+    await client.uploadPowerSyncBatch('access-token', [
+      {
+        'type': 'books',
+        'op': 'PUT',
+        'id': 'book-id',
+        'data': {'title': 'Book'},
+      },
+    ]);
+  });
 }

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/models/book.dart';
@@ -10,6 +12,12 @@ import 'package:papyrus/models/reading_session.dart';
 import 'package:papyrus/models/series.dart';
 import 'package:papyrus/models/shelf.dart';
 import 'package:papyrus/models/tag.dart';
+
+abstract class BookSyncWriter {
+  Future<void> upsertBook(Book book);
+
+  Future<void> deleteBook(String id);
+}
 
 /// Central in-memory data store - the single source of truth.
 /// All repositories read from and write to this store.
@@ -30,6 +38,7 @@ class DataStore extends ChangeNotifier {
   final List<BookTagRelation> _bookTagRelations = [];
 
   bool _isLoaded = false;
+  BookSyncWriter? _bookSyncWriter;
 
   // ============================================================
   // Getters for read access
@@ -62,13 +71,19 @@ class DataStore extends ChangeNotifier {
 
   Book? getBook(String id) => _books[id];
 
+  void attachBookSyncWriter(BookSyncWriter? writer) {
+    _bookSyncWriter = writer;
+  }
+
   void addBook(Book book) {
     _books[book.id] = book;
+    unawaited(_bookSyncWriter?.upsertBook(book));
     notifyListeners();
   }
 
   void updateBook(Book book) {
     _books[book.id] = book;
+    unawaited(_bookSyncWriter?.upsertBook(book));
     notifyListeners();
   }
 
@@ -81,6 +96,22 @@ class DataStore extends ChangeNotifier {
     _notes.removeWhere((key, n) => n.bookId == id);
     _bookmarks.removeWhere((key, b) => b.bookId == id);
     _readingSessions.removeWhere((key, s) => s.bookId == id);
+    unawaited(_bookSyncWriter?.deleteBook(id));
+    notifyListeners();
+  }
+
+  void replaceBooksFromSync(List<Book> books) {
+    final syncedIds = books.map((book) => book.id).toSet();
+    _books
+      ..clear()
+      ..addEntries(books.map((book) => MapEntry(book.id, book)));
+    _bookShelfRelations.removeWhere((relation) => !syncedIds.contains(relation.bookId));
+    _bookTagRelations.removeWhere((relation) => !syncedIds.contains(relation.bookId));
+    _annotations.removeWhere((key, annotation) => !syncedIds.contains(annotation.bookId));
+    _notes.removeWhere((key, note) => !syncedIds.contains(note.bookId));
+    _bookmarks.removeWhere((key, bookmark) => !syncedIds.contains(bookmark.bookId));
+    _readingSessions.removeWhere((key, session) => !syncedIds.contains(session.bookId));
+    _isLoaded = true;
     notifyListeners();
   }
 

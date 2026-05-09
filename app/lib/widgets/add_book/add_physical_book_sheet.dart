@@ -15,6 +15,7 @@ import 'package:papyrus/widgets/book_form/co_author_editor.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 import 'package:provider/provider.dart';
+import 'package:uuid/uuid.dart';
 
 /// ISBN lookup states.
 enum _IsbnLookupState { idle, fetching, found, notFound, error }
@@ -218,7 +219,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
     }
 
     final book = Book(
-      id: 'book-${now.millisecondsSinceEpoch}',
+      id: const Uuid().v4(),
       title: _titleController.text.trim(),
       author: _authorController.text.trim(),
       subtitle: _nullIfEmpty(_subtitleController.text),

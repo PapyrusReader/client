@@ -58,6 +58,17 @@ class AuthTokens {
   }
 }
 
+class PowerSyncToken {
+  final String token;
+  final int expiresIn;
+
+  const PowerSyncToken({required this.token, required this.expiresIn});
+
+  factory PowerSyncToken.fromJson(Map<String, dynamic> json) {
+    return PowerSyncToken(token: json['token'] as String, expiresIn: json['expires_in'] as int);
+  }
+}
+
 DateTime? _parseDateTime(Object? value) {
   if (value is! String || value.isEmpty) {
     return null;

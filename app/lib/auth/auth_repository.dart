@@ -180,6 +180,18 @@ class AuthRepository {
     return apiClient.resendVerification(email);
   }
 
+  Future<PowerSyncToken> createPowerSyncToken() {
+    return _withFreshAccessToken((accessToken) {
+      return apiClient.powerSyncToken(accessToken);
+    });
+  }
+
+  Future<void> uploadPowerSyncBatch(List<Map<String, dynamic>> batch) {
+    return _withFreshAccessToken((accessToken) {
+      return apiClient.uploadPowerSyncBatch(accessToken, batch);
+    });
+  }
+
   Future<void> clearTokens() {
     return tokenStore.clear();
   }
@@ -197,6 +209,19 @@ class AuthRepository {
 
   Future<void> _save(AuthTokens tokens) {
     return tokenStore.saveTokens(accessToken: tokens.accessToken, refreshToken: tokens.refreshToken);
+  }
+
+  Future<T> _withFreshAccessToken<T>(Future<T> Function(String accessToken) action) async {
+    try {
+      return await action(await _requireAccessToken());
+    } on AuthApiException catch (error) {
+      if (error.statusCode != 401) {
+        rethrow;
+      }
+
+      final tokens = await refresh();
+      return action(tokens.accessToken);
+    }
   }
 
   String _webOAuthRedirectUri() {

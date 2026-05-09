@@ -4,6 +4,7 @@ import 'dart:js_interop_unsafe';
 
 import 'package:flutter/foundation.dart';
 import 'package:papyrus/services/book_import_result.dart';
+import 'package:uuid/uuid.dart';
 import 'package:web/web.dart' as web;
 
 export 'package:papyrus/services/book_import_result.dart';
@@ -17,9 +18,6 @@ class BookImportService {
 
   /// Timeout for worker operations before they are considered failed.
   static const _timeout = Duration(seconds: 30);
-
-  /// Incrementing counter used to guarantee unique book IDs.
-  int _nextId = 0;
 
   /// Pending requests keyed by '$action:$bookId'.
   final Map<String, Completer<JSObject>> _pending = {};
@@ -122,7 +120,7 @@ class BookImportService {
       throw ArgumentError('Unsupported format: $ext. Only epub is supported.');
     }
 
-    final bookId = 'book-${DateTime.now().millisecondsSinceEpoch}-${_nextId++}';
+    final bookId = const Uuid().v4();
     final completer = Completer<JSObject>();
     final worker = _getWorker();
 

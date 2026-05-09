@@ -1,15 +1,25 @@
 class PapyrusApiConfig {
   static const _defaultBaseUrl = 'http://localhost:8080';
+  static const _defaultPowerSyncServiceUrl = 'http://localhost:8081';
 
   final Uri serverBaseUri;
+  final Uri powerSyncServiceUri;
   final String apiPrefix;
 
-  const PapyrusApiConfig({required this.serverBaseUri, this.apiPrefix = '/v1'});
+  PapyrusApiConfig({required this.serverBaseUri, Uri? powerSyncServiceUri, this.apiPrefix = '/v1'})
+    : powerSyncServiceUri = powerSyncServiceUri ?? Uri.parse(_defaultPowerSyncServiceUrl);
 
   factory PapyrusApiConfig.fromEnvironment() {
     const rawBaseUrl = String.fromEnvironment('PAPYRUS_API_BASE_URL', defaultValue: _defaultBaseUrl);
+    const rawPowerSyncServiceUrl = String.fromEnvironment(
+      'POWERSYNC_SERVICE_URL',
+      defaultValue: _defaultPowerSyncServiceUrl,
+    );
 
-    return PapyrusApiConfig(serverBaseUri: Uri.parse(rawBaseUrl));
+    return PapyrusApiConfig(
+      serverBaseUri: Uri.parse(rawBaseUrl),
+      powerSyncServiceUri: Uri.parse(rawPowerSyncServiceUrl),
+    );
   }
 
   Uri get apiBaseUri {

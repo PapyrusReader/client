@@ -18,6 +18,8 @@ class _FakePathProvider extends Fake with MockPlatformInterfaceMixin implements 
 }
 
 void main() {
+  final uuidMatcher = matches(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'));
+
   late BookImportService service;
   late Directory tempDir;
 
@@ -51,7 +53,7 @@ void main() {
 
         final result = await service.importBook(bytes, 'book1.epub');
 
-        expect(result.bookId, startsWith('book-'));
+        expect(result.bookId, uuidMatcher);
         expect(result.title, isNotEmpty);
         expect(result.fileSize, bytes.length);
         expect(result.fileHash, isNotEmpty);
@@ -65,7 +67,7 @@ void main() {
 
         final result = await service.importBook(bytes, 'book2.epub');
 
-        expect(result.bookId, startsWith('book-'));
+        expect(result.bookId, uuidMatcher);
         expect(result.title, isNotEmpty);
         expect(result.fileSize, bytes.length);
         expect(result.fileHash, isNotEmpty);
@@ -78,7 +80,7 @@ void main() {
 
         final result = await service.importBook(bytes, 'book3.epub');
 
-        expect(result.bookId, startsWith('book-'));
+        expect(result.bookId, uuidMatcher);
         expect(result.title, isNotEmpty);
         expect(result.fileSize, bytes.length);
         expect(result.fileHash, isNotEmpty);
@@ -139,7 +141,7 @@ void main() {
         final result = await service.importBook(bytes, 'bad.epub');
 
         // Should still return a result (FileMetadataService never throws)
-        expect(result.bookId, startsWith('book-'));
+        expect(result.bookId, uuidMatcher);
         expect(result.fileSize, 6);
         expect(result.fileHash, isNotEmpty);
         expect(result.fileExtension, 'epub');

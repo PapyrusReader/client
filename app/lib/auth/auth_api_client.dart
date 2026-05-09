@@ -125,6 +125,16 @@ class AuthApiClient {
     return json['message'] as String? ?? 'If the email is registered, a verification link has been sent';
   }
 
+  Future<PowerSyncToken> powerSyncToken(String accessToken) async {
+    final json = await _postJson(config.endpoint('/auth/powersync-token'), accessToken: accessToken);
+
+    return PowerSyncToken.fromJson(json);
+  }
+
+  Future<void> uploadPowerSyncBatch(String accessToken, List<Map<String, dynamic>> batch) async {
+    await _postJson(config.endpoint('/sync/powersync-upload'), accessToken: accessToken, body: {'batch': batch});
+  }
+
   Future<Map<String, dynamic>> _getJson(Uri uri, {String? accessToken}) async {
     final response = await _httpClient.get(uri, headers: _headers(accessToken));
 

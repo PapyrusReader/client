@@ -34,10 +34,12 @@ dependencies:
   path: ^1.9.1
   crypto: ^3.0.6
   path_provider: ^2.1.5
+  powersync: ^2.1.0
   web: ^1.1.1
   mobile_scanner: ^7.0.1
   shared_preferences: ^2.5.4
   flutter_secure_storage: ^10.1.0
+  uuid: ^4.5.1
 
 dev_dependencies:
   flutter_test:

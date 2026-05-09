@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
@@ -5,7 +7,7 @@ import 'package:papyrus/auth/auth_repository.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/data/data_store.dart';
-import 'package:papyrus/data/sample_data.dart';
+import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
@@ -34,7 +36,9 @@ class Papyrus extends StatefulWidget {
 }
 
 class _PapyrusState extends State<Papyrus> {
+  late final DataStore _dataStore;
   late final AuthProvider _authProvider;
+  late final PapyrusPowerSyncService _powerSyncService;
   late final AppRouter _appRouter;
 
   @override
@@ -48,14 +52,40 @@ class _PapyrusState extends State<Papyrus> {
       tokenStore: tokenStore,
     );
 
+    _dataStore = DataStore();
     _authProvider = AuthProvider(widget.prefs, repository: authRepository);
+    _powerSyncService = PapyrusPowerSyncService(
+      authRepository: authRepository,
+      config: apiConfig,
+      dataStore: _dataStore,
+    );
     _appRouter = AppRouter(authProvider: _authProvider);
+    _authProvider.addListener(_syncPowerSyncAuthState);
+    _syncPowerSyncAuthState();
   }
 
   @override
   void dispose() {
+    _authProvider.removeListener(_syncPowerSyncAuthState);
+    unawaited(_powerSyncService.close());
     _authProvider.dispose();
     super.dispose();
+  }
+
+  void _syncPowerSyncAuthState() {
+    if (_authProvider.isSignedIn) {
+      unawaited(_powerSyncService.connect());
+      return;
+    }
+
+    if (_authProvider.isOfflineMode) {
+      unawaited(_powerSyncService.showOfflineSampleData());
+      return;
+    }
+
+    if (!_authProvider.isBootstrapping) {
+      unawaited(_powerSyncService.disconnectAndClear());
+    }
   }
 
   @override
@@ -63,22 +93,7 @@ class _PapyrusState extends State<Papyrus> {
     return MultiProvider(
       providers: [
         // Core data store - single source of truth
-        ChangeNotifierProvider(
-          create: (_) => DataStore()
-            ..loadData(
-              books: SampleData.books,
-              shelves: SampleData.shelves,
-              tags: SampleData.tags,
-              series: SampleData.seriesList,
-              annotations: SampleData.annotations,
-              notes: SampleData.notes,
-              bookmarks: SampleData.bookmarks,
-              readingSessions: SampleData.readingSessions,
-              readingGoals: SampleData.readingGoals,
-              bookShelfRelations: SampleData.bookShelfRelations,
-              bookTagRelations: SampleData.bookTagRelations,
-            ),
-        ),
+        ChangeNotifierProvider.value(value: _dataStore),
         // Auth and UI state providers
         ChangeNotifierProvider.value(value: _authProvider),
         ChangeNotifierProvider(create: (_) => SidebarProvider()),
