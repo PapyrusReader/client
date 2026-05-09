@@ -19,11 +19,7 @@ void main() {
         child: BookActionButtons(
           book:
               book ??
-              buildTestBook(
-                fileFormat: BookFormat.epub,
-                currentPosition: 0.5,
-                readingStatus: ReadingStatus.inProgress,
-              ),
+              buildTestBook(fileFormat: BookFormat.epub, currentPosition: 0.5, readingStatus: ReadingStatus.inProgress),
           onContinueReading: onContinueReading,
           onUpdateProgress: onUpdateProgress,
           onToggleFavorite: onToggleFavorite,
@@ -34,63 +30,33 @@ void main() {
     }
 
     group('digital book', () {
-      testWidgets('shows Continue button when book has progress', (
-        tester,
-      ) async {
-        await tester.pumpWidget(
-          buildWidget(
-            book: buildTestBook(
-              currentPosition: 0.5,
-              fileFormat: BookFormat.epub,
-            ),
-          ),
-        );
+      testWidgets('shows Continue button when book has progress', (tester) async {
+        await tester.pumpWidget(buildWidget(book: buildTestBook(currentPosition: 0.5, fileFormat: BookFormat.epub)));
 
         expect(find.text('Continue'), findsOneWidget);
         expect(find.byIcon(Icons.play_arrow), findsOneWidget);
       });
 
-      testWidgets('shows Read button when book has no progress (mobile)', (
-        tester,
-      ) async {
-        await tester.pumpWidget(
-          buildWidget(
-            book: buildTestBook(
-              currentPosition: 0.0,
-              fileFormat: BookFormat.epub,
-            ),
-          ),
-        );
+      testWidgets('shows Read button when book has no progress (mobile)', (tester) async {
+        await tester.pumpWidget(buildWidget(book: buildTestBook(currentPosition: 0.0, fileFormat: BookFormat.epub)));
 
         expect(find.text('Read'), findsOneWidget);
         expect(find.byIcon(Icons.menu_book), findsOneWidget);
       });
 
-      testWidgets(
-        'shows Start reading button when book has no progress (desktop)',
-        (tester) async {
-          await tester.pumpWidget(
-            buildWidget(
-              book: buildTestBook(
-                currentPosition: 0.0,
-                fileFormat: BookFormat.epub,
-              ),
-              isDesktop: true,
-            ),
-          );
+      testWidgets('shows Start reading button when book has no progress (desktop)', (tester) async {
+        await tester.pumpWidget(
+          buildWidget(book: buildTestBook(currentPosition: 0.0, fileFormat: BookFormat.epub), isDesktop: true),
+        );
 
-          expect(find.text('Start reading'), findsOneWidget);
-        },
-      );
+        expect(find.text('Start reading'), findsOneWidget);
+      });
 
       testWidgets('calls onContinueReading when tapped', (tester) async {
         var called = false;
         await tester.pumpWidget(
           buildWidget(
-            book: buildTestBook(
-              currentPosition: 0.5,
-              fileFormat: BookFormat.epub,
-            ),
+            book: buildTestBook(currentPosition: 0.5, fileFormat: BookFormat.epub),
             onContinueReading: () => called = true,
           ),
         );
@@ -102,9 +68,7 @@ void main() {
 
     group('physical book', () {
       testWidgets('shows Update progress button', (tester) async {
-        await tester.pumpWidget(
-          buildWidget(book: buildTestBook(isPhysical: true)),
-        );
+        await tester.pumpWidget(buildWidget(book: buildTestBook(isPhysical: true)));
 
         expect(find.text('Update progress'), findsOneWidget);
         expect(find.byIcon(Icons.edit_note), findsOneWidget);
@@ -113,10 +77,7 @@ void main() {
       testWidgets('calls onUpdateProgress when tapped', (tester) async {
         var called = false;
         await tester.pumpWidget(
-          buildWidget(
-            book: buildTestBook(isPhysical: true),
-            onUpdateProgress: () => called = true,
-          ),
+          buildWidget(book: buildTestBook(isPhysical: true), onUpdateProgress: () => called = true),
         );
 
         await tester.tap(find.text('Update progress'));
@@ -126,21 +87,13 @@ void main() {
 
     group('favorite button', () {
       testWidgets('shows outlined heart when not favorite', (tester) async {
-        await tester.pumpWidget(
-          buildWidget(
-            book: buildTestBook(isFavorite: false, fileFormat: BookFormat.epub),
-          ),
-        );
+        await tester.pumpWidget(buildWidget(book: buildTestBook(isFavorite: false, fileFormat: BookFormat.epub)));
 
         expect(find.byIcon(Icons.favorite_border), findsOneWidget);
       });
 
       testWidgets('shows filled heart when favorite', (tester) async {
-        await tester.pumpWidget(
-          buildWidget(
-            book: buildTestBook(isFavorite: true, fileFormat: BookFormat.epub),
-          ),
-        );
+        await tester.pumpWidget(buildWidget(book: buildTestBook(isFavorite: true, fileFormat: BookFormat.epub)));
 
         expect(find.byIcon(Icons.favorite), findsOneWidget);
       });
@@ -166,9 +119,7 @@ void main() {
 
     group('edit button', () {
       testWidgets('shows edit icon', (tester) async {
-        await tester.pumpWidget(
-          buildWidget(book: buildTestBook(fileFormat: BookFormat.epub)),
-        );
+        await tester.pumpWidget(buildWidget(book: buildTestBook(fileFormat: BookFormat.epub)));
 
         expect(find.byIcon(Icons.edit_outlined), findsOneWidget);
       });
@@ -182,10 +133,7 @@ void main() {
           ),
         );
 
-        final editButton = find.ancestor(
-          of: find.byIcon(Icons.edit_outlined),
-          matching: find.byType(OutlinedButton),
-        );
+        final editButton = find.ancestor(of: find.byIcon(Icons.edit_outlined), matching: find.byType(OutlinedButton));
         await tester.tap(editButton);
         expect(called, true);
       });

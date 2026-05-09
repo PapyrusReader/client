@@ -25,12 +25,7 @@ class LibraryDrawer extends StatelessWidget {
             // Drawer header
             Padding(
               padding: const EdgeInsets.all(Spacing.lg),
-              child: Text(
-                'Library',
-                style: textTheme.headlineSmall?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
+              child: Text('Library', style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
             ),
             Divider(height: 1, color: colorScheme.outlineVariant),
             const SizedBox(height: Spacing.sm),
@@ -42,9 +37,7 @@ class LibraryDrawer extends StatelessWidget {
                   _DrawerNavItem(
                     icon: Icons.book,
                     label: 'Books',
-                    isSelected:
-                        currentPath == '/library' ||
-                        currentPath == '/library/books',
+                    isSelected: currentPath == '/library' || currentPath == '/library/books',
                     onTap: () {
                       Navigator.of(context).pop();
                       context.go('/library');
@@ -103,12 +96,7 @@ class _DrawerNavItem extends StatelessWidget {
   final bool isSelected;
   final VoidCallback onTap;
 
-  const _DrawerNavItem({
-    required this.icon,
-    required this.label,
-    this.isSelected = false,
-    required this.onTap,
-  });
+  const _DrawerNavItem({required this.icon, required this.label, this.isSelected = false, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -116,10 +104,7 @@ class _DrawerNavItem extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return ListTile(
-      leading: Icon(
-        icon,
-        color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
-      ),
+      leading: Icon(icon, color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant),
       title: Text(
         label,
         style: textTheme.bodyLarge?.copyWith(
@@ -129,9 +114,7 @@ class _DrawerNavItem extends StatelessWidget {
       ),
       selected: isSelected,
       selectedTileColor: colorScheme.primaryContainer.withValues(alpha: 0.3),
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.full),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
       contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md),
       visualDensity: VisualDensity.compact,
       onTap: onTap,

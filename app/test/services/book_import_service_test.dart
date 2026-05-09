@@ -8,9 +8,7 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 /// Fake path_provider that returns a temporary directory for testing.
-class _FakePathProvider extends Fake
-    with MockPlatformInterfaceMixin
-    implements PathProviderPlatform {
+class _FakePathProvider extends Fake with MockPlatformInterfaceMixin implements PathProviderPlatform {
   final Directory tempDir;
 
   _FakePathProvider(this.tempDir);
@@ -124,9 +122,7 @@ void main() {
 
         final result = await service.importBook(bytes, 'book1.epub');
 
-        final storedFile = File(
-          p.join(tempDir.path, 'books', '${result.bookId}.epub'),
-        );
+        final storedFile = File(p.join(tempDir.path, 'books', '${result.bookId}.epub'));
         expect(storedFile.existsSync(), isTrue);
         expect(storedFile.lengthSync(), bytes.length);
       });
@@ -150,14 +146,9 @@ void main() {
       });
 
       test('imports txt file with author-title pattern', () async {
-        final bytes = Uint8List.fromList(
-          'Hello, this is a test book with some content.'.codeUnits,
-        );
+        final bytes = Uint8List.fromList('Hello, this is a test book with some content.'.codeUnits);
 
-        final result = await service.importBook(
-          bytes,
-          'Jane Austen - Pride and Prejudice.txt',
-        );
+        final result = await service.importBook(bytes, 'Jane Austen - Pride and Prejudice.txt');
 
         expect(result.title, 'Pride and Prejudice');
         expect(result.author, 'Jane Austen');

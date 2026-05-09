@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:provider/provider.dart';
 
 /// Greeting section for the dashboard displaying time-based greeting.
 class DashboardGreeting extends StatelessWidget {
@@ -13,18 +14,11 @@ class DashboardGreeting extends StatelessWidget {
   /// Whether to use desktop styling.
   final bool isDesktop;
 
-  const DashboardGreeting({
-    super.key,
-    required this.greeting,
-    this.onNotificationsTap,
-    this.isDesktop = false,
-  });
+  const DashboardGreeting({super.key, required this.greeting, this.onNotificationsTap, this.isDesktop = false});
 
   /// Returns the current user's first name, or "reader" as fallback.
-  String get _userName {
-    final user = Supabase.instance.client.auth.currentUser;
-    final displayName =
-        (user?.userMetadata?['full_name'] as String?) ?? 'reader';
+  String _userName(BuildContext context) {
+    final displayName = context.watch<AuthProvider>().user?.displayName ?? 'reader';
     return displayName.split(' ').first;
   }
 
@@ -32,21 +26,14 @@ class DashboardGreeting extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    final greetingStyle = isDesktop
-        ? textTheme.headlineMedium
-        : textTheme.titleLarge;
+    final greetingStyle = isDesktop ? textTheme.headlineMedium : textTheme.titleLarge;
 
     return Padding(
-      padding: isDesktop
-          ? EdgeInsets.zero
-          : const EdgeInsets.symmetric(horizontal: Spacing.md),
+      padding: isDesktop ? EdgeInsets.zero : const EdgeInsets.symmetric(horizontal: Spacing.md),
       child: Row(
         children: [
-          Expanded(child: Text('$greeting, $_userName!', style: greetingStyle)),
-          IconButton(
-            icon: const Icon(Icons.notifications_outlined),
-            onPressed: onNotificationsTap,
-          ),
+          Expanded(child: Text('$greeting, ${_userName(context)}!', style: greetingStyle)),
+          IconButton(icon: const Icon(Icons.notifications_outlined), onPressed: onNotificationsTap),
         ],
       ),
     );

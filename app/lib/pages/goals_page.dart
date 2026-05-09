@@ -106,10 +106,7 @@ class _GoalsPageState extends State<GoalsPage> {
                 ...provider.activeGoals.map(
                   (goal) => Padding(
                     padding: const EdgeInsets.only(bottom: Spacing.md),
-                    child: GoalCard(
-                      goal: goal,
-                      onTap: () => _showGoalDetails(context, goal),
-                    ),
+                    child: GoalCard(goal: goal, onTap: () => _showGoalDetails(context, goal)),
                   ),
                 ),
               ],
@@ -127,13 +124,8 @@ class _GoalsPageState extends State<GoalsPage> {
                       children: provider.completedGoals
                           .map(
                             (goal) => Padding(
-                              padding: const EdgeInsets.only(
-                                bottom: Spacing.md,
-                              ),
-                              child: GoalCard(
-                                goal: goal,
-                                onTap: () => _showGoalDetails(context, goal),
-                              ),
+                              padding: const EdgeInsets.only(bottom: Spacing.md),
+                              child: GoalCard(goal: goal, onTap: () => _showGoalDetails(context, goal)),
                             ),
                           )
                           .toList(),
@@ -192,10 +184,7 @@ class _GoalsPageState extends State<GoalsPage> {
                 _buildCompletedHeader(context, provider.completedGoals.length),
                 const SizedBox(height: Spacing.md),
                 if (!_completedCollapsed)
-                  Opacity(
-                    opacity: 0.6,
-                    child: _buildGoalGrid(context, provider.completedGoals),
-                  ),
+                  Opacity(opacity: 0.6, child: _buildGoalGrid(context, provider.completedGoals)),
               ],
             ],
           ),
@@ -225,11 +214,7 @@ class _GoalsPageState extends State<GoalsPage> {
           ),
           itemCount: goals.length,
           itemBuilder: (context, index) {
-            return GoalCard(
-              goal: goals[index],
-              isDesktop: true,
-              onTap: () => _showGoalDetails(context, goals[index]),
-            );
+            return GoalCard(goal: goals[index], isDesktop: true, onTap: () => _showGoalDetails(context, goals[index]));
           },
         );
       },
@@ -250,27 +235,15 @@ class _GoalsPageState extends State<GoalsPage> {
     return Row(
       children: [
         Expanded(
-          child: CompactStatCard(
-            value: '${provider.activeGoals.length}',
-            label: 'Active',
-            isDesktop: isDesktop,
-          ),
+          child: CompactStatCard(value: '${provider.activeGoals.length}', label: 'Active', isDesktop: isDesktop),
         ),
         const SizedBox(width: Spacing.md),
         Expanded(
-          child: CompactStatCard(
-            value: '${provider.completedGoals.length}',
-            label: 'Completed',
-            isDesktop: isDesktop,
-          ),
+          child: CompactStatCard(value: '${provider.completedGoals.length}', label: 'Completed', isDesktop: isDesktop),
         ),
         const SizedBox(width: Spacing.md),
         Expanded(
-          child: CompactStatCard(
-            value: '${_getBestStreak(provider)}',
-            label: 'Best streak',
-            isDesktop: isDesktop,
-          ),
+          child: CompactStatCard(value: '${_getBestStreak(provider)}', label: 'Best streak', isDesktop: isDesktop),
         ),
       ],
     );
@@ -295,17 +268,9 @@ class _GoalsPageState extends State<GoalsPage> {
           children: [
             Text('Completed goals', style: textTheme.titleMedium),
             const SizedBox(width: Spacing.sm),
-            Text(
-              '($count)',
-              style: textTheme.titleMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('($count)', style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
             const Spacer(),
-            Icon(
-              _completedCollapsed ? Icons.expand_more : Icons.expand_less,
-              color: colorScheme.onSurfaceVariant,
-            ),
+            Icon(_completedCollapsed ? Icons.expand_more : Icons.expand_less, color: colorScheme.onSurfaceVariant),
           ],
         ),
       ),
@@ -325,23 +290,13 @@ class _GoalsPageState extends State<GoalsPage> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.flag_outlined,
-            size: 64,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          Icon(Icons.flag_outlined, size: 64, color: colorScheme.onSurfaceVariant),
           const SizedBox(height: Spacing.lg),
-          Text(
-            'No goals yet',
-            style: textTheme.headlineSmall,
-            textAlign: TextAlign.center,
-          ),
+          Text('No goals yet', style: textTheme.headlineSmall, textAlign: TextAlign.center),
           const SizedBox(height: Spacing.sm),
           Text(
             'Create your first reading goal to track your progress',
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: Spacing.lg),
@@ -377,11 +332,7 @@ class _GoalsPageState extends State<GoalsPage> {
 
   void _showGoalDetails(BuildContext context, ReadingGoal goal) {
     if (goal.isCompleted) {
-      CompletedGoalChip.showDetailsSheet(
-        context,
-        goal: goal,
-        onDelete: () => _provider.deleteGoal(goal.id),
-      );
+      CompletedGoalChip.showDetailsSheet(context, goal: goal, onDelete: () => _provider.deleteGoal(goal.id));
       return;
     }
 

@@ -38,9 +38,7 @@ class BookProgressBar extends StatelessWidget {
                 child: LinearProgressIndicator(
                   value: progress,
                   backgroundColor: colorScheme.surfaceContainerHighest,
-                  color: progress >= 1.0
-                      ? colorScheme.tertiary
-                      : colorScheme.primary,
+                  color: progress >= 1.0 ? colorScheme.tertiary : colorScheme.primary,
                   minHeight: barHeight,
                 ),
               ),
@@ -49,9 +47,7 @@ class BookProgressBar extends StatelessWidget {
               const SizedBox(width: Spacing.sm),
               Text(
                 _getProgressLabel(),
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
             ],
           ],

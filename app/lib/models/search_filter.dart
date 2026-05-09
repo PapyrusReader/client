@@ -7,11 +7,7 @@ class SearchFilter {
   final SearchOperator operator;
   final String value;
 
-  const SearchFilter({
-    required this.field,
-    required this.operator,
-    required this.value,
-  });
+  const SearchFilter({required this.field, required this.operator, required this.value});
 
   /// Check if a book matches this filter.
   bool matches(Book book, {DataStore? dataStore}) {
@@ -47,17 +43,9 @@ class SearchFilter {
       case SearchField.format:
         return book.formatLabel.toLowerCase();
       case SearchField.shelf:
-        return dataStore
-                ?.getShelvesForBook(book.id)
-                .map((s) => s.name)
-                .join(',') ??
-            book.shelves.join(',');
+        return dataStore?.getShelvesForBook(book.id).map((s) => s.name).join(',') ?? book.shelves.join(',');
       case SearchField.topic:
-        return dataStore
-                ?.getTagsForBook(book.id)
-                .map((t) => t.name)
-                .join(',') ??
-            book.topics.join(',');
+        return dataStore?.getTagsForBook(book.id).map((t) => t.name).join(',') ?? book.topics.join(',');
       case SearchField.status:
         if (book.isFinished) return 'finished';
         if (book.isReading) return 'reading';
@@ -106,11 +94,7 @@ class SearchQuery {
   final List<LogicalOperator> operators;
   final List<SearchFilter> notFilters;
 
-  const SearchQuery({
-    this.filters = const [],
-    this.operators = const [],
-    this.notFilters = const [],
-  });
+  const SearchQuery({this.filters = const [], this.operators = const [], this.notFilters = const []});
 
   /// Check if a book matches this query.
   bool matches(Book book, {DataStore? dataStore}) {
@@ -127,9 +111,7 @@ class SearchQuery {
 
     for (int i = 1; i < filters.length; i++) {
       final filterResult = filters[i].matches(book, dataStore: dataStore);
-      final op = i - 1 < operators.length
-          ? operators[i - 1]
-          : LogicalOperator.and;
+      final op = i - 1 < operators.length ? operators[i - 1] : LogicalOperator.and;
 
       if (op == LogicalOperator.and) {
         result = result && filterResult;

@@ -61,10 +61,7 @@ class WeeklyActivityChart extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -76,9 +73,7 @@ class WeeklyActivityChart extends StatelessWidget {
           if (showPeriodToggle)
             Text(
               'Total: ${activities.totalTimeLabel} • Avg: ${activities.averageTimeLabel}/day',
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
         ],
       ),
@@ -86,11 +81,7 @@ class WeeklyActivityChart extends StatelessWidget {
   }
 
   /// Builds the header row with period navigation and optional toggle.
-  Widget _buildHeader(
-    BuildContext context,
-    TextTheme textTheme,
-    ColorScheme colorScheme,
-  ) {
+  Widget _buildHeader(BuildContext context, TextTheme textTheme, ColorScheme colorScheme) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -109,9 +100,7 @@ class WeeklyActivityChart extends StatelessWidget {
               icon: Icon(
                 Icons.chevron_right,
                 size: 20,
-                color: canGoToNextPeriod
-                    ? null
-                    : colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
+                color: canGoToNextPeriod ? null : colorScheme.onSurfaceVariant.withValues(alpha: 0.3),
               ),
               onPressed: canGoToNextPeriod ? onNextPeriod : null,
               visualDensity: VisualDensity.compact,
@@ -126,23 +115,14 @@ class WeeklyActivityChart extends StatelessWidget {
   }
 
   /// Builds the bar chart showing activity per day.
-  Widget _buildBarChart(
-    BuildContext context,
-    TextTheme textTheme,
-    ColorScheme colorScheme,
-    int maxMinutes,
-  ) {
+  Widget _buildBarChart(BuildContext context, TextTheme textTheme, ColorScheme colorScheme, int maxMinutes) {
     return SizedBox(
       height: 120,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.end,
         children: activities.map((activity) {
           return Expanded(
-            child: _buildBar(
-              context,
-              activity: activity,
-              maxMinutes: maxMinutes,
-            ),
+            child: _buildBar(context, activity: activity, maxMinutes: maxMinutes),
           );
         }).toList(),
       ),
@@ -150,21 +130,12 @@ class WeeklyActivityChart extends StatelessWidget {
   }
 
   /// Builds a single bar with time label and day label.
-  Widget _buildBar(
-    BuildContext context, {
-    required DailyActivity activity,
-    required int maxMinutes,
-  }) {
+  Widget _buildBar(BuildContext context, {required DailyActivity activity, required int maxMinutes}) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     final maxHeight = 80.0;
-    final barHeight = maxMinutes > 0
-        ? (activity.readingMinutes / maxMinutes * maxHeight).clamp(
-            2.0,
-            maxHeight,
-          )
-        : 2.0;
+    final barHeight = maxMinutes > 0 ? (activity.readingMinutes / maxMinutes * maxHeight).clamp(2.0, maxHeight) : 2.0;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -176,18 +147,13 @@ class WeeklyActivityChart extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 2),
               child: Text(
                 activity.readingTimeLabel,
-                style: textTheme.labelSmall?.copyWith(
-                  fontSize: 10,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: textTheme.labelSmall?.copyWith(fontSize: 10, color: colorScheme.onSurfaceVariant),
               ),
             ),
           Container(
             height: activity.hasActivity ? barHeight : 2,
             decoration: BoxDecoration(
-              color: activity.isToday
-                  ? colorScheme.primary
-                  : colorScheme.primary.withValues(alpha: 0.6),
+              color: activity.isToday ? colorScheme.primary : colorScheme.primary.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(2),
             ),
           ),
@@ -195,12 +161,8 @@ class WeeklyActivityChart extends StatelessWidget {
           Text(
             activity.dayLabel,
             style: textTheme.labelSmall?.copyWith(
-              fontWeight: activity.isToday
-                  ? FontWeight.bold
-                  : FontWeight.normal,
-              color: activity.isToday
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
+              fontWeight: activity.isToday ? FontWeight.bold : FontWeight.normal,
+              color: activity.isToday ? colorScheme.primary : colorScheme.onSurfaceVariant,
             ),
           ),
         ],

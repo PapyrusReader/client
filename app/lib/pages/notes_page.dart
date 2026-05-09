@@ -79,11 +79,7 @@ class _NotesPageState extends State<NotesPage> {
           children: [
             // Row 1: Menu + Search + Sort
             Padding(
-              padding: const EdgeInsets.only(
-                top: Spacing.md,
-                left: Spacing.md,
-                right: Spacing.md,
-              ),
+              padding: const EdgeInsets.only(top: Spacing.md, left: Spacing.md, right: Spacing.md),
               child: Row(
                 children: [
                   IconButton(
@@ -103,8 +99,7 @@ class _NotesPageState extends State<NotesPage> {
             const SizedBox(height: Spacing.md),
 
             // Tag filter chips
-            if (provider.hasNotes && provider.allTags.isNotEmpty)
-              _buildTagFilterChips(provider),
+            if (provider.hasNotes && provider.allTags.isNotEmpty) _buildTagFilterChips(provider),
 
             const SizedBox(height: Spacing.sm),
 
@@ -127,11 +122,7 @@ class _NotesPageState extends State<NotesPage> {
         children: [
           // Header row
           Container(
-            padding: const EdgeInsets.only(
-              top: Spacing.lg,
-              left: Spacing.lg,
-              right: Spacing.lg,
-            ),
+            padding: const EdgeInsets.only(top: Spacing.lg, left: Spacing.lg, right: Spacing.lg),
             child: Row(
               children: [
                 Expanded(child: _buildSearchField(provider)),
@@ -143,8 +134,7 @@ class _NotesPageState extends State<NotesPage> {
           const SizedBox(height: Spacing.md),
 
           // Tag filter chips
-          if (provider.hasNotes && provider.allTags.isNotEmpty)
-            _buildTagFilterChips(provider),
+          if (provider.hasNotes && provider.allTags.isNotEmpty) _buildTagFilterChips(provider),
 
           // Content
           Expanded(child: _buildContent(context, provider)),
@@ -186,46 +176,21 @@ class _NotesPageState extends State<NotesPage> {
       tooltip: 'Sort notes',
       onSelected: provider.setSortOption,
       itemBuilder: (context) => [
-        _buildSortMenuItem(
-          NoteSortOption.dateNewest,
-          'Newest first',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          NoteSortOption.dateOldest,
-          'Oldest first',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          NoteSortOption.bookTitle,
-          'By book title',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          NoteSortOption.pinnedFirst,
-          'Pinned first',
-          provider.sortOption,
-        ),
+        _buildSortMenuItem(NoteSortOption.dateNewest, 'Newest first', provider.sortOption),
+        _buildSortMenuItem(NoteSortOption.dateOldest, 'Oldest first', provider.sortOption),
+        _buildSortMenuItem(NoteSortOption.bookTitle, 'By book title', provider.sortOption),
+        _buildSortMenuItem(NoteSortOption.pinnedFirst, 'Pinned first', provider.sortOption),
       ],
     );
   }
 
-  PopupMenuItem<NoteSortOption> _buildSortMenuItem(
-    NoteSortOption option,
-    String label,
-    NoteSortOption current,
-  ) {
+  PopupMenuItem<NoteSortOption> _buildSortMenuItem(NoteSortOption option, String label, NoteSortOption current) {
     return PopupMenuItem(
       value: option,
       child: Row(
         children: [
           Expanded(child: Text(label)),
-          if (option == current)
-            Icon(
-              Icons.check,
-              size: IconSizes.small,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+          if (option == current) Icon(Icons.check, size: IconSizes.small, color: Theme.of(context).colorScheme.primary),
         ],
       ),
     );
@@ -345,21 +310,13 @@ class _NotesPageState extends State<NotesPage> {
     context.goNamed('BOOK_DETAILS', pathParameters: {'bookId': bookId});
   }
 
-  void _showNoteActions(
-    BuildContext context,
-    NotesProvider provider,
-    Note note,
-  ) async {
+  void _showNoteActions(BuildContext context, NotesProvider provider, Note note) async {
     final action = await NoteActionSheet.show(context, note: note);
     if (!mounted || action == null) return;
 
     switch (action) {
       case NoteAction.edit:
-        final updatedNote = await NoteDialog.show(
-          this.context,
-          bookId: note.bookId,
-          existingNote: note,
-        );
+        final updatedNote = await NoteDialog.show(this.context, bookId: note.bookId, existingNote: note);
         if (updatedNote != null && mounted) {
           provider.updateNote(updatedNote);
         }

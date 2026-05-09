@@ -23,12 +23,8 @@ class AuthHeroPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gradientStart = isDark
-        ? AuthColors.gradientStartDark
-        : AuthColors.gradientStartLight;
-    final gradientEnd = isDark
-        ? AuthColors.gradientEndDark
-        : AuthColors.gradientEndLight;
+    final gradientStart = isDark ? AuthColors.gradientStartDark : AuthColors.gradientStartLight;
+    final gradientEnd = isDark ? AuthColors.gradientEndDark : AuthColors.gradientEndLight;
 
     return Stack(
       fit: StackFit.expand,
@@ -45,11 +41,7 @@ class AuthHeroPanel extends StatelessWidget {
         ),
         // Illustration filling the panel - clean, no overlays
         Positioned.fill(
-          child: Image.asset(
-            'assets/images/auth-illustration.png',
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
-          ),
+          child: Image.asset('assets/images/auth-illustration.png', fit: BoxFit.cover, alignment: Alignment.center),
         ),
       ],
     );
@@ -66,12 +58,8 @@ class CompactAuthHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gradientStart = isDark
-        ? AuthColors.gradientStartDark
-        : AuthColors.gradientStartLight;
-    final gradientEnd = isDark
-        ? AuthColors.gradientEndDark
-        : AuthColors.gradientEndLight;
+    final gradientStart = isDark ? AuthColors.gradientStartDark : AuthColors.gradientStartLight;
+    final gradientEnd = isDark ? AuthColors.gradientEndDark : AuthColors.gradientEndLight;
 
     return ClipPath(
       clipper: CurvedBottomClipper(curveHeight: 30),

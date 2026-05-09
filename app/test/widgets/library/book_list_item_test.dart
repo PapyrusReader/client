@@ -22,19 +22,9 @@ void main() {
       );
     });
 
-    Widget buildListItem({
-      Book? book,
-      bool isFavorite = false,
-      VoidCallback? onTap,
-      bool showProgress = true,
-    }) {
+    Widget buildListItem({Book? book, bool isFavorite = false, VoidCallback? onTap, bool showProgress = true}) {
       return createTestApp(
-        child: BookListItem(
-          book: book ?? testBook,
-          isFavorite: isFavorite,
-          onTap: onTap,
-          showProgress: showProgress,
-        ),
+        child: BookListItem(book: book ?? testBook, isFavorite: isFavorite, onTap: onTap, showProgress: showProgress),
       );
     }
 
@@ -53,9 +43,7 @@ void main() {
       expect(find.text('EPUB'), findsOneWidget);
     });
 
-    testWidgets('shows progress bar and label when progress > 0', (
-      tester,
-    ) async {
+    testWidgets('shows progress bar and label when progress > 0', (tester) async {
       await tester.pumpWidget(buildListItem());
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
       expect(find.text('50%'), findsOneWidget);
@@ -104,10 +92,7 @@ void main() {
     });
 
     testWidgets('displays 100% progress for finished book', (tester) async {
-      final finishedBook = testBook.copyWith(
-        readingStatus: ReadingStatus.completed,
-        currentPosition: 1.0,
-      );
+      final finishedBook = testBook.copyWith(readingStatus: ReadingStatus.completed, currentPosition: 1.0);
       await tester.pumpWidget(buildListItem(book: finishedBook));
       expect(find.text('100%'), findsOneWidget);
     });

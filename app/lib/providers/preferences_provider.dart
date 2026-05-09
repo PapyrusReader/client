@@ -134,8 +134,7 @@ class PreferencesProvider extends ChangeNotifier {
   }
 
   /// Highlight color: 'yellow', 'green', 'blue', 'pink', or 'orange'.
-  String get defaultHighlightColor =>
-      _prefs.getString(_keyDefaultHighlightColor) ?? 'yellow';
+  String get defaultHighlightColor => _prefs.getString(_keyDefaultHighlightColor) ?? 'yellow';
 
   set defaultHighlightColor(String value) {
     _prefs.setString(_keyDefaultHighlightColor, value);
@@ -153,8 +152,7 @@ class PreferencesProvider extends ChangeNotifier {
   }
 
   /// Sort order: 'title', 'author', 'date_added', 'last_read', or 'rating'.
-  String get defaultSortOrder =>
-      _prefs.getString(_keyDefaultSortOrder) ?? 'date_added';
+  String get defaultSortOrder => _prefs.getString(_keyDefaultSortOrder) ?? 'date_added';
 
   set defaultSortOrder(String value) {
     _prefs.setString(_keyDefaultSortOrder, value);
@@ -162,8 +160,7 @@ class PreferencesProvider extends ChangeNotifier {
   }
 
   /// Metadata source: 'Open Library' or 'Google Books'.
-  String get metadataSource =>
-      _prefs.getString(_keyMetadataSource) ?? 'Open Library';
+  String get metadataSource => _prefs.getString(_keyMetadataSource) ?? 'Open Library';
 
   set metadataSource(String value) {
     _prefs.setString(_keyMetadataSource, value);
@@ -171,8 +168,7 @@ class PreferencesProvider extends ChangeNotifier {
   }
 
   /// Annotation export format: 'Markdown', 'PDF', 'TXT', or 'HTML'.
-  String get annotationExportFormat =>
-      _prefs.getString(_keyAnnotationExportFormat) ?? 'Markdown';
+  String get annotationExportFormat => _prefs.getString(_keyAnnotationExportFormat) ?? 'Markdown';
 
   set annotationExportFormat(String value) {
     _prefs.setString(_keyAnnotationExportFormat, value);
@@ -195,8 +191,7 @@ class PreferencesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  bool get syncStatusNotifications =>
-      _prefs.getBool(_keySyncStatusNotifications) ?? false;
+  bool get syncStatusNotifications => _prefs.getBool(_keySyncStatusNotifications) ?? false;
 
   set syncStatusNotifications(bool value) {
     _prefs.setBool(_keySyncStatusNotifications, value);
@@ -243,8 +238,7 @@ class PreferencesProvider extends ChangeNotifier {
   }
 
   /// Conflict resolution: 'server', 'client', or 'ask'.
-  String get conflictResolution =>
-      _prefs.getString(_keyConflictResolution) ?? 'server';
+  String get conflictResolution => _prefs.getString(_keyConflictResolution) ?? 'server';
 
   set conflictResolution(String value) {
     _prefs.setString(_keyConflictResolution, value);

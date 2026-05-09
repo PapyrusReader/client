@@ -88,8 +88,7 @@ class ShelvesProvider extends ChangeNotifier {
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
       list = list.where((shelf) {
-        return shelf.name.toLowerCase().contains(query) ||
-            (shelf.description?.toLowerCase().contains(query) ?? false);
+        return shelf.name.toLowerCase().contains(query) || (shelf.description?.toLowerCase().contains(query) ?? false);
       }).toList();
     }
     _applySorting(list);
@@ -109,20 +108,15 @@ class ShelvesProvider extends ChangeNotifier {
   bool get bookSortAscending => _bookSortAscending;
 
   String get bookSearchQuery => _bookSearchQuery;
-  Set<BookFilterType> get activeBookFilters =>
-      Set.unmodifiable(_activeBookFilters);
+  Set<BookFilterType> get activeBookFilters => Set.unmodifiable(_activeBookFilters);
 
   /// Whether a specific book filter is active.
-  bool isBookFilterActive(BookFilterType filter) =>
-      _activeBookFilters.contains(filter);
+  bool isBookFilterActive(BookFilterType filter) => _activeBookFilters.contains(filter);
 
   /// Get total book count across all shelves.
   int get totalBookCount {
     if (_dataStore == null) return 0;
-    return _dataStore!.shelves.fold(
-      0,
-      (sum, shelf) => sum + _dataStore!.getBookCountForShelf(shelf.id),
-    );
+    return _dataStore!.shelves.fold(0, (sum, shelf) => sum + _dataStore!.getBookCountForShelf(shelf.id));
   }
 
   // ============================================================================
@@ -174,9 +168,7 @@ class ShelvesProvider extends ChangeNotifier {
 
   /// Toggles between grid and list view.
   void toggleViewMode() {
-    _viewMode = _viewMode == ShelvesViewMode.grid
-        ? ShelvesViewMode.list
-        : ShelvesViewMode.grid;
+    _viewMode = _viewMode == ShelvesViewMode.grid ? ShelvesViewMode.list : ShelvesViewMode.grid;
     notifyListeners();
   }
 
@@ -310,10 +302,7 @@ class ShelvesProvider extends ChangeNotifier {
   }
 
   /// Gets filtered and sorted books for a shelf, applying search and filters.
-  List<Book> getFilteredBooksForShelf(
-    String shelfId, {
-    bool Function(String bookId)? isFavorite,
-  }) {
+  List<Book> getFilteredBooksForShelf(String shelfId, {bool Function(String bookId)? isFavorite}) {
     if (_dataStore == null) return [];
 
     var books = _dataStore!.getBooksInShelf(shelfId);
@@ -322,9 +311,7 @@ class ShelvesProvider extends ChangeNotifier {
     if (_bookSearchQuery.isNotEmpty) {
       final searchQuery = SearchQueryParser.parse(_bookSearchQuery);
       if (searchQuery.isNotEmpty) {
-        books = books
-            .where((book) => searchQuery.matches(book, dataStore: _dataStore))
-            .toList();
+        books = books.where((book) => searchQuery.matches(book, dataStore: _dataStore)).toList();
       }
     }
 
@@ -342,9 +329,7 @@ class ShelvesProvider extends ChangeNotifier {
         books = books.where((book) => book.isFinished).toList();
       }
       if (_activeBookFilters.contains(BookFilterType.unread)) {
-        books = books
-            .where((book) => book.readingStatus == ReadingStatus.notStarted)
-            .toList();
+        books = books.where((book) => book.readingStatus == ReadingStatus.notStarted).toList();
       }
     }
 
@@ -358,12 +343,7 @@ class ShelvesProvider extends ChangeNotifier {
   }
 
   /// Creates a new shelf.
-  Future<Shelf> createShelf({
-    required String name,
-    String? description,
-    String? colorHex,
-    IconData? icon,
-  }) async {
+  Future<Shelf> createShelf({required String name, String? description, String? colorHex, IconData? icon}) async {
     if (_dataStore == null) {
       throw Exception('DataStore not attached');
     }
@@ -437,10 +417,7 @@ class ShelvesProvider extends ChangeNotifier {
   }
 
   /// Adds a book to a shelf.
-  Future<void> addBookToShelf({
-    required String shelfId,
-    required String bookId,
-  }) async {
+  Future<void> addBookToShelf({required String shelfId, required String bookId}) async {
     if (_dataStore == null) {
       throw Exception('DataStore not attached');
     }
@@ -455,10 +432,7 @@ class ShelvesProvider extends ChangeNotifier {
   }
 
   /// Removes a book from a shelf.
-  Future<void> removeBookFromShelf({
-    required String shelfId,
-    required String bookId,
-  }) async {
+  Future<void> removeBookFromShelf({required String shelfId, required String bookId}) async {
     if (_dataStore == null) {
       throw Exception('DataStore not attached');
     }

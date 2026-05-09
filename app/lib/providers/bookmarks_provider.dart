@@ -46,8 +46,7 @@ class BookmarksProvider extends ChangeNotifier {
   String get searchQuery => _searchQuery;
 
   /// Whether there are any bookmarks at all (unfiltered).
-  bool get hasBookmarks =>
-      _dataStore != null && _dataStore!.bookmarks.isNotEmpty;
+  bool get hasBookmarks => _dataStore != null && _dataStore!.bookmarks.isNotEmpty;
 
   /// Whether current filters yield results.
   bool get hasResults => bookmarks.isNotEmpty;
@@ -155,9 +154,7 @@ class BookmarksProvider extends ChangeNotifier {
     var result = all;
 
     if (_selectedColors.isNotEmpty) {
-      result = result
-          .where((b) => _selectedColors.contains(b.colorHex))
-          .toList();
+      result = result.where((b) => _selectedColors.contains(b.colorHex)).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
@@ -166,9 +163,7 @@ class BookmarksProvider extends ChangeNotifier {
         final bookTitle = getBookTitle(b.bookId).toLowerCase();
         final note = b.note?.toLowerCase() ?? '';
         final chapter = b.chapterTitle?.toLowerCase() ?? '';
-        return bookTitle.contains(query) ||
-            note.contains(query) ||
-            chapter.contains(query);
+        return bookTitle.contains(query) || note.contains(query) || chapter.contains(query);
       }).toList();
     }
 
@@ -183,9 +178,7 @@ class BookmarksProvider extends ChangeNotifier {
         case BookmarkSortOption.dateOldest:
           return a.createdAt.compareTo(b.createdAt);
         case BookmarkSortOption.bookTitle:
-          return getBookTitle(
-            a.bookId,
-          ).toLowerCase().compareTo(getBookTitle(b.bookId).toLowerCase());
+          return getBookTitle(a.bookId).toLowerCase().compareTo(getBookTitle(b.bookId).toLowerCase());
         case BookmarkSortOption.position:
           return a.position.compareTo(b.position);
       }

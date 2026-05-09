@@ -10,13 +10,7 @@ class AddShelfSheet extends StatefulWidget {
   final ShelfData? shelf;
 
   /// Called when the shelf is saved.
-  final void Function(
-    String name,
-    String? description,
-    String? colorHex,
-    IconData? icon,
-  )?
-  onSave;
+  final void Function(String name, String? description, String? colorHex, IconData? icon)? onSave;
 
   const AddShelfSheet({super.key, this.shelf, this.onSave});
 
@@ -24,20 +18,12 @@ class AddShelfSheet extends StatefulWidget {
   static Future<void> show(
     BuildContext context, {
     ShelfData? shelf,
-    void Function(
-      String name,
-      String? description,
-      String? colorHex,
-      IconData? icon,
-    )?
-    onSave,
+    void Function(String name, String? description, String? colorHex, IconData? icon)? onSave,
   }) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => AddShelfSheet(shelf: shelf, onSave: onSave),
     );
   }
@@ -58,9 +44,7 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.shelf?.name ?? '');
-    _descriptionController = TextEditingController(
-      text: widget.shelf?.description ?? '',
-    );
+    _descriptionController = TextEditingController(text: widget.shelf?.description ?? '');
     _selectedColorHex = widget.shelf?.colorHex ?? ShelfData.availableColors[5];
     _selectedIcon = widget.shelf?.icon ?? Icons.folder_outlined;
   }
@@ -93,19 +77,11 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
             const BottomSheetHandle(),
             const SizedBox(height: Spacing.lg),
             // Title
-            Text(
-              _isEditing ? 'Edit shelf' : 'Create new shelf',
-              style: textTheme.headlineSmall,
-            ),
+            Text(_isEditing ? 'Edit shelf' : 'Create new shelf', style: textTheme.headlineSmall),
             const SizedBox(height: Spacing.lg),
 
             // Name field
-            Text(
-              'Name',
-              style: textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('Name', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: Spacing.sm),
             TextFormField(
               controller: _nameController,
@@ -114,24 +90,14 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: 'Enter shelf name',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.md,
-                  vertical: Spacing.sm,
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
               ),
             ),
             const SizedBox(height: Spacing.lg),
 
             // Description field
-            Text(
-              'Description (optional)',
-              style: textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('Description (optional)', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: Spacing.sm),
             TextFormField(
               controller: _descriptionController,
@@ -140,32 +106,20 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: 'Add a description',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                 contentPadding: const EdgeInsets.all(Spacing.md),
               ),
             ),
             const SizedBox(height: Spacing.lg),
 
             // Color picker
-            Text(
-              'Color',
-              style: textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('Color', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: Spacing.sm),
             _buildColorPicker(context),
             const SizedBox(height: Spacing.lg),
 
             // Icon picker
-            Text(
-              'Icon',
-              style: textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('Icon', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: Spacing.sm),
             _buildIconPicker(context),
             const SizedBox(height: Spacing.xl),
@@ -211,22 +165,12 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
-              border: isSelected
-                  ? Border.all(color: colorScheme.primary, width: 3)
-                  : null,
+              border: isSelected ? Border.all(color: colorScheme.primary, width: 3) : null,
               boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.4),
-                        blurRadius: 8,
-                        spreadRadius: 1,
-                      ),
-                    ]
+                  ? [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 8, spreadRadius: 1)]
                   : null,
             ),
-            child: isSelected
-                ? Icon(Icons.check, size: 18, color: getContrastColor(color))
-                : null,
+            child: isSelected ? Icon(Icons.check, size: 18, color: getContrastColor(color)) : null,
           ),
         );
       }).toList(),
@@ -235,9 +179,7 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
 
   Widget _buildIconPicker(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final selectedColor = _selectedColorHex != null
-        ? parseHexColor(_selectedColorHex!)
-        : colorScheme.primary;
+    final selectedColor = _selectedColorHex != null ? parseHexColor(_selectedColorHex!) : colorScheme.primary;
 
     return Wrap(
       spacing: Spacing.sm,
@@ -251,19 +193,13 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
             width: 44,
             height: 44,
             decoration: BoxDecoration(
-              color: isSelected
-                  ? selectedColor.withValues(alpha: 0.15)
-                  : colorScheme.surfaceContainerHighest,
+              color: isSelected ? selectedColor.withValues(alpha: 0.15) : colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(AppRadius.md),
               border: isSelected
                   ? Border.all(color: selectedColor, width: 2)
                   : Border.all(color: colorScheme.outlineVariant, width: 1),
             ),
-            child: Icon(
-              icon,
-              size: 24,
-              color: isSelected ? selectedColor : colorScheme.onSurfaceVariant,
-            ),
+            child: Icon(icon, size: 24, color: isSelected ? selectedColor : colorScheme.onSurfaceVariant),
           ),
         );
       }).toList(),
@@ -273,9 +209,7 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
   Widget _buildPreview(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final shelfColor = _selectedColorHex != null
-        ? parseHexColor(_selectedColorHex!)
-        : colorScheme.primary;
+    final shelfColor = _selectedColorHex != null ? parseHexColor(_selectedColorHex!) : colorScheme.primary;
 
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
@@ -295,10 +229,7 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
               borderRadius: BorderRadius.circular(AppRadius.md),
               border: Border.all(color: shelfColor.withValues(alpha: 0.3)),
             ),
-            child: Icon(
-              _selectedIcon ?? Icons.folder_outlined,
-              color: shelfColor,
-            ),
+            child: Icon(_selectedIcon ?? Icons.folder_outlined, color: shelfColor),
           ),
           const SizedBox(width: Spacing.md),
           // Info
@@ -307,14 +238,10 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _nameController.text.isNotEmpty
-                      ? _nameController.text
-                      : 'Shelf name',
+                  _nameController.text.isNotEmpty ? _nameController.text : 'Shelf name',
                   style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: _nameController.text.isEmpty
-                        ? colorScheme.onSurfaceVariant
-                        : null,
+                    color: _nameController.text.isEmpty ? colorScheme.onSurfaceVariant : null,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -323,9 +250,7 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
                   const SizedBox(height: 2),
                   Text(
                     _descriptionController.text,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -340,12 +265,7 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
               color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(AppRadius.full),
             ),
-            child: Text(
-              'Preview',
-              style: textTheme.labelSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            child: Text('Preview', style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
           ),
         ],
       ),
@@ -358,9 +278,7 @@ class _AddShelfSheetState extends State<AddShelfSheet> {
 
     widget.onSave?.call(
       name,
-      _descriptionController.text.trim().isEmpty
-          ? null
-          : _descriptionController.text.trim(),
+      _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
       _selectedColorHex,
       _selectedIcon,
     );

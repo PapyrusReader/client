@@ -11,11 +11,7 @@ class AuthBranding extends StatelessWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        SvgPicture.asset(
-          'assets/images/logo-icon-light.svg',
-          width: 56,
-          height: 56,
-        ),
+        SvgPicture.asset('assets/images/logo-icon-light.svg', width: 56, height: 56),
         const SizedBox(width: 16),
         Text(
           'Papyrus',

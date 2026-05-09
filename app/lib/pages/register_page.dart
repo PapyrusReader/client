@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/responsive.dart';
 import 'package:papyrus/widgets/auth/auth_continue_button.dart';
@@ -11,9 +11,8 @@ import 'package:papyrus/widgets/input/email_input.dart';
 import 'package:papyrus/widgets/input/name_input.dart';
 import 'package:papyrus/widgets/input/password_input.dart';
 import 'package:papyrus/widgets/titled_divider.dart';
+import 'package:provider/provider.dart';
 
-/// Register page for the Papyrus book management application.
-/// Provides responsive layouts for mobile and desktop displays.
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
 
@@ -48,43 +47,41 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _handleRegister() async {
-    if (_isLoading) return;
+    if (_isLoading) {
+      return;
+    }
 
-    // Hide keyboard
     FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     try {
-      await Supabase.instance.client.auth.signUp(
+      final success = await context.read<AuthProvider>().register(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
-        data: {'full_name': _displayNameController.text.trim()},
+        displayName: _displayNameController.text.trim(),
       );
 
-      if (!mounted) return;
-      context.goNamed('LIBRARY');
-    } on AuthException catch (e) {
-      if (!mounted) return;
-
-      String message;
-      final msg = e.message.toLowerCase();
-      if (msg.contains('user already registered') ||
-          msg.contains('already been registered')) {
-        message = 'An account already exists with this email.';
-      } else if (msg.contains('password should be at least') ||
-          msg.contains('weak password')) {
-        message = 'Password is too weak. Please use a stronger password.';
-      } else {
-        message = 'Registration failed. Please try again.';
+      if (!mounted) {
+        return;
       }
 
-      _showErrorSnackBar(message);
-    } catch (e) {
-      if (!mounted) return;
+      if (!success) {
+        _showErrorSnackBar(context.read<AuthProvider>().error ?? 'Registration failed. Please try again.');
+        return;
+      }
+
+      context.goNamed('LIBRARY');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
       _showErrorSnackBar('An error occurred. Please try again.');
     } finally {
       if (mounted) {
@@ -111,6 +108,7 @@ class _RegisterPageState extends State<RegisterPage> {
     if (value != _passwordController.text) {
       return 'Passwords do not match';
     }
+
     return null;
   }
 
@@ -118,6 +116,7 @@ class _RegisterPageState extends State<RegisterPage> {
     if (value != null && value.length < 8) {
       return 'Minimum 8 characters';
     }
+
     return null;
   }
 
@@ -126,11 +125,7 @@ class _RegisterPageState extends State<RegisterPage> {
       const TitledDivider(title: 'Or continue with'),
       const GoogleSignInButton(title: 'Sign up with Google'),
       const SizedBox(height: Spacing.md),
-      AuthSwitchLink(
-        promptText: 'Already have an account?',
-        actionText: 'Sign in',
-        onPressed: _navigateToLogin,
-      ),
+      AuthSwitchLink(promptText: 'Already have an account?', actionText: 'Sign in', onPressed: _navigateToLogin),
     ];
   }
 
@@ -138,7 +133,7 @@ class _RegisterPageState extends State<RegisterPage> {
   Widget build(BuildContext context) {
     return ResponsiveBuilder(
       mobile: (context) => MobileAuthLayout(
-        heading: 'Create account',
+        heading: 'Create an account',
         subtitle: 'Sign up for a new account to get started',
         form: _RegisterForm(
           formKey: _formKey,
@@ -159,7 +154,7 @@ class _RegisterPageState extends State<RegisterPage> {
         footer: _buildFooter(),
       ),
       desktop: (context) => DesktopAuthLayout(
-        heading: 'Create account',
+        heading: 'Create an account',
         subtitle: 'Sign up for a new account to get started',
         form: _RegisterForm(
           formKey: _formKey,
@@ -183,11 +178,6 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 }
 
-// =============================================================================
-// REGISTER FORM
-// =============================================================================
-
-/// Register-specific form with display name, email, password, and confirm password fields.
 class _RegisterForm extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController displayNameController;
@@ -263,11 +253,7 @@ class _RegisterForm extends StatelessWidget {
             extraValidator: validateConfirmPassword,
           ),
           const SizedBox(height: Spacing.lg),
-          AuthContinueButton(
-            isLoading: isLoading,
-            onPressed: onRegister,
-            isDesktop: isDesktop,
-          ),
+          AuthContinueButton(isLoading: isLoading, onPressed: onRegister, isDesktop: isDesktop),
         ],
       ),
     );

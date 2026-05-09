@@ -41,9 +41,7 @@ class AddGoalSheet extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => AddGoalSheet(onCreate: onCreate),
     );
   }
@@ -94,12 +92,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
             const SizedBox(height: Spacing.lg),
 
             // Schedule type selection
-            Text(
-              'Goal type',
-              style: textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('Goal type', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: Spacing.sm),
             SegmentedButton<GoalScheduleType>(
               segments: const [
@@ -136,18 +129,12 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
               ),
               child: Row(
                 children: [
-                  Icon(
-                    Icons.info_outline,
-                    size: 16,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  Icon(Icons.info_outline, size: 16, color: colorScheme.onSurfaceVariant),
                   const SizedBox(width: Spacing.sm),
                   Expanded(
                     child: Text(
                       _getScheduleDescription(),
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ),
                 ],
@@ -156,29 +143,16 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
             const SizedBox(height: Spacing.lg),
 
             // What to track
-            Text(
-              'What to track',
-              style: textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('What to track', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: Spacing.sm),
             DropdownButtonFormField<GoalType>(
               initialValue: _selectedType,
               decoration: InputDecoration(
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.md,
-                  vertical: Spacing.sm,
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
               ),
               items: GoalType.values.map((type) {
-                return DropdownMenuItem(
-                  value: type,
-                  child: Text(_getTypeLabel(type)),
-                );
+                return DropdownMenuItem(value: type, child: Text(_getTypeLabel(type)));
               }).toList(),
               onChanged: (value) {
                 if (value != null) {
@@ -193,12 +167,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
             const SizedBox(height: Spacing.lg),
 
             // Target
-            Text(
-              'Target',
-              style: textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('Target', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: Spacing.sm),
             if (_selectedType == GoalType.minutes)
               _buildDurationPicker(colorScheme, textTheme)
@@ -207,13 +176,8 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                 controller: _targetController,
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
-                  contentPadding: const EdgeInsets.symmetric(
-                    horizontal: Spacing.md,
-                    vertical: Spacing.sm,
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
                   suffixText: _getTypeSuffix(_selectedType),
                 ),
               ),
@@ -221,26 +185,12 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
 
             // Period selection (for recurring and one-off)
             if (_scheduleType != GoalScheduleType.custom) ...[
-              Text(
-                'Time period',
-                style: textTheme.titleSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
+              Text('Time period', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
               const SizedBox(height: Spacing.sm),
               SegmentedButton<GoalPeriod>(
-                segments:
-                    [
-                      GoalPeriod.daily,
-                      GoalPeriod.weekly,
-                      GoalPeriod.monthly,
-                      GoalPeriod.yearly,
-                    ].map((period) {
-                      return ButtonSegment(
-                        value: period,
-                        label: Text(_getPeriodLabel(period)),
-                      );
-                    }).toList(),
+                segments: [GoalPeriod.daily, GoalPeriod.weekly, GoalPeriod.monthly, GoalPeriod.yearly].map((period) {
+                  return ButtonSegment(value: period, label: Text(_getPeriodLabel(period)));
+                }).toList(),
                 selected: {_selectedPeriod},
                 onSelectionChanged: (selected) {
                   setState(() => _selectedPeriod = selected.first);
@@ -252,12 +202,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
 
             // Custom date range picker
             if (_scheduleType == GoalScheduleType.custom) ...[
-              Text(
-                'Date range',
-                style: textTheme.titleSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
+              Text('Date range', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
               const SizedBox(height: Spacing.sm),
               Row(
                 children: [
@@ -271,21 +216,14 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                   ),
                   const SizedBox(width: Spacing.md),
                   Expanded(
-                    child: _buildDateButton(
-                      context,
-                      label: 'End',
-                      date: _endDate,
-                      onTap: () => _pickEndDate(context),
-                    ),
+                    child: _buildDateButton(context, label: 'End', date: _endDate, onTap: () => _pickEndDate(context)),
                   ),
                 ],
               ),
               const SizedBox(height: Spacing.sm),
               Text(
                 '${_daysBetween()} days total',
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: Spacing.lg),
             ],
@@ -330,10 +268,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
         const SizedBox(height: Spacing.md),
         // Stepper row
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.md,
-            vertical: Spacing.sm,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
           decoration: BoxDecoration(
             border: Border.all(color: colorScheme.outline),
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -346,10 +281,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                     ? () {
                         setState(() {
                           final step = _durationMinutes > 60 ? 15 : 5;
-                          _durationMinutes = (_durationMinutes - step).clamp(
-                            5,
-                            _durationMinutes,
-                          );
+                          _durationMinutes = (_durationMinutes - step).clamp(5, _durationMinutes);
                         });
                       }
                     : null,
@@ -358,9 +290,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
               const SizedBox(width: Spacing.md),
               Text(
                 formatDuration(_durationMinutes),
-                style: textTheme.titleLarge?.copyWith(
-                  fontWeight: FontWeight.bold,
-                ),
+                style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
               ),
               const SizedBox(width: Spacing.md),
               IconButton(
@@ -400,20 +330,11 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              label,
-              style: textTheme.labelSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text(label, style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: Spacing.xs),
             Row(
               children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 16,
-                  color: colorScheme.primary,
-                ),
+                Icon(Icons.calendar_today, size: 16, color: colorScheme.primary),
                 const SizedBox(width: Spacing.sm),
                 Text(_formatDate(date), style: textTheme.bodyMedium),
               ],
@@ -455,9 +376,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
   }
 
   void _onCreate() {
-    final target = _selectedType == GoalType.minutes
-        ? _durationMinutes
-        : (int.tryParse(_targetController.text) ?? 0);
+    final target = _selectedType == GoalType.minutes ? _durationMinutes : (int.tryParse(_targetController.text) ?? 0);
     if (target <= 0) return;
 
     final GoalPeriod period;
@@ -482,14 +401,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
         break;
     }
 
-    widget.onCreate?.call(
-      _selectedType,
-      target,
-      period,
-      isRecurring,
-      startDate,
-      endDate,
-    );
+    widget.onCreate?.call(_selectedType, target, period, isRecurring, startDate, endDate);
     Navigator.of(context).pop();
   }
 
@@ -553,20 +465,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
   }
 
   String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 

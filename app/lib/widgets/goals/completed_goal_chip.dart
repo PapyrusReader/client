@@ -17,13 +17,7 @@ class CompletedGoalChip extends StatelessWidget {
   /// Whether to use expanded card layout (for desktop).
   final bool isExpanded;
 
-  const CompletedGoalChip({
-    super.key,
-    required this.goal,
-    this.onTap,
-    this.onDelete,
-    this.isExpanded = false,
-  });
+  const CompletedGoalChip({super.key, required this.goal, this.onTap, this.onDelete, this.isExpanded = false});
 
   @override
   Widget build(BuildContext context) {
@@ -59,41 +53,24 @@ class CompletedGoalChip extends StatelessWidget {
                 Container(
                   width: 24,
                   height: 24,
-                  decoration: BoxDecoration(
-                    color: colorScheme.tertiary,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    Icons.check,
-                    size: 14,
-                    color: colorScheme.onTertiary,
-                  ),
+                  decoration: BoxDecoration(color: colorScheme.tertiary, shape: BoxShape.circle),
+                  child: Icon(Icons.check, size: 14, color: colorScheme.onTertiary),
                 ),
                 const SizedBox(width: Spacing.xs),
                 Expanded(
                   child: Text(
                     _getGoalTypeLabel(),
-                    style: textTheme.labelSmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                    style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
                   ),
                 ),
-                Icon(
-                  Icons.chevron_right,
-                  size: 16,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                Icon(Icons.chevron_right, size: 16, color: colorScheme.onSurfaceVariant),
               ],
             ),
             const SizedBox(height: Spacing.sm),
             // Target achieved
             Text(
-              goal.type == GoalType.minutes
-                  ? formatDuration(goal.target)
-                  : '${goal.target} ${goal.typeLabel}',
-              style: textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
+              goal.type == GoalType.minutes ? formatDuration(goal.target) : '${goal.target} ${goal.typeLabel}',
+              style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
             ),
@@ -101,17 +78,11 @@ class CompletedGoalChip extends StatelessWidget {
             // Completion info
             Row(
               children: [
-                Icon(
-                  Icons.calendar_today,
-                  size: 12,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                Icon(Icons.calendar_today, size: 12, color: colorScheme.onSurfaceVariant),
                 const SizedBox(width: 4),
                 Text(
                   _getCompletionDateLabel(),
-                  style: textTheme.labelSmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -152,15 +123,8 @@ class CompletedGoalChip extends StatelessWidget {
                   Container(
                     width: 28,
                     height: 28,
-                    decoration: BoxDecoration(
-                      color: colorScheme.tertiary,
-                      shape: BoxShape.circle,
-                    ),
-                    child: Icon(
-                      Icons.check,
-                      size: 16,
-                      color: colorScheme.onTertiary,
-                    ),
+                    decoration: BoxDecoration(color: colorScheme.tertiary, shape: BoxShape.circle),
+                    child: Icon(Icons.check, size: 16, color: colorScheme.onTertiary),
                   ),
                   const SizedBox(width: Spacing.sm),
                   Expanded(
@@ -171,15 +135,11 @@ class CompletedGoalChip extends StatelessWidget {
                           goal.type == GoalType.minutes
                               ? formatDuration(goal.target)
                               : '${goal.target} ${goal.typeLabel}',
-                          style: textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                         ),
                         Text(
                           _getGoalTypeLabel(),
-                          style: textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                          style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
                         ),
                       ],
                     ),
@@ -190,17 +150,9 @@ class CompletedGoalChip extends StatelessWidget {
               // Details row
               Row(
                 children: [
-                  _buildInfoChip(
-                    context,
-                    icon: Icons.calendar_today,
-                    label: _getCompletionDateLabel(),
-                  ),
+                  _buildInfoChip(context, icon: Icons.calendar_today, label: _getCompletionDateLabel()),
                   const SizedBox(width: Spacing.sm),
-                  _buildInfoChip(
-                    context,
-                    icon: _getRecurrenceIcon(),
-                    label: goal.recurrenceLabel,
-                  ),
+                  _buildInfoChip(context, icon: _getRecurrenceIcon(), label: goal.recurrenceLabel),
                 ],
               ),
               const SizedBox(height: Spacing.sm),
@@ -208,18 +160,9 @@ class CompletedGoalChip extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  Text(
-                    'Tap for details',
-                    style: textTheme.labelSmall?.copyWith(
-                      color: colorScheme.primary,
-                    ),
-                  ),
+                  Text('Tap for details', style: textTheme.labelSmall?.copyWith(color: colorScheme.primary)),
                   const SizedBox(width: 4),
-                  Icon(
-                    Icons.arrow_forward,
-                    size: 12,
-                    color: colorScheme.primary,
-                  ),
+                  Icon(Icons.arrow_forward, size: 12, color: colorScheme.primary),
                 ],
               ),
             ],
@@ -229,11 +172,7 @@ class CompletedGoalChip extends StatelessWidget {
     );
   }
 
-  Widget _buildInfoChip(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-  }) {
+  Widget _buildInfoChip(BuildContext context, {required IconData icon, required String label}) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -248,13 +187,7 @@ class CompletedGoalChip extends StatelessWidget {
         children: [
           Icon(icon, size: 10, color: colorScheme.onSurfaceVariant),
           const SizedBox(width: 4),
-          Text(
-            label,
-            style: textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-              fontSize: 10,
-            ),
-          ),
+          Text(label, style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant, fontSize: 10)),
         ],
       ),
     );
@@ -268,18 +201,11 @@ class CompletedGoalChip extends StatelessWidget {
   ///
   /// Can be called externally to show details for a completed goal
   /// without needing a [CompletedGoalChip] instance.
-  static void showDetailsSheet(
-    BuildContext context, {
-    required ReadingGoal goal,
-    VoidCallback? onDelete,
-  }) {
+  static void showDetailsSheet(BuildContext context, {required ReadingGoal goal, VoidCallback? onDelete}) {
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
-      builder: (context) =>
-          _CompletedGoalDetailsSheet(goal: goal, onDelete: onDelete),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
+      builder: (context) => _CompletedGoalDetailsSheet(goal: goal, onDelete: onDelete),
     );
   }
 
@@ -324,20 +250,7 @@ class CompletedGoalChip extends StatelessWidget {
   }
 
   String _formatShortDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[date.month - 1]} ${date.year}';
   }
 
@@ -379,33 +292,16 @@ class _CompletedGoalDetailsSheet extends StatelessWidget {
               Container(
                 width: 48,
                 height: 48,
-                decoration: BoxDecoration(
-                  color: colorScheme.tertiaryContainer,
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.emoji_events,
-                  size: 24,
-                  color: colorScheme.onTertiaryContainer,
-                ),
+                decoration: BoxDecoration(color: colorScheme.tertiaryContainer, shape: BoxShape.circle),
+                child: Icon(Icons.emoji_events, size: 24, color: colorScheme.onTertiaryContainer),
               ),
               const SizedBox(width: Spacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'Goal completed!',
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    Text(
-                      goal.description,
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                    Text('Goal completed!', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                    Text(goal.description, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                   ],
                 ),
               ),
@@ -446,19 +342,9 @@ class _CompletedGoalDetailsSheet extends StatelessWidget {
                   value: _getFullGoalTypeLabel(),
                 ),
                 const Divider(height: Spacing.lg),
-                _buildDetailRow(
-                  context,
-                  icon: Icons.date_range,
-                  label: 'Period',
-                  value: _getPeriodDescription(),
-                ),
+                _buildDetailRow(context, icon: Icons.date_range, label: 'Period', value: _getPeriodDescription()),
                 const Divider(height: Spacing.lg),
-                _buildDetailRow(
-                  context,
-                  icon: Icons.check_circle,
-                  label: 'Completed on',
-                  value: _getCompletionDate(),
-                ),
+                _buildDetailRow(context, icon: Icons.check_circle, label: 'Completed on', value: _getCompletionDate()),
               ],
             ),
           ),
@@ -501,19 +387,11 @@ class _CompletedGoalDetailsSheet extends StatelessWidget {
       children: [
         Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: Spacing.sm),
-        Text(
-          label,
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         const Spacer(),
         Text(
           value,
-          style: textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: valueColor,
-          ),
+          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: valueColor),
         ),
       ],
     );
@@ -526,14 +404,9 @@ class _CompletedGoalDetailsSheet extends StatelessWidget {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete goal?'),
-        content: Text(
-          'This will permanently remove "${goal.description}" from your completed goals.',
-        ),
+        content: Text('This will permanently remove "${goal.description}" from your completed goals.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               Navigator.of(context).pop();
@@ -597,20 +470,7 @@ class _CompletedGoalDetailsSheet extends StatelessWidget {
   }
 
   String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 

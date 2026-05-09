@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/widgets/buttons/google_sign_in.dart';
 import 'package:papyrus/widgets/input/email_input.dart';
 import 'package:papyrus/widgets/input/password_input.dart';
 import 'package:papyrus/widgets/titled_divider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
 
 class LoginForm extends StatefulWidget {
   const LoginForm({super.key});
@@ -17,13 +18,11 @@ class _LoginForm extends State<LoginForm> {
   bool isLoginDisabled = false;
 
   final formKey = GlobalKey<FormState>();
-  final emailController = TextEditingController(
-    text: "karolis.strazdas.sso@gmail.com",
-  );
+  final emailController = TextEditingController(text: "karolis.strazdas.sso@gmail.com");
   final passwordController = TextEditingController(text: "");
 
-  Future<AuthResponse> signIn() async {
-    return Supabase.instance.client.auth.signInWithPassword(
+  Future<bool> signIn() async {
+    return context.read<AuthProvider>().login(
       email: emailController.text.trim(),
       password: passwordController.text.trim(),
     );
@@ -38,21 +37,28 @@ class _LoginForm extends State<LoginForm> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: SizedBox(
-          width: 150,
-          height: 150,
-          child: CircularProgressIndicator(strokeWidth: 8),
-        ),
-      ),
+      builder: (context) =>
+          const Center(child: SizedBox(width: 150, height: 150, child: CircularProgressIndicator(strokeWidth: 8))),
     );
 
     try {
-      await signIn();
+      final success = await signIn();
       if (!mounted) return;
       setState(() => isLoginDisabled = false);
       Navigator.of(context).pop();
-      context.goNamed('LIBRARY');
+
+      if (success) {
+        context.goNamed('LIBRARY');
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 5),
+          content: Text(context.read<AuthProvider>().error ?? 'Incorrect username or password.'),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => isLoginDisabled = false);
@@ -79,24 +85,15 @@ class _LoginForm extends State<LoginForm> {
           children: [
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                "Sign in",
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
+              child: Text("Sign in", style: Theme.of(context).textTheme.headlineMedium),
             ),
             const SizedBox(height: 16),
             EmailInput(labelText: "Email address", controller: emailController),
             const SizedBox(height: 24),
-            PasswordInput(
-              labelText: "Password",
-              controller: passwordController,
-            ),
+            PasswordInput(labelText: "Password", controller: passwordController),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: () {},
-                child: const Text("Forgot your password?"),
-              ),
+              child: TextButton(onPressed: () {}, child: const Text("Forgot your password?")),
             ),
             ElevatedButton(
               onPressed: isLoginDisabled ? null : _handleLogin,
@@ -104,14 +101,7 @@ class _LoginForm extends State<LoginForm> {
                 minimumSize: WidgetStatePropertyAll<Size>(Size.fromHeight(50)),
                 elevation: WidgetStatePropertyAll<double>(2.0),
               ),
-              child: const Row(
-                children: [
-                  Spacer(),
-                  Text("Continue"),
-                  Spacer(),
-                  Icon(Icons.arrow_right),
-                ],
-              ),
+              child: const Row(children: [Spacer(), Text("Continue"), Spacer(), Icon(Icons.arrow_right)]),
             ),
             Expanded(
               child: Column(
@@ -124,10 +114,7 @@ class _LoginForm extends State<LoginForm> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text("Don't have an account?"),
-                      TextButton(
-                        onPressed: () => context.go("/register"),
-                        child: const Text("Sign up"),
-                      ),
+                      TextButton(onPressed: () => context.go("/register"), child: const Text("Sign up")),
                     ],
                   ),
                 ],

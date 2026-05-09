@@ -67,12 +67,7 @@ class BookLocation {
   final int pageNumber;
   final double? percentage;
 
-  const BookLocation({
-    this.chapter,
-    this.chapterTitle,
-    required this.pageNumber,
-    this.percentage,
-  });
+  const BookLocation({this.chapter, this.chapterTitle, required this.pageNumber, this.percentage});
 
   /// Get a display-friendly location string.
   String get displayLocation {
@@ -93,12 +88,7 @@ class BookLocation {
     return 'Page $pageNumber';
   }
 
-  BookLocation copyWith({
-    int? chapter,
-    String? chapterTitle,
-    int? pageNumber,
-    double? percentage,
-  }) {
+  BookLocation copyWith({int? chapter, String? chapterTitle, int? pageNumber, double? percentage}) {
     return BookLocation(
       chapter: chapter ?? this.chapter,
       chapterTitle: chapterTitle ?? this.chapterTitle,
@@ -190,9 +180,7 @@ class Annotation {
       ),
       note: json['note'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
-      updatedAt: json['updated_at'] != null
-          ? DateTime.parse(json['updated_at'] as String)
-          : null,
+      updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'] as String) : null,
     );
   }
 
@@ -254,11 +242,7 @@ class Annotation {
             selectedText:
                 'DRY—Don\'t Repeat Yourself. Every piece of knowledge must have a single, unambiguous, authoritative representation within a system.',
             color: HighlightColor.pink,
-            location: const BookLocation(
-              chapter: 2,
-              pageNumber: 58,
-              percentage: 0.19,
-            ),
+            location: const BookLocation(chapter: 2, pageNumber: 58, percentage: 0.19),
             createdAt: now.subtract(const Duration(days: 2)),
           ),
         ];
@@ -268,28 +252,17 @@ class Annotation {
           Annotation(
             id: 'ann-2-1',
             bookId: bookId,
-            selectedText:
-                'Clean code is simple and direct. Clean code reads like well-written prose.',
+            selectedText: 'Clean code is simple and direct. Clean code reads like well-written prose.',
             color: HighlightColor.yellow,
-            location: const BookLocation(
-              chapter: 1,
-              chapterTitle: 'Clean Code',
-              pageNumber: 12,
-              percentage: 0.03,
-            ),
+            location: const BookLocation(chapter: 1, chapterTitle: 'Clean Code', pageNumber: 12, percentage: 0.03),
             createdAt: now.subtract(const Duration(days: 10)),
           ),
           Annotation(
             id: 'ann-2-2',
             bookId: bookId,
-            selectedText:
-                'The ratio of time spent reading versus writing is well over 10 to 1.',
+            selectedText: 'The ratio of time spent reading versus writing is well over 10 to 1.',
             color: HighlightColor.orange,
-            location: const BookLocation(
-              chapter: 1,
-              pageNumber: 18,
-              percentage: 0.05,
-            ),
+            location: const BookLocation(chapter: 1, pageNumber: 18, percentage: 0.05),
             note: 'This is why readability matters so much',
             createdAt: now.subtract(const Duration(days: 9)),
           ),
@@ -302,12 +275,7 @@ class Annotation {
             bookId: bookId,
             selectedText: 'Program to an interface, not an implementation.',
             color: HighlightColor.purple,
-            location: const BookLocation(
-              chapter: 1,
-              chapterTitle: 'Introduction',
-              pageNumber: 32,
-              percentage: 0.08,
-            ),
+            location: const BookLocation(chapter: 1, chapterTitle: 'Introduction', pageNumber: 32, percentage: 0.08),
             note: 'Fundamental principle of OOP',
             createdAt: now.subtract(const Duration(days: 20)),
           ),

@@ -27,26 +27,12 @@ class EinkBookDetailsTabBar extends StatelessWidget {
     return Container(
       height: TouchTargets.einkMin,
       decoration: BoxDecoration(
-        border: Border.all(
-          color: colorScheme.outline,
-          width: BorderWidths.einkDefault,
-        ),
+        border: Border.all(color: colorScheme.outline, width: BorderWidths.einkDefault),
       ),
       child: Row(
         children: [
-          _buildTab(
-            context,
-            tab: BookDetailsTab.details,
-            label: 'Details',
-            isLast: false,
-          ),
-          _buildTab(
-            context,
-            tab: BookDetailsTab.bookmarks,
-            label: 'Bookmarks',
-            count: bookmarkCount,
-            isLast: false,
-          ),
+          _buildTab(context, tab: BookDetailsTab.details, label: 'Details', isLast: false),
+          _buildTab(context, tab: BookDetailsTab.bookmarks, label: 'Bookmarks', count: bookmarkCount, isLast: false),
           _buildTab(
             context,
             tab: BookDetailsTab.annotations,
@@ -54,13 +40,7 @@ class EinkBookDetailsTabBar extends StatelessWidget {
             count: annotationCount,
             isLast: false,
           ),
-          _buildTab(
-            context,
-            tab: BookDetailsTab.notes,
-            label: 'Notes',
-            count: noteCount,
-            isLast: true,
-          ),
+          _buildTab(context, tab: BookDetailsTab.notes, label: 'Notes', count: noteCount, isLast: true),
         ],
       ),
     );
@@ -86,10 +66,7 @@ class EinkBookDetailsTabBar extends StatelessWidget {
             border: isLast
                 ? null
                 : Border(
-                    right: BorderSide(
-                      color: colorScheme.outline,
-                      width: BorderWidths.einkDefault,
-                    ),
+                    right: BorderSide(color: colorScheme.outline, width: BorderWidths.einkDefault),
                   ),
           ),
           alignment: Alignment.center,

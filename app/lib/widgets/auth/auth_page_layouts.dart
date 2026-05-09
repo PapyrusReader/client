@@ -35,10 +35,7 @@ class MobileAuthLayout extends StatelessWidget {
       backgroundColor: theme.colorScheme.surface,
       body: Column(
         children: [
-          CompactAuthHeader(
-            isDark: isDark,
-            height: ComponentSizes.mobileHeroHeight,
-          ),
+          CompactAuthHeader(isDark: isDark, height: ComponentSizes.mobileHeroHeight),
           Expanded(
             child: CustomScrollView(
               slivers: [
@@ -62,9 +59,7 @@ class MobileAuthLayout extends StatelessWidget {
                           ),
                           Text(
                             subtitle,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
+                            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                           ),
                           const SizedBox(height: Spacing.lg),
                         ],
@@ -130,20 +125,14 @@ class _DesktopAuthLayoutState extends State<DesktopAuthLayout> {
       decoration: BoxDecoration(
         color: theme.colorScheme.surface,
         boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: Offset(isSwapped ? 4 : -4, 0),
-          ),
+          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 24, offset: Offset(isSwapped ? 4 : -4, 0)),
         ],
       ),
       child: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(ComponentSizes.authFormPanelPadding),
           child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: ComponentSizes.authFormPanelMaxWidth,
-            ),
+            constraints: const BoxConstraints(maxWidth: ComponentSizes.authFormPanelMaxWidth),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -160,9 +149,7 @@ class _DesktopAuthLayoutState extends State<DesktopAuthLayout> {
                   ),
                   Text(
                     widget.subtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                   ),
                   const SizedBox(height: Spacing.xl),
                 ],
@@ -196,10 +183,7 @@ class _DesktopAuthLayoutState extends State<DesktopAuthLayout> {
             right: isSwapped ? 0 : null,
             top: 0,
             bottom: 0,
-            child: _SwapPanelsButton(
-              isSwapped: isSwapped,
-              onPressed: _toggleSwap,
-            ),
+            child: _SwapPanelsButton(isSwapped: isSwapped, onPressed: _toggleSwap),
           ),
         ],
       ),
@@ -229,12 +213,7 @@ class _SwapPanelsButton extends StatelessWidget {
           child: Align(
             alignment: Alignment.centerLeft,
             child: Transform.translate(
-              offset: Offset(
-                isSwapped
-                    ? totalWidth - boundaryOffset - 20
-                    : boundaryOffset - 20,
-                0,
-              ),
+              offset: Offset(isSwapped ? totalWidth - boundaryOffset - 20 : boundaryOffset - 20, 0),
               child: SizedBox(
                 width: 40,
                 height: 40,
@@ -245,11 +224,7 @@ class _SwapPanelsButton extends StatelessWidget {
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     onTap: onPressed,
-                    child: Icon(
-                      Icons.swap_horiz,
-                      size: 20,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    child: Icon(Icons.swap_horiz, size: 20, color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ),
               ),

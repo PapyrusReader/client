@@ -24,9 +24,7 @@ class BookDateField extends StatelessWidget {
       readOnly: true,
       decoration: InputDecoration(
         labelText: label,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
         suffixIcon: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -38,10 +36,7 @@ class BookDateField extends StatelessWidget {
                   onChanged(null);
                 },
               ),
-            IconButton(
-              icon: const Icon(Icons.calendar_today, size: 20),
-              onPressed: () => _pickDate(context),
-            ),
+            IconButton(icon: const Icon(Icons.calendar_today, size: 20), onPressed: () => _pickDate(context)),
           ],
         ),
       ),

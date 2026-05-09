@@ -25,11 +25,7 @@ void main() {
       bookId: 'book-1',
       selectedText: 'To be or not to be, that is the question.',
       color: HighlightColor.pink,
-      location: const BookLocation(
-        chapter: 1,
-        chapterTitle: 'Act III',
-        pageNumber: 12,
-      ),
+      location: const BookLocation(chapter: 1, chapterTitle: 'Act III', pageNumber: 12),
       createdAt: DateTime(2025, 3, 10),
     );
   });
@@ -52,15 +48,10 @@ void main() {
 
   group('AnnotationCard', () {
     group('rendering', () {
-      testWidgets('displays highlight text in italic with quotes', (
-        tester,
-      ) async {
+      testWidgets('displays highlight text in italic with quotes', (tester) async {
         await tester.pumpWidget(buildCard());
 
-        expect(
-          find.text('"The quick brown fox jumps over the lazy dog."'),
-          findsOneWidget,
-        );
+        expect(find.text('"The quick brown fox jumps over the lazy dog."'), findsOneWidget);
       });
 
       testWidgets('displays location', (tester) async {
@@ -75,29 +66,19 @@ void main() {
         expect(find.text('Jun 15, 2025'), findsOneWidget);
       });
 
-      testWidgets('shows note section when annotation has a note', (
-        tester,
-      ) async {
+      testWidgets('shows note section when annotation has a note', (tester) async {
         await tester.pumpWidget(buildCard());
 
-        expect(
-          find.text('A classic pangram used in typography.'),
-          findsOneWidget,
-        );
+        expect(find.text('A classic pangram used in typography.'), findsOneWidget);
       });
 
       testWidgets('hides note section when no note', (tester) async {
         await tester.pumpWidget(buildCard(annotation: annotationWithoutNote));
 
-        expect(
-          find.text('A classic pangram used in typography.'),
-          findsNothing,
-        );
+        expect(find.text('A classic pangram used in typography.'), findsNothing);
       });
 
-      testWidgets('shows colored left border matching highlight color', (
-        tester,
-      ) async {
+      testWidgets('shows colored left border matching highlight color', (tester) async {
         await tester.pumpWidget(buildCard());
 
         // Find the container with the left border decoration
@@ -114,25 +95,19 @@ void main() {
         expect(container, findsOneWidget);
       });
 
-      testWidgets('shows action menu when showActionMenu is true', (
-        tester,
-      ) async {
+      testWidgets('shows action menu when showActionMenu is true', (tester) async {
         await tester.pumpWidget(buildCard(showActionMenu: true));
 
         expect(find.byIcon(Icons.more_vert), findsOneWidget);
       });
 
-      testWidgets('hides action menu when showActionMenu is false', (
-        tester,
-      ) async {
+      testWidgets('hides action menu when showActionMenu is false', (tester) async {
         await tester.pumpWidget(buildCard(showActionMenu: false));
 
         expect(find.byIcon(Icons.more_vert), findsNothing);
       });
 
-      testWidgets('displays location with chapter title when present', (
-        tester,
-      ) async {
+      testWidgets('displays location with chapter title when present', (tester) async {
         await tester.pumpWidget(buildCard(annotation: annotationWithoutNote));
 
         expect(find.text('Ch. 1, p. 12'), findsOneWidget);
@@ -152,9 +127,7 @@ void main() {
 
       testWidgets('long press calls onLongPress', (tester) async {
         var longPressed = false;
-        await tester.pumpWidget(
-          buildCard(onLongPress: () => longPressed = true),
-        );
+        await tester.pumpWidget(buildCard(onLongPress: () => longPressed = true));
 
         await tester.longPress(find.byType(AnnotationCard));
         await tester.pump();

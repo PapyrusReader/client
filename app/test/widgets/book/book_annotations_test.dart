@@ -31,8 +31,7 @@ void main() {
       Annotation(
         id: 'ann-3',
         bookId: 'book-1',
-        selectedText:
-            'The journey of a thousand miles begins with a single step.',
+        selectedText: 'The journey of a thousand miles begins with a single step.',
         color: HighlightColor.green,
         location: const BookLocation(chapter: 2, pageNumber: 30),
         note: 'Great motivational quote',
@@ -85,9 +84,7 @@ void main() {
         expect(find.byType(AnnotationCard), findsNWidgets(4));
       });
 
-      testWidgets('shows empty state when annotations list is empty', (
-        tester,
-      ) async {
+      testWidgets('shows empty state when annotations list is empty', (tester) async {
         await tester.pumpWidget(buildAnnotations(annotations: []));
 
         expect(find.text('No annotations yet'), findsOneWidget);
@@ -163,16 +160,12 @@ void main() {
         await tester.pumpWidget(buildAnnotations());
 
         // Newest first: ann-3 (Jul), ann-1 (Jun), ann-2 (May), ann-4 (Apr)
-        final items = tester.widgetList<AnnotationCard>(
-          find.byType(AnnotationCard),
-        );
+        final items = tester.widgetList<AnnotationCard>(find.byType(AnnotationCard));
         expect(items.first.annotation.id, 'ann-3');
         expect(items.last.annotation.id, 'ann-4');
       });
 
-      testWidgets('selecting by position reorders by page number', (
-        tester,
-      ) async {
+      testWidgets('selecting by position reorders by page number', (tester) async {
         await tester.pumpWidget(buildAnnotations());
 
         await tester.tap(find.byIcon(Icons.sort));
@@ -181,16 +174,12 @@ void main() {
         await tester.pumpAndSettle();
 
         // By page: ann-1 (p10), ann-3 (p30), ann-2 (p55), ann-4 (p88)
-        final items = tester.widgetList<AnnotationCard>(
-          find.byType(AnnotationCard),
-        );
+        final items = tester.widgetList<AnnotationCard>(find.byType(AnnotationCard));
         expect(items.first.annotation.id, 'ann-1');
         expect(items.last.annotation.id, 'ann-4');
       });
 
-      testWidgets('selecting by color reorders by color enum index', (
-        tester,
-      ) async {
+      testWidgets('selecting by color reorders by color enum index', (tester) async {
         await tester.pumpWidget(buildAnnotations());
 
         await tester.tap(find.byIcon(Icons.sort));
@@ -199,9 +188,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // By color index: yellow(0), green(1), blue(2), pink(3)
-        final items = tester.widgetList<AnnotationCard>(
-          find.byType(AnnotationCard),
-        );
+        final items = tester.widgetList<AnnotationCard>(find.byType(AnnotationCard));
         expect(items.first.annotation.color, HighlightColor.yellow);
         expect(items.last.annotation.color, HighlightColor.pink);
       });
@@ -210,9 +197,7 @@ void main() {
     group('callbacks', () {
       testWidgets('tap calls onAnnotationTap', (tester) async {
         Annotation? tappedAnnotation;
-        await tester.pumpWidget(
-          buildAnnotations(onAnnotationTap: (a) => tappedAnnotation = a),
-        );
+        await tester.pumpWidget(buildAnnotations(onAnnotationTap: (a) => tappedAnnotation = a));
 
         await tester.tap(find.byType(AnnotationCard).first);
         await tester.pump();
@@ -222,9 +207,7 @@ void main() {
 
       testWidgets('long press calls onAnnotationActions', (tester) async {
         Annotation? actionAnnotation;
-        await tester.pumpWidget(
-          buildAnnotations(onAnnotationActions: (a) => actionAnnotation = a),
-        );
+        await tester.pumpWidget(buildAnnotations(onAnnotationActions: (a) => actionAnnotation = a));
 
         await tester.longPress(find.byType(AnnotationCard).first);
         await tester.pump();
@@ -235,17 +218,13 @@ void main() {
 
     group('responsive', () {
       testWidgets('desktop layout shows action menu on items', (tester) async {
-        await tester.pumpWidget(
-          buildAnnotations(screenSize: const Size(1200, 800)),
-        );
+        await tester.pumpWidget(buildAnnotations(screenSize: const Size(1200, 800)));
 
         expect(find.byIcon(Icons.more_vert), findsAtLeastNWidgets(1));
       });
 
       testWidgets('mobile layout hides action menu on items', (tester) async {
-        await tester.pumpWidget(
-          buildAnnotations(screenSize: const Size(400, 800)),
-        );
+        await tester.pumpWidget(buildAnnotations(screenSize: const Size(400, 800)));
 
         expect(find.byIcon(Icons.more_vert), findsNothing);
       });

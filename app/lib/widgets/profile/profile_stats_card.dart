@@ -51,12 +51,7 @@ class ProfileStatsCard extends StatelessWidget {
   final String title;
 
   /// Creates a profile stats card widget.
-  const ProfileStatsCard({
-    super.key,
-    required this.stats,
-    this.onViewAllStats,
-    this.title = 'Reading statistics',
-  });
+  const ProfileStatsCard({super.key, required this.stats, this.onViewAllStats, this.title = 'Reading statistics'});
 
   @override
   Widget build(BuildContext context) {
@@ -72,10 +67,7 @@ class ProfileStatsCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            title,
-            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-          ),
+          Text(title, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
           const SizedBox(height: Spacing.md),
           ...stats.map((stat) => _buildStatRow(context, stat)),
           if (onViewAllStats != null) ...[
@@ -112,25 +104,13 @@ class ProfileStatsCard extends StatelessWidget {
           Row(
             children: [
               if (stat.icon != null) ...[
-                Icon(
-                  stat.icon,
-                  size: IconSizes.small,
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                Icon(stat.icon, size: IconSizes.small, color: colorScheme.onSurfaceVariant),
                 const SizedBox(width: Spacing.sm),
               ],
-              Text(
-                stat.label,
-                style: textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
+              Text(stat.label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
             ],
           ),
-          Text(
-            stat.value,
-            style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600),
-          ),
+          Text(stat.value, style: textTheme.bodyLarge?.copyWith(fontWeight: FontWeight.w600)),
         ],
       ),
     );

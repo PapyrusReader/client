@@ -70,10 +70,7 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
   // MOBILE LAYOUT
   // ============================================================================
 
-  Widget _buildMobileLayout(
-    BuildContext context,
-    AnnotationsProvider provider,
-  ) {
+  Widget _buildMobileLayout(BuildContext context, AnnotationsProvider provider) {
     return Scaffold(
       key: _scaffoldKey,
       drawer: const LibraryDrawer(currentPath: '/library/annotations'),
@@ -82,11 +79,7 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
           children: [
             // Row 1: Menu + Search + Sort
             Padding(
-              padding: const EdgeInsets.only(
-                top: Spacing.md,
-                left: Spacing.md,
-                right: Spacing.md,
-              ),
+              padding: const EdgeInsets.only(top: Spacing.md, left: Spacing.md, right: Spacing.md),
               child: Row(
                 children: [
                   IconButton(
@@ -122,21 +115,14 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
   // DESKTOP LAYOUT
   // ============================================================================
 
-  Widget _buildDesktopLayout(
-    BuildContext context,
-    AnnotationsProvider provider,
-  ) {
+  Widget _buildDesktopLayout(BuildContext context, AnnotationsProvider provider) {
     return Scaffold(
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           // Header row
           Container(
-            padding: const EdgeInsets.only(
-              top: Spacing.lg,
-              left: Spacing.lg,
-              right: Spacing.lg,
-            ),
+            padding: const EdgeInsets.only(top: Spacing.lg, left: Spacing.lg, right: Spacing.lg),
             child: Row(
               children: [
                 Expanded(child: _buildSearchField(provider)),
@@ -190,26 +176,10 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
       tooltip: 'Sort annotations',
       onSelected: provider.setSortOption,
       itemBuilder: (context) => [
-        _buildSortMenuItem(
-          AnnotationSortOption.dateNewest,
-          'Newest first',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          AnnotationSortOption.dateOldest,
-          'Oldest first',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          AnnotationSortOption.bookTitle,
-          'By book title',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          AnnotationSortOption.position,
-          'By position',
-          provider.sortOption,
-        ),
+        _buildSortMenuItem(AnnotationSortOption.dateNewest, 'Newest first', provider.sortOption),
+        _buildSortMenuItem(AnnotationSortOption.dateOldest, 'Oldest first', provider.sortOption),
+        _buildSortMenuItem(AnnotationSortOption.bookTitle, 'By book title', provider.sortOption),
+        _buildSortMenuItem(AnnotationSortOption.position, 'By position', provider.sortOption),
       ],
     );
   }
@@ -224,12 +194,7 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
       child: Row(
         children: [
           Expanded(child: Text(label)),
-          if (option == current)
-            Icon(
-              Icons.check,
-              size: IconSizes.small,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+          if (option == current) Icon(Icons.check, size: IconSizes.small, color: Theme.of(context).colorScheme.primary),
         ],
       ),
     );
@@ -263,10 +228,7 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
                 avatar: Container(
                   width: 12,
                   height: 12,
-                  decoration: BoxDecoration(
-                    color: highlightColor.accentColor,
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: BoxDecoration(color: highlightColor.accentColor, shape: BoxShape.circle),
                 ),
                 onSelected: (_) => provider.toggleColorFilter(highlightColor),
               ),
@@ -304,10 +266,7 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
     return _buildAnnotationList(context, provider);
   }
 
-  Widget _buildAnnotationList(
-    BuildContext context,
-    AnnotationsProvider provider,
-  ) {
+  Widget _buildAnnotationList(BuildContext context, AnnotationsProvider provider) {
     final groups = provider.annotationsByBook;
     final items = <Widget>[];
     final screenWidth = MediaQuery.of(context).size.width;
@@ -340,8 +299,7 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
               annotation: annotation,
               showActionMenu: isDesktop,
               onTap: () => _navigateToBook(context, annotation.bookId),
-              onLongPress: () =>
-                  _onAnnotationActions(context, provider, annotation),
+              onLongPress: () => _onAnnotationActions(context, provider, annotation),
             ),
           );
         }
@@ -362,15 +320,8 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
     context.goNamed('BOOK_DETAILS', pathParameters: {'bookId': bookId});
   }
 
-  void _onAnnotationActions(
-    BuildContext context,
-    AnnotationsProvider provider,
-    Annotation annotation,
-  ) async {
-    final action = await AnnotationActionSheet.show(
-      context,
-      annotation: annotation,
-    );
+  void _onAnnotationActions(BuildContext context, AnnotationsProvider provider, Annotation annotation) async {
+    final action = await AnnotationActionSheet.show(context, annotation: annotation);
 
     if (action == null || !mounted) return;
 
@@ -382,14 +333,8 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
     }
   }
 
-  void _onEditAnnotationNote(
-    AnnotationsProvider provider,
-    Annotation annotation,
-  ) async {
-    final note = await AnnotationNoteSheet.show(
-      context,
-      annotation: annotation,
-    );
+  void _onEditAnnotationNote(AnnotationsProvider provider, Annotation annotation) async {
+    final note = await AnnotationNoteSheet.show(context, annotation: annotation);
     if (!mounted) return;
 
     if (note != null) {
@@ -397,16 +342,9 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
     }
   }
 
-  void _onDeleteAnnotation(
-    AnnotationsProvider provider,
-    Annotation annotation,
-  ) async {
+  void _onDeleteAnnotation(AnnotationsProvider provider, Annotation annotation) async {
     final bookTitle = provider.getBookTitle(annotation.bookId);
-    final confirmed = await DeleteAnnotationDialog.show(
-      context,
-      annotation: annotation,
-      bookTitle: bookTitle,
-    );
+    final confirmed = await DeleteAnnotationDialog.show(context, annotation: annotation, bookTitle: bookTitle);
     if (confirmed && mounted) {
       provider.deleteAnnotation(annotation.id);
     }

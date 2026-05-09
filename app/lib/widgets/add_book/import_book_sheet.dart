@@ -30,15 +30,10 @@ class ImportBookSheet extends StatelessWidget {
       return showDialog(
         context: context,
         builder: (_) => Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.dialog),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.dialog)),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 520),
-            child: const Padding(
-              padding: EdgeInsets.all(Spacing.lg),
-              child: _ImportContent(),
-            ),
+            child: const Padding(padding: EdgeInsets.all(Spacing.lg), child: _ImportContent()),
           ),
         ),
       );
@@ -48,9 +43,7 @@ class ImportBookSheet extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       useRootNavigator: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (_) => DraggableScrollableSheet(
         initialChildSize: 0.6,
         minChildSize: 0.4,
@@ -59,12 +52,7 @@ class ImportBookSheet extends StatelessWidget {
         builder: (context, scrollController) => SingleChildScrollView(
           controller: scrollController,
           child: const Padding(
-            padding: EdgeInsets.only(
-              left: Spacing.lg,
-              right: Spacing.lg,
-              top: Spacing.md,
-              bottom: Spacing.lg,
-            ),
+            padding: EdgeInsets.only(left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.lg),
             child: _ImportContent(),
           ),
         ),
@@ -98,15 +86,7 @@ class _ImportContentState extends State<_ImportContent> {
 
   /// Allowed file extensions per platform.
   static const _webExtensions = ['epub'];
-  static const _nativeExtensions = [
-    'epub',
-    'pdf',
-    'mobi',
-    'azw3',
-    'txt',
-    'cbr',
-    'cbz',
-  ];
+  static const _nativeExtensions = ['epub', 'pdf', 'mobi', 'azw3', 'txt', 'cbr', 'cbz'];
 
   /// Schedule a setState that is guaranteed to trigger a frame.
   ///
@@ -213,16 +193,13 @@ class _ImportContentState extends State<_ImportContent> {
 
     final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
-    messenger.showSnackBar(
-      SnackBar(content: Text('Added "${book.title}" to library')),
-    );
+    messenger.showSnackBar(SnackBar(content: Text('Added "${book.title}" to library')));
   }
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final isDesktop =
-        MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
+    final isDesktop = MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -232,13 +209,8 @@ class _ImportContentState extends State<_ImportContent> {
         if (!isDesktop) const SizedBox(height: Spacing.lg),
         Row(
           children: [
-            Expanded(
-              child: Text('Import book', style: textTheme.headlineSmall),
-            ),
-            IconButton(
-              onPressed: () => Navigator.of(context).pop(),
-              icon: const Icon(Icons.close),
-            ),
+            Expanded(child: Text('Import book', style: textTheme.headlineSmall)),
+            IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close)),
           ],
         ),
         const SizedBox(height: Spacing.lg),
@@ -269,16 +241,11 @@ class _ImportContentState extends State<_ImportContent> {
             children: [
               Icon(Icons.upload_file, size: 48, color: colorScheme.primary),
               const SizedBox(height: Spacing.md),
-              Text(
-                kIsWeb ? 'Select an EPUB file' : 'Select a book file',
-                style: textTheme.titleMedium,
-              ),
+              Text(kIsWeb ? 'Select an EPUB file' : 'Select a book file', style: textTheme.titleMedium),
               const SizedBox(height: Spacing.xs),
               Text(
                 'The file will be stored offline on this device',
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: Spacing.lg),
               FilledButton.icon(
@@ -306,21 +273,12 @@ class _ImportContentState extends State<_ImportContent> {
       ),
       child: Column(
         children: [
-          const SizedBox(
-            width: 48,
-            height: 48,
-            child: CircularProgressIndicator(),
-          ),
+          const SizedBox(width: 48, height: 48, child: CircularProgressIndicator()),
           const SizedBox(height: Spacing.lg),
           Text('Processing...', style: textTheme.titleMedium),
           if (_filename != null) ...[
             const SizedBox(height: Spacing.xs),
-            Text(
-              _filename!,
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text(_filename!, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
           ],
         ],
       ),
@@ -349,13 +307,7 @@ class _ImportContentState extends State<_ImportContent> {
               clipBehavior: Clip.antiAlias,
               child: result.coverImage != null
                   ? Image.memory(result.coverImage!, fit: BoxFit.cover)
-                  : Center(
-                      child: Icon(
-                        Icons.menu_book,
-                        size: 32,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
-                    ),
+                  : Center(child: Icon(Icons.menu_book, size: 32, color: colorScheme.onSurfaceVariant)),
             ),
             const SizedBox(width: Spacing.md),
             Expanded(
@@ -364,19 +316,12 @@ class _ImportContentState extends State<_ImportContent> {
                 children: [
                   Text(result.title, style: textTheme.titleMedium),
                   const SizedBox(height: Spacing.xs),
-                  Text(
-                    result.author,
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                  Text(result.author, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                   if (result.pageCount != null) ...[
                     const SizedBox(height: Spacing.xs),
                     Text(
                       '~${result.pageCount} pages',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ],
@@ -401,10 +346,7 @@ class _ImportContentState extends State<_ImportContent> {
             ),
             const SizedBox(width: Spacing.md),
             Expanded(
-              child: FilledButton(
-                onPressed: _addToLibrary,
-                child: const Text('Add to library'),
-              ),
+              child: FilledButton(onPressed: _addToLibrary, child: const Text('Add to library')),
             ),
           ],
         ),
@@ -433,10 +375,7 @@ class _ImportContentState extends State<_ImportContent> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: Spacing.lg),
-          FilledButton(
-            onPressed: _pickAndProcess,
-            child: const Text('Try again'),
-          ),
+          FilledButton(onPressed: _pickAndProcess, child: const Text('Try again')),
         ],
       ),
     );

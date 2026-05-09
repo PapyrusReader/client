@@ -99,12 +99,7 @@ class AdaptiveAppShell extends StatelessWidget {
         icon: Icons.bar_chart_outlined,
         selectedIcon: Icons.bar_chart,
       ),
-      const AppShellNavItem(
-        path: '/profile',
-        label: 'Profile',
-        icon: Icons.person_outline,
-        selectedIcon: Icons.person,
-      ),
+      const AppShellNavItem(path: '/profile', label: 'Profile', icon: Icons.person_outline, selectedIcon: Icons.person),
     ];
   }
 
@@ -129,10 +124,7 @@ class AdaptiveAppShell extends StatelessWidget {
     }
   }
 
-  Widget _buildDesktopShell(
-    BuildContext context,
-    List<AppShellNavItem> navItems,
-  ) {
+  Widget _buildDesktopShell(BuildContext context, List<AppShellNavItem> navItems) {
     return Scaffold(
       body: Row(
         children: [
@@ -147,10 +139,7 @@ class AdaptiveAppShell extends StatelessWidget {
     );
   }
 
-  Widget _buildMobileShell(
-    BuildContext context,
-    List<AppShellNavItem> navItems,
-  ) {
+  Widget _buildMobileShell(BuildContext context, List<AppShellNavItem> navItems) {
     final currentPath = GoRouterState.of(context).uri.toString();
     final isInLibrary = currentPath.startsWith('/library');
 
@@ -176,10 +165,7 @@ class AdaptiveAppShell extends StatelessWidget {
     );
   }
 
-  Widget _buildLibraryDrawer(
-    BuildContext context,
-    List<AppShellNavItem> navItems,
-  ) {
+  Widget _buildLibraryDrawer(BuildContext context, List<AppShellNavItem> navItems) {
     final currentPath = GoRouterState.of(context).uri.toString();
     final libraryItem = navItems.firstWhere((item) => item.path == '/library');
     final children = libraryItem.children ?? [];
@@ -191,10 +177,7 @@ class AdaptiveAppShell extends StatelessWidget {
           children: [
             Padding(
               padding: const EdgeInsets.all(Spacing.md),
-              child: Text(
-                'Library',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
+              child: Text('Library', style: Theme.of(context).textTheme.headlineSmall),
             ),
             const Divider(height: 1),
             Expanded(
@@ -205,9 +188,7 @@ class AdaptiveAppShell extends StatelessWidget {
                   final isSelected = currentPath.startsWith(item.path);
 
                   return ListTile(
-                    leading: Icon(
-                      isSelected ? item.selectedIcon ?? item.icon : item.icon,
-                    ),
+                    leading: Icon(isSelected ? item.selectedIcon ?? item.icon : item.icon),
                     title: Text(item.label),
                     selected: isSelected,
                     onTap: () {

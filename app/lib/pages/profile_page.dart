@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
 import 'package:papyrus/widgets/settings/settings_section.dart';
@@ -104,11 +103,7 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Appearance'),
-        SettingsRow(
-          label: 'Theme',
-          value: _getThemeLabel(prefs.themeModePref),
-          onTap: () => _showThemePicker(context),
-        ),
+        SettingsRow(label: 'Theme', value: _getThemeLabel(prefs.themeModePref), onTap: () => _showThemePicker(context)),
       ],
     );
   }
@@ -120,11 +115,7 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Reading'),
-        SettingsRow(
-          label: 'Default font',
-          value: prefs.defaultFont,
-          onTap: () => _showFontPicker(context),
-        ),
+        SettingsRow(label: 'Default font', value: prefs.defaultFont, onTap: () => _showFontPicker(context)),
         SettingsRow(
           label: 'Line spacing',
           value: _capitalize(prefs.lineSpacing),
@@ -209,11 +200,7 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Storage & sync'),
-        SettingsRow(
-          label: 'Storage backend',
-          value: prefs.storageBackend,
-          onTap: () => _showStoragePicker(context),
-        ),
+        SettingsRow(label: 'Storage backend', value: prefs.storageBackend, onTap: () => _showStoragePicker(context)),
         SettingsRow(
           label: 'Sync server',
           value: prefs.serverUrl.isEmpty ? 'Not connected' : prefs.serverUrl,
@@ -376,12 +363,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     label: 'Accessibility',
                     section: _ProfileSection.accessibility,
                   ),
-                  _buildNavItem(
-                    context,
-                    icon: Icons.info_outline,
-                    label: 'About',
-                    section: _ProfileSection.about,
-                  ),
+                  _buildNavItem(context, icon: Icons.info_outline, label: 'About', section: _ProfileSection.about),
                   if (kDebugMode)
                     _buildNavItem(
                       context,
@@ -430,9 +412,7 @@ class _ProfilePageState extends State<ProfilePage> {
         : isSelected
         ? colorScheme.onPrimaryContainer
         : null;
-    final bgColor = isSelected
-        ? colorScheme.primaryContainer
-        : Colors.transparent;
+    final bgColor = isSelected ? colorScheme.primaryContainer : Colors.transparent;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -449,10 +429,7 @@ class _ProfilePageState extends State<ProfilePage> {
               },
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Spacing.md,
-              vertical: Spacing.sm + 2,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm + 2),
             child: Row(
               children: [
                 Icon(icon, color: iconColor, size: IconSizes.medium),
@@ -462,9 +439,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     label,
                     style: textTheme.bodyMedium?.copyWith(
                       color: textColor,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.normal,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -573,12 +548,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       Text(_getDisplayName(), style: textTheme.headlineSmall),
                       const SizedBox(height: Spacing.xs),
-                      Text(
-                        _getEmail(),
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                      Text(_getEmail(), style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                       const SizedBox(height: Spacing.md),
                       Align(
                         alignment: Alignment.centerLeft,
@@ -607,11 +577,7 @@ class _ProfilePageState extends State<ProfilePage> {
         SettingsCard(
           title: 'Connected accounts',
           children: [
-            SettingsRow(
-              label: 'Google',
-              value: _isGoogleLinked() ? 'Connected' : 'Not connected',
-              onTap: () {},
-            ),
+            SettingsRow(label: 'Google', value: _isGoogleLinked() ? 'Connected' : 'Not connected', onTap: () {}),
           ],
         ),
         const SizedBox(height: Spacing.lg),
@@ -636,12 +602,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Theme',
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text('Theme', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         const SizedBox(height: Spacing.sm),
         _buildRadioTile('Light', 'light'),
         _buildRadioTile('Dark', 'dark'),
@@ -667,9 +628,7 @@ class _ProfilePageState extends State<ProfilePage> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.outline,
+                  color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outline,
                   width: 2,
                 ),
               ),
@@ -678,10 +637,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: Container(
                         width: 10,
                         height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.primary),
                       ),
                     )
                   : null,
@@ -723,12 +679,7 @@ class _ProfilePageState extends State<ProfilePage> {
               onChanged: (value) => prefs.defaultFont = value,
             ),
             const SizedBox(height: Spacing.lg),
-            Text(
-              'Default font size',
-              style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('Default font size', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
             Row(
               children: [
                 Expanded(
@@ -740,13 +691,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     onChanged: (value) => prefs.defaultFontSize = value,
                   ),
                 ),
-                SizedBox(
-                  width: 48,
-                  child: Text(
-                    '${prefs.defaultFontSize.toInt()}px',
-                    style: textTheme.bodyMedium,
-                  ),
-                ),
+                SizedBox(width: 48, child: Text('${prefs.defaultFontSize.toInt()}px', style: textTheme.bodyMedium)),
               ],
             ),
             const SizedBox(height: Spacing.md),
@@ -754,11 +699,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Line spacing',
               value: prefs.lineSpacing,
-              options: const {
-                'compact': 'Compact',
-                'normal': 'Normal',
-                'relaxed': 'Relaxed',
-              },
+              options: const {'compact': 'Compact', 'normal': 'Normal', 'relaxed': 'Relaxed'},
               onChanged: (value) => prefs.lineSpacing = value,
             ),
             const SizedBox(height: Spacing.md),
@@ -774,11 +715,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Margins',
               value: prefs.margins,
-              options: const {
-                'small': 'Small',
-                'medium': 'Medium',
-                'large': 'Large',
-              },
+              options: const {'small': 'Small', 'medium': 'Medium', 'large': 'Large'},
               onChanged: (value) => prefs.margins = value,
             ),
           ],
@@ -791,10 +728,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Reading mode',
               value: prefs.readingMode,
-              options: const {
-                'paginated': 'Paginated',
-                'scroll': 'Continuous scroll',
-              },
+              options: const {'paginated': 'Paginated', 'scroll': 'Continuous scroll'},
               onChanged: (value) => prefs.readingMode = value,
             ),
             const SizedBox(height: Spacing.md),
@@ -806,10 +740,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
         const SizedBox(height: Spacing.lg),
-        SettingsCard(
-          title: 'Annotations',
-          children: [_buildHighlightColorField(context)],
-        ),
+        SettingsCard(title: 'Annotations', children: [_buildHighlightColorField(context)]),
         const SizedBox(height: Spacing.lg),
         SettingsCard(
           children: [SettingsRow(label: 'Reading profiles', onTap: () {})],
@@ -834,12 +765,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Default highlight color',
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text('Default highlight color', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         const SizedBox(height: Spacing.sm),
         Row(
           children: highlightColors.entries.map((entry) {
@@ -858,9 +784,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ? Border.all(color: colorScheme.primary, width: 3)
                         : Border.all(color: colorScheme.outline, width: 1),
                   ),
-                  child: isSelected
-                      ? Icon(Icons.check, size: 18, color: colorScheme.primary)
-                      : null,
+                  child: isSelected ? Icon(Icons.check, size: 18, color: colorScheme.primary) : null,
                 ),
               ),
             );
@@ -885,11 +809,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Default view mode',
               value: prefs.defaultViewMode,
-              options: const {
-                'grid': 'Grid',
-                'list': 'List',
-                'compact': 'Compact',
-              },
+              options: const {'grid': 'Grid', 'list': 'List', 'compact': 'Compact'},
               onChanged: (value) => prefs.defaultViewMode = value,
             ),
             const SizedBox(height: Spacing.md),
@@ -897,13 +817,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Default sort order',
               value: prefs.defaultSortOrder,
-              options: const [
-                'title',
-                'author',
-                'date_added',
-                'last_read',
-                'rating',
-              ],
+              options: const ['title', 'author', 'date_added', 'last_read', 'rating'],
               labels: const {
                 'title': 'Title',
                 'author': 'Author',
@@ -923,10 +837,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Metadata source',
               value: prefs.metadataSource,
-              options: const {
-                'Open Library': 'Open Library',
-                'Google Books': 'Google Books',
-              },
+              options: const {'Open Library': 'Open Library', 'Google Books': 'Google Books'},
               onChanged: (value) => prefs.metadataSource = value,
             ),
             const SizedBox(height: Spacing.md),
@@ -1010,39 +921,22 @@ class _ProfilePageState extends State<ProfilePage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(
-                        'Server',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                      Text('Server', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                       const SizedBox(height: Spacing.xs),
-                      Text(
-                        prefs.serverUrl.isEmpty
-                            ? 'Not connected'
-                            : prefs.serverUrl,
-                        style: textTheme.bodyLarge,
-                      ),
+                      Text(prefs.serverUrl.isEmpty ? 'Not connected' : prefs.serverUrl, style: textTheme.bodyLarge),
                     ],
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: Spacing.sm,
-                    vertical: Spacing.xs,
-                  ),
+                  padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
                   decoration: BoxDecoration(
-                    color: prefs.serverUrl.isEmpty
-                        ? colorScheme.errorContainer
-                        : colorScheme.primaryContainer,
+                    color: prefs.serverUrl.isEmpty ? colorScheme.errorContainer : colorScheme.primaryContainer,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Text(
                     prefs.serverUrl.isEmpty ? 'Offline' : 'Connected',
                     style: textTheme.labelSmall?.copyWith(
-                      color: prefs.serverUrl.isEmpty
-                          ? colorScheme.onErrorContainer
-                          : colorScheme.onPrimaryContainer,
+                      color: prefs.serverUrl.isEmpty ? colorScheme.onErrorContainer : colorScheme.onPrimaryContainer,
                     ),
                   ),
                 ),
@@ -1053,10 +947,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Server type',
               value: prefs.serverType,
-              options: const {
-                'official': 'Official',
-                'self-hosted': 'Self-hosted',
-              },
+              options: const {'official': 'Official', 'self-hosted': 'Self-hosted'},
               onChanged: (value) => prefs.serverType = value,
             ),
             const SizedBox(height: Spacing.md),
@@ -1084,33 +975,21 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Conflict resolution',
               value: prefs.conflictResolution,
-              options: const {
-                'server': 'Server wins',
-                'client': 'Client wins',
-                'ask': 'Ask me',
-              },
+              options: const {'server': 'Server wins', 'client': 'Client wins', 'ask': 'Ask me'},
               onChanged: (value) => prefs.conflictResolution = value,
             ),
             const SizedBox(height: Spacing.md),
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Spacing.sm,
-                vertical: Spacing.xs,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
               child: Text(
                 'Last sync: 2 min ago',
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
             ),
             const SizedBox(height: Spacing.sm),
             Align(
               alignment: Alignment.centerLeft,
-              child: OutlinedButton(
-                onPressed: () {},
-                child: const Text('Sync now'),
-              ),
+              child: OutlinedButton(onPressed: () {}, child: const Text('Sync now')),
             ),
           ],
         ),
@@ -1139,9 +1018,9 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Text(
                 'Help improve Papyrus by sharing anonymous usage statistics. '
                 'No personal data or reading content is collected.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ),
           ],
@@ -1177,17 +1056,13 @@ class _ProfilePageState extends State<ProfilePage> {
           onChanged: (value) => prefs.reduceAnimations = value,
         ),
         Padding(
-          padding: const EdgeInsets.only(
-            left: Spacing.sm,
-            right: Spacing.sm,
-            bottom: Spacing.md,
-          ),
+          padding: const EdgeInsets.only(left: Spacing.sm, right: Spacing.sm, bottom: Spacing.md),
           child: Text(
             'Minimizes motion effects throughout the app. '
             'Separate from e-ink mode.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ),
         SettingsToggleRow(
@@ -1196,16 +1071,12 @@ class _ProfilePageState extends State<ProfilePage> {
           onChanged: (value) => prefs.dyslexiaFont = value,
         ),
         Padding(
-          padding: const EdgeInsets.only(
-            left: Spacing.sm,
-            right: Spacing.sm,
-            bottom: Spacing.md,
-          ),
+          padding: const EdgeInsets.only(left: Spacing.sm, right: Spacing.sm, bottom: Spacing.md),
           child: Text(
             'Use OpenDyslexic font across the app interface.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ),
       ],
@@ -1251,25 +1122,18 @@ class _ProfilePageState extends State<ProfilePage> {
   // ============================================================================
 
   String _getDisplayName() {
-    final user = Supabase.instance.client.auth.currentUser;
-    return (user?.userMetadata?['full_name'] as String?) ?? 'Anonymous User';
+    final user = context.watch<AuthProvider>().user;
+    return user?.displayName ?? 'Anonymous User';
   }
 
   String _getEmail() {
-    final user = Supabase.instance.client.auth.currentUser;
-    final email = user?.email;
+    final email = context.watch<AuthProvider>().user?.email;
     if (email == null || email.trim().isEmpty) return 'No email provided';
     return email;
   }
 
   String? _getAvatarUrl() {
-    return Supabase
-            .instance
-            .client
-            .auth
-            .currentUser
-            ?.userMetadata?['avatar_url']
-        as String?;
+    return context.watch<AuthProvider>().user?.avatarUrl;
   }
 
   String get _initials {
@@ -1282,10 +1146,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   bool _isGoogleLinked() {
-    final user = Supabase.instance.client.auth.currentUser;
-    if (user == null) return false;
-    return user.appMetadata['provider'] == 'google' ||
-        (user.identities?.any((i) => i.provider == 'google') ?? false);
+    return false;
   }
 
   // ============================================================================
@@ -1305,10 +1166,7 @@ class _ProfilePageState extends State<ProfilePage> {
         title: const Text('Log out'),
         content: const Text('Are you sure you want to log out?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               Navigator.pop(context);
@@ -1326,11 +1184,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _showLicenses(BuildContext context) {
-    showLicensePage(
-      context: context,
-      applicationName: 'Papyrus',
-      applicationVersion: '1.0.0',
-    );
+    showLicensePage(context: context, applicationName: 'Papyrus', applicationVersion: '1.0.0');
   }
 
   // ============================================================================
@@ -1351,12 +1205,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         const SizedBox(height: Spacing.sm),
         DropdownMenu<String>(
           initialSelection: value,
@@ -1386,21 +1235,13 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         const SizedBox(height: Spacing.sm),
         SizedBox(
           width: double.infinity,
           child: SegmentedButton<T>(
             segments: options.entries.map((entry) {
-              return ButtonSegment<T>(
-                value: entry.key,
-                label: Text(entry.value),
-              );
+              return ButtonSegment<T>(value: entry.key, label: Text(entry.value));
             }).toList(),
             selected: {value},
             onSelectionChanged: (selected) {
@@ -1452,12 +1293,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     _showPickerSheet(
       context,
-      items: [
-        ('Light', 'light'),
-        ('Dark', 'dark'),
-        ('E-ink', 'eink'),
-        ('System', 'system'),
-      ],
+      items: [('Light', 'light'), ('Dark', 'dark'), ('E-ink', 'eink'), ('System', 'system')],
       selected: prefs.themeModePref,
       onSelected: (value) => prefs.themeModePref = value,
     );
@@ -1487,11 +1323,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     _showPickerSheet(
       context,
-      items: [
-        ('Compact', 'compact'),
-        ('Normal', 'normal'),
-        ('Relaxed', 'relaxed'),
-      ],
+      items: [('Compact', 'compact'), ('Normal', 'normal'), ('Relaxed', 'relaxed')],
       selected: prefs.lineSpacing,
       onSelected: (value) => prefs.lineSpacing = value,
     );
@@ -1541,10 +1373,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     _showPickerSheet(
       context,
-      items: [
-        ('Open Library', 'Open Library'),
-        ('Google Books', 'Google Books'),
-      ],
+      items: [('Open Library', 'Open Library'), ('Google Books', 'Google Books')],
       selected: prefs.metadataSource,
       onSelected: (value) => prefs.metadataSource = value,
     );
@@ -1555,12 +1384,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     _showPickerSheet(
       context,
-      items: [
-        ('Markdown', 'Markdown'),
-        ('PDF', 'PDF'),
-        ('TXT', 'TXT'),
-        ('HTML', 'HTML'),
-      ],
+      items: [('Markdown', 'Markdown'), ('PDF', 'PDF'), ('TXT', 'TXT'), ('HTML', 'HTML')],
       selected: prefs.annotationExportFormat,
       onSelected: (value) => prefs.annotationExportFormat = value,
     );
@@ -1571,11 +1395,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     _showPickerSheet(
       context,
-      items: [
-        ('Local', 'Local'),
-        ('Cloud', 'Cloud'),
-        ('Self-hosted', 'Self-hosted'),
-      ],
+      items: [('Local', 'Local'), ('Cloud', 'Cloud'), ('Self-hosted', 'Self-hosted')],
       selected: prefs.storageBackend,
       onSelected: (value) => prefs.storageBackend = value,
     );
@@ -1638,26 +1458,17 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         _buildAvatar(context, size: avatarSize),
         const SizedBox(height: Spacing.md),
-        Text(
-          _getDisplayName(),
-          style: textTheme.headlineSmall,
-          textAlign: TextAlign.center,
-        ),
+        Text(_getDisplayName(), style: textTheme.headlineSmall, textAlign: TextAlign.center),
         const SizedBox(height: Spacing.xs),
         Text(
           _getEmail(),
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
+          style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: Spacing.md),
         SizedBox(
           width: 200,
-          child: OutlinedButton(
-            onPressed: () => _navigateToEditProfile(context),
-            child: const Text('Edit profile'),
-          ),
+          child: OutlinedButton(onPressed: () => _navigateToEditProfile(context), child: const Text('Edit profile')),
         ),
       ],
     );
@@ -1671,10 +1482,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(size / 2),
-        color: colorScheme.primaryContainer,
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(size / 2), color: colorScheme.primaryContainer),
       clipBehavior: Clip.antiAlias,
       child: avatarUrl != null && avatarUrl.isNotEmpty
           ? Image.network(
@@ -1693,10 +1501,7 @@ class _ProfilePageState extends State<ProfilePage> {
           : Center(
               child: Text(
                 _initials,
-                style: textTheme.headlineMedium?.copyWith(
-                  color: colorScheme.onPrimaryContainer,
-                  fontSize: size * 0.35,
-                ),
+                style: textTheme.headlineMedium?.copyWith(color: colorScheme.onPrimaryContainer, fontSize: size * 0.35),
               ),
             ),
     );
@@ -1712,9 +1517,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final iconColor = isDestructive
-        ? colorScheme.error
-        : colorScheme.onSurfaceVariant;
+    final iconColor = isDestructive ? colorScheme.error : colorScheme.onSurfaceVariant;
     final textColor = isDestructive ? colorScheme.error : null;
 
     return Material(
@@ -1723,10 +1526,7 @@ class _ProfilePageState extends State<ProfilePage> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.sm,
-            vertical: Spacing.md,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.md),
           child: Row(
             children: [
               Container(
@@ -1742,17 +1542,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(width: Spacing.md),
               Expanded(
-                child: Text(
-                  label,
-                  style: textTheme.bodyLarge?.copyWith(color: textColor),
-                ),
+                child: Text(label, style: textTheme.bodyLarge?.copyWith(color: textColor)),
               ),
-              if (showChevron)
-                Icon(
-                  Icons.chevron_right,
-                  color: colorScheme.onSurfaceVariant,
-                  size: IconSizes.medium,
-                ),
+              if (showChevron) Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: IconSizes.medium),
             ],
           ),
         ),

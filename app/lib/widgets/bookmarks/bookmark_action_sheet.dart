@@ -18,10 +18,7 @@ class BookmarkActionSheet extends StatelessWidget {
   const BookmarkActionSheet({super.key, required this.bookmark});
 
   /// Shows the action sheet and returns the selected action.
-  static Future<BookmarkAction?> show(
-    BuildContext context, {
-    required Bookmark bookmark,
-  }) async {
+  static Future<BookmarkAction?> show(BuildContext context, {required Bookmark bookmark}) async {
     return showModalBottomSheet<BookmarkAction>(
       context: context,
       builder: (context) => BookmarkActionSheet(bookmark: bookmark),
@@ -46,9 +43,7 @@ class BookmarkActionSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
               child: Text(
                 bookmark.displayLocation,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -65,22 +60,15 @@ class BookmarkActionSheet extends StatelessWidget {
 
             // Change color action
             ListTile(
-              leading: Icon(
-                Icons.palette_outlined,
-                color: colorScheme.onSurface,
-              ),
+              leading: Icon(Icons.palette_outlined, color: colorScheme.onSurface),
               title: const Text('Change color'),
-              onTap: () =>
-                  Navigator.of(context).pop(BookmarkAction.changeColor),
+              onTap: () => Navigator.of(context).pop(BookmarkAction.changeColor),
             ),
 
             // Delete action
             ListTile(
               leading: Icon(Icons.delete_outline, color: colorScheme.error),
-              title: Text(
-                'Delete bookmark',
-                style: TextStyle(color: colorScheme.error),
-              ),
+              title: Text('Delete bookmark', style: TextStyle(color: colorScheme.error)),
               onTap: () => Navigator.of(context).pop(BookmarkAction.delete),
             ),
 
@@ -118,17 +106,12 @@ class BookmarkNoteSheet extends StatefulWidget {
   const BookmarkNoteSheet({super.key, required this.bookmark});
 
   /// Show the note editing sheet. Returns the new note text, or null if cancelled.
-  static Future<String?> show(
-    BuildContext context, {
-    required Bookmark bookmark,
-  }) {
+  static Future<String?> show(BuildContext context, {required Bookmark bookmark}) {
     return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.bottomSheet),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
       ),
       builder: (context) => BookmarkNoteSheet(bookmark: bookmark),
     );
@@ -212,16 +195,11 @@ class BookmarkColorSheet extends StatelessWidget {
   const BookmarkColorSheet({super.key, required this.bookmark});
 
   /// Show the color picker sheet. Returns the selected color hex, or null.
-  static Future<String?> show(
-    BuildContext context, {
-    required Bookmark bookmark,
-  }) {
+  static Future<String?> show(BuildContext context, {required Bookmark bookmark}) {
     return showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.bottomSheet),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
       ),
       builder: (context) => BookmarkColorSheet(bookmark: bookmark),
     );
@@ -241,10 +219,7 @@ class BookmarkColorSheet extends StatelessWidget {
             const SizedBox(height: Spacing.md),
 
             // Title
-            Text(
-              'Change color',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Change color', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: Spacing.lg),
 
             // Color grid
@@ -253,9 +228,7 @@ class BookmarkColorSheet extends StatelessWidget {
               runSpacing: Spacing.md,
               children: Bookmark.availableColors.map((hex) {
                 final isSelected = hex == bookmark.colorHex;
-                final color = Color(
-                  int.parse('FF${hex.replaceFirst('#', '')}', radix: 16),
-                );
+                final color = Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
 
                 return GestureDetector(
                   onTap: () => Navigator.pop(context, hex),
@@ -265,17 +238,9 @@ class BookmarkColorSheet extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: color,
                       shape: BoxShape.circle,
-                      border: isSelected
-                          ? Border.all(color: colorScheme.onSurface, width: 2)
-                          : null,
+                      border: isSelected ? Border.all(color: colorScheme.onSurface, width: 2) : null,
                     ),
-                    child: isSelected
-                        ? Icon(
-                            Icons.check,
-                            color: colorScheme.surface,
-                            size: IconSizes.action,
-                          )
-                        : null,
+                    child: isSelected ? Icon(Icons.check, color: colorScheme.surface, size: IconSizes.action) : null,
                   ),
                 );
               }).toList(),
@@ -288,9 +253,7 @@ class BookmarkColorSheet extends StatelessWidget {
               runSpacing: Spacing.xs,
               children: Bookmark.availableColors.map((hex) {
                 final name = _colorNames[hex] ?? 'Unknown';
-                final color = Color(
-                  int.parse('FF${hex.replaceFirst('#', '')}', radix: 16),
-                );
+                final color = Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
 
                 return Row(
                   mainAxisSize: MainAxisSize.min,
@@ -298,17 +261,12 @@ class BookmarkColorSheet extends StatelessWidget {
                     Container(
                       width: 8,
                       height: 8,
-                      decoration: BoxDecoration(
-                        color: color,
-                        shape: BoxShape.circle,
-                      ),
+                      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                     ),
                     const SizedBox(width: Spacing.xs),
                     Text(
                       name,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ],
                 );
@@ -329,28 +287,17 @@ class BookmarkColorSheet extends StatelessWidget {
 /// Confirmation dialog for deleting a bookmark.
 class DeleteBookmarkDialog {
   /// Show the delete confirmation dialog. Returns true if confirmed.
-  static Future<bool> show(
-    BuildContext context, {
-    required Bookmark bookmark,
-    required String bookTitle,
-  }) async {
+  static Future<bool> show(BuildContext context, {required Bookmark bookmark, required String bookTitle}) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete bookmark'),
-        content: Text(
-          'Delete bookmark at ${bookmark.displayLocation} in "$bookTitle"?',
-        ),
+        content: Text('Delete bookmark at ${bookmark.displayLocation} in "$bookTitle"?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Delete'),
           ),
         ],

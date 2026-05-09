@@ -21,9 +21,7 @@ void main() {
       });
 
       test('hasLocation is true when location is set', () {
-        final note = buildTestNote(
-          location: const BookLocation(pageNumber: 10),
-        );
+        final note = buildTestNote(location: const BookLocation(pageNumber: 10));
         expect(note.hasLocation, true);
       });
 
@@ -43,10 +41,7 @@ void main() {
       });
 
       test('formattedDate uses updatedAt when present', () {
-        final note = buildTestNote(
-          createdAt: DateTime(2025, 1, 15),
-          updatedAt: DateTime(2025, 6, 20),
-        );
+        final note = buildTestNote(createdAt: DateTime(2025, 1, 15), updatedAt: DateTime(2025, 6, 20));
         expect(note.formattedDate, 'Jun 20, 2025');
       });
 
@@ -56,10 +51,7 @@ void main() {
       });
 
       test('dateLabel says Edited when updatedAt present', () {
-        final note = buildTestNote(
-          createdAt: DateTime(2025, 1, 1),
-          updatedAt: DateTime(2025, 6, 20),
-        );
+        final note = buildTestNote(createdAt: DateTime(2025, 1, 1), updatedAt: DateTime(2025, 6, 20));
         expect(note.dateLabel, 'Edited Jun 20, 2025');
       });
 
@@ -71,17 +63,8 @@ void main() {
 
     group('copyWith', () {
       test('creates copy with updated fields', () {
-        final original = buildTestNote(
-          title: 'Original',
-          content: 'Original content',
-          tags: ['tag1'],
-          isPinned: false,
-        );
-        final copy = original.copyWith(
-          title: 'Updated',
-          isPinned: true,
-          tags: ['tag1', 'tag2'],
-        );
+        final original = buildTestNote(title: 'Original', content: 'Original content', tags: ['tag1'], isPinned: false);
+        final copy = original.copyWith(title: 'Updated', isPinned: true, tags: ['tag1', 'tag2']);
 
         expect(copy.title, 'Updated');
         expect(copy.content, 'Original content');
@@ -99,12 +82,7 @@ void main() {
           bookId: 'book-1',
           title: 'Test',
           content: 'Content',
-          location: const BookLocation(
-            chapter: 2,
-            chapterTitle: 'Ch 2',
-            pageNumber: 30,
-            percentage: 0.1,
-          ),
+          location: const BookLocation(chapter: 2, chapterTitle: 'Ch 2', pageNumber: 30, percentage: 0.1),
           tags: ['review', 'important'],
           isPinned: true,
           createdAt: now,
@@ -207,12 +185,7 @@ void main() {
           bookId: 'book-rt',
           title: 'Roundtrip',
           content: 'Roundtrip content',
-          location: const BookLocation(
-            chapter: 3,
-            chapterTitle: 'Middle',
-            pageNumber: 100,
-            percentage: 0.5,
-          ),
+          location: const BookLocation(chapter: 3, chapterTitle: 'Middle', pageNumber: 100, percentage: 0.5),
           tags: ['test', 'roundtrip'],
           isPinned: true,
           createdAt: DateTime(2025, 3, 15),

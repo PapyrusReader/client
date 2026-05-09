@@ -43,10 +43,7 @@ class StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,11 +61,7 @@ class StatCard extends StatelessWidget {
                       color: colorScheme.primaryContainer,
                       borderRadius: BorderRadius.circular(AppRadius.md),
                     ),
-                    child: Icon(
-                      icon,
-                      size: 20,
-                      color: colorScheme.onPrimaryContainer,
-                    ),
+                    child: Icon(icon, size: 20, color: colorScheme.onPrimaryContainer),
                   )
                 else
                   const SizedBox.shrink(),
@@ -78,19 +71,15 @@ class StatCard extends StatelessWidget {
           if (icon != null || trend != null) const SizedBox(height: Spacing.sm),
           Text(
             value,
-            style:
-                (isDesktop ? textTheme.headlineMedium : textTheme.headlineSmall)
-                    ?.copyWith(
-                      color: colorScheme.onSurface,
-                      fontWeight: FontWeight.bold,
-                    ),
+            style: (isDesktop ? textTheme.headlineMedium : textTheme.headlineSmall)?.copyWith(
+              color: colorScheme.onSurface,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: Spacing.xs),
           Text(
             label,
-            style: textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
           ),
@@ -115,18 +104,11 @@ class StatCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            isPositive ? Icons.trending_up : Icons.trending_down,
-            size: 14,
-            color: trendColor,
-          ),
+          Icon(isPositive ? Icons.trending_up : Icons.trending_down, size: 14, color: trendColor),
           const SizedBox(width: 4),
           Text(
             trend!,
-            style: textTheme.labelSmall?.copyWith(
-              color: trendColor,
-              fontWeight: FontWeight.bold,
-            ),
+            style: textTheme.labelSmall?.copyWith(color: trendColor, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -145,12 +127,7 @@ class CompactStatCard extends StatelessWidget {
   /// Whether to use desktop styling.
   final bool isDesktop;
 
-  const CompactStatCard({
-    super.key,
-    required this.value,
-    required this.label,
-    this.isDesktop = false,
-  });
+  const CompactStatCard({super.key, required this.value, required this.label, this.isDesktop = false});
 
   @override
   Widget build(BuildContext context) {
@@ -165,28 +142,22 @@ class CompactStatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Text(
             value,
-            style: (isDesktop ? textTheme.titleLarge : textTheme.titleMedium)
-                ?.copyWith(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.bold,
-                ),
+            style: (isDesktop ? textTheme.titleLarge : textTheme.titleMedium)?.copyWith(
+              color: colorScheme.primary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: 2),
           Text(
             label,
-            style: textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -211,13 +182,7 @@ class StatSectionCard extends StatelessWidget {
   /// Whether to use desktop styling.
   final bool isDesktop;
 
-  const StatSectionCard({
-    super.key,
-    required this.title,
-    this.action,
-    required this.child,
-    this.isDesktop = false,
-  });
+  const StatSectionCard({super.key, required this.title, this.action, required this.child, this.isDesktop = false});
 
   @override
   Widget build(BuildContext context) {
@@ -229,10 +194,7 @@ class StatSectionCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

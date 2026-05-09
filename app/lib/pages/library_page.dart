@@ -58,18 +58,14 @@ class _LibraryPageState extends State<LibraryPage> {
     if (provider.searchQuery.isNotEmpty) {
       final searchQuery = SearchQueryParser.parse(provider.searchQuery);
       if (searchQuery.isNotEmpty) {
-        books = books
-            .where((book) => searchQuery.matches(book, dataStore: dataStore))
-            .toList();
+        books = books.where((book) => searchQuery.matches(book, dataStore: dataStore)).toList();
       }
     }
 
     // Apply category filters (quick filters from chips)
     if (!provider.isFilterActive(LibraryFilterType.all)) {
       if (provider.isFilterActive(LibraryFilterType.favorites)) {
-        books = books
-            .where((book) => provider.isBookFavorite(book.id, book.isFavorite))
-            .toList();
+        books = books.where((book) => provider.isBookFavorite(book.id, book.isFavorite)).toList();
       }
       if (provider.isFilterActive(LibraryFilterType.reading)) {
         books = books.where((book) => book.isReading).toList();
@@ -78,28 +74,16 @@ class _LibraryPageState extends State<LibraryPage> {
         books = books.where((book) => book.isFinished).toList();
       }
       if (provider.isFilterActive(LibraryFilterType.unread)) {
+        books = books.where((book) => book.readingStatus == ReadingStatus.notStarted).toList();
+      }
+      if (provider.isFilterActive(LibraryFilterType.shelves) && provider.selectedShelf != null) {
         books = books
-            .where((book) => book.readingStatus == ReadingStatus.notStarted)
+            .where((book) => dataStore.getShelvesForBook(book.id).any((s) => s.name == provider.selectedShelf))
             .toList();
       }
-      if (provider.isFilterActive(LibraryFilterType.shelves) &&
-          provider.selectedShelf != null) {
+      if (provider.isFilterActive(LibraryFilterType.topics) && provider.selectedTopic != null) {
         books = books
-            .where(
-              (book) => dataStore
-                  .getShelvesForBook(book.id)
-                  .any((s) => s.name == provider.selectedShelf),
-            )
-            .toList();
-      }
-      if (provider.isFilterActive(LibraryFilterType.topics) &&
-          provider.selectedTopic != null) {
-        books = books
-            .where(
-              (book) => dataStore
-                  .getTagsForBook(book.id)
-                  .any((t) => t.name == provider.selectedTopic),
-            )
+            .where((book) => dataStore.getTagsForBook(book.id).any((t) => t.name == provider.selectedTopic))
             .toList();
       }
     }
@@ -111,11 +95,7 @@ class _LibraryPageState extends State<LibraryPage> {
   // MOBILE LAYOUT
   // ============================================================================
 
-  Widget _buildMobileLayout(
-    BuildContext context,
-    List<Book> books,
-    LibraryProvider libraryProvider,
-  ) {
+  Widget _buildMobileLayout(BuildContext context, List<Book> books, LibraryProvider libraryProvider) {
     final isSelectionMode = libraryProvider.isSelectionMode;
 
     return Scaffold(
@@ -126,19 +106,13 @@ class _LibraryPageState extends State<LibraryPage> {
           children: [
             // Header: selection header or normal header
             Padding(
-              padding: const EdgeInsets.only(
-                top: Spacing.md,
-                left: Spacing.md,
-                right: Spacing.md,
-              ),
+              padding: const EdgeInsets.only(top: Spacing.md, left: Spacing.md, right: Spacing.md),
               child: isSelectionMode
                   ? SelectionHeader(
                       selectedCount: libraryProvider.selectedCount,
                       totalCount: books.length,
                       onClose: libraryProvider.exitSelectionMode,
-                      onSelectAll: () => libraryProvider.selectAll(
-                        books.map((b) => b.id).toList(),
-                      ),
+                      onSelectAll: () => libraryProvider.selectAll(books.map((b) => b.id).toList()),
                       onDeselectAll: libraryProvider.deselectAll,
                     )
                   : Row(
@@ -166,19 +140,15 @@ class _LibraryPageState extends State<LibraryPage> {
             // View toggle row
             if (!isSelectionMode)
               Padding(
-                padding: const EdgeInsets.only(
-                  left: Spacing.md,
-                  right: Spacing.md,
-                  bottom: Spacing.md,
-                ),
+                padding: const EdgeInsets.only(left: Spacing.md, right: Spacing.md, bottom: Spacing.md),
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
                       '${books.length} ${books.length == 1 ? 'book' : 'books'}',
-                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      ),
+                      style: Theme.of(
+                        context,
+                      ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                     ),
                     _buildViewToggle(libraryProvider),
                   ],
@@ -191,24 +161,15 @@ class _LibraryPageState extends State<LibraryPage> {
                   ? _buildEmptyState()
                   : libraryProvider.isListView
                   ? _buildBookList(context, books)
-                  : BookGrid(
-                      books: books,
-                      onBookTap: (book) =>
-                          _navigateToBookDetails(context, book),
-                    ),
+                  : BookGrid(books: books, onBookTap: (book) => _navigateToBookDetails(context, book)),
             ),
           ],
         ),
       ),
       floatingActionButton: isSelectionMode
           ? null
-          : FloatingActionButton(
-              onPressed: () => AddBookChoiceSheet.show(context),
-              child: const Icon(Icons.add),
-            ),
-      bottomNavigationBar: isSelectionMode
-          ? buildMobileBottomActionBar(context, libraryProvider)
-          : null,
+          : FloatingActionButton(onPressed: () => AddBookChoiceSheet.show(context), child: const Icon(Icons.add)),
+      bottomNavigationBar: isSelectionMode ? buildMobileBottomActionBar(context, libraryProvider) : null,
     );
   }
 
@@ -283,15 +244,9 @@ class _LibraryPageState extends State<LibraryPage> {
       filterOptions: filterOptions,
       initialFilters: AppliedFilters.fromQueryString(
         libraryProvider.searchQuery,
-        filterReading: libraryProvider.isFilterActive(
-          LibraryFilterType.reading,
-        ),
-        filterFavorites: libraryProvider.isFilterActive(
-          LibraryFilterType.favorites,
-        ),
-        filterFinished: libraryProvider.isFilterActive(
-          LibraryFilterType.finished,
-        ),
+        filterReading: libraryProvider.isFilterActive(LibraryFilterType.reading),
+        filterFavorites: libraryProvider.isFilterActive(LibraryFilterType.favorites),
+        filterFinished: libraryProvider.isFilterActive(LibraryFilterType.finished),
         filterUnread: libraryProvider.isFilterActive(LibraryFilterType.unread),
         shelf: libraryProvider.selectedShelf,
         topic: libraryProvider.selectedTopic,
@@ -318,15 +273,9 @@ class _LibraryPageState extends State<LibraryPage> {
       filterOptions: filterOptions,
       initialFilters: AppliedFilters.fromQueryString(
         libraryProvider.searchQuery,
-        filterReading: libraryProvider.isFilterActive(
-          LibraryFilterType.reading,
-        ),
-        filterFavorites: libraryProvider.isFilterActive(
-          LibraryFilterType.favorites,
-        ),
-        filterFinished: libraryProvider.isFilterActive(
-          LibraryFilterType.finished,
-        ),
+        filterReading: libraryProvider.isFilterActive(LibraryFilterType.reading),
+        filterFavorites: libraryProvider.isFilterActive(LibraryFilterType.favorites),
+        filterFinished: libraryProvider.isFilterActive(LibraryFilterType.finished),
         filterUnread: libraryProvider.isFilterActive(LibraryFilterType.unread),
         shelf: libraryProvider.selectedShelf,
         topic: libraryProvider.selectedTopic,
@@ -378,8 +327,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
   Widget _buildSearchBar(LibraryProvider libraryProvider) {
     final activeFilters = _buildActiveFilters(libraryProvider);
-    final isDesktop =
-        MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
+    final isDesktop = MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
 
     return LibrarySearchBar(
       initialQuery: libraryProvider.searchQuery,
@@ -391,9 +339,7 @@ class _LibraryPageState extends State<LibraryPage> {
           libraryProvider.setSearchQuery(query);
         }
       },
-      onFilterTap: () => isDesktop
-          ? _showFilterDialog(context)
-          : _showFilterBottomSheet(context),
+      onFilterTap: () => isDesktop ? _showFilterDialog(context) : _showFilterBottomSheet(context),
     );
   }
 
@@ -404,9 +350,7 @@ class _LibraryPageState extends State<LibraryPage> {
   Widget _buildViewToggle(LibraryProvider libraryProvider) {
     return ViewModeToggle(
       isGridView: libraryProvider.isGridView,
-      onChanged: (isGrid) => libraryProvider.setViewMode(
-        isGrid ? LibraryViewMode.grid : LibraryViewMode.list,
-      ),
+      onChanged: (isGrid) => libraryProvider.setViewMode(isGrid ? LibraryViewMode.grid : LibraryViewMode.list),
     );
   }
 
@@ -425,54 +369,18 @@ class _LibraryPageState extends State<LibraryPage> {
       tooltip: 'Sort books',
       onSelected: provider.setSortOption,
       itemBuilder: (context) => [
-        _buildSortMenuItem(
-          LibrarySortOption.dateAddedNewest,
-          'Date added (newest)',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          LibrarySortOption.dateAddedOldest,
-          'Date added (oldest)',
-          provider.sortOption,
-        ),
+        _buildSortMenuItem(LibrarySortOption.dateAddedNewest, 'Date added (newest)', provider.sortOption),
+        _buildSortMenuItem(LibrarySortOption.dateAddedOldest, 'Date added (oldest)', provider.sortOption),
         const PopupMenuDivider(),
-        _buildSortMenuItem(
-          LibrarySortOption.titleAZ,
-          'Title (A\u2013Z)',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          LibrarySortOption.titleZA,
-          'Title (Z\u2013A)',
-          provider.sortOption,
-        ),
+        _buildSortMenuItem(LibrarySortOption.titleAZ, 'Title (A\u2013Z)', provider.sortOption),
+        _buildSortMenuItem(LibrarySortOption.titleZA, 'Title (Z\u2013A)', provider.sortOption),
         const PopupMenuDivider(),
-        _buildSortMenuItem(
-          LibrarySortOption.authorAZ,
-          'Author (A\u2013Z)',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          LibrarySortOption.authorZA,
-          'Author (Z\u2013A)',
-          provider.sortOption,
-        ),
+        _buildSortMenuItem(LibrarySortOption.authorAZ, 'Author (A\u2013Z)', provider.sortOption),
+        _buildSortMenuItem(LibrarySortOption.authorZA, 'Author (Z\u2013A)', provider.sortOption),
         const PopupMenuDivider(),
-        _buildSortMenuItem(
-          LibrarySortOption.lastRead,
-          'Last read',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          LibrarySortOption.rating,
-          'Rating',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          LibrarySortOption.progress,
-          'Progress',
-          provider.sortOption,
-        ),
+        _buildSortMenuItem(LibrarySortOption.lastRead, 'Last read', provider.sortOption),
+        _buildSortMenuItem(LibrarySortOption.rating, 'Rating', provider.sortOption),
+        _buildSortMenuItem(LibrarySortOption.progress, 'Progress', provider.sortOption),
       ],
     );
   }
@@ -490,20 +398,14 @@ class _LibraryPageState extends State<LibraryPage> {
           Icon(
             Icons.check,
             size: IconSizes.small,
-            color: option == current
-                ? Theme.of(context).colorScheme.primary
-                : Colors.transparent,
+            color: option == current ? Theme.of(context).colorScheme.primary : Colors.transparent,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildDesktopLayout(
-    BuildContext context,
-    List<Book> books,
-    LibraryProvider libraryProvider,
-  ) {
+  Widget _buildDesktopLayout(BuildContext context, List<Book> books, LibraryProvider libraryProvider) {
     const double controlHeight = 40.0;
     final isSelectionMode = libraryProvider.isSelectionMode;
 
@@ -523,19 +425,13 @@ class _LibraryPageState extends State<LibraryPage> {
             children: [
               // Header row
               Container(
-                padding: const EdgeInsets.only(
-                  top: Spacing.lg,
-                  left: Spacing.lg,
-                  right: Spacing.lg,
-                ),
+                padding: const EdgeInsets.only(top: Spacing.lg, left: Spacing.lg, right: Spacing.lg),
                 child: isSelectionMode
                     ? SelectionHeader(
                         selectedCount: libraryProvider.selectedCount,
                         totalCount: books.length,
                         onClose: libraryProvider.exitSelectionMode,
-                        onSelectAll: () => libraryProvider.selectAll(
-                          books.map((b) => b.id).toList(),
-                        ),
+                        onSelectAll: () => libraryProvider.selectAll(books.map((b) => b.id).toList()),
                         onDeselectAll: libraryProvider.deselectAll,
                         actions: buildBulkActionBar(context, libraryProvider),
                       )
@@ -549,9 +445,7 @@ class _LibraryPageState extends State<LibraryPage> {
                               children: [
                                 Row(
                                   children: [
-                                    Expanded(
-                                      child: _buildSearchBar(libraryProvider),
-                                    ),
+                                    Expanded(child: _buildSearchBar(libraryProvider)),
                                     const SizedBox(width: Spacing.sm),
                                     _buildSortButton(libraryProvider),
                                   ],
@@ -591,11 +485,7 @@ class _LibraryPageState extends State<LibraryPage> {
                     ? _buildEmptyState()
                     : libraryProvider.isListView
                     ? _buildBookList(context, books)
-                    : BookGrid(
-                        books: books,
-                        onBookTap: (book) =>
-                            _navigateToBookDetails(context, book),
-                      ),
+                    : BookGrid(books: books, onBookTap: (book) => _navigateToBookDetails(context, book)),
               ),
             ],
           ),
@@ -613,10 +503,7 @@ class _LibraryPageState extends State<LibraryPage> {
       itemCount: books.length,
       itemBuilder: (context, index) {
         final book = books[index];
-        final isFavorite = libraryProvider.isBookFavorite(
-          book.id,
-          book.isFavorite,
-        );
+        final isFavorite = libraryProvider.isBookFavorite(book.id, book.isFavorite);
         return BookListItem(
           book: book,
           isFavorite: isFavorite,

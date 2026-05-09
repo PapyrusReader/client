@@ -24,9 +24,7 @@ class AddBookChoiceSheet extends StatelessWidget {
       return showDialog(
         context: context,
         builder: (_) => Dialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.dialog),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.dialog)),
           child: ConstrainedBox(
             constraints: const BoxConstraints(maxWidth: 480),
             child: Padding(
@@ -40,16 +38,9 @@ class AddBookChoiceSheet extends StatelessWidget {
 
     return showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (_) => Padding(
-        padding: const EdgeInsets.only(
-          left: Spacing.lg,
-          right: Spacing.lg,
-          top: Spacing.md,
-          bottom: Spacing.lg,
-        ),
+        padding: const EdgeInsets.only(left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.lg),
         child: AddBookChoiceSheet(callerContext: context),
       ),
     );
@@ -58,17 +49,13 @@ class AddBookChoiceSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final isDesktop =
-        MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
+    final isDesktop = MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!isDesktop) ...[
-          const BottomSheetHandle(),
-          const SizedBox(height: Spacing.lg),
-        ],
+        if (!isDesktop) ...[const BottomSheetHandle(), const SizedBox(height: Spacing.lg)],
         Text('Add book', style: textTheme.headlineSmall),
         const SizedBox(height: Spacing.lg),
         _ChoiceOption(
@@ -101,12 +88,7 @@ class _ChoiceOption extends StatelessWidget {
   final String subtitle;
   final VoidCallback onTap;
 
-  const _ChoiceOption({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
+  const _ChoiceOption({required this.icon, required this.title, required this.subtitle, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -139,12 +121,7 @@ class _ChoiceOption extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(title, style: textTheme.titleMedium),
-                  Text(
-                    subtitle,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
-                  ),
+                  Text(subtitle, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
                 ],
               ),
             ),

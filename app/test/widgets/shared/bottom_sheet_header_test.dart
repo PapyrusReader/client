@@ -48,13 +48,9 @@ void main() {
       expect(saved, isTrue);
     });
 
-    testWidgets('save button is disabled when canSave is false', (
-      tester,
-    ) async {
+    testWidgets('save button is disabled when canSave is false', (tester) async {
       var saved = false;
-      await tester.pumpWidget(
-        buildHeader(canSave: false, onSave: () => saved = true),
-      );
+      await tester.pumpWidget(buildHeader(canSave: false, onSave: () => saved = true));
 
       await tester.tap(find.text('Save'));
       expect(saved, isFalse);
@@ -70,10 +66,7 @@ void main() {
     testWidgets('save button is a FilledButton', (tester) async {
       await tester.pumpWidget(buildHeader());
 
-      final filledButton = find.ancestor(
-        of: find.text('Save'),
-        matching: find.byType(FilledButton),
-      );
+      final filledButton = find.ancestor(of: find.text('Save'), matching: find.byType(FilledButton));
       expect(filledButton, findsOneWidget);
     });
   });

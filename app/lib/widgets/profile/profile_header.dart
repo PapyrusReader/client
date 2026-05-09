@@ -74,27 +74,18 @@ class ProfileHeader extends StatelessWidget {
       children: [
         _buildAvatar(context, size: 128, borderRadius: 64),
         const SizedBox(height: Spacing.md),
-        Text(
-          displayName,
-          style: textTheme.headlineSmall,
-          textAlign: TextAlign.center,
-        ),
+        Text(displayName, style: textTheme.headlineSmall, textAlign: TextAlign.center),
         const SizedBox(height: Spacing.xs),
         Text(
           email,
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
+          style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: Spacing.md),
         SizedBox(
           width: 200,
           height: 40,
-          child: OutlinedButton(
-            onPressed: onEditProfile,
-            child: const Text('Edit profile'),
-          ),
+          child: OutlinedButton(onPressed: onEditProfile, child: const Text('Edit profile')),
         ),
       ],
     );
@@ -122,12 +113,7 @@ class ProfileHeader extends StatelessWidget {
               children: [
                 Text(displayName, style: textTheme.headlineMedium),
                 const SizedBox(height: Spacing.xs),
-                Text(
-                  email,
-                  style: textTheme.bodyLarge?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                Text(email, style: textTheme.bodyLarge?.copyWith(color: colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -144,47 +130,31 @@ class ProfileHeader extends StatelessWidget {
   }
 
   /// Builds circular avatar for standard modes.
-  Widget _buildAvatar(
-    BuildContext context, {
-    required double size,
-    required double borderRadius,
-  }) {
+  Widget _buildAvatar(BuildContext context, {required double size, required double borderRadius}) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(borderRadius),
-        color: colorScheme.primaryContainer,
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(borderRadius), color: colorScheme.primaryContainer),
       clipBehavior: Clip.antiAlias,
       child: avatarUrl != null && avatarUrl!.isNotEmpty
           ? Image.network(
               avatarUrl!,
               fit: BoxFit.cover,
-              errorBuilder: (_, _, _) =>
-                  _buildInitialsAvatar(context, colorScheme, textTheme, size),
+              errorBuilder: (_, _, _) => _buildInitialsAvatar(context, colorScheme, textTheme, size),
             )
           : _buildInitialsAvatar(context, colorScheme, textTheme, size),
     );
   }
 
   /// Builds initials fallback for avatar.
-  Widget _buildInitialsAvatar(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-    double size,
-  ) {
+  Widget _buildInitialsAvatar(BuildContext context, ColorScheme colorScheme, TextTheme textTheme, double size) {
     return Center(
       child: Text(
         _initials,
-        style: textTheme.headlineMedium?.copyWith(
-          color: colorScheme.onPrimaryContainer,
-          fontSize: size * 0.35,
-        ),
+        style: textTheme.headlineMedium?.copyWith(color: colorScheme.onPrimaryContainer, fontSize: size * 0.35),
       ),
     );
   }

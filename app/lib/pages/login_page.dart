@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/responsive.dart';
 import 'package:papyrus/widgets/auth/auth_continue_button.dart';
@@ -10,9 +10,8 @@ import 'package:papyrus/widgets/buttons/google_sign_in.dart';
 import 'package:papyrus/widgets/input/email_input.dart';
 import 'package:papyrus/widgets/input/password_input.dart';
 import 'package:papyrus/widgets/titled_divider.dart';
+import 'package:provider/provider.dart';
 
-/// Login page for the Papyrus book management application.
-/// Provides responsive layouts for mobile and desktop displays.
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
 
@@ -39,43 +38,40 @@ class _LoginPageState extends State<LoginPage> {
   }
 
   Future<void> _handleLogin() async {
-    if (_isLoading) return;
+    if (_isLoading) {
+      return;
+    }
 
-    // Hide keyboard
     FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
     try {
-      await Supabase.instance.client.auth.signInWithPassword(
+      final success = await context.read<AuthProvider>().login(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
 
-      if (!mounted) return;
-      context.goNamed('LIBRARY');
-    } on AuthException catch (e) {
-      if (!mounted) return;
-
-      String message;
-      final msg = e.message.toLowerCase();
-      if (msg.contains('invalid login credentials') ||
-          msg.contains('invalid email or password')) {
-        message = 'Incorrect email or password.';
-      } else if (msg.contains('email not confirmed')) {
-        message = 'Please verify your email before signing in.';
-      } else if (msg.contains('too many requests')) {
-        message = 'Too many attempts. Please try again later.';
-      } else {
-        message = 'Incorrect email or password.';
+      if (!mounted) {
+        return;
       }
 
-      _showErrorSnackBar(message);
-    } catch (e) {
-      if (!mounted) return;
+      if (!success) {
+        _showErrorSnackBar(context.read<AuthProvider>().error ?? 'Incorrect email or password.');
+        return;
+      }
+
+      context.goNamed('LIBRARY');
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
       _showErrorSnackBar('An error occurred. Please try again.');
     } finally {
       if (mounted) {
@@ -103,11 +99,7 @@ class _LoginPageState extends State<LoginPage> {
       const TitledDivider(title: 'Or continue with'),
       const GoogleSignInButton(title: 'Sign in with Google'),
       const SizedBox(height: Spacing.md),
-      AuthSwitchLink(
-        promptText: "Don't have an account?",
-        actionText: 'Sign up',
-        onPressed: _navigateToRegister,
-      ),
+      AuthSwitchLink(promptText: "Don't have an account?", actionText: 'Sign up', onPressed: _navigateToRegister),
     ];
   }
 
@@ -148,11 +140,6 @@ class _LoginPageState extends State<LoginPage> {
   }
 }
 
-// =============================================================================
-// LOGIN FORM
-// =============================================================================
-
-/// Login-specific form with email and password fields.
 class _LoginForm extends StatelessWidget {
   final GlobalKey<FormState> formKey;
   final TextEditingController emailController;
@@ -204,21 +191,12 @@ class _LoginForm extends StatelessWidget {
               onPressed: () {
                 context.go('/forgot-password');
               },
-              style: TextButton.styleFrom(
-                foregroundColor: Theme.of(context).colorScheme.primary,
-              ),
-              child: const Text(
-                'Forgot password?',
-                style: TextStyle(fontWeight: FontWeight.w500),
-              ),
+              style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
+              child: const Text('Forgot password?', style: TextStyle(fontWeight: FontWeight.w500)),
             ),
           ),
           const SizedBox(height: Spacing.sm),
-          AuthContinueButton(
-            isLoading: isLoading,
-            onPressed: onLogin,
-            isDesktop: isDesktop,
-          ),
+          AuthContinueButton(isLoading: isLoading, onPressed: onLogin, isDesktop: isDesktop),
         ],
       ),
     );

@@ -11,12 +11,7 @@ class BookmarkDialog extends StatefulWidget {
   final int? pageCount;
   final Bookmark? existingBookmark;
 
-  const BookmarkDialog({
-    super.key,
-    required this.bookId,
-    this.pageCount,
-    this.existingBookmark,
-  });
+  const BookmarkDialog({super.key, required this.bookId, this.pageCount, this.existingBookmark});
 
   /// Shows the dialog and returns the created/updated bookmark, or null if cancelled.
   static Future<Bookmark?> show(
@@ -29,15 +24,9 @@ class BookmarkDialog extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.bottomSheet),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
       ),
-      builder: (context) => BookmarkDialog(
-        bookId: bookId,
-        pageCount: pageCount,
-        existingBookmark: existingBookmark,
-      ),
+      builder: (context) => BookmarkDialog(bookId: bookId, pageCount: pageCount, existingBookmark: existingBookmark),
     );
   }
 
@@ -57,17 +46,10 @@ class _BookmarkDialogState extends State<BookmarkDialog> {
   @override
   void initState() {
     super.initState();
-    _pageController = TextEditingController(
-      text: widget.existingBookmark?.pageNumber?.toString() ?? '',
-    );
-    _chapterController = TextEditingController(
-      text: widget.existingBookmark?.chapterTitle ?? '',
-    );
-    _noteController = TextEditingController(
-      text: widget.existingBookmark?.note ?? '',
-    );
-    _selectedColor =
-        widget.existingBookmark?.colorHex ?? Bookmark.availableColors.first;
+    _pageController = TextEditingController(text: widget.existingBookmark?.pageNumber?.toString() ?? '');
+    _chapterController = TextEditingController(text: widget.existingBookmark?.chapterTitle ?? '');
+    _noteController = TextEditingController(text: widget.existingBookmark?.note ?? '');
+    _selectedColor = widget.existingBookmark?.colorHex ?? Bookmark.availableColors.first;
   }
 
   @override
@@ -82,16 +64,12 @@ class _BookmarkDialogState extends State<BookmarkDialog> {
     if (!(_formKey.currentState?.validate() ?? false)) return;
 
     final page = int.parse(_pageController.text);
-    final position = widget.pageCount != null
-        ? (page / widget.pageCount!).clamp(0.0, 1.0)
-        : 0.0;
+    final position = widget.pageCount != null ? (page / widget.pageCount!).clamp(0.0, 1.0) : 0.0;
     final chapter = _chapterController.text.trim();
     final note = _noteController.text.trim();
 
     final bookmark = Bookmark(
-      id:
-          widget.existingBookmark?.id ??
-          DateTime.now().millisecondsSinceEpoch.toString(),
+      id: widget.existingBookmark?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
       bookId: widget.bookId,
       position: position,
       pageNumber: page,
@@ -139,9 +117,7 @@ class _BookmarkDialogState extends State<BookmarkDialog> {
                   decoration: InputDecoration(
                     labelText: 'Page number',
                     border: const OutlineInputBorder(),
-                    suffixText: widget.pageCount != null
-                        ? 'of ${widget.pageCount}'
-                        : null,
+                    suffixText: widget.pageCount != null ? 'of ${widget.pageCount}' : null,
                   ),
                   validator: (value) {
                     if (value == null || value.trim().isEmpty) {
@@ -173,10 +149,7 @@ class _BookmarkDialogState extends State<BookmarkDialog> {
                 // Note (optional)
                 TextFormField(
                   controller: _noteController,
-                  decoration: const InputDecoration(
-                    labelText: 'Note (optional)',
-                    border: OutlineInputBorder(),
-                  ),
+                  decoration: const InputDecoration(labelText: 'Note (optional)', border: OutlineInputBorder()),
                   textCapitalization: TextCapitalization.sentences,
                   maxLines: 2,
                 ),
@@ -189,9 +162,7 @@ class _BookmarkDialogState extends State<BookmarkDialog> {
                   spacing: Spacing.sm,
                   children: Bookmark.availableColors.map((hex) {
                     final isSelected = hex == _selectedColor;
-                    final color = Color(
-                      int.parse('FF${hex.replaceFirst('#', '')}', radix: 16),
-                    );
+                    final color = Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
                     return GestureDetector(
                       onTap: () => setState(() => _selectedColor = hex),
                       child: Container(
@@ -200,20 +171,9 @@ class _BookmarkDialogState extends State<BookmarkDialog> {
                         decoration: BoxDecoration(
                           color: color,
                           shape: BoxShape.circle,
-                          border: isSelected
-                              ? Border.all(
-                                  color: colorScheme.onSurface,
-                                  width: 2,
-                                )
-                              : null,
+                          border: isSelected ? Border.all(color: colorScheme.onSurface, width: 2) : null,
                         ),
-                        child: isSelected
-                            ? Icon(
-                                Icons.check,
-                                color: colorScheme.surface,
-                                size: IconSizes.small,
-                              )
-                            : null,
+                        child: isSelected ? Icon(Icons.check, color: colorScheme.surface, size: IconSizes.small) : null,
                       ),
                     );
                   }).toList(),

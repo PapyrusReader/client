@@ -15,12 +15,7 @@ class ReadingGoalCard extends StatelessWidget {
   /// Whether to use desktop styling.
   final bool isDesktop;
 
-  const ReadingGoalCard({
-    super.key,
-    required this.goals,
-    this.onTap,
-    this.isDesktop = false,
-  });
+  const ReadingGoalCard({super.key, required this.goals, this.onTap, this.isDesktop = false});
 
   @override
   Widget build(BuildContext context) {
@@ -42,10 +37,7 @@ class ReadingGoalCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -98,9 +90,7 @@ class ReadingGoalCard extends StatelessWidget {
                 goal.type == GoalType.minutes
                     ? '${formatDuration(goal.current)}/${formatDuration(goal.target)}'
                     : '${goal.current}/${goal.target}',
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -110,9 +100,7 @@ class ReadingGoalCard extends StatelessWidget {
             child: LinearProgressIndicator(
               value: goal.progress,
               backgroundColor: colorScheme.surfaceContainerHighest,
-              color: goal.isCompleted
-                  ? colorScheme.tertiary
-                  : colorScheme.primary,
+              color: goal.isCompleted ? colorScheme.tertiary : colorScheme.primary,
               minHeight: 4,
             ),
           ),
@@ -135,38 +123,22 @@ class ReadingGoalCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.flag_outlined,
-            size: 40,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          Icon(Icons.flag_outlined, size: 40, color: colorScheme.onSurfaceVariant),
           const SizedBox(height: Spacing.md),
-          Text(
-            'No reading goals set',
-            style: textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
+          Text('No reading goals set', style: textTheme.titleMedium, textAlign: TextAlign.center),
           const SizedBox(height: Spacing.xs),
           Text(
             'Set a goal to track your progress',
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: Spacing.md),
-          TextButton(
-            onPressed: () => context.go('/goals'),
-            child: const Text('Set a goal'),
-          ),
+          TextButton(onPressed: () => context.go('/goals'), child: const Text('Set a goal')),
         ],
       ),
     );

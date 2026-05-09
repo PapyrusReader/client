@@ -5,9 +5,6 @@ class SearchSettings extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 8, 8, 0),
-      child: const Text("Search options..."),
-    );
+    return Container(padding: const EdgeInsets.fromLTRB(8, 8, 8, 0), child: const Text("Search options..."));
   }
 }

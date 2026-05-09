@@ -38,8 +38,7 @@ class BookMetadataResult {
   String get primaryAuthor => authors?.isNotEmpty == true ? authors!.first : '';
 
   /// Get co-authors (all authors except the first).
-  List<String> get coAuthors =>
-      authors != null && authors!.length > 1 ? authors!.sublist(1) : [];
+  List<String> get coAuthors => authors != null && authors!.length > 1 ? authors!.sublist(1) : [];
 
   /// Source display name.
   String get sourceLabel {
@@ -59,10 +58,7 @@ class MetadataService {
   MetadataService({http.Client? client}) : _client = client ?? http.Client();
 
   /// Search for books by query (title, author, or general search).
-  Future<List<BookMetadataResult>> search(
-    String query,
-    MetadataSource source,
-  ) async {
+  Future<List<BookMetadataResult>> search(String query, MetadataSource source) async {
     if (query.trim().isEmpty) return [];
 
     switch (source) {
@@ -74,10 +70,7 @@ class MetadataService {
   }
 
   /// Search for a book by ISBN.
-  Future<List<BookMetadataResult>> searchByIsbn(
-    String isbn,
-    MetadataSource source,
-  ) async {
+  Future<List<BookMetadataResult>> searchByIsbn(String isbn, MetadataSource source) async {
     final cleanIsbn = isbn.replaceAll(RegExp(r'[-\s]'), '');
     if (cleanIsbn.isEmpty) return [];
 
@@ -95,9 +88,7 @@ class MetadataService {
 
   Future<List<BookMetadataResult>> _searchOpenLibrary(String query) async {
     try {
-      final uri = Uri.parse(
-        'https://openlibrary.org/search.json?q=${Uri.encodeComponent(query)}&limit=10',
-      );
+      final uri = Uri.parse('https://openlibrary.org/search.json?q=${Uri.encodeComponent(query)}&limit=10');
       final response = await _client.get(uri);
 
       if (response.statusCode != 200) return [];
@@ -113,9 +104,7 @@ class MetadataService {
 
   Future<List<BookMetadataResult>> _searchOpenLibraryByIsbn(String isbn) async {
     try {
-      final uri = Uri.parse(
-        'https://openlibrary.org/search.json?isbn=$isbn&limit=5',
-      );
+      final uri = Uri.parse('https://openlibrary.org/search.json?isbn=$isbn&limit=5');
       final response = await _client.get(uri);
 
       if (response.statusCode != 200) return [];
@@ -192,9 +181,7 @@ class MetadataService {
 
   Future<List<BookMetadataResult>> _searchGoogleBooksByIsbn(String isbn) async {
     try {
-      final uri = Uri.parse(
-        'https://www.googleapis.com/books/v1/volumes?q=isbn:$isbn&maxResults=5',
-      );
+      final uri = Uri.parse('https://www.googleapis.com/books/v1/volumes?q=isbn:$isbn&maxResults=5');
       final response = await _client.get(uri);
 
       if (response.statusCode != 200) return [];
@@ -216,9 +203,7 @@ class MetadataService {
     final imageLinks = volumeInfo['imageLinks'] as Map<String, dynamic>?;
     if (imageLinks != null) {
       coverUrl =
-          imageLinks['large'] as String? ??
-          imageLinks['medium'] as String? ??
-          imageLinks['thumbnail'] as String?;
+          imageLinks['large'] as String? ?? imageLinks['medium'] as String? ?? imageLinks['thumbnail'] as String?;
       // Convert HTTP to HTTPS
       coverUrl = coverUrl?.replaceFirst('http://', 'https://');
     }
@@ -226,8 +211,7 @@ class MetadataService {
     // Get ISBNs from industry identifiers
     String? isbn;
     String? isbn13;
-    final identifiers =
-        volumeInfo['industryIdentifiers'] as List<dynamic>? ?? [];
+    final identifiers = volumeInfo['industryIdentifiers'] as List<dynamic>? ?? [];
     for (final id in identifiers) {
       final type = id['type'] as String?;
       final identifier = id['identifier'] as String?;

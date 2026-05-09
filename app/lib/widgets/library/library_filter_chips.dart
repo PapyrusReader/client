@@ -12,21 +12,9 @@ class LibraryFilterChips extends StatelessWidget {
 
   static const _filters = [
     (type: LibraryFilterType.all, label: 'All', icon: Icons.apps),
-    (
-      type: LibraryFilterType.reading,
-      label: 'Reading',
-      icon: Icons.auto_stories,
-    ),
-    (
-      type: LibraryFilterType.favorites,
-      label: 'Favorites',
-      icon: Icons.favorite,
-    ),
-    (
-      type: LibraryFilterType.finished,
-      label: 'Finished',
-      icon: Icons.check_circle,
-    ),
+    (type: LibraryFilterType.reading, label: 'Reading', icon: Icons.auto_stories),
+    (type: LibraryFilterType.favorites, label: 'Favorites', icon: Icons.favorite),
+    (type: LibraryFilterType.finished, label: 'Finished', icon: Icons.check_circle),
     (type: LibraryFilterType.unread, label: 'Unread', icon: Icons.book),
   ];
 
@@ -38,11 +26,8 @@ class LibraryFilterChips extends StatelessWidget {
       horizontalPadding: horizontalPadding,
       filters: _filters
           .map(
-            (f) => QuickFilterChipData(
-              label: f.label,
-              icon: f.icon,
-              isSelected: libraryProvider.isFilterActive(f.type),
-            ),
+            (f) =>
+                QuickFilterChipData(label: f.label, icon: f.icon, isSelected: libraryProvider.isFilterActive(f.type)),
           )
           .toList(),
       onFilterTapped: (index) {

@@ -81,160 +81,40 @@ class AppTheme {
   // ===========================================================================
 
   static const TextTheme _textTheme = TextTheme(
-    displayLarge: TextStyle(
-      fontSize: 57,
-      fontWeight: FontWeight.w400,
-      letterSpacing: -0.25,
-    ),
-    displayMedium: TextStyle(
-      fontSize: 45,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0,
-    ),
-    displaySmall: TextStyle(
-      fontSize: 36,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0,
-    ),
-    headlineLarge: TextStyle(
-      fontSize: 32,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0,
-    ),
-    headlineMedium: TextStyle(
-      fontSize: 28,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0,
-    ),
-    headlineSmall: TextStyle(
-      fontSize: 24,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0,
-    ),
-    titleLarge: TextStyle(
-      fontSize: 22,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0,
-    ),
-    titleMedium: TextStyle(
-      fontSize: 16,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0.15,
-    ),
-    titleSmall: TextStyle(
-      fontSize: 14,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0.1,
-    ),
-    bodyLarge: TextStyle(
-      fontSize: 16,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0.5,
-    ),
-    bodyMedium: TextStyle(
-      fontSize: 14,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0.25,
-    ),
-    bodySmall: TextStyle(
-      fontSize: 12,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0.4,
-    ),
-    labelLarge: TextStyle(
-      fontSize: 14,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0.1,
-    ),
-    labelMedium: TextStyle(
-      fontSize: 12,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0.5,
-    ),
-    labelSmall: TextStyle(
-      fontSize: 11,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0.5,
-    ),
+    displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.w400, letterSpacing: -0.25),
+    displayMedium: TextStyle(fontSize: 45, fontWeight: FontWeight.w400, letterSpacing: 0),
+    displaySmall: TextStyle(fontSize: 36, fontWeight: FontWeight.w400, letterSpacing: 0),
+    headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w400, letterSpacing: 0),
+    headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w400, letterSpacing: 0),
+    headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w400, letterSpacing: 0),
+    titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w400, letterSpacing: 0),
+    titleMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w500, letterSpacing: 0.15),
+    titleSmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
+    bodyLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+    bodyMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+    bodySmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w400, letterSpacing: 0.4),
+    labelLarge: TextStyle(fontSize: 14, fontWeight: FontWeight.w500, letterSpacing: 0.1),
+    labelMedium: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, letterSpacing: 0.5),
+    labelSmall: TextStyle(fontSize: 11, fontWeight: FontWeight.w500, letterSpacing: 0.5),
   );
 
   // E-ink typography: larger minimum size, bolder weights
   static const TextTheme _einkTextTheme = TextTheme(
-    displayLarge: TextStyle(
-      fontSize: 57,
-      fontWeight: FontWeight.w500,
-      letterSpacing: -0.25,
-    ),
-    displayMedium: TextStyle(
-      fontSize: 45,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    ),
-    displaySmall: TextStyle(
-      fontSize: 36,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    ),
-    headlineLarge: TextStyle(
-      fontSize: 32,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0,
-    ),
-    headlineMedium: TextStyle(
-      fontSize: 28,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0,
-    ),
-    headlineSmall: TextStyle(
-      fontSize: 24,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0,
-    ),
-    titleLarge: TextStyle(
-      fontSize: 22,
-      fontWeight: FontWeight.w500,
-      letterSpacing: 0,
-    ),
-    titleMedium: TextStyle(
-      fontSize: 18,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.15,
-    ),
-    titleSmall: TextStyle(
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.1,
-    ),
-    bodyLarge: TextStyle(
-      fontSize: 18,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0.5,
-    ),
-    bodyMedium: TextStyle(
-      fontSize: 16,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0.25,
-    ),
-    bodySmall: TextStyle(
-      fontSize: 14,
-      fontWeight: FontWeight.w400,
-      letterSpacing: 0.4,
-    ),
-    labelLarge: TextStyle(
-      fontSize: 16,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.1,
-    ),
-    labelMedium: TextStyle(
-      fontSize: 14,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.5,
-    ),
-    labelSmall: TextStyle(
-      fontSize: 12,
-      fontWeight: FontWeight.w600,
-      letterSpacing: 0.5,
-    ),
+    displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.w500, letterSpacing: -0.25),
+    displayMedium: TextStyle(fontSize: 45, fontWeight: FontWeight.w500, letterSpacing: 0),
+    displaySmall: TextStyle(fontSize: 36, fontWeight: FontWeight.w500, letterSpacing: 0),
+    headlineLarge: TextStyle(fontSize: 32, fontWeight: FontWeight.w600, letterSpacing: 0),
+    headlineMedium: TextStyle(fontSize: 28, fontWeight: FontWeight.w600, letterSpacing: 0),
+    headlineSmall: TextStyle(fontSize: 24, fontWeight: FontWeight.w600, letterSpacing: 0),
+    titleLarge: TextStyle(fontSize: 22, fontWeight: FontWeight.w500, letterSpacing: 0),
+    titleMedium: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, letterSpacing: 0.15),
+    titleSmall: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.1),
+    bodyLarge: TextStyle(fontSize: 18, fontWeight: FontWeight.w400, letterSpacing: 0.5),
+    bodyMedium: TextStyle(fontSize: 16, fontWeight: FontWeight.w400, letterSpacing: 0.25),
+    bodySmall: TextStyle(fontSize: 14, fontWeight: FontWeight.w400, letterSpacing: 0.4),
+    labelLarge: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, letterSpacing: 0.1),
+    labelMedium: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.5),
+    labelSmall: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, letterSpacing: 0.5),
   );
 
   // ===========================================================================
@@ -249,9 +129,7 @@ class AppTheme {
           horizontal: Spacing.buttonPaddingHorizontal,
           vertical: Spacing.buttonPaddingVertical,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.button),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
         elevation: AppElevation.level1,
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
       ),
@@ -266,9 +144,7 @@ class AppTheme {
           horizontal: Spacing.buttonPaddingHorizontal,
           vertical: Spacing.buttonPaddingVertical,
         ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.button),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
         side: BorderSide(color: colors.outline, width: BorderWidths.thin),
         textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
       ),
@@ -289,38 +165,23 @@ class AppTheme {
       filled: false,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.input),
-        borderSide: BorderSide(
-          color: colors.outline,
-          width: BorderWidths.inputDefault,
-        ),
+        borderSide: BorderSide(color: colors.outline, width: BorderWidths.inputDefault),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.input),
-        borderSide: BorderSide(
-          color: colors.outline,
-          width: BorderWidths.inputDefault,
-        ),
+        borderSide: BorderSide(color: colors.outline, width: BorderWidths.inputDefault),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.input),
-        borderSide: BorderSide(
-          color: colors.primary,
-          width: BorderWidths.inputFocused,
-        ),
+        borderSide: BorderSide(color: colors.primary, width: BorderWidths.inputFocused),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.input),
-        borderSide: BorderSide(
-          color: colors.error,
-          width: BorderWidths.inputError,
-        ),
+        borderSide: BorderSide(color: colors.error, width: BorderWidths.inputError),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.circular(AppRadius.input),
-        borderSide: BorderSide(
-          color: colors.error,
-          width: BorderWidths.inputError,
-        ),
+        borderSide: BorderSide(color: colors.error, width: BorderWidths.inputError),
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       labelStyle: TextStyle(color: colors.onSurfaceVariant),
@@ -331,9 +192,7 @@ class AppTheme {
   static CardThemeData _cardTheme(ColorScheme colors) {
     return CardThemeData(
       elevation: AppElevation.level1,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.card),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.card)),
       margin: const EdgeInsets.all(Spacing.sm),
     );
   }
@@ -344,11 +203,7 @@ class AppTheme {
       scrolledUnderElevation: AppElevation.level1,
       backgroundColor: colors.surface,
       foregroundColor: colors.onSurface,
-      titleTextStyle: TextStyle(
-        color: colors.onSurface,
-        fontSize: 22,
-        fontWeight: FontWeight.w400,
-      ),
+      titleTextStyle: TextStyle(color: colors.onSurface, fontSize: 22, fontWeight: FontWeight.w400),
     );
   }
 
@@ -363,11 +218,7 @@ class AppTheme {
   }
 
   static DividerThemeData _dividerTheme(ColorScheme colors) {
-    return DividerThemeData(
-      color: colors.outlineVariant,
-      thickness: 1,
-      space: Spacing.md,
-    );
+    return DividerThemeData(color: colors.outlineVariant, thickness: 1, space: Spacing.md);
   }
 
   static SnackBarThemeData _snackBarTheme(ColorScheme colors) {
@@ -375,9 +226,7 @@ class AppTheme {
       backgroundColor: colors.inverseSurface,
       contentTextStyle: TextStyle(color: colors.onInverseSurface),
       actionTextColor: colors.inversePrimary,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
       behavior: SnackBarBehavior.floating,
     );
   }
@@ -388,10 +237,7 @@ class AppTheme {
       color: colors.surfaceContainerHigh,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(
-          color: colors.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        side: BorderSide(color: colors.outlineVariant, width: BorderWidths.thin),
       ),
       textStyle: TextStyle(color: colors.onSurface),
       mouseCursor: WidgetStateMouseCursor.clickable,
@@ -414,11 +260,7 @@ class AppTheme {
         elevation: 0,
         backgroundColor: EinkColors.black,
         foregroundColor: EinkColors.white,
-        textStyle: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
+        textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, letterSpacing: 0.5),
       ),
     );
   }
@@ -432,17 +274,10 @@ class AppTheme {
           vertical: Spacing.buttonPaddingVertical,
         ),
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.zero),
-        side: const BorderSide(
-          color: EinkColors.black,
-          width: BorderWidths.einkDefault,
-        ),
+        side: const BorderSide(color: EinkColors.black, width: BorderWidths.einkDefault),
         backgroundColor: EinkColors.white,
         foregroundColor: EinkColors.black,
-        textStyle: const TextStyle(
-          fontSize: 20,
-          fontWeight: FontWeight.w600,
-          letterSpacing: 0.5,
-        ),
+        textStyle: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600, letterSpacing: 0.5),
       ),
     );
   }
@@ -452,11 +287,7 @@ class AppTheme {
       style: TextButton.styleFrom(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
         foregroundColor: EinkColors.black,
-        textStyle: const TextStyle(
-          fontSize: 18,
-          fontWeight: FontWeight.w600,
-          decoration: TextDecoration.underline,
-        ),
+        textStyle: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600, decoration: TextDecoration.underline),
       ),
     );
   }
@@ -467,45 +298,26 @@ class AppTheme {
       fillColor: EinkColors.container,
       border: OutlineInputBorder(
         borderRadius: BorderRadius.zero,
-        borderSide: BorderSide(
-          color: EinkColors.black,
-          width: BorderWidths.einkDefault,
-        ),
+        borderSide: BorderSide(color: EinkColors.black, width: BorderWidths.einkDefault),
       ),
       enabledBorder: OutlineInputBorder(
         borderRadius: BorderRadius.zero,
-        borderSide: BorderSide(
-          color: EinkColors.black,
-          width: BorderWidths.einkDefault,
-        ),
+        borderSide: BorderSide(color: EinkColors.black, width: BorderWidths.einkDefault),
       ),
       focusedBorder: OutlineInputBorder(
         borderRadius: BorderRadius.zero,
-        borderSide: BorderSide(
-          color: EinkColors.black,
-          width: BorderWidths.einkFocused,
-        ),
+        borderSide: BorderSide(color: EinkColors.black, width: BorderWidths.einkFocused),
       ),
       errorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.zero,
-        borderSide: BorderSide(
-          color: EinkColors.black,
-          width: BorderWidths.einkError,
-        ),
+        borderSide: BorderSide(color: EinkColors.black, width: BorderWidths.einkError),
       ),
       focusedErrorBorder: OutlineInputBorder(
         borderRadius: BorderRadius.zero,
-        borderSide: BorderSide(
-          color: EinkColors.black,
-          width: BorderWidths.einkError,
-        ),
+        borderSide: BorderSide(color: EinkColors.black, width: BorderWidths.einkError),
       ),
       contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-      labelStyle: TextStyle(
-        color: EinkColors.black,
-        fontSize: 16,
-        fontWeight: FontWeight.w700,
-      ),
+      labelStyle: TextStyle(color: EinkColors.black, fontSize: 16, fontWeight: FontWeight.w700),
       hintStyle: TextStyle(color: EinkColors.mediumGray, fontSize: 20),
       floatingLabelBehavior: FloatingLabelBehavior.always,
     );
@@ -516,10 +328,7 @@ class AppTheme {
       elevation: 0,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.zero,
-        side: BorderSide(
-          color: EinkColors.black,
-          width: BorderWidths.einkDefault,
-        ),
+        side: BorderSide(color: EinkColors.black, width: BorderWidths.einkDefault),
       ),
       margin: EdgeInsets.all(Spacing.md),
     );
@@ -531,16 +340,9 @@ class AppTheme {
       scrolledUnderElevation: 0,
       backgroundColor: EinkColors.white,
       foregroundColor: EinkColors.black,
-      titleTextStyle: TextStyle(
-        color: EinkColors.black,
-        fontSize: 24,
-        fontWeight: FontWeight.w700,
-      ),
+      titleTextStyle: TextStyle(color: EinkColors.black, fontSize: 24, fontWeight: FontWeight.w700),
       shape: Border(
-        bottom: BorderSide(
-          color: EinkColors.black,
-          width: BorderWidths.einkDefault,
-        ),
+        bottom: BorderSide(color: EinkColors.black, width: BorderWidths.einkDefault),
       ),
     );
   }
@@ -553,19 +355,12 @@ class AppTheme {
       type: BottomNavigationBarType.fixed,
       elevation: 0,
       selectedLabelStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w700),
-      unselectedLabelStyle: TextStyle(
-        fontSize: 14,
-        fontWeight: FontWeight.w500,
-      ),
+      unselectedLabelStyle: TextStyle(fontSize: 14, fontWeight: FontWeight.w500),
     );
   }
 
   static DividerThemeData _einkDividerTheme() {
-    return const DividerThemeData(
-      color: EinkColors.lightGray,
-      thickness: 2,
-      space: Spacing.lg,
-    );
+    return const DividerThemeData(color: EinkColors.lightGray, thickness: 2, space: Spacing.lg);
   }
 
   static SnackBarThemeData _einkSnackBarTheme() {

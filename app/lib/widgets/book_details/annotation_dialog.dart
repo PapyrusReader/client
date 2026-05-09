@@ -10,26 +10,15 @@ class AnnotationDialog extends StatefulWidget {
   final String bookId;
   final Annotation? existingAnnotation;
 
-  const AnnotationDialog({
-    super.key,
-    required this.bookId,
-    this.existingAnnotation,
-  });
+  const AnnotationDialog({super.key, required this.bookId, this.existingAnnotation});
 
   /// Shows the dialog and returns the created/updated annotation, or null if cancelled.
-  static Future<Annotation?> show(
-    BuildContext context, {
-    required String bookId,
-    Annotation? existingAnnotation,
-  }) {
+  static Future<Annotation?> show(BuildContext context, {required String bookId, Annotation? existingAnnotation}) {
     return showModalBottomSheet<Annotation>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) => AnnotationDialog(
-        bookId: bookId,
-        existingAnnotation: existingAnnotation,
-      ),
+      builder: (context) => AnnotationDialog(bookId: bookId, existingAnnotation: existingAnnotation),
     );
   }
 
@@ -50,18 +39,10 @@ class _AnnotationDialogState extends State<AnnotationDialog> {
   @override
   void initState() {
     super.initState();
-    _textController = TextEditingController(
-      text: widget.existingAnnotation?.selectedText ?? '',
-    );
-    _pageController = TextEditingController(
-      text: widget.existingAnnotation?.location.pageNumber.toString() ?? '',
-    );
-    _chapterController = TextEditingController(
-      text: widget.existingAnnotation?.location.chapterTitle ?? '',
-    );
-    _noteController = TextEditingController(
-      text: widget.existingAnnotation?.note ?? '',
-    );
+    _textController = TextEditingController(text: widget.existingAnnotation?.selectedText ?? '');
+    _pageController = TextEditingController(text: widget.existingAnnotation?.location.pageNumber.toString() ?? '');
+    _chapterController = TextEditingController(text: widget.existingAnnotation?.location.chapterTitle ?? '');
+    _noteController = TextEditingController(text: widget.existingAnnotation?.note ?? '');
     _selectedColor = widget.existingAnnotation?.color ?? HighlightColor.yellow;
   }
 
@@ -82,16 +63,11 @@ class _AnnotationDialogState extends State<AnnotationDialog> {
     final note = _noteController.text.trim();
 
     final annotation = Annotation(
-      id:
-          widget.existingAnnotation?.id ??
-          DateTime.now().millisecondsSinceEpoch.toString(),
+      id: widget.existingAnnotation?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
       bookId: widget.bookId,
       selectedText: _textController.text.trim(),
       color: _selectedColor,
-      location: BookLocation(
-        pageNumber: page,
-        chapterTitle: chapter.isNotEmpty ? chapter : null,
-      ),
+      location: BookLocation(pageNumber: page, chapterTitle: chapter.isNotEmpty ? chapter : null),
       note: note.isNotEmpty ? note : null,
       createdAt: widget.existingAnnotation?.createdAt ?? DateTime.now(),
       updatedAt: _isEditing ? DateTime.now() : null,
@@ -115,27 +91,18 @@ class _AnnotationDialogState extends State<AnnotationDialog> {
           return Container(
             decoration: BoxDecoration(
               color: colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppRadius.lg),
-              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
             ),
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    Spacing.md,
-                    Spacing.md,
-                    Spacing.md,
-                    0,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, 0),
                   child: Column(
                     children: [
                       const BottomSheetHandle(),
                       const SizedBox(height: Spacing.md),
                       BottomSheetHeader(
-                        title: _isEditing
-                            ? 'Edit annotation'
-                            : 'New annotation',
+                        title: _isEditing ? 'Edit annotation' : 'New annotation',
                         onCancel: () => Navigator.of(context).pop(),
                         onSave: _save,
                       ),
@@ -178,13 +145,8 @@ class _AnnotationDialogState extends State<AnnotationDialog> {
                         TextFormField(
                           controller: _pageController,
                           keyboardType: TextInputType.number,
-                          inputFormatters: [
-                            FilteringTextInputFormatter.digitsOnly,
-                          ],
-                          decoration: const InputDecoration(
-                            labelText: 'Page number',
-                            border: OutlineInputBorder(),
-                          ),
+                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                          decoration: const InputDecoration(labelText: 'Page number', border: OutlineInputBorder()),
                           validator: (value) {
                             if (value == null || value.trim().isEmpty) {
                               return 'Please enter a page number';
@@ -225,37 +187,24 @@ class _AnnotationDialogState extends State<AnnotationDialog> {
                         const SizedBox(height: Spacing.md),
 
                         // Highlight color
-                        Text(
-                          'Highlight color',
-                          style: Theme.of(context).textTheme.titleSmall,
-                        ),
+                        Text('Highlight color', style: Theme.of(context).textTheme.titleSmall),
                         const SizedBox(height: Spacing.sm),
                         Wrap(
                           spacing: Spacing.sm,
                           children: HighlightColor.values.map((color) {
                             final isSelected = color == _selectedColor;
                             return GestureDetector(
-                              onTap: () =>
-                                  setState(() => _selectedColor = color),
+                              onTap: () => setState(() => _selectedColor = color),
                               child: Container(
                                 width: 36,
                                 height: 36,
                                 decoration: BoxDecoration(
                                   color: color.color,
                                   shape: BoxShape.circle,
-                                  border: isSelected
-                                      ? Border.all(
-                                          color: color.accentColor,
-                                          width: 2,
-                                        )
-                                      : null,
+                                  border: isSelected ? Border.all(color: color.accentColor, width: 2) : null,
                                 ),
                                 child: isSelected
-                                    ? Icon(
-                                        Icons.check,
-                                        color: color.accentColor,
-                                        size: IconSizes.small,
-                                      )
+                                    ? Icon(Icons.check, color: color.accentColor, size: IconSizes.small)
                                     : null,
                               ),
                             );

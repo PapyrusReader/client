@@ -25,32 +25,15 @@ void main() {
             isFavorite: false,
             pageCount: 300,
           ),
-          buildTestBook(
-            id: 'book-2',
-            title: 'Another Book',
-            author: 'Author 2',
-          ),
+          buildTestBook(id: 'book-2', title: 'Another Book', author: 'Author 2'),
         ],
         bookmarks: [
           buildTestBookmark(id: 'bm-1', bookId: 'book-1', position: 0.3),
           buildTestBookmark(id: 'bm-2', bookId: 'book-1', position: 0.6),
           buildTestBookmark(id: 'bm-3', bookId: 'book-2', position: 0.1),
         ],
-        annotations: [
-          buildTestAnnotation(
-            id: 'ann-1',
-            bookId: 'book-1',
-            selectedText: 'Highlight 1',
-          ),
-        ],
-        notes: [
-          buildTestNote(
-            id: 'note-1',
-            bookId: 'book-1',
-            title: 'Note 1',
-            content: 'Content 1',
-          ),
-        ],
+        annotations: [buildTestAnnotation(id: 'ann-1', bookId: 'book-1', selectedText: 'Highlight 1')],
+        notes: [buildTestNote(id: 'note-1', bookId: 'book-1', title: 'Note 1', content: 'Content 1')],
       );
       provider.setDataStore(dataStore);
     });
@@ -234,12 +217,7 @@ void main() {
       });
 
       test('addNote persists to DataStore and notifies', () {
-        final note = buildTestNote(
-          id: 'new-note',
-          bookId: 'book-1',
-          title: 'New Note',
-          content: 'New content',
-        );
+        final note = buildTestNote(id: 'new-note', bookId: 'book-1', title: 'New Note', content: 'New content');
 
         var notified = false;
         provider.addListener(() => notified = true);
@@ -279,11 +257,7 @@ void main() {
       });
 
       test('addBookmark persists to DataStore', () {
-        final bookmark = buildTestBookmark(
-          id: 'new-bm',
-          bookId: 'book-1',
-          position: 0.8,
-        );
+        final bookmark = buildTestBookmark(id: 'new-bm', bookId: 'book-1', position: 0.8);
 
         provider.addBookmark(bookmark);
 
@@ -336,11 +310,7 @@ void main() {
       });
 
       test('addAnnotation persists to DataStore', () {
-        final annotation = buildTestAnnotation(
-          id: 'new-ann',
-          bookId: 'book-1',
-          selectedText: 'New highlight',
-        );
+        final annotation = buildTestAnnotation(id: 'new-ann', bookId: 'book-1', selectedText: 'New highlight');
 
         provider.addAnnotation(annotation);
 

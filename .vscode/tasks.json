@@ -13,7 +13,9 @@
         "-d",
         "chrome",
          "--dart-define-from-file",
-         ".dart_defines"
+         ".dart_defines",
+         "--web-port",
+         "3000"
       ]
     },
     {

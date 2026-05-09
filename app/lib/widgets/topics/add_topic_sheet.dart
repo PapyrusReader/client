@@ -10,8 +10,7 @@ class AddTopicSheet extends StatefulWidget {
   final Tag? topic;
 
   /// Called when the topic is saved.
-  final void Function(String name, String? description, String colorHex)?
-  onSave;
+  final void Function(String name, String? description, String colorHex)? onSave;
 
   const AddTopicSheet({super.key, this.topic, this.onSave});
 
@@ -24,9 +23,7 @@ class AddTopicSheet extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => AddTopicSheet(topic: topic, onSave: onSave),
     );
   }
@@ -46,11 +43,8 @@ class _AddTopicSheetState extends State<AddTopicSheet> {
   void initState() {
     super.initState();
     _nameController = TextEditingController(text: widget.topic?.name ?? '');
-    _descriptionController = TextEditingController(
-      text: widget.topic?.description ?? '',
-    );
-    _selectedColorHex =
-        widget.topic?.colorHex ?? Tag.availableColors[5]; // Blue default
+    _descriptionController = TextEditingController(text: widget.topic?.description ?? '');
+    _selectedColorHex = widget.topic?.colorHex ?? Tag.availableColors[5]; // Blue default
   }
 
   @override
@@ -81,19 +75,11 @@ class _AddTopicSheetState extends State<AddTopicSheet> {
             const BottomSheetHandle(),
             const SizedBox(height: Spacing.lg),
             // Title
-            Text(
-              _isEditing ? 'Edit topic' : 'Create new topic',
-              style: textTheme.headlineSmall,
-            ),
+            Text(_isEditing ? 'Edit topic' : 'Create new topic', style: textTheme.headlineSmall),
             const SizedBox(height: Spacing.lg),
 
             // Name field
-            Text(
-              'Name',
-              style: textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('Name', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: Spacing.sm),
             TextFormField(
               controller: _nameController,
@@ -102,24 +88,14 @@ class _AddTopicSheetState extends State<AddTopicSheet> {
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: 'Enter topic name',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                contentPadding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.md,
-                  vertical: Spacing.sm,
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+                contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
               ),
             ),
             const SizedBox(height: Spacing.lg),
 
             // Description field
-            Text(
-              'Description (optional)',
-              style: textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('Description (optional)', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: Spacing.sm),
             TextFormField(
               controller: _descriptionController,
@@ -128,21 +104,14 @@ class _AddTopicSheetState extends State<AddTopicSheet> {
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 hintText: 'Add a description',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
+                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                 contentPadding: const EdgeInsets.all(Spacing.md),
               ),
             ),
             const SizedBox(height: Spacing.lg),
 
             // Color picker
-            Text(
-              'Color',
-              style: textTheme.titleSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('Color', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             const SizedBox(height: Spacing.sm),
             _buildColorPicker(context),
             const SizedBox(height: Spacing.xl),
@@ -189,22 +158,12 @@ class _AddTopicSheetState extends State<AddTopicSheet> {
             decoration: BoxDecoration(
               color: color,
               shape: BoxShape.circle,
-              border: isSelected
-                  ? Border.all(color: colorScheme.primary, width: 3)
-                  : null,
+              border: isSelected ? Border.all(color: colorScheme.primary, width: 3) : null,
               boxShadow: isSelected
-                  ? [
-                      BoxShadow(
-                        color: color.withValues(alpha: 0.4),
-                        blurRadius: 8,
-                        spreadRadius: 1,
-                      ),
-                    ]
+                  ? [BoxShadow(color: color.withValues(alpha: 0.4), blurRadius: 8, spreadRadius: 1)]
                   : null,
             ),
-            child: isSelected
-                ? Icon(Icons.check, size: 18, color: getContrastColor(color))
-                : null,
+            child: isSelected ? Icon(Icons.check, size: 18, color: getContrastColor(color)) : null,
           ),
         );
       }).toList(),
@@ -229,10 +188,7 @@ class _AddTopicSheetState extends State<AddTopicSheet> {
           Container(
             width: 12,
             height: 12,
-            decoration: BoxDecoration(
-              color: topicColor,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: topicColor, shape: BoxShape.circle),
           ),
           const SizedBox(width: Spacing.md),
           // Info
@@ -241,14 +197,10 @@ class _AddTopicSheetState extends State<AddTopicSheet> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _nameController.text.isNotEmpty
-                      ? _nameController.text
-                      : 'Topic name',
+                  _nameController.text.isNotEmpty ? _nameController.text : 'Topic name',
                   style: textTheme.titleMedium?.copyWith(
                     fontWeight: FontWeight.w600,
-                    color: _nameController.text.isEmpty
-                        ? colorScheme.onSurfaceVariant
-                        : null,
+                    color: _nameController.text.isEmpty ? colorScheme.onSurfaceVariant : null,
                   ),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
@@ -257,9 +209,7 @@ class _AddTopicSheetState extends State<AddTopicSheet> {
                   const SizedBox(height: 2),
                   Text(
                     _descriptionController.text,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),
@@ -274,12 +224,7 @@ class _AddTopicSheetState extends State<AddTopicSheet> {
               color: colorScheme.surfaceContainerHighest,
               borderRadius: BorderRadius.circular(AppRadius.full),
             ),
-            child: Text(
-              'Preview',
-              style: textTheme.labelSmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            child: Text('Preview', style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
           ),
         ],
       ),
@@ -292,9 +237,7 @@ class _AddTopicSheetState extends State<AddTopicSheet> {
 
     widget.onSave?.call(
       name,
-      _descriptionController.text.trim().isEmpty
-          ? null
-          : _descriptionController.text.trim(),
+      _descriptionController.text.trim().isEmpty ? null : _descriptionController.text.trim(),
       _selectedColorHex,
     );
     Navigator.of(context).pop();

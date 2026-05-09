@@ -89,11 +89,7 @@ class SearchQueryParser {
       pendingOperator = null;
     }
 
-    return SearchQuery(
-      filters: filters,
-      operators: operators,
-      notFilters: notFilters,
-    );
+    return SearchQuery(filters: filters, operators: operators, notFilters: notFilters);
   }
 
   /// Parse a single filter token.
@@ -101,11 +97,7 @@ class SearchQueryParser {
     // Check for negation prefix
     if (token.startsWith('-') && token.length > 1) {
       final inner = _parseFilter(token.substring(1));
-      return SearchFilter(
-        field: inner.field,
-        operator: SearchOperator.notEquals,
-        value: inner.value,
-      );
+      return SearchFilter(field: inner.field, operator: SearchOperator.notEquals, value: inner.value);
     }
 
     // Check for field:value pattern
@@ -140,11 +132,7 @@ class SearchQueryParser {
       value = value.substring(1, value.length - 1);
     }
 
-    return SearchFilter(
-      field: SearchField.any,
-      operator: SearchOperator.contains,
-      value: value,
-    );
+    return SearchFilter(field: SearchField.any, operator: SearchOperator.contains, value: value);
   }
 
   /// Parse field name string to SearchField enum.
@@ -181,11 +169,7 @@ class SearchQueryParser {
   ];
 
   /// Get suggestions for status values.
-  static List<String> get statusSuggestions => [
-    'status:reading',
-    'status:finished',
-    'status:unread',
-  ];
+  static List<String> get statusSuggestions => ['status:reading', 'status:finished', 'status:unread'];
 
   /// Get suggestions for format values.
   static List<String> get formatSuggestions => [

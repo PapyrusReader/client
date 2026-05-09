@@ -20,27 +20,12 @@ class TitledDivider extends StatelessWidget {
       padding: EdgeInsets.symmetric(vertical: padding),
       child: Row(
         children: [
-          Expanded(
-            child: Divider(
-              thickness: 1.5,
-              color: theme.colorScheme.outlineVariant,
-            ),
-          ),
+          Expanded(child: Divider(thickness: 1.5, color: theme.colorScheme.outlineVariant)),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-            child: Text(
-              title,
-              style: theme.textTheme.titleSmall?.copyWith(
-                color: theme.colorScheme.outline,
-              ),
-            ),
+            child: Text(title, style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.outline)),
           ),
-          Expanded(
-            child: Divider(
-              thickness: 1.5,
-              color: theme.colorScheme.outlineVariant,
-            ),
-          ),
+          Expanded(child: Divider(thickness: 1.5, color: theme.colorScheme.outlineVariant)),
         ],
       ),
     );

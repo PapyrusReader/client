@@ -24,10 +24,7 @@ class EinkTabFilter extends StatelessWidget {
       height: TouchTargets.einkMin,
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outline,
-            width: BorderWidths.einkDefault,
-          ),
+          bottom: BorderSide(color: colorScheme.outline, width: BorderWidths.einkDefault),
         ),
       ),
       child: Row(
@@ -41,20 +38,14 @@ class EinkTabFilter extends StatelessWidget {
                 onTap: () => libraryProvider.setFilter(tab.type),
                 child: Container(
                   decoration: BoxDecoration(
-                    color: isSelected
-                        ? colorScheme.primary
-                        : Colors.transparent,
-                    border: Border(
-                      right: BorderSide(color: colorScheme.outline, width: 1),
-                    ),
+                    color: isSelected ? colorScheme.primary : Colors.transparent,
+                    border: Border(right: BorderSide(color: colorScheme.outline, width: 1)),
                   ),
                   child: Center(
                     child: Text(
                       tab.label,
                       style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                        color: isSelected
-                            ? colorScheme.onPrimary
-                            : colorScheme.onSurface,
+                        color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
                         fontWeight: FontWeight.bold,
                         letterSpacing: 1.0,
                       ),

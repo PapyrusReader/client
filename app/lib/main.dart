@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/auth/auth_api_client.dart';
+import 'package:papyrus/auth/auth_repository.dart';
+import 'package:papyrus/auth/papyrus_api_config.dart';
+import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/sample_data.dart';
 import 'package:papyrus/providers/auth_provider.dart';
@@ -8,16 +12,11 @@ import 'package:papyrus/providers/sidebar_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'config/app_router.dart';
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Supabase.initialize(
-    url: const String.fromEnvironment('SUPABASE_URL'),
-    anonKey: const String.fromEnvironment('SUPABASE_ANON_KEY'),
-  );
   final prefs = await SharedPreferences.getInstance();
   runApp(Papyrus(prefs: prefs));
 }
@@ -32,7 +31,29 @@ class Papyrus extends StatefulWidget {
 }
 
 class _PapyrusState extends State<Papyrus> {
-  late final AppRouter _appRouter = AppRouter();
+  late final AuthProvider _authProvider;
+  late final AppRouter _appRouter;
+
+  @override
+  void initState() {
+    super.initState();
+
+    final apiConfig = PapyrusApiConfig.fromEnvironment();
+    final tokenStore = TokenStore(const SecureRefreshTokenStorage());
+    final authRepository = AuthRepository(
+      apiClient: AuthApiClient(config: apiConfig),
+      tokenStore: tokenStore,
+    );
+
+    _authProvider = AuthProvider(widget.prefs, repository: authRepository);
+    _appRouter = AppRouter(authProvider: _authProvider);
+  }
+
+  @override
+  void dispose() {
+    _authProvider.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -56,12 +77,10 @@ class _PapyrusState extends State<Papyrus> {
             ),
         ),
         // Auth and UI state providers
-        ChangeNotifierProvider(create: (_) => AuthProvider(widget.prefs)),
+        ChangeNotifierProvider.value(value: _authProvider),
         ChangeNotifierProvider(create: (_) => SidebarProvider()),
         ChangeNotifierProvider(create: (_) => LibraryProvider()),
-        ChangeNotifierProvider(
-          create: (_) => PreferencesProvider(widget.prefs),
-        ),
+        ChangeNotifierProvider(create: (_) => PreferencesProvider(widget.prefs)),
       ],
       child: Consumer<PreferencesProvider>(
         builder: (context, preferencesProvider, child) {

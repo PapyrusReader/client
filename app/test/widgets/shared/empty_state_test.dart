@@ -13,21 +13,13 @@ void main() {
     }) {
       return MaterialApp(
         home: Scaffold(
-          body: EmptyState(
-            icon: icon,
-            title: title,
-            subtitle: subtitle,
-            action: action,
-            iconSize: iconSize,
-          ),
+          body: EmptyState(icon: icon, title: title, subtitle: subtitle, action: action, iconSize: iconSize),
         ),
       );
     }
 
     testWidgets('displays icon', (tester) async {
-      await tester.pumpWidget(
-        buildEmptyState(icon: Icons.library_books_outlined),
-      );
+      await tester.pumpWidget(buildEmptyState(icon: Icons.library_books_outlined));
       expect(find.byIcon(Icons.library_books_outlined), findsOneWidget);
     });
 
@@ -37,9 +29,7 @@ void main() {
     });
 
     testWidgets('displays subtitle when provided', (tester) async {
-      await tester.pumpWidget(
-        buildEmptyState(subtitle: 'Try adjusting your filters'),
-      );
+      await tester.pumpWidget(buildEmptyState(subtitle: 'Try adjusting your filters'));
       expect(find.text('Try adjusting your filters'), findsOneWidget);
     });
 
@@ -52,10 +42,7 @@ void main() {
     testWidgets('displays action widget when provided', (tester) async {
       await tester.pumpWidget(
         buildEmptyState(
-          action: ElevatedButton(
-            onPressed: () {},
-            child: const Text('Add books'),
-          ),
+          action: ElevatedButton(onPressed: () {}, child: const Text('Add books')),
         ),
       );
       expect(find.text('Add books'), findsOneWidget);
@@ -75,9 +62,7 @@ void main() {
 
     testWidgets('uses custom icon size', (tester) async {
       await tester.pumpWidget(buildEmptyState(iconSize: 100));
-      final icon = tester.widget<Icon>(
-        find.byIcon(Icons.library_books_outlined),
-      );
+      final icon = tester.widget<Icon>(find.byIcon(Icons.library_books_outlined));
       expect(icon.size, 100);
     });
 

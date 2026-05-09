@@ -6,15 +6,9 @@ import '../../helpers/test_helpers.dart';
 
 void main() {
   group('EmptyAnnotationsState', () {
-    Widget buildWidget({
-      bool isPhysical = false,
-      VoidCallback? onAddAnnotation,
-    }) {
+    Widget buildWidget({bool isPhysical = false, VoidCallback? onAddAnnotation}) {
       return createTestApp(
-        child: EmptyAnnotationsState(
-          isPhysical: isPhysical,
-          onAddAnnotation: onAddAnnotation,
-        ),
+        child: EmptyAnnotationsState(isPhysical: isPhysical, onAddAnnotation: onAddAnnotation),
       );
     }
 
@@ -36,10 +30,7 @@ void main() {
       testWidgets('shows digital book description', (tester) async {
         await tester.pumpWidget(buildWidget());
 
-        expect(
-          find.text('Highlight text while reading to create annotations.'),
-          findsOneWidget,
-        );
+        expect(find.text('Highlight text while reading to create annotations.'), findsOneWidget);
       });
 
       testWidgets('does not show add annotation button', (tester) async {
@@ -53,12 +44,7 @@ void main() {
       testWidgets('shows physical book description', (tester) async {
         await tester.pumpWidget(buildWidget(isPhysical: true));
 
-        expect(
-          find.text(
-            "Add passages you've highlighted or underlined in your book.",
-          ),
-          findsOneWidget,
-        );
+        expect(find.text("Add passages you've highlighted or underlined in your book."), findsOneWidget);
       });
 
       testWidgets('shows add annotation button', (tester) async {
@@ -70,9 +56,7 @@ void main() {
 
       testWidgets('add button calls onAddAnnotation', (tester) async {
         var called = false;
-        await tester.pumpWidget(
-          buildWidget(isPhysical: true, onAddAnnotation: () => called = true),
-        );
+        await tester.pumpWidget(buildWidget(isPhysical: true, onAddAnnotation: () => called = true));
 
         await tester.tap(find.text('Add annotation'));
         expect(called, true);

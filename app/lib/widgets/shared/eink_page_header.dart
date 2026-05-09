@@ -23,20 +23,12 @@ class EinkPageHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
       decoration: BoxDecoration(
         border: Border(
-          bottom: BorderSide(
-            color: colorScheme.outline,
-            width: BorderWidths.einkDefault,
-          ),
+          bottom: BorderSide(color: colorScheme.outline, width: BorderWidths.einkDefault),
         ),
       ),
       child: Row(
         children: [
-          Text(
-            title,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
-          ),
+          Text(title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
           const Spacer(),
           if (trailing != null) trailing!,
         ],

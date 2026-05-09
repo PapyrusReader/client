@@ -20,27 +20,16 @@ class ManageTopicsSheet extends StatefulWidget {
   /// Called when topic assignments change.
   final void Function(List<String> tagIds)? onSave;
 
-  const ManageTopicsSheet({
-    super.key,
-    this.book,
-    this.bulkBookIds,
-    this.onSave,
-  });
+  const ManageTopicsSheet({super.key, this.book, this.bulkBookIds, this.onSave});
 
   bool get isBulkMode => bulkBookIds != null && bulkBookIds!.isNotEmpty;
 
   /// Shows the manage topics sheet for a single book.
-  static Future<void> show(
-    BuildContext context, {
-    required Book book,
-    void Function(List<String> tagIds)? onSave,
-  }) {
+  static Future<void> show(BuildContext context, {required Book book, void Function(List<String> tagIds)? onSave}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => ManageTopicsSheet(book: book, onSave: onSave),
     );
   }
@@ -54,11 +43,8 @@ class ManageTopicsSheet extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
-      builder: (context) =>
-          ManageTopicsSheet(bulkBookIds: bookIds, onSave: onSave),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
+      builder: (context) => ManageTopicsSheet(bulkBookIds: bookIds, onSave: onSave),
     );
   }
 
@@ -100,11 +86,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
       maxChildSize: 0.9,
       expand: false,
       builder: (context, scrollController) => Padding(
-        padding: const EdgeInsets.only(
-          left: Spacing.lg,
-          right: Spacing.lg,
-          top: Spacing.md,
-        ),
+        padding: const EdgeInsets.only(left: Spacing.lg, right: Spacing.lg, top: Spacing.md),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -120,11 +102,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
                 if (!widget.isBulkMode) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: SizedBox(
-                      width: 40,
-                      height: 60,
-                      child: _buildCover(context),
-                    ),
+                    child: SizedBox(width: 40, height: 60, child: _buildCover(context)),
                   ),
                   const SizedBox(width: Spacing.sm + Spacing.xs),
                 ],
@@ -143,9 +121,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
                         const SizedBox(height: 2),
                         Text(
                           widget.book!.title,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                          style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -179,21 +155,13 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
                       builder: (context) {
                         final filteredTags = _searchQuery.isEmpty
                             ? tags
-                            : tags
-                                  .where(
-                                    (t) => t.name.toLowerCase().contains(
-                                      _searchQuery.toLowerCase(),
-                                    ),
-                                  )
-                                  .toList();
+                            : tags.where((t) => t.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
 
                         if (filteredTags.isEmpty && _searchQuery.isNotEmpty) {
                           return Center(
                             child: Text(
                               'No topics found',
-                              style: textTheme.bodyMedium?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                              ),
+                              style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                             ),
                           );
                         }
@@ -201,8 +169,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
                         return ListView.builder(
                           controller: scrollController,
                           itemCount: filteredTags.length,
-                          itemBuilder: (context, index) =>
-                              _buildTagTile(context, filteredTags[index]),
+                          itemBuilder: (context, index) => _buildTagTile(context, filteredTags[index]),
                         );
                       },
                     ),
@@ -210,17 +177,11 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
 
             // Action buttons
             Padding(
-              padding: EdgeInsets.only(
-                top: Spacing.md,
-                bottom: MediaQuery.of(context).viewInsets.bottom + Spacing.md,
-              ),
+              padding: EdgeInsets.only(top: Spacing.md, bottom: MediaQuery.of(context).viewInsets.bottom + Spacing.md),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
+                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
                   const SizedBox(width: Spacing.md),
                   FilledButton(onPressed: _onSave, child: const Text('Save')),
                 ],
@@ -242,22 +203,14 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => Container(
           color: colorScheme.surfaceContainerHighest,
-          child: Icon(
-            Icons.menu_book,
-            color: colorScheme.onSurfaceVariant,
-            size: 20,
-          ),
+          child: Icon(Icons.menu_book, color: colorScheme.onSurfaceVariant, size: 20),
         ),
       );
     }
 
     return Container(
       color: colorScheme.surfaceContainerHighest,
-      child: Icon(
-        Icons.menu_book,
-        color: colorScheme.onSurfaceVariant,
-        size: 20,
-      ),
+      child: Icon(Icons.menu_book, color: colorScheme.onSurfaceVariant, size: 20),
     );
   }
 
@@ -268,25 +221,11 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
     return Column(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Icon(
-          Icons.label_outline,
-          size: IconSizes.display,
-          color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-        ),
+        Icon(Icons.label_outline, size: IconSizes.display, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
         const SizedBox(height: Spacing.md),
-        Text(
-          'No topics yet',
-          style: textTheme.titleMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text('No topics yet', style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         const SizedBox(height: Spacing.sm),
-        Text(
-          'Tap + to create a topic',
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text('Tap + to create a topic', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
       ],
     );
   }
@@ -302,24 +241,16 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
     return Card(
       margin: const EdgeInsets.only(bottom: Spacing.xs),
       elevation: 0,
-      color: isSelected
-          ? tagColor.withValues(alpha: 0.1)
-          : colorScheme.surfaceContainerLow,
+      color: isSelected ? tagColor.withValues(alpha: 0.1) : colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(
-          color: isSelected ? tagColor : colorScheme.outlineVariant,
-          width: isSelected ? 2 : 1,
-        ),
+        side: BorderSide(color: isSelected ? tagColor : colorScheme.outlineVariant, width: isSelected ? 2 : 1),
       ),
       child: InkWell(
         onTap: () => _toggleTag(tag.id),
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.md,
-            vertical: Spacing.sm,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
           child: Row(
             children: [
               // Color dot
@@ -334,10 +265,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
                   child: Container(
                     width: 16,
                     height: 16,
-                    decoration: BoxDecoration(
-                      color: tagColor,
-                      shape: BoxShape.circle,
-                    ),
+                    decoration: BoxDecoration(color: tagColor, shape: BoxShape.circle),
                   ),
                 ),
               ),
@@ -349,27 +277,19 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
                   children: [
                     Text(
                       tag.name,
-                      style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       '$bookCount ${bookCount == 1 ? 'book' : 'books'}',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
               ),
               // Checkbox
-              Checkbox(
-                value: isSelected,
-                onChanged: (_) => _toggleTag(tag.id),
-                activeColor: tagColor,
-              ),
+              Checkbox(value: isSelected, onChanged: (_) => _toggleTag(tag.id), activeColor: tagColor),
             ],
           ),
         ),

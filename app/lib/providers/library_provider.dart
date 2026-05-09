@@ -5,15 +5,7 @@ import 'package:papyrus/models/book.dart';
 enum LibraryViewMode { grid, list }
 
 /// Active filter type for library content.
-enum LibraryFilterType {
-  all,
-  shelves,
-  topics,
-  favorites,
-  reading,
-  finished,
-  unread,
-}
+enum LibraryFilterType { all, shelves, topics, favorites, reading, finished, unread }
 
 /// Sort options for library books. Each value encodes its direction.
 enum LibrarySortOption {
@@ -91,9 +83,7 @@ class LibraryProvider extends ChangeNotifier {
 
   /// Toggle between grid and list view.
   void toggleViewMode() {
-    _viewMode = _viewMode == LibraryViewMode.grid
-        ? LibraryViewMode.list
-        : LibraryViewMode.grid;
+    _viewMode = _viewMode == LibraryViewMode.grid ? LibraryViewMode.list : LibraryViewMode.grid;
     notifyListeners();
   }
 

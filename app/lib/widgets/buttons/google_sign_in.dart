@@ -15,12 +15,7 @@ class GoogleSignInButton extends StatefulWidget {
   /// Optional callback when sign-in fails
   final VoidCallback? onError;
 
-  const GoogleSignInButton({
-    super.key,
-    required this.title,
-    this.onSuccess,
-    this.onError,
-  });
+  const GoogleSignInButton({super.key, required this.title, this.onSuccess, this.onError});
 
   @override
   State<GoogleSignInButton> createState() => _GoogleSignInButtonState();
@@ -41,9 +36,18 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
 
       if (!mounted) return;
 
-      if (result != null) {
+      if (result) {
         widget.onSuccess?.call();
         context.goNamed('LIBRARY');
+      } else if (provider.error != null) {
+        widget.onError?.call();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            duration: const Duration(seconds: 5),
+            content: Text(provider.error!),
+            backgroundColor: Theme.of(context).colorScheme.error,
+          ),
+        );
       }
     } catch (error) {
       if (!mounted) return;
@@ -76,9 +80,7 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
             height: 24,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              valueColor: AlwaysStoppedAnimation<Color>(
-                theme.colorScheme.primary,
-              ),
+              valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.primary),
             ),
           ),
         ),
@@ -88,34 +90,18 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(ComponentSizes.buttonHeightMobile),
-        side: BorderSide(
-          width: BorderWidths.thin,
-          color: theme.colorScheme.outline,
-        ),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.googleButton),
-        ),
-        padding: const EdgeInsets.symmetric(
-          horizontal: Spacing.lg,
-          vertical: Spacing.buttonPaddingVertical,
-        ),
+        side: BorderSide(width: BorderWidths.thin, color: theme.colorScheme.outline),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.googleButton)),
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.buttonPaddingVertical),
       ),
       onPressed: _handleSignIn,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Image(
-            image: AssetImage('assets/images/google_logo.png'),
-            height: 24.0,
-          ),
+          const Image(image: AssetImage('assets/images/google_logo.png'), height: 24.0),
           const SizedBox(width: Spacing.sm),
-          Text(
-            widget.title,
-            style: theme.textTheme.titleMedium?.copyWith(
-              fontWeight: FontWeight.w500,
-            ),
-          ),
+          Text(widget.title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500)),
         ],
       ),
     );

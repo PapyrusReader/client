@@ -8,13 +8,7 @@ class Tag {
   final String? description;
   final DateTime createdAt;
 
-  const Tag({
-    required this.id,
-    required this.name,
-    required this.colorHex,
-    this.description,
-    required this.createdAt,
-  });
+  const Tag({required this.id, required this.name, required this.colorHex, this.description, required this.createdAt});
 
   /// Get the color from hex string.
   Color get color {
@@ -27,13 +21,7 @@ class Tag {
   }
 
   /// Create a copy with updated fields.
-  Tag copyWith({
-    String? id,
-    String? name,
-    String? colorHex,
-    String? description,
-    DateTime? createdAt,
-  }) {
+  Tag copyWith({String? id, String? name, String? colorHex, String? description, DateTime? createdAt}) {
     return Tag(
       id: id ?? this.id,
       name: name ?? this.name,

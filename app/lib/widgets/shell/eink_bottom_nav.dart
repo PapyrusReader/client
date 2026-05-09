@@ -10,12 +10,7 @@ class EinkBottomNav extends StatelessWidget {
   final String currentPath;
   final void Function(String path) onNavigate;
 
-  const EinkBottomNav({
-    super.key,
-    required this.items,
-    required this.currentPath,
-    required this.onNavigate,
-  });
+  const EinkBottomNav({super.key, required this.items, required this.currentPath, required this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
@@ -28,10 +23,7 @@ class EinkBottomNav extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surface,
         border: Border(
-          top: BorderSide(
-            color: colorScheme.outline,
-            width: BorderWidths.einkDefault,
-          ),
+          top: BorderSide(color: colorScheme.outline, width: BorderWidths.einkDefault),
         ),
       ),
       child: Row(
@@ -43,11 +35,7 @@ class EinkBottomNav extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem(
-    BuildContext context,
-    AppShellNavItem item,
-    bool isSelected,
-  ) {
+  Widget _buildNavItem(BuildContext context, AppShellNavItem item, bool isSelected) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
@@ -64,17 +52,13 @@ class EinkBottomNav extends StatelessWidget {
         child: Container(
           decoration: BoxDecoration(
             color: isSelected ? colorScheme.primary : Colors.transparent,
-            border: Border(
-              left: BorderSide(color: colorScheme.outline, width: 1),
-            ),
+            border: Border(left: BorderSide(color: colorScheme.outline, width: 1)),
           ),
           child: Center(
             child: Text(
               item.label,
               style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                color: isSelected
-                    ? colorScheme.onPrimary
-                    : colorScheme.onSurface,
+                color: isSelected ? colorScheme.onPrimary : colorScheme.onSurface,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.2,
               ),

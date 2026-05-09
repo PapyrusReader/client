@@ -14,11 +14,7 @@ import 'package:provider/provider.dart';
 // =============================================================================
 
 /// Add all selected books to the given shelves.
-void bulkAddToShelves(
-  DataStore dataStore,
-  Set<String> bookIds,
-  List<String> shelfIds,
-) {
+void bulkAddToShelves(DataStore dataStore, Set<String> bookIds, List<String> shelfIds) {
   for (final bookId in bookIds) {
     for (final shelfId in shelfIds) {
       dataStore.addBookToShelf(bookId, shelfId);
@@ -27,11 +23,7 @@ void bulkAddToShelves(
 }
 
 /// Set topics for all selected books (additive — does not remove existing).
-void bulkAddTopics(
-  DataStore dataStore,
-  Set<String> bookIds,
-  List<String> tagIds,
-) {
+void bulkAddTopics(DataStore dataStore, Set<String> bookIds, List<String> tagIds) {
   for (final bookId in bookIds) {
     for (final tagId in tagIds) {
       dataStore.addTagToBook(bookId, tagId);
@@ -40,11 +32,7 @@ void bulkAddTopics(
 }
 
 /// Change reading status for all selected books.
-void bulkChangeStatus(
-  DataStore dataStore,
-  Set<String> bookIds,
-  ReadingStatus status,
-) {
+void bulkChangeStatus(DataStore dataStore, Set<String> bookIds, ReadingStatus status) {
   for (final bookId in bookIds) {
     final book = dataStore.getBook(bookId);
     if (book != null) {
@@ -55,11 +43,7 @@ void bulkChangeStatus(
 
 /// Toggle favorite for all selected books.
 /// If any are not favorited, sets all to favorite; otherwise un-favorites all.
-void bulkToggleFavorite(
-  LibraryProvider libraryProvider,
-  DataStore dataStore,
-  Set<String> bookIds,
-) {
+void bulkToggleFavorite(LibraryProvider libraryProvider, DataStore dataStore, Set<String> bookIds) {
   final allFavorite = bookIds.every((id) {
     final book = dataStore.getBook(id);
     return book != null && libraryProvider.isBookFavorite(id, book.isFavorite);
@@ -91,10 +75,7 @@ void bulkDelete(DataStore dataStore, Set<String> bookIds) {
 // =============================================================================
 
 /// Show the move-to-shelf sheet for selected books.
-void handleBulkAddToShelf(
-  BuildContext context,
-  LibraryProvider libraryProvider,
-) {
+void handleBulkAddToShelf(BuildContext context, LibraryProvider libraryProvider) {
   final dataStore = context.read<DataStore>();
   final selectedIds = libraryProvider.selectedBookIds.toList();
 
@@ -109,10 +90,7 @@ void handleBulkAddToShelf(
 }
 
 /// Show the manage-topics sheet for selected books.
-void handleBulkManageTopics(
-  BuildContext context,
-  LibraryProvider libraryProvider,
-) {
+void handleBulkManageTopics(BuildContext context, LibraryProvider libraryProvider) {
   final dataStore = context.read<DataStore>();
   final selectedIds = libraryProvider.selectedBookIds.toList();
 
@@ -127,10 +105,7 @@ void handleBulkManageTopics(
 }
 
 /// Show the status change sheet for selected books.
-void handleBulkChangeStatus(
-  BuildContext context,
-  LibraryProvider libraryProvider,
-) {
+void handleBulkChangeStatus(BuildContext context, LibraryProvider libraryProvider) {
   final dataStore = context.read<DataStore>();
 
   BulkStatusSheet.show(
@@ -144,16 +119,9 @@ void handleBulkChangeStatus(
 }
 
 /// Toggle favorite status for all selected books.
-void handleBulkToggleFavorite(
-  BuildContext context,
-  LibraryProvider libraryProvider,
-) {
+void handleBulkToggleFavorite(BuildContext context, LibraryProvider libraryProvider) {
   final dataStore = context.read<DataStore>();
-  bulkToggleFavorite(
-    libraryProvider,
-    dataStore,
-    libraryProvider.selectedBookIds,
-  );
+  bulkToggleFavorite(libraryProvider, dataStore, libraryProvider.selectedBookIds);
   libraryProvider.exitSelectionMode();
 }
 
@@ -171,19 +139,14 @@ void handleBulkDelete(BuildContext context, LibraryProvider libraryProvider) {
         'This action cannot be undone.',
       ),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
-        ),
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(
           onPressed: () {
             Navigator.pop(context);
             bulkDelete(dataStore, libraryProvider.selectedBookIds);
             libraryProvider.exitSelectionMode();
           },
-          style: FilledButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.error,
-          ),
+          style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
           child: const Text('Delete'),
         ),
       ],
@@ -192,10 +155,7 @@ void handleBulkDelete(BuildContext context, LibraryProvider libraryProvider) {
 }
 
 /// Build a [BulkActionBar] wired to all bulk action handlers.
-BulkActionBar buildBulkActionBar(
-  BuildContext context,
-  LibraryProvider libraryProvider,
-) {
+BulkActionBar buildBulkActionBar(BuildContext context, LibraryProvider libraryProvider) {
   return BulkActionBar(
     onAddToShelf: () => handleBulkAddToShelf(context, libraryProvider),
     onManageTopics: () => handleBulkManageTopics(context, libraryProvider),
@@ -206,10 +166,7 @@ BulkActionBar buildBulkActionBar(
 }
 
 /// Build the mobile bottom action bar container with bulk actions.
-Widget buildMobileBottomActionBar(
-  BuildContext context,
-  LibraryProvider libraryProvider,
-) {
+Widget buildMobileBottomActionBar(BuildContext context, LibraryProvider libraryProvider) {
   final colorScheme = Theme.of(context).colorScheme;
 
   return Container(
@@ -219,10 +176,7 @@ Widget buildMobileBottomActionBar(
     ),
     child: SafeArea(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: Spacing.md,
-          vertical: Spacing.sm,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
         child: buildBulkActionBar(context, libraryProvider),
       ),
     ),

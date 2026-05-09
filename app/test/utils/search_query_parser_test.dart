@@ -126,9 +126,7 @@ void main() {
       });
 
       test('should parse explicit AND operator', () {
-        final result = SearchQueryParser.parse(
-          'author:tolkien AND format:epub',
-        );
+        final result = SearchQueryParser.parse('author:tolkien AND format:epub');
 
         expect(result.filters.length, 2);
         expect(result.operators.length, 1);
@@ -136,9 +134,7 @@ void main() {
       });
 
       test('should parse OR operator', () {
-        final result = SearchQueryParser.parse(
-          'author:tolkien OR author:lewis',
-        );
+        final result = SearchQueryParser.parse('author:tolkien OR author:lewis');
 
         expect(result.filters.length, 2);
         expect(result.operators.length, 1);
@@ -177,10 +173,7 @@ void main() {
 
       test('should provide status suggestions', () {
         expect(SearchQueryParser.statusSuggestions, contains('status:reading'));
-        expect(
-          SearchQueryParser.statusSuggestions,
-          contains('status:finished'),
-        );
+        expect(SearchQueryParser.statusSuggestions, contains('status:finished'));
         expect(SearchQueryParser.statusSuggestions, contains('status:unread'));
       });
 
@@ -200,13 +193,7 @@ void main() {
 
     test('isNotEmpty should be true when filters exist', () {
       const query = SearchQuery(
-        filters: [
-          SearchFilter(
-            field: SearchField.author,
-            operator: SearchOperator.contains,
-            value: 'tolkien',
-          ),
-        ],
+        filters: [SearchFilter(field: SearchField.author, operator: SearchOperator.contains, value: 'tolkien')],
       );
       expect(query.isEmpty, false);
       expect(query.isNotEmpty, true);
@@ -214,13 +201,7 @@ void main() {
 
     test('isNotEmpty should be true when notFilters exist', () {
       const query = SearchQuery(
-        notFilters: [
-          SearchFilter(
-            field: SearchField.status,
-            operator: SearchOperator.equals,
-            value: 'finished',
-          ),
-        ],
+        notFilters: [SearchFilter(field: SearchField.status, operator: SearchOperator.equals, value: 'finished')],
       );
       expect(query.isEmpty, false);
       expect(query.isNotEmpty, true);

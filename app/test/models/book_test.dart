@@ -25,29 +25,14 @@ void main() {
       });
 
       test('isReading returns true only for inProgress status', () {
-        expect(
-          buildTestBook(readingStatus: ReadingStatus.inProgress).isReading,
-          true,
-        );
-        expect(
-          buildTestBook(readingStatus: ReadingStatus.completed).isReading,
-          false,
-        );
-        expect(
-          buildTestBook(readingStatus: ReadingStatus.notStarted).isReading,
-          false,
-        );
+        expect(buildTestBook(readingStatus: ReadingStatus.inProgress).isReading, true);
+        expect(buildTestBook(readingStatus: ReadingStatus.completed).isReading, false);
+        expect(buildTestBook(readingStatus: ReadingStatus.notStarted).isReading, false);
       });
 
       test('isFinished returns true only for completed status', () {
-        expect(
-          buildTestBook(readingStatus: ReadingStatus.completed).isFinished,
-          true,
-        );
-        expect(
-          buildTestBook(readingStatus: ReadingStatus.inProgress).isFinished,
-          false,
-        );
+        expect(buildTestBook(readingStatus: ReadingStatus.completed).isFinished, true);
+        expect(buildTestBook(readingStatus: ReadingStatus.inProgress).isFinished, false);
       });
 
       test('hasProgress returns true when currentPosition > 0', () {
@@ -73,10 +58,7 @@ void main() {
       });
 
       test('allAuthors joins author with co-authors', () {
-        final book = buildTestBook(
-          author: 'Alice',
-          coAuthors: ['Bob', 'Charlie'],
-        );
+        final book = buildTestBook(author: 'Alice', coAuthors: ['Bob', 'Charlie']);
         expect(book.allAuthors, 'Alice, Bob, Charlie');
       });
 
@@ -289,12 +271,7 @@ void main() {
       });
 
       test('defaults for missing optional fields', () {
-        final json = {
-          'id': 'test',
-          'title': 'Title',
-          'author': 'Author',
-          'added_at': '2025-01-01T00:00:00.000',
-        };
+        final json = {'id': 'test', 'title': 'Title', 'author': 'Author', 'added_at': '2025-01-01T00:00:00.000'};
 
         final book = Book.fromJson(json);
 

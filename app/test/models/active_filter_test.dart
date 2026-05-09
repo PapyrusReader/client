@@ -5,62 +5,30 @@ void main() {
   group('ActiveFilter', () {
     group('equality', () {
       test('should be equal when type, label, and value match', () {
-        const filter1 = ActiveFilter(
-          type: ActiveFilterType.quick,
-          label: 'Reading',
-          value: 'reading',
-        );
-        const filter2 = ActiveFilter(
-          type: ActiveFilterType.quick,
-          label: 'Reading',
-          value: 'reading',
-        );
+        const filter1 = ActiveFilter(type: ActiveFilterType.quick, label: 'Reading', value: 'reading');
+        const filter2 = ActiveFilter(type: ActiveFilterType.quick, label: 'Reading', value: 'reading');
 
         expect(filter1, equals(filter2));
         expect(filter1.hashCode, equals(filter2.hashCode));
       });
 
       test('should not be equal when type differs', () {
-        const filter1 = ActiveFilter(
-          type: ActiveFilterType.quick,
-          label: 'shelf',
-          value: 'Fiction',
-        );
-        const filter2 = ActiveFilter(
-          type: ActiveFilterType.query,
-          label: 'shelf',
-          value: 'Fiction',
-        );
+        const filter1 = ActiveFilter(type: ActiveFilterType.quick, label: 'shelf', value: 'Fiction');
+        const filter2 = ActiveFilter(type: ActiveFilterType.query, label: 'shelf', value: 'Fiction');
 
         expect(filter1, isNot(equals(filter2)));
       });
 
       test('should not be equal when label differs', () {
-        const filter1 = ActiveFilter(
-          type: ActiveFilterType.quick,
-          label: 'Reading',
-          value: 'reading',
-        );
-        const filter2 = ActiveFilter(
-          type: ActiveFilterType.quick,
-          label: 'Finished',
-          value: 'reading',
-        );
+        const filter1 = ActiveFilter(type: ActiveFilterType.quick, label: 'Reading', value: 'reading');
+        const filter2 = ActiveFilter(type: ActiveFilterType.quick, label: 'Finished', value: 'reading');
 
         expect(filter1, isNot(equals(filter2)));
       });
 
       test('should not be equal when value differs', () {
-        const filter1 = ActiveFilter(
-          type: ActiveFilterType.query,
-          label: 'shelf',
-          value: 'Fiction',
-        );
-        const filter2 = ActiveFilter(
-          type: ActiveFilterType.query,
-          label: 'shelf',
-          value: 'Non-Fiction',
-        );
+        const filter1 = ActiveFilter(type: ActiveFilterType.query, label: 'shelf', value: 'Fiction');
+        const filter2 = ActiveFilter(type: ActiveFilterType.query, label: 'shelf', value: 'Non-Fiction');
 
         expect(filter1, isNot(equals(filter2)));
       });
@@ -68,11 +36,7 @@ void main() {
 
     group('toString', () {
       test('should return label for quick filters', () {
-        const filter = ActiveFilter(
-          type: ActiveFilterType.quick,
-          label: 'Reading',
-          value: 'reading',
-        );
+        const filter = ActiveFilter(type: ActiveFilterType.quick, label: 'Reading', value: 'reading');
 
         expect(filter.toString(), 'Reading');
       });
@@ -88,18 +52,11 @@ void main() {
         expect(filter.toString(), 'author:"Tolkien"');
       });
 
-      test(
-        'should return label:value for query filters without queryString',
-        () {
-          const filter = ActiveFilter(
-            type: ActiveFilterType.query,
-            label: 'author',
-            value: 'Tolkien',
-          );
+      test('should return label:value for query filters without queryString', () {
+        const filter = ActiveFilter(type: ActiveFilterType.query, label: 'author', value: 'Tolkien');
 
-          expect(filter.toString(), 'author:Tolkien');
-        },
-      );
+        expect(filter.toString(), 'author:Tolkien');
+      });
     });
   });
 

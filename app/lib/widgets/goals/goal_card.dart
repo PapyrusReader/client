@@ -16,12 +16,7 @@ class GoalCard extends StatelessWidget {
   /// Whether to use desktop styling.
   final bool isDesktop;
 
-  const GoalCard({
-    super.key,
-    required this.goal,
-    this.onTap,
-    this.isDesktop = false,
-  });
+  const GoalCard({super.key, required this.goal, this.onTap, this.isDesktop = false});
 
   @override
   Widget build(BuildContext context) {
@@ -62,11 +57,7 @@ class GoalCard extends StatelessWidget {
   // ============================================================================
 
   /// Builds the header with icon, title, and optional badges.
-  Widget _buildHeader(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-  ) {
+  Widget _buildHeader(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
     return Row(
       children: [
         Container(
@@ -76,11 +67,7 @@ class GoalCard extends StatelessWidget {
             color: colorScheme.primaryContainer,
             borderRadius: BorderRadius.circular(AppRadius.md),
           ),
-          child: Icon(
-            _getIconForType(goal.type),
-            size: 20,
-            color: colorScheme.onPrimaryContainer,
-          ),
+          child: Icon(_getIconForType(goal.type), size: 20, color: colorScheme.onPrimaryContainer),
         ),
         const SizedBox(width: Spacing.sm),
         Expanded(
@@ -99,10 +86,7 @@ class GoalCard extends StatelessWidget {
           const SizedBox(width: Spacing.sm),
           _buildOneOffBadge(colorScheme, textTheme),
         ],
-        if (goal.isCustomPeriod) ...[
-          const SizedBox(width: Spacing.sm),
-          _buildDateRangeBadge(colorScheme, textTheme),
-        ],
+        if (goal.isCustomPeriod) ...[const SizedBox(width: Spacing.sm), _buildDateRangeBadge(colorScheme, textTheme)],
         if (goal.isCompleted) ...[
           const SizedBox(width: Spacing.sm),
           Icon(Icons.check_circle, size: 24, color: colorScheme.tertiary),
@@ -122,18 +106,11 @@ class GoalCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.local_fire_department,
-            size: 14,
-            color: colorScheme.onTertiaryContainer,
-          ),
+          Icon(Icons.local_fire_department, size: 14, color: colorScheme.onTertiaryContainer),
           const SizedBox(width: 4),
           Text(
             '${goal.streak}',
-            style: textTheme.labelSmall?.copyWith(
-              color: colorScheme.onTertiaryContainer,
-              fontWeight: FontWeight.bold,
-            ),
+            style: textTheme.labelSmall?.copyWith(color: colorScheme.onTertiaryContainer, fontWeight: FontWeight.bold),
           ),
         ],
       ),
@@ -151,18 +128,11 @@ class GoalCard extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(
-            Icons.date_range,
-            size: 14,
-            color: colorScheme.onSecondaryContainer,
-          ),
+          Icon(Icons.date_range, size: 14, color: colorScheme.onSecondaryContainer),
           const SizedBox(width: 4),
           Text(
             _formatDateRange(),
-            style: textTheme.labelSmall?.copyWith(
-              color: colorScheme.onSecondaryContainer,
-              fontWeight: FontWeight.w500,
-            ),
+            style: textTheme.labelSmall?.copyWith(color: colorScheme.onSecondaryContainer, fontWeight: FontWeight.w500),
           ),
         ],
       ),
@@ -170,20 +140,7 @@ class GoalCard extends StatelessWidget {
   }
 
   String _formatDateRange() {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final start = '${months[goal.startDate.month - 1]} ${goal.startDate.day}';
     final end = '${months[goal.endDate.month - 1]} ${goal.endDate.day}';
     return '$start - $end';
@@ -199,20 +156,13 @@ class GoalCard extends StatelessWidget {
       ),
       child: Text(
         'One-off',
-        style: textTheme.labelSmall?.copyWith(
-          color: colorScheme.onSecondaryContainer,
-          fontWeight: FontWeight.w500,
-        ),
+        style: textTheme.labelSmall?.copyWith(color: colorScheme.onSecondaryContainer, fontWeight: FontWeight.w500),
       ),
     );
   }
 
   /// Builds the progress values row showing current/target and percentage.
-  Widget _buildProgressValues(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-  ) {
+  Widget _buildProgressValues(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -220,17 +170,13 @@ class GoalCard extends StatelessWidget {
           goal.type == GoalType.minutes
               ? '${formatDuration(goal.current)} of ${formatDuration(goal.target)}'
               : '${goal.current} of ${goal.target} ${goal.typeLabel}',
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
+          style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
         ),
         Text(
           goal.progressLabel,
           style: textTheme.titleMedium?.copyWith(
             fontWeight: FontWeight.bold,
-            color: (goal.isCompleted && goal.isArchived)
-                ? colorScheme.tertiary
-                : colorScheme.primary,
+            color: (goal.isCompleted && goal.isArchived) ? colorScheme.tertiary : colorScheme.primary,
           ),
         ),
       ],
@@ -245,9 +191,7 @@ class GoalCard extends StatelessWidget {
         value: goal.progress.clamp(0.0, 1.0),
         minHeight: 8,
         backgroundColor: colorScheme.surfaceContainerHighest,
-        color: (goal.isCompleted && goal.isArchived)
-            ? colorScheme.tertiary
-            : colorScheme.primary,
+        color: (goal.isCompleted && goal.isArchived) ? colorScheme.tertiary : colorScheme.primary,
       ),
     );
   }
@@ -259,27 +203,18 @@ class GoalCard extends StatelessWidget {
       children: [
         Text(
           goal.isCompleted
-              ? (goal.isRecurring && !goal.isArchived
-                    ? "Today's goal met"
-                    : 'Completed!')
+              ? (goal.isRecurring && !goal.isArchived ? "Today's goal met" : 'Completed!')
               : goal.type == GoalType.minutes
               ? '${formatDuration(goal.remaining)} to go'
               : '${goal.remaining} ${goal.typeLabel} to go',
           style: textTheme.bodySmall?.copyWith(
             color: goal.isCompleted
-                ? (goal.isRecurring && !goal.isArchived
-                      ? colorScheme.primary
-                      : colorScheme.tertiary)
+                ? (goal.isRecurring && !goal.isArchived ? colorScheme.primary : colorScheme.tertiary)
                 : colorScheme.onSurfaceVariant,
             fontWeight: goal.isCompleted ? FontWeight.w500 : FontWeight.normal,
           ),
         ),
-        Text(
-          _getTimeContext(),
-          style: textTheme.bodySmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text(_getTimeContext(), style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
       ],
     );
   }
@@ -308,38 +243,12 @@ class GoalCard extends StatelessWidget {
   }
 
   String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 
   String _formatShortDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[date.month - 1]} ${date.day}';
   }
 

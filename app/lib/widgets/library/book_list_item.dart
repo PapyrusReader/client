@@ -34,8 +34,7 @@ class BookListItem extends StatefulWidget {
 class _BookListItemState extends State<BookListItem> {
   bool _isHovered = false;
 
-  bool get _isDesktop =>
-      MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
+  bool get _isDesktop => MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
 
   @override
   Widget build(BuildContext context) {
@@ -49,46 +48,29 @@ class _BookListItemState extends State<BookListItem> {
         onLongPressStart: _isDesktop
             ? null
             : (details) {
-                showBookContextMenu(
-                  context: context,
-                  book: widget.book,
-                  position: details.globalPosition,
-                );
+                showBookContextMenu(context: context, book: widget.book, position: details.globalPosition);
               },
         child: Material(
-          color: inSelection && widget.isSelected
-              ? colorScheme.primary.withValues(alpha: 0.08)
-              : Colors.transparent,
+          color: inSelection && widget.isSelected ? colorScheme.primary.withValues(alpha: 0.08) : Colors.transparent,
           child: InkWell(
             onTap: inSelection ? widget.onSelectToggle : widget.onTap,
             child: Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Spacing.md,
-                vertical: Spacing.sm,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
               decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(color: colorScheme.outlineVariant),
-                ),
+                border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
               ),
               child: Row(
                 children: [
                   // Selection checkbox (leading)
                   if (inSelection) ...[
-                    Checkbox(
-                      value: widget.isSelected,
-                      onChanged: (_) => widget.onSelectToggle?.call(),
-                    ),
+                    Checkbox(value: widget.isSelected, onChanged: (_) => widget.onSelectToggle?.call()),
                     const SizedBox(width: Spacing.sm),
                   ],
                   // Cover thumbnail
                   SizedBox(
                     width: ComponentSizes.bookCoverWidthList,
                     height: ComponentSizes.bookCoverHeightList,
-                    child: ClipRRect(
-                      borderRadius: BorderRadius.circular(AppRadius.sm),
-                      child: _buildCover(context),
-                    ),
+                    child: ClipRRect(borderRadius: BorderRadius.circular(AppRadius.sm), child: _buildCover(context)),
                   ),
                   const SizedBox(width: Spacing.md),
 
@@ -100,42 +82,35 @@ class _BookListItemState extends State<BookListItem> {
                       children: [
                         Text(
                           widget.book.title,
-                          style: Theme.of(context).textTheme.titleMedium
-                              ?.copyWith(fontWeight: FontWeight.w600),
+                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                         const SizedBox(height: Spacing.xs),
                         Text(
                           widget.book.author,
-                          style: Theme.of(context).textTheme.bodyMedium
-                              ?.copyWith(color: colorScheme.onSurfaceVariant),
+                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (widget.showProgress &&
-                            widget.book.progress > 0) ...[
+                        if (widget.showProgress && widget.book.progress > 0) ...[
                           const SizedBox(height: Spacing.xs),
                           Row(
                             children: [
                               Expanded(
                                 child: LinearProgressIndicator(
                                   value: widget.book.progress,
-                                  backgroundColor:
-                                      colorScheme.surfaceContainerHighest,
-                                  color: widget.book.isFinished
-                                      ? colorScheme.tertiary
-                                      : colorScheme.primary,
+                                  backgroundColor: colorScheme.surfaceContainerHighest,
+                                  color: widget.book.isFinished ? colorScheme.tertiary : colorScheme.primary,
                                   minHeight: 3,
                                 ),
                               ),
                               const SizedBox(width: Spacing.sm),
                               Text(
                                 widget.book.progressLabel,
-                                style: Theme.of(context).textTheme.labelSmall
-                                    ?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
+                                style: Theme.of(
+                                  context,
+                                ).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
                               ),
                             ],
                           ),
@@ -151,35 +126,27 @@ class _BookListItemState extends State<BookListItem> {
                       children: [
                         // Format badge
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: colorScheme.surfaceContainerHighest,
                             borderRadius: BorderRadius.circular(AppRadius.sm),
                           ),
                           child: Text(
                             widget.book.formatLabel,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                         const SizedBox(width: Spacing.sm),
                         // Favorite indicator
                         Icon(
-                          widget.isFavorite
-                              ? Icons.favorite
-                              : Icons.favorite_border,
+                          widget.isFavorite ? Icons.favorite : Icons.favorite_border,
                           size: IconSizes.indicator,
                           color: widget.isFavorite
                               ? colorScheme.error
-                              : colorScheme.onSurfaceVariant.withValues(
-                                  alpha: 0.5,
-                                ),
+                              : colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
                         ),
                         // Overflow menu - show on hover (desktop only)
                         if (_isDesktop)
@@ -189,10 +156,7 @@ class _BookListItemState extends State<BookListItem> {
                             child: IconButton(
                               icon: const Icon(Icons.more_vert),
                               iconSize: IconSizes.action,
-                              onPressed: () => showBookContextMenu(
-                                context: context,
-                                book: widget.book,
-                              ),
+                              onPressed: () => showBookContextMenu(context: context, book: widget.book),
                               tooltip: 'More options',
                               visualDensity: VisualDensity.compact,
                             ),
@@ -226,11 +190,7 @@ class _BookListItemState extends State<BookListItem> {
 
     return Container(
       color: cs.surfaceContainerHighest,
-      child: Icon(
-        Icons.menu_book,
-        size: IconSizes.medium,
-        color: cs.onSurfaceVariant.withValues(alpha: 0.5),
-      ),
+      child: Icon(Icons.menu_book, size: IconSizes.medium, color: cs.onSurfaceVariant.withValues(alpha: 0.5)),
     );
   }
 }

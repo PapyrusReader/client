@@ -8,12 +8,7 @@ class MobileBottomNav extends StatelessWidget {
   final String currentPath;
   final void Function(String path) onNavigate;
 
-  const MobileBottomNav({
-    super.key,
-    required this.items,
-    required this.currentPath,
-    required this.onNavigate,
-  });
+  const MobileBottomNav({super.key, required this.items, required this.currentPath, required this.onNavigate});
 
   @override
   Widget build(BuildContext context) {

@@ -121,10 +121,7 @@ class _BookAnnotationsState extends State<BookAnnotations> {
 
     if (widget.annotations.isEmpty) {
       return SingleChildScrollView(
-        child: EmptyAnnotationsState(
-          isPhysical: widget.isPhysical,
-          onAddAnnotation: widget.onAddAnnotation,
-        ),
+        child: EmptyAnnotationsState(isPhysical: widget.isPhysical, onAddAnnotation: widget.onAddAnnotation),
       );
     }
 
@@ -144,12 +141,7 @@ class _BookAnnotationsState extends State<BookAnnotations> {
               ? _buildNoResultsState(context, colorScheme)
               : _buildAnnotationsList(
                   filtered,
-                  padding: const EdgeInsets.fromLTRB(
-                    Spacing.md,
-                    Spacing.sm,
-                    Spacing.md,
-                    Spacing.md,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.sm, Spacing.md, Spacing.md),
                   separatorHeight: Spacing.md,
                   showActionMenu: true,
                 ),
@@ -170,12 +162,7 @@ class _BookAnnotationsState extends State<BookAnnotations> {
               ? _buildNoResultsState(context, colorScheme)
               : _buildAnnotationsList(
                   filtered,
-                  padding: const EdgeInsets.fromLTRB(
-                    Spacing.md,
-                    0,
-                    Spacing.md,
-                    Spacing.md,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
                   separatorHeight: Spacing.sm,
                   showActionMenu: false,
                 ),
@@ -226,10 +213,7 @@ class _BookAnnotationsState extends State<BookAnnotations> {
     );
   }
 
-  PopupMenuItem<_AnnotationSort> _buildSortMenuItem(
-    _AnnotationSort option,
-    String label,
-  ) {
+  PopupMenuItem<_AnnotationSort> _buildSortMenuItem(_AnnotationSort option, String label) {
     return PopupMenuItem(
       value: option,
       child: Row(
@@ -238,9 +222,7 @@ class _BookAnnotationsState extends State<BookAnnotations> {
           Icon(
             Icons.check,
             size: IconSizes.small,
-            color: option == _sortOption
-                ? Theme.of(context).colorScheme.primary
-                : Colors.transparent,
+            color: option == _sortOption ? Theme.of(context).colorScheme.primary : Colors.transparent,
           ),
         ],
       ),
@@ -274,32 +256,21 @@ class _BookAnnotationsState extends State<BookAnnotations> {
   Widget _buildNoResultsState(BuildContext context, ColorScheme colorScheme) {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: Spacing.xl,
-          vertical: Spacing.xxl,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.xl, vertical: Spacing.xxl),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.search_off,
-                size: 48,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
+              Icon(Icons.search_off, size: 48, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
               const SizedBox(height: Spacing.md),
               Text(
                 'No annotations found',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: Spacing.xs),
               Text(
                 'Try a different search term',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
             ],

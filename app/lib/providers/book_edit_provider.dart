@@ -28,8 +28,7 @@ class BookEditProvider extends ChangeNotifier {
   // Cover image state (for uploaded files)
   Uint8List? _coverImageBytes;
 
-  BookEditProvider({MetadataService? metadataService})
-    : _metadataService = metadataService ?? MetadataService();
+  BookEditProvider({MetadataService? metadataService}) : _metadataService = metadataService ?? MetadataService();
 
   // ============================================================================
   // GETTERS
@@ -149,9 +148,7 @@ class BookEditProvider extends ChangeNotifier {
 
   void updateSubtitle(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(
-      subtitle: value?.isEmpty == true ? null : value,
-    );
+    _editedBook = _editedBook!.copyWith(subtitle: value?.isEmpty == true ? null : value);
     notifyListeners();
   }
 
@@ -169,17 +166,13 @@ class BookEditProvider extends ChangeNotifier {
 
   void updatePublisher(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(
-      publisher: value?.isEmpty == true ? null : value,
-    );
+    _editedBook = _editedBook!.copyWith(publisher: value?.isEmpty == true ? null : value);
     notifyListeners();
   }
 
   void updateLanguage(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(
-      language: value?.isEmpty == true ? null : value,
-    );
+    _editedBook = _editedBook!.copyWith(language: value?.isEmpty == true ? null : value);
     notifyListeners();
   }
 
@@ -191,35 +184,26 @@ class BookEditProvider extends ChangeNotifier {
 
   void updateIsbn(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(
-      isbn: value?.isEmpty == true ? null : value,
-    );
+    _editedBook = _editedBook!.copyWith(isbn: value?.isEmpty == true ? null : value);
     notifyListeners();
   }
 
   void updateIsbn13(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(
-      isbn13: value?.isEmpty == true ? null : value,
-    );
+    _editedBook = _editedBook!.copyWith(isbn13: value?.isEmpty == true ? null : value);
     notifyListeners();
   }
 
   void updateDescription(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(
-      description: value?.isEmpty == true ? null : value,
-    );
+    _editedBook = _editedBook!.copyWith(description: value?.isEmpty == true ? null : value);
     notifyListeners();
   }
 
   void updateCoverUrl(String? value) {
     if (_editedBook == null) return;
     final shouldClear = value == null || value.isEmpty;
-    _editedBook = _editedBook!.copyWith(
-      coverUrl: shouldClear ? null : value,
-      clearCoverUrl: shouldClear,
-    );
+    _editedBook = _editedBook!.copyWith(coverUrl: shouldClear ? null : value, clearCoverUrl: shouldClear);
     // Clear local bytes when URL is set
     if (value != null && value.isNotEmpty) {
       _coverImageBytes = null;
@@ -251,9 +235,7 @@ class BookEditProvider extends ChangeNotifier {
 
   void updateSeriesName(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(
-      seriesName: value?.isEmpty == true ? null : value,
-    );
+    _editedBook = _editedBook!.copyWith(seriesName: value?.isEmpty == true ? null : value);
     notifyListeners();
   }
 
@@ -271,17 +253,13 @@ class BookEditProvider extends ChangeNotifier {
 
   void updatePhysicalLocation(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(
-      physicalLocation: value?.isEmpty == true ? null : value,
-    );
+    _editedBook = _editedBook!.copyWith(physicalLocation: value?.isEmpty == true ? null : value);
     notifyListeners();
   }
 
   void updateLentTo(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(
-      lentTo: value?.isEmpty == true ? null : value,
-    );
+    _editedBook = _editedBook!.copyWith(lentTo: value?.isEmpty == true ? null : value);
     notifyListeners();
   }
 
@@ -313,9 +291,7 @@ class BookEditProvider extends ChangeNotifier {
     try {
       final results = await _metadataService.search(query, _selectedSource);
       _fetchedResults = results;
-      _fetchState = results.isEmpty
-          ? MetadataFetchState.error
-          : MetadataFetchState.success;
+      _fetchState = results.isEmpty ? MetadataFetchState.error : MetadataFetchState.success;
       if (results.isEmpty) {
         _fetchError = 'No results found';
       }
@@ -337,14 +313,9 @@ class BookEditProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final results = await _metadataService.searchByIsbn(
-        isbn,
-        _selectedSource,
-      );
+      final results = await _metadataService.searchByIsbn(isbn, _selectedSource);
       _fetchedResults = results;
-      _fetchState = results.isEmpty
-          ? MetadataFetchState.error
-          : MetadataFetchState.success;
+      _fetchState = results.isEmpty ? MetadataFetchState.error : MetadataFetchState.success;
       if (results.isEmpty) {
         _fetchError = 'No results found for ISBN';
       }
@@ -383,12 +354,8 @@ class BookEditProvider extends ChangeNotifier {
     _editedBook = _editedBook!.copyWith(
       title: result.title ?? _editedBook!.title,
       subtitle: result.subtitle ?? _editedBook!.subtitle,
-      author: result.primaryAuthor.isNotEmpty
-          ? result.primaryAuthor
-          : _editedBook!.author,
-      coAuthors: result.coAuthors.isNotEmpty
-          ? result.coAuthors
-          : _editedBook!.coAuthors,
+      author: result.primaryAuthor.isNotEmpty ? result.primaryAuthor : _editedBook!.author,
+      coAuthors: result.coAuthors.isNotEmpty ? result.coAuthors : _editedBook!.coAuthors,
       publisher: result.publisher ?? _editedBook!.publisher,
       language: result.language ?? _editedBook!.language,
       pageCount: result.pageCount ?? _editedBook!.pageCount,

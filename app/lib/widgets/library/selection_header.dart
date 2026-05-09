@@ -30,18 +30,11 @@ class SelectionHeader extends StatelessWidget {
 
     return Row(
       children: [
-        IconButton(
-          icon: const Icon(Icons.close),
-          tooltip: 'Exit selection',
-          onPressed: onClose,
-        ),
+        IconButton(icon: const Icon(Icons.close), tooltip: 'Exit selection', onPressed: onClose),
         const SizedBox(width: Spacing.sm),
         Text(
           '$selectedCount selected',
-          style: textTheme.titleMedium?.copyWith(
-            color: colorScheme.onSurface,
-            fontWeight: FontWeight.w600,
-          ),
+          style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface, fontWeight: FontWeight.w600),
         ),
         const SizedBox(width: Spacing.md),
         TextButton(

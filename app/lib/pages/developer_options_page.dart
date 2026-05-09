@@ -26,10 +26,7 @@ class DeveloperOptionsPage extends StatelessWidget {
     return Scaffold(
       appBar: AppBar(title: const Text('Developer options')),
       body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(Spacing.md),
-          children: [],
-        ),
+        child: ListView(padding: const EdgeInsets.all(Spacing.md), children: []),
       ),
     );
   }
@@ -43,10 +40,7 @@ class DeveloperOptionsPage extends StatelessWidget {
           _buildEinkHeader(context),
           const Divider(color: Colors.black, height: 1),
           Expanded(
-            child: ListView(
-              padding: const EdgeInsets.all(Spacing.pageMarginsEink),
-              children: [],
-            ),
+            child: ListView(padding: const EdgeInsets.all(Spacing.pageMarginsEink), children: []),
           ),
         ],
       ),
@@ -65,21 +59,14 @@ class DeveloperOptionsPage extends StatelessWidget {
               width: TouchTargets.einkMin,
               height: TouchTargets.einkMin,
               child: Center(
-                child: Text(
-                  '<',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
+                child: Text('<', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
               ),
             ),
           ),
           const SizedBox(width: Spacing.sm),
           const Text(
             'DEVELOPER OPTIONS',
-            style: TextStyle(
-              fontSize: 24,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 1,
-            ),
+            style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1),
           ),
         ],
       ),
@@ -91,31 +78,20 @@ class DeveloperOptionsPage extends StatelessWidget {
       width: 56,
       height: 32,
       decoration: BoxDecoration(
-        border: Border.all(
-          color: Colors.black,
-          width: BorderWidths.einkDefault,
-        ),
+        border: Border.all(color: Colors.black, width: BorderWidths.einkDefault),
       ),
       child: Row(
         children: [
           Expanded(
             child: Container(
               color: isOn ? Colors.black : Colors.white,
-              child: Center(
-                child: isOn
-                    ? const Icon(Icons.check, color: Colors.white, size: 16)
-                    : null,
-              ),
+              child: Center(child: isOn ? const Icon(Icons.check, color: Colors.white, size: 16) : null),
             ),
           ),
           Expanded(
             child: Container(
               color: isOn ? Colors.white : Colors.black,
-              child: Center(
-                child: !isOn
-                    ? const Icon(Icons.close, color: Colors.white, size: 16)
-                    : null,
-              ),
+              child: Center(child: !isOn ? const Icon(Icons.close, color: Colors.white, size: 16) : null),
             ),
           ),
         ],

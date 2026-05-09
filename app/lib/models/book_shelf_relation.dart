@@ -5,20 +5,10 @@ class BookShelfRelation {
   final DateTime addedAt;
   final int sortOrder;
 
-  const BookShelfRelation({
-    required this.bookId,
-    required this.shelfId,
-    required this.addedAt,
-    this.sortOrder = 0,
-  });
+  const BookShelfRelation({required this.bookId, required this.shelfId, required this.addedAt, this.sortOrder = 0});
 
   /// Create a copy with updated fields.
-  BookShelfRelation copyWith({
-    String? bookId,
-    String? shelfId,
-    DateTime? addedAt,
-    int? sortOrder,
-  }) {
+  BookShelfRelation copyWith({String? bookId, String? shelfId, DateTime? addedAt, int? sortOrder}) {
     return BookShelfRelation(
       bookId: bookId ?? this.bookId,
       shelfId: shelfId ?? this.shelfId,
@@ -29,12 +19,7 @@ class BookShelfRelation {
 
   /// Convert to JSON for API/storage.
   Map<String, dynamic> toJson() {
-    return {
-      'book_id': bookId,
-      'shelf_id': shelfId,
-      'added_at': addedAt.toIso8601String(),
-      'sort_order': sortOrder,
-    };
+    return {'book_id': bookId, 'shelf_id': shelfId, 'added_at': addedAt.toIso8601String(), 'sort_order': sortOrder};
   }
 
   /// Create from JSON.
@@ -50,9 +35,7 @@ class BookShelfRelation {
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is BookShelfRelation &&
-        other.bookId == bookId &&
-        other.shelfId == shelfId;
+    return other is BookShelfRelation && other.bookId == bookId && other.shelfId == shelfId;
   }
 
   @override

@@ -29,16 +29,13 @@ class AddPhysicalBookSheet extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       useRootNavigator: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => DraggableScrollableSheet(
         initialChildSize: 0.9,
         minChildSize: 0.5,
         maxChildSize: 0.95,
         expand: false,
-        builder: (context, scrollController) =>
-            _PhysicalBookContent(scrollController: scrollController),
+        builder: (context, scrollController) => _PhysicalBookContent(scrollController: scrollController),
       ),
     );
   }
@@ -109,9 +106,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
     super.dispose();
   }
 
-  bool get _canSave =>
-      _titleController.text.trim().isNotEmpty &&
-      _authorController.text.trim().isNotEmpty;
+  bool get _canSave => _titleController.text.trim().isNotEmpty && _authorController.text.trim().isNotEmpty;
 
   Future<void> _onScanBarcode() async {
     final isbn = await IsbnScannerDialog.show(context);
@@ -131,17 +126,11 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
 
     try {
       // Try Open Library first
-      var results = await _metadataService.searchByIsbn(
-        isbn.trim(),
-        MetadataSource.openLibrary,
-      );
+      var results = await _metadataService.searchByIsbn(isbn.trim(), MetadataSource.openLibrary);
 
       // Fall back to Google Books
       if (results.isEmpty) {
-        results = await _metadataService.searchByIsbn(
-          isbn.trim(),
-          MetadataSource.googleBooks,
-        );
+        results = await _metadataService.searchByIsbn(isbn.trim(), MetadataSource.googleBooks);
       }
 
       if (!mounted) return;
@@ -181,9 +170,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
           if (result.publishedDate != null) {
             _publicationDate = _parsePublishedDate(result.publishedDate!);
             if (_publicationDate != null) {
-              _publicationDateController.text = DateFormat.yMMMMd().format(
-                _publicationDate!,
-              );
+              _publicationDateController.text = DateFormat.yMMMMd().format(_publicationDate!);
             }
           }
 
@@ -259,9 +246,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
     final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
 
-    messenger.showSnackBar(
-      SnackBar(content: Text('Added "${book.title}" to library')),
-    );
+    messenger.showSnackBar(SnackBar(content: Text('Added "${book.title}" to library')));
   }
 
   // ============================================================================
@@ -280,21 +265,14 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
-      ),
+      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
       child: Form(
         key: _formKey,
         child: Column(
           children: [
             // Fixed header
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                Spacing.md,
-                Spacing.md,
-                Spacing.md,
-                0,
-              ),
+              padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, 0),
               child: Column(
                 children: [
                   const BottomSheetHandle(),
@@ -316,10 +294,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
             Expanded(
               child: ListView(
                 controller: widget.scrollController,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.lg,
-                  vertical: Spacing.md,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
                 children: [
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -331,8 +306,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
                           child: CoverImagePicker(
                             initialUrl: _coverUrl,
                             initialBytes: _coverImageBytes,
-                            onUrlChanged: (url) =>
-                                setState(() => _coverUrl = url),
+                            onUrlChanged: (url) => setState(() => _coverUrl = url),
                             onFileChanged: (bytes) => setState(() {
                               _coverImageBytes = bytes;
                               if (bytes != null) _coverUrl = null;
@@ -363,10 +337,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
   // SECTION CARD
   // ============================================================================
 
-  Widget _buildSectionCard({
-    required String? title,
-    required List<Widget> children,
-  }) {
+  Widget _buildSectionCard({required String? title, required List<Widget> children}) {
     return Card(
       margin: const EdgeInsets.only(bottom: Spacing.xs),
       child: Padding(
@@ -375,12 +346,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             if (title != null) ...[
-              Text(
-                title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-              ),
+              Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
               const SizedBox(height: Spacing.md),
             ],
             ...children,
@@ -398,12 +364,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
     return _buildSectionCard(
       title: 'Basic information',
       children: [
-        BookTextField(
-          controller: _titleController,
-          label: 'Title',
-          required: true,
-          onChanged: (_) => setState(() {}),
-        ),
+        BookTextField(controller: _titleController, label: 'Title', required: true, onChanged: (_) => setState(() {})),
         const SizedBox(height: Spacing.md),
         BookTextField(controller: _subtitleController, label: 'Subtitle'),
         const SizedBox(height: Spacing.md),
@@ -414,16 +375,9 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
           onChanged: (_) => setState(() {}),
         ),
         const SizedBox(height: Spacing.md),
-        CoAuthorEditor(
-          coAuthors: _coAuthors,
-          onChanged: (updated) => setState(() => _coAuthors = updated),
-        ),
+        CoAuthorEditor(coAuthors: _coAuthors, onChanged: (updated) => setState(() => _coAuthors = updated)),
         const SizedBox(height: Spacing.md),
-        BookTextField(
-          controller: _descriptionController,
-          label: 'Description',
-          maxLines: 5,
-        ),
+        BookTextField(controller: _descriptionController, label: 'Description', maxLines: 5),
       ],
     );
   }
@@ -443,11 +397,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
           onChanged: (date) => setState(() => _publicationDate = date),
         ),
         const SizedBox(height: Spacing.md),
-        BookTextField(
-          controller: _pageCountController,
-          label: 'Page count',
-          keyboardType: TextInputType.number,
-        ),
+        BookTextField(controller: _pageCountController, label: 'Page count', keyboardType: TextInputType.number),
       ],
     );
   }
@@ -518,26 +468,19 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
                 keyboardType: TextInputType.number,
                 decoration: InputDecoration(
                   labelText: 'ISBN',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.md),
-                  ),
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                 ),
                 onFieldSubmitted: (_) => _lookupIsbn(_isbnController.text),
               ),
             ),
             const SizedBox(width: Spacing.sm),
             IconButton(
-              onPressed: isFetching
-                  ? null
-                  : () => _lookupIsbn(_isbnController.text),
+              onPressed: isFetching ? null : () => _lookupIsbn(_isbnController.text),
               icon: isFetching
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Icon(Icons.search),
             ),
@@ -558,24 +501,16 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
             children: [
               Icon(Icons.check_circle, size: 16, color: colorScheme.primary),
               const SizedBox(width: Spacing.xs),
-              Text(
-                'Book details found',
-                style: textTheme.bodySmall?.copyWith(
-                  color: colorScheme.primary,
-                ),
-              ),
+              Text('Book details found', style: textTheme.bodySmall?.copyWith(color: colorScheme.primary)),
             ],
           ),
         ],
-        if (_lookupState == _IsbnLookupState.notFound ||
-            _lookupState == _IsbnLookupState.error) ...[
+        if (_lookupState == _IsbnLookupState.notFound || _lookupState == _IsbnLookupState.error) ...[
           const SizedBox(height: Spacing.md),
           Row(
             children: [
               Icon(
-                _lookupState == _IsbnLookupState.notFound
-                    ? Icons.info_outline
-                    : Icons.error_outline,
+                _lookupState == _IsbnLookupState.notFound ? Icons.info_outline : Icons.error_outline,
                 size: 16,
                 color: colorScheme.onSurfaceVariant,
               ),
@@ -583,9 +518,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
               Expanded(
                 child: Text(
                   _lookupMessage ?? '',
-                  style: textTheme.bodySmall?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
               ),
             ],

@@ -64,8 +64,7 @@ class BookImportService {
         final type = _jsToNullableString(obj['type']);
 
         if (type == 'error') {
-          final message =
-              _jsToNullableString(obj['message']) ?? 'Unknown error';
+          final message = _jsToNullableString(obj['message']) ?? 'Unknown error';
           final error = Exception(message);
           final action = _jsToNullableString(obj['action']);
           final bookId = _jsToNullableString(obj['bookId']);
@@ -131,9 +130,7 @@ class BookImportService {
 
     // Transfer bytes as ArrayBuffer for zero-copy transfer.
     // Ensure we only send the actual byte range, not the whole backing buffer.
-    final actualBytes =
-        bytes.offsetInBytes == 0 &&
-            bytes.lengthInBytes == bytes.buffer.lengthInBytes
+    final actualBytes = bytes.offsetInBytes == 0 && bytes.lengthInBytes == bytes.buffer.lengthInBytes
         ? bytes
         : Uint8List.fromList(bytes);
     final jsBuffer = actualBytes.buffer.toJS;
@@ -149,10 +146,7 @@ class BookImportService {
       _timeout,
       onTimeout: () {
         _pending.remove('process:$bookId');
-        throw TimeoutException(
-          'Book import timed out after ${_timeout.inSeconds}s',
-          _timeout,
-        );
+        throw TimeoutException('Book import timed out after ${_timeout.inSeconds}s', _timeout);
       },
     );
     return _parseImportResult(obj, bookId, ext);
@@ -181,10 +175,7 @@ class BookImportService {
       _timeout,
       onTimeout: () {
         _pending.remove('delete:$bookId');
-        throw TimeoutException(
-          'Delete timed out after ${_timeout.inSeconds}s',
-          _timeout,
-        );
+        throw TimeoutException('Delete timed out after ${_timeout.inSeconds}s', _timeout);
       },
     );
   }
@@ -213,10 +204,7 @@ class BookImportService {
       _timeout,
       onTimeout: () {
         _pending.remove('getFile:$bookId');
-        throw TimeoutException(
-          'Get file timed out after ${_timeout.inSeconds}s',
-          _timeout,
-        );
+        throw TimeoutException('Get file timed out after ${_timeout.inSeconds}s', _timeout);
       },
     );
     final fileDataJs = obj['fileData'];
@@ -241,16 +229,10 @@ class BookImportService {
   // Private helpers
   // ---------------------------------------------------------------------------
 
-  BookImportResult _parseImportResult(
-    JSObject data,
-    String bookId,
-    String fileExtension,
-  ) {
+  BookImportResult _parseImportResult(JSObject data, String bookId, String fileExtension) {
     final metadataRaw = data['metadata'];
     if (metadataRaw == null || metadataRaw.isNull || metadataRaw.isUndefined) {
-      throw StateError(
-        'Worker response is missing required "metadata" field for book $bookId.',
-      );
+      throw StateError('Worker response is missing required "metadata" field for book $bookId.');
     }
     final metadataJs = metadataRaw as JSObject;
 
@@ -266,9 +248,7 @@ class BookImportService {
     // co-authors array
     final coAuthorsJs = metadataJs['coAuthors'];
     final coAuthors = <String>[];
-    if (coAuthorsJs != null &&
-        !coAuthorsJs.isNull &&
-        !coAuthorsJs.isUndefined) {
+    if (coAuthorsJs != null && !coAuthorsJs.isNull && !coAuthorsJs.isUndefined) {
       final arr = coAuthorsJs as JSArray<JSString>;
       for (var i = 0; i < arr.length; i++) {
         final item = _jsToNullableString(arr[i]);
@@ -279,9 +259,7 @@ class BookImportService {
     // Cover image
     Uint8List? coverImage;
     final coverDataJs = data['coverData'];
-    if (coverDataJs != null &&
-        !coverDataJs.isNull &&
-        !coverDataJs.isUndefined) {
+    if (coverDataJs != null && !coverDataJs.isNull && !coverDataJs.isUndefined) {
       coverImage = (coverDataJs as JSArrayBuffer).toDart.asUint8List();
     }
     final coverMimeType = _jsToNullableString(data['coverMimeType']);
@@ -294,9 +272,7 @@ class BookImportService {
 
     final fileHashRaw = _jsToNullableString(data['fileHash']);
     if (fileHashRaw == null) {
-      throw StateError(
-        'Worker response is missing required "fileHash" field for book $bookId.',
-      );
+      throw StateError('Worker response is missing required "fileHash" field for book $bookId.');
     }
     final fileHash = fileHashRaw;
 

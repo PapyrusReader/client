@@ -11,12 +11,7 @@ class AuthSwitchLink extends StatelessWidget {
 
   final VoidCallback onPressed;
 
-  const AuthSwitchLink({
-    super.key,
-    required this.promptText,
-    required this.actionText,
-    required this.onPressed,
-  });
+  const AuthSwitchLink({super.key, required this.promptText, required this.actionText, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -25,19 +20,12 @@ class AuthSwitchLink extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: [
-        Text(
-          promptText,
-          style: theme.textTheme.bodyMedium?.copyWith(
-            color: theme.colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text(promptText, style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
         TextButton(
           onPressed: onPressed,
           style: TextButton.styleFrom(
             foregroundColor: theme.colorScheme.primary,
-            textStyle: theme.textTheme.bodyMedium?.copyWith(
-              fontWeight: FontWeight.w600,
-            ),
+            textStyle: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
           ),
           child: Text(actionText),
         ),

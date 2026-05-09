@@ -34,12 +34,7 @@ void main() {
     );
   });
 
-  Widget buildCard({
-    Note? note,
-    bool showActionMenu = true,
-    VoidCallback? onTap,
-    VoidCallback? onLongPress,
-  }) {
+  Widget buildCard({Note? note, bool showActionMenu = true, VoidCallback? onTap, VoidCallback? onLongPress}) {
     return createTestApp(
       child: NoteCard(
         note: note ?? noteWithLocation,
@@ -84,17 +79,13 @@ void main() {
         expect(find.byIcon(Icons.location_on_outlined), findsNothing);
       });
 
-      testWidgets('shows action menu when showActionMenu is true', (
-        tester,
-      ) async {
+      testWidgets('shows action menu when showActionMenu is true', (tester) async {
         await tester.pumpWidget(buildCard(showActionMenu: true));
 
         expect(find.byIcon(Icons.more_vert), findsOneWidget);
       });
 
-      testWidgets('hides action menu when showActionMenu is false', (
-        tester,
-      ) async {
+      testWidgets('hides action menu when showActionMenu is false', (tester) async {
         await tester.pumpWidget(buildCard(showActionMenu: false));
 
         expect(find.byIcon(Icons.more_vert), findsNothing);
@@ -132,9 +123,7 @@ void main() {
 
       testWidgets('long press calls onLongPress', (tester) async {
         var longPressed = false;
-        await tester.pumpWidget(
-          buildCard(onLongPress: () => longPressed = true),
-        );
+        await tester.pumpWidget(buildCard(onLongPress: () => longPressed = true));
 
         await tester.longPress(find.byType(NoteCard));
         await tester.pump();

@@ -40,11 +40,7 @@ class BookHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Cover image
-        BookCoverImage(
-          imageUrl: book.coverURL,
-          bookTitle: book.title,
-          size: BookCoverSize.large,
-        ),
+        BookCoverImage(imageUrl: book.coverURL, bookTitle: book.title, size: BookCoverSize.large),
         const SizedBox(width: Spacing.xl),
 
         // Book info
@@ -53,12 +49,7 @@ class BookHeader extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Title
-              Text(
-                book.title,
-                style: Theme.of(
-                  context,
-                ).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold),
-              ),
+              Text(book.title, style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold)),
               if (book.subtitle != null && book.subtitle!.isNotEmpty) ...[
                 const SizedBox(height: Spacing.xs),
                 Text(
@@ -75,9 +66,7 @@ class BookHeader extends StatelessWidget {
               // Author
               Text(
                 book.allAuthors,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(color: colorScheme.onSurface),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.onSurface),
               ),
               const SizedBox(height: Spacing.md),
 
@@ -122,29 +111,22 @@ class BookHeader extends StatelessWidget {
           const SizedBox(height: Spacing.lg),
 
           // Cover image (centered)
-          BookCoverImage(
-            imageUrl: book.coverURL,
-            bookTitle: book.title,
-            size: BookCoverSize.medium,
-          ),
+          BookCoverImage(imageUrl: book.coverURL, bookTitle: book.title, size: BookCoverSize.medium),
           const SizedBox(height: Spacing.md),
 
           // Title (centered)
           Text(
             book.title,
-            style: Theme.of(
-              context,
-            ).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
           ),
           if (book.subtitle != null && book.subtitle!.isNotEmpty) ...[
             const SizedBox(height: Spacing.xs),
             Text(
               book.subtitle!,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-                fontStyle: FontStyle.italic,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant, fontStyle: FontStyle.italic),
               textAlign: TextAlign.center,
             ),
           ],
@@ -153,9 +135,7 @@ class BookHeader extends StatelessWidget {
           // Author (centered)
           Text(
             book.allAuthors,
-            style: Theme.of(
-              context,
-            ).textTheme.titleSmall?.copyWith(color: colorScheme.onSurface),
+            style: Theme.of(context).textTheme.titleSmall?.copyWith(color: colorScheme.onSurface),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: Spacing.md),
@@ -199,19 +179,14 @@ class BookHeader extends StatelessWidget {
       children: [
         // Format badge
         Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.sm,
-            vertical: 2,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
           decoration: BoxDecoration(
             color: colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(AppRadius.sm),
           ),
           child: Text(
             book.formatLabel,
-            style: Theme.of(
-              context,
-            ).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
+            style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
           ),
         ),
         // Topics (first 2)
@@ -222,9 +197,7 @@ class BookHeader extends StatelessWidget {
                 label: Text(topic),
                 visualDensity: VisualDensity.compact,
                 padding: EdgeInsets.zero,
-                labelPadding: const EdgeInsets.symmetric(
-                  horizontal: Spacing.sm,
-                ),
+                labelPadding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
               ),
             ),
       ],
@@ -238,10 +211,7 @@ class BookHeader extends StatelessWidget {
         Text(book.formatLabel, style: Theme.of(context).textTheme.bodyMedium),
         if (book.totalPages != null) ...[
           Text('  •  ', style: TextStyle(color: colorScheme.onSurfaceVariant)),
-          Text(
-            '${book.totalPages} pages',
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          Text('${book.totalPages} pages', style: Theme.of(context).textTheme.bodyMedium),
         ],
       ],
     );

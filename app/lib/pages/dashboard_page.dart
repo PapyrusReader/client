@@ -54,9 +54,7 @@ class _DashboardPageState extends State<DashboardPage> {
           final isDesktop = screenWidth >= Breakpoints.desktopSmall;
 
           if (provider.isLoading) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
           }
 
           if (isDesktop) {
@@ -149,10 +147,7 @@ class _DashboardPageState extends State<DashboardPage> {
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    Expanded(
-                      flex: 65,
-                      child: _buildRecentlyAddedCard(context, provider),
-                    ),
+                    Expanded(flex: 65, child: _buildRecentlyAddedCard(context, provider)),
                     const SizedBox(width: Spacing.lg),
                     Expanded(
                       flex: 35,
@@ -183,19 +178,9 @@ class _DashboardPageState extends State<DashboardPage> {
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Expanded(
-              child: ContinueReadingCard(
-                book: provider.currentBook,
-                isDesktop: true,
-              ),
-            ),
+            Expanded(child: ContinueReadingCard(book: provider.currentBook, isDesktop: true)),
             const SizedBox(width: Spacing.lg),
-            Expanded(
-              child: ReadingGoalCard(
-                goals: provider.activeGoals,
-                isDesktop: true,
-              ),
-            ),
+            Expanded(child: ReadingGoalCard(goals: provider.activeGoals, isDesktop: true)),
           ],
         ),
       );
@@ -211,10 +196,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   /// Wraps the recently added section in a bordered card for mobile layout.
-  Widget _buildMobileRecentlyAddedCard(
-    BuildContext context,
-    DashboardProvider provider,
-  ) {
+  Widget _buildMobileRecentlyAddedCard(BuildContext context, DashboardProvider provider) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
@@ -222,10 +204,7 @@ class _DashboardPageState extends State<DashboardPage> {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
       clipBehavior: Clip.antiAlias,
       child: RecentlyAddedSection(books: provider.recentlyAdded),
@@ -233,10 +212,7 @@ class _DashboardPageState extends State<DashboardPage> {
   }
 
   /// Wraps the recently added section in a bordered card for desktop layout.
-  Widget _buildRecentlyAddedCard(
-    BuildContext context,
-    DashboardProvider provider,
-  ) {
+  Widget _buildRecentlyAddedCard(BuildContext context, DashboardProvider provider) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
@@ -244,15 +220,9 @@ class _DashboardPageState extends State<DashboardPage> {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
-      child: RecentlyAddedSection(
-        books: provider.recentlyAdded,
-        isDesktop: true,
-      ),
+      child: RecentlyAddedSection(books: provider.recentlyAdded, isDesktop: true),
     );
   }
 }
