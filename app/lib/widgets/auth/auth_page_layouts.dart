@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/auth/auth_branding.dart';
 import 'package:papyrus/widgets/auth/auth_hero_panel.dart';
 
 /// Mobile auth layout: compact hero header + scrollable form panel.
@@ -48,7 +47,7 @@ class MobileAuthLayout extends StatelessWidget {
                       children: [
                         const SizedBox(height: Spacing.xl),
                         if (showHeader) ...[
-                          const AuthBranding(),
+                          // const AuthBranding(),
                           const SizedBox(height: Spacing.md),
                           Text(
                             heading,
@@ -138,7 +137,7 @@ class _DesktopAuthLayoutState extends State<DesktopAuthLayout> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 if (widget.showHeader) ...[
-                  const AuthBranding(),
+                  // const AuthBranding(),
                   const SizedBox(height: Spacing.md),
                   Text(
                     widget.heading,

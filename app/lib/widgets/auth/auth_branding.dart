@@ -9,7 +9,8 @@ class AuthBranding extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Row(
-      mainAxisSize: MainAxisSize.min,
+      mainAxisSize: MainAxisSize.max,
+      mainAxisAlignment: MainAxisAlignment.center,
       children: [
         SvgPicture.asset('assets/images/logo-icon-light.svg', width: 56, height: 56),
         const SizedBox(width: 16),
