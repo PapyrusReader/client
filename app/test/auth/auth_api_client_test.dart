@@ -79,6 +79,23 @@ void main() {
     expect(uri.queryParameters['redirect_uri'], 'papyrus://auth/callback');
   });
 
+  test('ensureServerReachable maps network failures to auth errors before OAuth redirect', () async {
+    final client = AuthApiClient(
+      config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test')),
+      httpClient: MockClient((request) async {
+        expect(request.url.path, '/health');
+        throw http.ClientException('Connection refused', request.url);
+      }),
+    );
+
+    await expectLater(
+      client.ensureServerReachable(),
+      throwsA(
+        isA<AuthApiException>().having((error) => error.message, 'message', 'Unable to connect. Please try again.'),
+      ),
+    );
+  });
+
   test('powerSyncToken maps Papyrus token response', () async {
     final client = AuthApiClient(
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test')),

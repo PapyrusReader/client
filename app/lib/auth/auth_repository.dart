@@ -99,6 +99,8 @@ class AuthRepository {
   }
 
   Future<AuthTokens?> signInWithGoogle({required String clientType, String? deviceLabel}) async {
+    await apiClient.ensureServerReachable();
+
     final redirectUri = kIsWeb
         ? _webOAuthRedirectUri()
         : _usesDesktopLoopbackOAuth

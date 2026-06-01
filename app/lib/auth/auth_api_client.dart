@@ -16,10 +16,26 @@ class AuthApiException implements Exception {
 }
 
 class AuthApiClient {
+  static const serverUnavailableMessage = 'Unable to connect. Please try again.';
+
   final PapyrusApiConfig config;
   final http.Client _httpClient;
 
   AuthApiClient({required this.config, http.Client? httpClient}) : _httpClient = httpClient ?? http.Client();
+
+  Future<void> ensureServerReachable() async {
+    try {
+      final response = await _httpClient.get(config.serverBaseUri.resolve('/health'));
+
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        return;
+      }
+    } catch (_) {
+      throw const AuthApiException(statusCode: 0, message: serverUnavailableMessage);
+    }
+
+    throw const AuthApiException(statusCode: 0, message: serverUnavailableMessage);
+  }
 
   Uri googleOAuthStartUri(String redirectUri) {
     return config.endpoint('/auth/oauth/google/start', {'redirect_uri': redirectUri});
