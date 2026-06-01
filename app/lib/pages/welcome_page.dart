@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:papyrus/providers/auth_provider.dart';
+import 'package:papyrus/auth/offline_link.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/titled_divider.dart';
-import 'package:provider/provider.dart';
 
 class WelcomePage extends StatelessWidget {
   const WelcomePage({super.key});
@@ -200,11 +199,9 @@ class _WelcomeCopy extends StatelessWidget {
       crossAxisAlignment: center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
       children: [
         Image.asset('assets/images/logo.png', width: logoSize, height: logoSize, fit: BoxFit.contain),
-        SizedBox(height: titleSpacing),
         Text('Papyrus', textAlign: center ? TextAlign.center : TextAlign.left, style: titleStyle),
-        SizedBox(height: subtitleSpacing),
         Text(
-          'Manage your library, track reading progress, and read anywhere.',
+          'Your personal library, always within reach',
           textAlign: center ? TextAlign.center : TextAlign.left,
           style: subtitleStyle,
         ),
@@ -237,7 +234,7 @@ class _WelcomeActions extends StatelessWidget {
         _SignInButton(isDesktop: isDesktop, useSurfaceColors: useSurfaceColors),
         SizedBox(height: compact ? Spacing.sm : Spacing.sm),
         TitledDivider(title: 'or', verticalPadding: compact ? Spacing.sm : Spacing.md),
-        _OfflineModeLink(center: center),
+        OfflineModeLink(center: center),
       ],
     );
   }
@@ -300,32 +297,6 @@ class _SignInButton extends StatelessWidget {
         ),
       ),
       child: const Text('Sign in', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
-    );
-  }
-}
-
-class _OfflineModeLink extends StatelessWidget {
-  final bool center;
-
-  const _OfflineModeLink({required this.center});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Align(
-      alignment: center ? Alignment.center : Alignment.centerLeft,
-      child: TextButton(
-        onPressed: () {
-          context.read<AuthProvider>().setOfflineMode(true);
-          context.goNamed('LIBRARY');
-        },
-        style: TextButton.styleFrom(
-          foregroundColor: theme.colorScheme.primary,
-          textStyle: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
-        child: const Text('Use offline mode'),
-      ),
     );
   }
 }

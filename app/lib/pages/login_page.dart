@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/pages/auth/actions.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/responsive.dart';
@@ -90,16 +91,21 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  void _navigateToRegister() {
-    context.go('/register');
-  }
-
   List<Widget> _buildFooter() {
     return [
       const TitledDivider(title: 'Or continue with'),
       const GoogleSignInButton(title: 'Sign in with Google'),
       const SizedBox(height: Spacing.md),
-      AuthSwitchLink(promptText: "Don't have an account?", actionText: 'Sign up', onPressed: _navigateToRegister),
+      AuthSwitchLink(
+        promptText: "Don't have an account?",
+        actionText: 'Sign up',
+        onPressed: () => navigateToRegister(context),
+      ),
+      AuthSwitchLink(
+        promptText: "No internet?",
+        actionText: 'Continue offline',
+        onPressed: () => navigateToOffline(context),
+      ),
     ];
   }
 

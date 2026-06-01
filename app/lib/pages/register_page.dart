@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/pages/auth/actions.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/responsive.dart';
@@ -100,10 +101,6 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
-  void _navigateToLogin() {
-    context.go('/login');
-  }
-
   String? _validateConfirmPassword(String? value) {
     if (value != _passwordController.text) {
       return 'Passwords do not match';
@@ -125,7 +122,16 @@ class _RegisterPageState extends State<RegisterPage> {
       const TitledDivider(title: 'Or continue with'),
       const GoogleSignInButton(title: 'Sign up with Google'),
       const SizedBox(height: Spacing.md),
-      AuthSwitchLink(promptText: 'Already have an account?', actionText: 'Sign in', onPressed: _navigateToLogin),
+      AuthSwitchLink(
+        promptText: 'Already have an account?',
+        actionText: 'Sign in',
+        onPressed: () => navigateToLogin(context),
+      ),
+      AuthSwitchLink(
+        promptText: 'No internet?',
+        actionText: 'Continue offline',
+        onPressed: () => navigateToOffline(context),
+      ),
     ];
   }
 
