@@ -120,41 +120,48 @@ class _DesktopAuthLayoutState extends State<DesktopAuthLayout> {
   Widget _buildFormPanel(ThemeData theme) {
     final isSwapped = DesktopAuthLayout._isSwapped;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        boxShadow: [
-          BoxShadow(color: Colors.black.withValues(alpha: 0.08), blurRadius: 24, offset: Offset(isSwapped ? 4 : -4, 0)),
-        ],
-      ),
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(ComponentSizes.authFormPanelPadding),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: ComponentSizes.authFormPanelMaxWidth),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (widget.showHeader) ...[
-                  // const AuthBranding(),
-                  const SizedBox(height: Spacing.md),
-                  Text(
-                    widget.heading,
-                    style: theme.textTheme.headlineLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface,
+    return FocusTraversalOrder(
+      order: const NumericFocusOrder(1),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 24,
+              offset: Offset(isSwapped ? 4 : -4, 0),
+            ),
+          ],
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(ComponentSizes.authFormPanelPadding),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: ComponentSizes.authFormPanelMaxWidth),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (widget.showHeader) ...[
+                    // const AuthBranding(),
+                    const SizedBox(height: Spacing.md),
+                    Text(
+                      widget.heading,
+                      style: theme.textTheme.headlineLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
-                  ),
-                  Text(
-                    widget.subtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  ),
-                  const SizedBox(height: Spacing.xl),
+                    Text(
+                      widget.subtitle,
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    ),
+                    const SizedBox(height: Spacing.xl),
+                  ],
+                  widget.form,
+                  ...widget.footer,
                 ],
-                widget.form,
-                ...widget.footer,
-              ],
+              ),
             ),
           ),
         ),
@@ -171,20 +178,25 @@ class _DesktopAuthLayoutState extends State<DesktopAuthLayout> {
     final hero = Expanded(flex: 6, child: AuthHeroPanel(isDark: isDark));
     final form = Expanded(flex: 4, child: _buildFormPanel(theme));
 
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      body: Stack(
-        children: [
-          Row(children: isSwapped ? [form, hero] : [hero, form]),
-          // Swap button at the hero/form boundary
-          Positioned(
-            left: isSwapped ? null : 0,
-            right: isSwapped ? 0 : null,
-            top: 0,
-            bottom: 0,
-            child: _SwapPanelsButton(isSwapped: isSwapped, onPressed: _toggleSwap),
-          ),
-        ],
+    return FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: Scaffold(
+        backgroundColor: theme.colorScheme.surface,
+        body: Stack(
+          children: [
+            Row(children: isSwapped ? [form, hero] : [hero, form]),
+            Positioned(
+              left: isSwapped ? null : 0,
+              right: isSwapped ? 0 : null,
+              top: 0,
+              bottom: 0,
+              child: FocusTraversalOrder(
+                order: const NumericFocusOrder(2),
+                child: _SwapPanelsButton(isSwapped: isSwapped, onPressed: _toggleSwap),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
