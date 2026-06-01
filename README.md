@@ -70,7 +70,7 @@ Many reading applications offer partial solutions but fall short on essential fe
 2. **Install dependencies**
 
    ```bash
-   cd client
+   cd app
    flutter pub get
    ```
 
@@ -86,6 +86,23 @@ Many reading applications offer partial solutions but fall short on essential fe
    # Desktop
    flutter run -d windows  # or: macos, linux
    ```
+
+### Running with the back-end
+
+When the user signs in, the Flutter client communicates with the Papyrus server for auth and asks the server for PowerSync credentials.
+
+Run the server and PowerSync locally, then start Flutter with:
+
+```bash
+cd app
+flutter run \
+  --dart-define=PAPYRUS_API_BASE_URL=http://localhost:8080 \
+  --dart-define=POWERSYNC_SERVICE_URL=http://localhost:8081
+```
+
+See
+[`server/docs/flutter-auth-integration.md`](../server/docs/flutter-auth-integration.md)
+for the full integration guide.
 
 ## Documentation
 
