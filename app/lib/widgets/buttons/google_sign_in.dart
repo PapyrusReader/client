@@ -96,12 +96,19 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
       ),
       onPressed: _handleSignIn,
       child: Row(
-        mainAxisSize: MainAxisSize.min,
+        mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const Image(image: AssetImage('assets/images/google_logo.png'), height: 24.0),
           const SizedBox(width: Spacing.sm),
-          Text(widget.title, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500)),
+          Flexible(
+            child: Text(
+              widget.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
+            ),
+          ),
         ],
       ),
     );

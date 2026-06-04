@@ -59,6 +59,14 @@ class AppRouter {
             pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const ForgotPasswordPage()),
           ),
           GoRoute(
+            name: 'RESET_PASSWORD',
+            path: 'reset-password',
+            pageBuilder: (context, state) => NoTransitionPage(
+              key: state.pageKey,
+              child: ForgotPasswordPage(resetToken: state.uri.queryParameters['token'], isResetLink: true),
+            ),
+          ),
+          GoRoute(
             name: 'AUTH_CALLBACK',
             path: 'auth/callback',
             pageBuilder: (context, state) => NoTransitionPage(
@@ -204,6 +212,7 @@ class AppRouter {
         location == '/login' ||
         location == '/register' ||
         location == '/forgot-password' ||
+        location == '/reset-password' ||
         location == '/auth/callback';
 
     if (authProvider.status == AuthStatus.bootstrapping) {
@@ -218,7 +227,7 @@ class AppRouter {
       return '/';
     }
 
-    if (location == '/' || location == '/login' || location == '/register') {
+    if (location == '/' || location == '/login' || location == '/register' || location == '/reset-password') {
       return '/library/books';
     }
 

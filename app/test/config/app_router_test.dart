@@ -55,6 +55,7 @@ void main() {
 
     expect(appRouter.redirectForPath('/library/books'), '/');
     expect(appRouter.redirectForPath('/login'), isNull);
+    expect(appRouter.redirectForPath('/reset-password'), isNull);
   });
 
   test('redirects signed-in users away from auth routes', () async {
@@ -67,6 +68,7 @@ void main() {
     final appRouter = AppRouter(authProvider: provider);
 
     expect(appRouter.redirectForPath('/login'), '/library/books');
+    expect(appRouter.redirectForPath('/reset-password'), '/library/books');
     expect(appRouter.redirectForPath('/library/books'), isNull);
   });
 

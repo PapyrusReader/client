@@ -24,7 +24,7 @@
 //   Future<bool> signIn() async {
 //     return context.read<AuthProvider>().login(
 //       email: emailController.text.trim(),
-//       password: passwordController.text.trim(),
+//       password: passwordController.text,
 //     );
 //   }
 

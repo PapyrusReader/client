@@ -64,7 +64,7 @@ class _RegisterPageState extends State<RegisterPage> {
     try {
       final success = await context.read<AuthProvider>().register(
         email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        password: _passwordController.text,
         displayName: _displayNameController.text.trim(),
       );
 

@@ -95,9 +95,14 @@ Run the server and PowerSync locally, then start Flutter with:
 
 ```bash
 cd app
-flutter run \
-  --dart-define=PAPYRUS_API_BASE_URL=http://localhost:8080 \
-  --dart-define=POWERSYNC_SERVICE_URL=http://localhost:8081
+flutter run -d chrome --web-hostname papyrus.localhost --web-port 3000 --dart-define-from-file=.dart_defines
+```
+
+For local web auth links, add these entries to `/etc/hosts`:
+
+```text
+127.0.0.1 papyrus.localhost
+::1 papyrus.localhost
 ```
 
 See

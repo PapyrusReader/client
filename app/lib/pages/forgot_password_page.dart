@@ -13,7 +13,10 @@ import 'package:provider/provider.dart';
 /// Forgot password page for the Papyrus book management application.
 /// Provides responsive layouts for mobile and desktop displays.
 class ForgotPasswordPage extends StatefulWidget {
-  const ForgotPasswordPage({super.key});
+  final String? resetToken;
+  final bool isResetLink;
+
+  const ForgotPasswordPage({super.key, this.resetToken, this.isResetLink = false});
 
   @override
   State<ForgotPasswordPage> createState() => _ForgotPasswordPageState();
@@ -23,11 +26,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   final _formKey = GlobalKey<FormState>();
   final _resetFormKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
-  final _tokenController = TextEditingController();
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final _emailFocusNode = FocusNode();
-  final _tokenFocusNode = FocusNode();
   final _passwordFocusNode = FocusNode();
   final _confirmPasswordFocusNode = FocusNode();
 
@@ -38,11 +39,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   @override
   void dispose() {
     _emailController.dispose();
-    _tokenController.dispose();
     _passwordController.dispose();
     _confirmPasswordController.dispose();
     _emailFocusNode.dispose();
-    _tokenFocusNode.dispose();
     _passwordFocusNode.dispose();
     _confirmPasswordFocusNode.dispose();
     super.dispose();
@@ -84,6 +83,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     FocusScope.of(context).unfocus();
 
+    final resetToken = widget.resetToken;
+
+    if (resetToken == null || resetToken.isEmpty) {
+      _showErrorSnackBar('Password reset link is invalid.');
+      return;
+    }
+
     if (!_resetFormKey.currentState!.validate()) return;
 
     setState(() => _isLoading = true);
@@ -91,7 +97,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
     try {
       final message = await context.read<AuthProvider>().resetPassword(
-        token: _tokenController.text.trim(),
+        token: resetToken,
         password: _passwordController.text,
       );
 
@@ -160,14 +166,15 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       return const _PasswordResetConfirmation();
     }
 
-    if (_emailSent) {
-      return _EmailSentConfirmation(
-        email: _emailController.text.trim(),
+    if (widget.isResetLink) {
+      if (widget.resetToken == null || widget.resetToken!.isEmpty) {
+        return const _InvalidResetLink();
+      }
+
+      return _SetNewPasswordForm(
         formKey: _resetFormKey,
-        tokenController: _tokenController,
         passwordController: _passwordController,
         confirmPasswordController: _confirmPasswordController,
-        tokenFocusNode: _tokenFocusNode,
         passwordFocusNode: _passwordFocusNode,
         confirmPasswordFocusNode: _confirmPasswordFocusNode,
         isLoading: _isLoading,
@@ -176,6 +183,10 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         validatePasswordStrength: _validatePasswordStrength,
         validateConfirmPassword: _validateConfirmPassword,
       );
+    }
+
+    if (_emailSent) {
+      return _EmailSentConfirmation(email: _emailController.text.trim());
     }
     return _ForgotPasswordForm(
       formKey: _formKey,
@@ -196,18 +207,24 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
 
   @override
   Widget build(BuildContext context) {
+    final heading = widget.isResetLink ? 'Create new password' : 'Reset password';
+    final subtitle = widget.isResetLink
+        ? 'Enter a new password for your account'
+        : 'Enter your email to receive a password reset link';
+    final showHeader = !_emailSent && !_passwordReset;
+
     return ResponsiveBuilder(
       mobile: (context) => MobileAuthLayout(
-        heading: 'Reset password',
-        subtitle: 'Enter your email to receive a password reset link',
-        showHeader: !_emailSent,
+        heading: heading,
+        subtitle: subtitle,
+        showHeader: showHeader,
         form: _buildForm(isDesktop: false),
         footer: _buildFooter(),
       ),
       desktop: (context) => DesktopAuthLayout(
-        heading: 'Reset password',
-        subtitle: 'Enter your email to receive a password reset link',
-        showHeader: !_emailSent,
+        heading: heading,
+        subtitle: subtitle,
+        showHeader: showHeader,
         form: _buildForm(isDesktop: true),
         footer: _buildFooter(),
       ),
@@ -267,34 +284,8 @@ class _ForgotPasswordForm extends StatelessWidget {
 /// Confirmation view shown after the reset email has been sent.
 class _EmailSentConfirmation extends StatelessWidget {
   final String email;
-  final GlobalKey<FormState> formKey;
-  final TextEditingController tokenController;
-  final TextEditingController passwordController;
-  final TextEditingController confirmPasswordController;
-  final FocusNode tokenFocusNode;
-  final FocusNode passwordFocusNode;
-  final FocusNode confirmPasswordFocusNode;
-  final bool isLoading;
-  final bool isDesktop;
-  final VoidCallback onSubmit;
-  final String? Function(String?) validatePasswordStrength;
-  final String? Function(String?) validateConfirmPassword;
 
-  const _EmailSentConfirmation({
-    required this.email,
-    required this.formKey,
-    required this.tokenController,
-    required this.passwordController,
-    required this.confirmPasswordController,
-    required this.tokenFocusNode,
-    required this.passwordFocusNode,
-    required this.confirmPasswordFocusNode,
-    required this.isLoading,
-    required this.isDesktop,
-    required this.onSubmit,
-    required this.validatePasswordStrength,
-    required this.validateConfirmPassword,
-  });
+  const _EmailSentConfirmation({required this.email});
 
   @override
   Widget build(BuildContext context) {
@@ -313,7 +304,7 @@ class _EmailSentConfirmation extends StatelessWidget {
         ),
         const SizedBox(height: Spacing.sm),
         Text(
-          'We sent a password reset token to $email',
+          'We sent a password reset link to $email',
           style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
@@ -323,49 +314,95 @@ class _EmailSentConfirmation extends StatelessWidget {
           style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
-        const SizedBox(height: Spacing.lg),
-        Form(
-          key: formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              TextFormField(
-                controller: tokenController,
-                focusNode: tokenFocusNode,
-                textInputAction: TextInputAction.next,
-                decoration: const InputDecoration(labelText: 'Reset token'),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Reset token is required';
-                  }
+      ],
+    );
+  }
+}
 
-                  return null;
-                },
-                onEditingComplete: () => passwordFocusNode.requestFocus(),
-              ),
-              const SizedBox(height: Spacing.md),
-              PasswordInput(
-                labelText: 'New password',
-                controller: passwordController,
-                focusNode: passwordFocusNode,
-                textInputAction: TextInputAction.next,
-                extraValidator: validatePasswordStrength,
-                onEditingComplete: () => confirmPasswordFocusNode.requestFocus(),
-              ),
-              const SizedBox(height: Spacing.md),
-              PasswordInput(
-                labelText: 'Confirm new password',
-                controller: confirmPasswordController,
-                focusNode: confirmPasswordFocusNode,
-                textInputAction: TextInputAction.done,
-                extraValidator: validateConfirmPassword,
-                onFieldSubmitted: (_) => onSubmit(),
-              ),
-              const SizedBox(height: Spacing.lg),
-              AuthContinueButton(isLoading: isLoading, onPressed: onSubmit, isDesktop: isDesktop),
-            ],
+class _SetNewPasswordForm extends StatelessWidget {
+  final GlobalKey<FormState> formKey;
+  final TextEditingController passwordController;
+  final TextEditingController confirmPasswordController;
+  final FocusNode passwordFocusNode;
+  final FocusNode confirmPasswordFocusNode;
+  final bool isLoading;
+  final bool isDesktop;
+  final VoidCallback onSubmit;
+  final String? Function(String?) validatePasswordStrength;
+  final String? Function(String?) validateConfirmPassword;
+
+  const _SetNewPasswordForm({
+    required this.formKey,
+    required this.passwordController,
+    required this.confirmPasswordController,
+    required this.passwordFocusNode,
+    required this.confirmPasswordFocusNode,
+    required this.isLoading,
+    required this.isDesktop,
+    required this.onSubmit,
+    required this.validatePasswordStrength,
+    required this.validateConfirmPassword,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Form(
+      key: formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          PasswordInput(
+            labelText: 'New password',
+            controller: passwordController,
+            focusNode: passwordFocusNode,
+            textInputAction: TextInputAction.next,
+            extraValidator: validatePasswordStrength,
+            onEditingComplete: () => confirmPasswordFocusNode.requestFocus(),
           ),
+          const SizedBox(height: Spacing.md),
+          PasswordInput(
+            labelText: 'Confirm new password',
+            controller: confirmPasswordController,
+            focusNode: confirmPasswordFocusNode,
+            textInputAction: TextInputAction.done,
+            extraValidator: validateConfirmPassword,
+            onFieldSubmitted: (_) => onSubmit(),
+          ),
+          const SizedBox(height: Spacing.lg),
+          AuthContinueButton(isLoading: isLoading, onPressed: onSubmit, isDesktop: isDesktop),
+        ],
+      ),
+    );
+  }
+}
+
+class _InvalidResetLink extends StatelessWidget {
+  const _InvalidResetLink();
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.link_off_outlined, size: 72, color: theme.colorScheme.error),
+        const SizedBox(height: Spacing.sm),
+        Text(
+          'Invalid reset link',
+          style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+          textAlign: TextAlign.center,
         ),
+        const SizedBox(height: Spacing.sm),
+        Text(
+          'Request a new password reset email and use the latest link.',
+          style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          textAlign: TextAlign.center,
+        ),
+        const SizedBox(height: Spacing.lg),
+        FilledButton(onPressed: () => context.go('/forgot-password'), child: const Text('Request new link')),
       ],
     );
   }

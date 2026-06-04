@@ -55,7 +55,7 @@ class _LoginPageState extends State<LoginPage> {
     try {
       final success = await context.read<AuthProvider>().login(
         email: _emailController.text.trim(),
-        password: _passwordController.text.trim(),
+        password: _passwordController.text,
       );
 
       if (!mounted) {
