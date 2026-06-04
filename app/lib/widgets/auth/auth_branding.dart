@@ -13,6 +13,9 @@ class AuthBranding extends StatelessWidget {
   final Color? shadowColor;
   final Offset shadowOffset;
   final double shadowBlurRadius;
+  final Color? textShadowColor;
+  final Offset textShadowOffset;
+  final double textShadowBlurRadius;
 
   const AuthBranding({
     super.key,
@@ -24,6 +27,9 @@ class AuthBranding extends StatelessWidget {
     this.shadowColor,
     this.shadowOffset = const Offset(0, 1),
     this.shadowBlurRadius = 4,
+    this.textShadowColor,
+    this.textShadowOffset = const Offset(0, 1),
+    this.textShadowBlurRadius = 3,
   });
 
   @override
@@ -50,9 +56,9 @@ class AuthBranding extends StatelessWidget {
             fontWeight: FontWeight.normal,
             color: foregroundColor,
             letterSpacing: 0,
-            shadows: shadowColor == null
+            shadows: textShadowColor == null
                 ? null
-                : [Shadow(color: shadowColor!, offset: shadowOffset, blurRadius: shadowBlurRadius)],
+                : [Shadow(color: textShadowColor!, offset: textShadowOffset, blurRadius: textShadowBlurRadius)],
           ),
         ),
       ],
