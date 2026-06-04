@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/auth/auth_branding.dart';
 import 'package:papyrus/widgets/auth/curved_bottom_clipper.dart';
 
 /// Hero gradient colors for auth pages.
@@ -14,8 +16,7 @@ class AuthColors {
   static const Color gradientEndDark = Color(0xFF272377);
 }
 
-/// Desktop hero panel with illustration background (no branding overlay).
-/// Branding should be placed on the form side for better UX.
+/// Desktop hero panel with illustration background and branding overlay.
 class AuthHeroPanel extends StatelessWidget {
   final bool isDark;
 
@@ -39,17 +40,27 @@ class AuthHeroPanel extends StatelessWidget {
             ),
           ),
         ),
-        // Illustration filling the panel - clean, no overlays
         Positioned.fill(
           child: Image.asset('assets/images/auth-illustration.png', fit: BoxFit.cover, alignment: Alignment.center),
+        ),
+        const Positioned(
+          top: Spacing.xl,
+          left: Spacing.xl,
+          child: AuthBranding(
+            textColor: Colors.white,
+            iconOutlineColor: Color(0x998F89FF),
+            iconSize: 48,
+            fontSize: 32,
+            iconOutlineWidth: 2.5,
+            shadowColor: Color(0x40000000),
+          ),
         ),
       ],
     );
   }
 }
 
-/// Compact hero header for mobile auth pages (no branding overlay).
-/// Branding should be placed in the form area below.
+/// Compact hero header for mobile auth pages with branding overlay.
 class CompactAuthHeader extends StatelessWidget {
   final bool isDark;
   final double height;
@@ -78,12 +89,26 @@ class CompactAuthHeader extends StatelessWidget {
                 ),
               ),
             ),
-            // Illustration - clean, no overlays
             Positioned.fill(
               child: Image.asset(
                 'assets/images/auth-illustration.png',
                 fit: BoxFit.cover,
                 alignment: Alignment.topCenter,
+              ),
+            ),
+            const Positioned(
+              top: Spacing.lg,
+              left: Spacing.lg,
+              right: Spacing.lg,
+              child: Center(
+                child: AuthBranding(
+                  textColor: Colors.white,
+                  iconOutlineColor: Color(0x998F89FF),
+                  iconSize: 40,
+                  fontSize: 28,
+                  iconOutlineWidth: 2.0,
+                  shadowColor: Color(0x40000000),
+                ),
               ),
             ),
           ],
