@@ -8,6 +8,8 @@ import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
+import 'package:papyrus/powersync/papyrus_powersync_connector.dart';
+import 'package:papyrus/powersync/sync_state.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
@@ -55,10 +57,9 @@ class _PapyrusState extends State<Papyrus> {
     _dataStore = DataStore();
     _authProvider = AuthProvider(widget.prefs, repository: authRepository);
     _powerSyncService = PapyrusPowerSyncService(
-      authRepository: authRepository,
-      config: apiConfig,
-      dataStore: _dataStore,
+      connectorFactory: () => PapyrusPowerSyncConnector(authRepository: authRepository, config: apiConfig),
     );
+    unawaited(_dataStore.attachBookRepository(_powerSyncService));
     _appRouter = AppRouter(authProvider: _authProvider);
     _authProvider.addListener(_syncPowerSyncAuthState);
     _syncPowerSyncAuthState();
@@ -67,24 +68,31 @@ class _PapyrusState extends State<Papyrus> {
   @override
   void dispose() {
     _authProvider.removeListener(_syncPowerSyncAuthState);
-    unawaited(_powerSyncService.close());
+    unawaited(_disposeDataServices());
     _authProvider.dispose();
     super.dispose();
   }
 
+  Future<void> _disposeDataServices() async {
+    await _dataStore.disposeBookRepository();
+    await _powerSyncService.close();
+  }
+
   void _syncPowerSyncAuthState() {
-    if (_authProvider.isSignedIn) {
-      unawaited(_powerSyncService.connect());
+    final user = _authProvider.user;
+    if (user != null && !_authProvider.isOfflineMode) {
+      final userId = user.userId;
+      unawaited(_powerSyncService.activateAuthenticated(userId));
       return;
     }
 
     if (_authProvider.isOfflineMode) {
-      unawaited(_powerSyncService.showOfflineSampleData());
+      unawaited(_powerSyncService.activateGuest());
       return;
     }
 
     if (!_authProvider.isBootstrapping) {
-      unawaited(_powerSyncService.disconnectAndClear());
+      unawaited(_powerSyncService.deactivate());
     }
   }
 
@@ -94,6 +102,8 @@ class _PapyrusState extends State<Papyrus> {
       providers: [
         // Core data store - single source of truth
         ChangeNotifierProvider.value(value: _dataStore),
+        Provider.value(value: _powerSyncService),
+        StreamProvider<SyncState>.value(value: _powerSyncService.syncStates, initialData: _powerSyncService.syncState),
         // Auth and UI state providers
         ChangeNotifierProvider.value(value: _authProvider),
         ChangeNotifierProvider(create: (_) => SidebarProvider()),

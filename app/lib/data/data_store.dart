@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:papyrus/data/repositories/book_repository.dart';
 import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/models/book_shelf_relation.dart';
@@ -13,15 +14,15 @@ import 'package:papyrus/models/series.dart';
 import 'package:papyrus/models/shelf.dart';
 import 'package:papyrus/models/tag.dart';
 
-abstract class BookSyncWriter {
-  Future<void> upsertBook(Book book);
-
-  Future<void> deleteBook(String id);
-}
-
 /// Central in-memory data store - the single source of truth.
 /// All repositories read from and write to this store.
 class DataStore extends ChangeNotifier {
+  DataStore({BookRepository? bookRepository}) {
+    final repository = bookRepository ?? InMemoryBookRepository();
+    _bookRepository = repository;
+    _bookSubscription = repository.watchAll().listen(replaceBooksFromSync);
+  }
+
   // Primary data collections (keyed by ID)
   final Map<String, Book> _books = {};
   final Map<String, Shelf> _shelves = {};
@@ -38,7 +39,8 @@ class DataStore extends ChangeNotifier {
   final List<BookTagRelation> _bookTagRelations = [];
 
   bool _isLoaded = false;
-  BookSyncWriter? _bookSyncWriter;
+  BookRepository? _bookRepository;
+  StreamSubscription<List<Book>>? _bookSubscription;
 
   // ============================================================
   // Getters for read access
@@ -71,33 +73,47 @@ class DataStore extends ChangeNotifier {
 
   Book? getBook(String id) => _books[id];
 
-  void attachBookSyncWriter(BookSyncWriter? writer) {
-    _bookSyncWriter = writer;
+  Future<void> attachBookRepository(BookRepository repository) async {
+    await _bookSubscription?.cancel();
+    _bookRepository = repository;
+    _bookSubscription = repository.watchAll().listen(
+      replaceBooksFromSync,
+      onError: (Object error, StackTrace stackTrace) {
+        FlutterError.reportError(
+          FlutterErrorDetails(exception: error, stack: stackTrace, library: 'papyrus book repository'),
+        );
+      },
+    );
+  }
+
+  Future<void> disposeBookRepository() async {
+    await _bookSubscription?.cancel();
+    _bookSubscription = null;
+    _bookRepository = null;
   }
 
   void addBook(Book book) {
-    _books[book.id] = book;
-    unawaited(_bookSyncWriter?.upsertBook(book));
-    notifyListeners();
+    final repository = _bookRepository;
+    if (repository == null) {
+      throw StateError('Book repository is not initialized');
+    }
+    unawaited(repository.upsert(book));
   }
 
   void updateBook(Book book) {
-    _books[book.id] = book;
-    unawaited(_bookSyncWriter?.upsertBook(book));
-    notifyListeners();
+    final repository = _bookRepository;
+    if (repository == null) {
+      throw StateError('Book repository is not initialized');
+    }
+    unawaited(repository.upsert(book));
   }
 
   void deleteBook(String id) {
-    _books.remove(id);
-    // Also remove related data
-    _bookShelfRelations.removeWhere((r) => r.bookId == id);
-    _bookTagRelations.removeWhere((r) => r.bookId == id);
-    _annotations.removeWhere((key, a) => a.bookId == id);
-    _notes.removeWhere((key, n) => n.bookId == id);
-    _bookmarks.removeWhere((key, b) => b.bookId == id);
-    _readingSessions.removeWhere((key, s) => s.bookId == id);
-    unawaited(_bookSyncWriter?.deleteBook(id));
-    notifyListeners();
+    final repository = _bookRepository;
+    if (repository == null) {
+      throw StateError('Book repository is not initialized');
+    }
+    unawaited(repository.delete(id));
   }
 
   void replaceBooksFromSync(List<Book> books) {
@@ -448,6 +464,10 @@ class DataStore extends ChangeNotifier {
       _books.clear();
       for (final book in books) {
         _books[book.id] = book;
+      }
+      final repository = _bookRepository;
+      if (repository is InMemoryBookRepository) {
+        repository.replaceAll(books);
       }
     }
     if (shelves != null) {

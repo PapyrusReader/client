@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
+import 'package:papyrus/powersync/sync_state.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
 import 'package:papyrus/widgets/settings/settings_section.dart';
@@ -195,6 +196,8 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildMobileStorageSyncSection(BuildContext context) {
     final prefs = context.watch<PreferencesProvider>();
+    final auth = context.watch<AuthProvider>();
+    final sync = context.watch<SyncState>();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -206,6 +209,7 @@ class _ProfilePageState extends State<ProfilePage> {
           value: prefs.serverUrl.isEmpty ? 'Not connected' : prefs.serverUrl,
           onTap: () {},
         ),
+        SettingsRow(label: 'Current status', value: _syncStatusLabel(auth, sync)),
         SettingsToggleRow(
           label: 'Sync enabled',
           value: prefs.syncEnabled,
@@ -886,6 +890,9 @@ class _ProfilePageState extends State<ProfilePage> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final prefs = context.watch<PreferencesProvider>();
+    final auth = context.watch<AuthProvider>();
+    final sync = context.watch<SyncState>();
+    final connected = sync.connected;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -930,13 +937,13 @@ class _ProfilePageState extends State<ProfilePage> {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
                   decoration: BoxDecoration(
-                    color: prefs.serverUrl.isEmpty ? colorScheme.errorContainer : colorScheme.primaryContainer,
+                    color: connected ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Text(
-                    prefs.serverUrl.isEmpty ? 'Offline' : 'Connected',
+                    _syncStatusLabel(auth, sync),
                     style: textTheme.labelSmall?.copyWith(
-                      color: prefs.serverUrl.isEmpty ? colorScheme.onErrorContainer : colorScheme.onPrimaryContainer,
+                      color: connected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ),
@@ -981,10 +988,7 @@ class _ProfilePageState extends State<ProfilePage> {
             const SizedBox(height: Spacing.md),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
-              child: Text(
-                'Last sync: 2 min ago',
-                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-              ),
+              child: Text(_syncDetail(sync), style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
             ),
             const SizedBox(height: Spacing.sm),
             Align(
@@ -995,6 +999,24 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ],
     );
+  }
+
+  String _syncStatusLabel(AuthProvider auth, SyncState sync) {
+    if (auth.isOfflineMode) return 'Guest local';
+    if (sync.uploadError != null || sync.downloadError != null) return 'Error';
+    if (sync.connecting) return 'Connecting';
+    if (sync.uploading || sync.downloading) return 'Syncing';
+    if (sync.connected) return sync.hasPendingWrites ? 'Pending upload' : 'Connected';
+    return 'Offline';
+  }
+
+  String _syncDetail(SyncState sync) {
+    final error = sync.uploadError ?? sync.downloadError;
+    if (error != null) return 'Sync error: $error';
+    if (sync.hasPendingWrites) return 'Local changes are waiting to upload';
+    final lastSyncedAt = sync.lastSyncedAt;
+    if (lastSyncedAt == null) return 'No completed sync yet';
+    return 'Last sync: ${lastSyncedAt.toLocal()}';
   }
 
   // -- Privacy & data ---------------------------------------------------------

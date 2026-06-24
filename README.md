@@ -94,9 +94,15 @@ When the user signs in, the Flutter client communicates with the Papyrus server 
 Run the server and PowerSync locally, then start Flutter with:
 
 ```bash
-cd app
+cd ../server
+./scripts/bootstrap_local.sh
+cd ../client/app
 flutter run -d chrome --web-hostname papyrus.localhost --web-port 3000 --dart-define-from-file=.dart_defines
 ```
+
+Authenticated books use `papyrus-account.db` and synchronize through
+PowerSync. Guest mode uses the separate local-only `papyrus-guest.db`; guest
+books remain on that device and are not merged into an account.
 
 For local web auth links, add these entries to `/etc/hosts`:
 
