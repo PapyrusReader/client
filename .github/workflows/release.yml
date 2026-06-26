@@ -7,6 +7,8 @@ on:
 
 env:
   FLUTTER_VERSION: '3.38.5'
+  PAPYRUS_API_BASE_URL: ${{ vars.PAPYRUS_API_BASE_URL }}
+  POWERSYNC_SERVICE_URL: ${{ vars.POWERSYNC_SERVICE_URL }}
 
 jobs:
   version:
@@ -29,7 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: client
+        working-directory: app
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -47,8 +49,10 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      - name: Create .dart_defines
-        run: echo '{"SUPABASE_URL":"${{ secrets.SUPABASE_URL }}","SUPABASE_ANON_KEY":"${{ secrets.SUPABASE_ANON_KEY }}"}' > .dart_defines
+      - name: Validate release configuration
+        run: |
+          test -n "${{ env.PAPYRUS_API_BASE_URL }}" || (echo "PAPYRUS_API_BASE_URL repository variable is required" && exit 1)
+          test -n "${{ env.POWERSYNC_SERVICE_URL }}" || (echo "POWERSYNC_SERVICE_URL repository variable is required" && exit 1)
 
       - name: Install dependencies
         run: flutter pub get
@@ -56,7 +60,8 @@ jobs:
       - name: Build APK
         run: |
           flutter build apk --release \
-            --dart-define-from-file=.dart_defines \
+            --dart-define=PAPYRUS_API_BASE_URL="${{ env.PAPYRUS_API_BASE_URL }}" \
+            --dart-define=POWERSYNC_SERVICE_URL="${{ env.POWERSYNC_SERVICE_URL }}" \
             --build-name=${{ needs.version.outputs.version }} \
             --build-number=${{ needs.version.outputs.build_number }}
 
@@ -69,7 +74,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: android-release
-          path: client/papyrus-android-v${{ needs.version.outputs.version }}.apk
+          path: app/papyrus-android-v${{ needs.version.outputs.version }}.apk
 
   build-web:
     name: Build Web
@@ -77,7 +82,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: client
+        working-directory: app
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -88,8 +93,10 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      - name: Create .dart_defines
-        run: echo '{"SUPABASE_URL":"${{ secrets.SUPABASE_URL }}","SUPABASE_ANON_KEY":"${{ secrets.SUPABASE_ANON_KEY }}"}' > .dart_defines
+      - name: Validate release configuration
+        run: |
+          test -n "${{ env.PAPYRUS_API_BASE_URL }}" || (echo "PAPYRUS_API_BASE_URL repository variable is required" && exit 1)
+          test -n "${{ env.POWERSYNC_SERVICE_URL }}" || (echo "POWERSYNC_SERVICE_URL repository variable is required" && exit 1)
 
       - name: Install dependencies
         run: flutter pub get
@@ -97,7 +104,8 @@ jobs:
       - name: Build web
         run: |
           flutter build web --release \
-            --dart-define-from-file=.dart_defines \
+            --dart-define=PAPYRUS_API_BASE_URL="${{ env.PAPYRUS_API_BASE_URL }}" \
+            --dart-define=POWERSYNC_SERVICE_URL="${{ env.POWERSYNC_SERVICE_URL }}" \
             --build-name=${{ needs.version.outputs.version }} \
             --build-number=${{ needs.version.outputs.build_number }}
 
@@ -110,7 +118,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: web-release
-          path: client/papyrus-web-v${{ needs.version.outputs.version }}.zip
+          path: app/papyrus-web-v${{ needs.version.outputs.version }}.zip
 
   build-linux:
     name: Build Linux
@@ -118,7 +126,7 @@ jobs:
     runs-on: ubuntu-latest
     defaults:
       run:
-        working-directory: client
+        working-directory: app
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -134,8 +142,10 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      - name: Create .dart_defines
-        run: echo '{"SUPABASE_URL":"${{ secrets.SUPABASE_URL }}","SUPABASE_ANON_KEY":"${{ secrets.SUPABASE_ANON_KEY }}"}' > .dart_defines
+      - name: Validate release configuration
+        run: |
+          test -n "${{ env.PAPYRUS_API_BASE_URL }}" || (echo "PAPYRUS_API_BASE_URL repository variable is required" && exit 1)
+          test -n "${{ env.POWERSYNC_SERVICE_URL }}" || (echo "POWERSYNC_SERVICE_URL repository variable is required" && exit 1)
 
       - name: Install dependencies
         run: flutter pub get
@@ -143,7 +153,8 @@ jobs:
       - name: Build Linux
         run: |
           flutter build linux --release \
-            --dart-define-from-file=.dart_defines \
+            --dart-define=PAPYRUS_API_BASE_URL="${{ env.PAPYRUS_API_BASE_URL }}" \
+            --dart-define=POWERSYNC_SERVICE_URL="${{ env.POWERSYNC_SERVICE_URL }}" \
             --build-name=${{ needs.version.outputs.version }} \
             --build-number=${{ needs.version.outputs.build_number }}
 
@@ -156,7 +167,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-release
-          path: client/papyrus-linux-v${{ needs.version.outputs.version }}.tar.gz
+          path: app/papyrus-linux-v${{ needs.version.outputs.version }}.tar.gz
 
   build-windows:
     name: Build Windows
@@ -164,7 +175,7 @@ jobs:
     runs-on: windows-latest
     defaults:
       run:
-        working-directory: client
+        working-directory: app
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -175,8 +186,10 @@ jobs:
           flutter-version: ${{ env.FLUTTER_VERSION }}
           cache: true
 
-      - name: Create .dart_defines
-        run: echo '{"SUPABASE_URL":"${{ secrets.SUPABASE_URL }}","SUPABASE_ANON_KEY":"${{ secrets.SUPABASE_ANON_KEY }}"}' > .dart_defines
+      - name: Validate release configuration
+        run: |
+          if (-not "${{ env.PAPYRUS_API_BASE_URL }}") { throw "PAPYRUS_API_BASE_URL repository variable is required" }
+          if (-not "${{ env.POWERSYNC_SERVICE_URL }}") { throw "POWERSYNC_SERVICE_URL repository variable is required" }
 
       - name: Install dependencies
         run: flutter pub get
@@ -184,7 +197,8 @@ jobs:
       - name: Build Windows
         run: |
           flutter build windows --release `
-            --dart-define-from-file=.dart_defines `
+            --dart-define=PAPYRUS_API_BASE_URL="${{ env.PAPYRUS_API_BASE_URL }}" `
+            --dart-define=POWERSYNC_SERVICE_URL="${{ env.POWERSYNC_SERVICE_URL }}" `
             --build-name=${{ needs.version.outputs.version }} `
             --build-number=${{ needs.version.outputs.build_number }}
 
@@ -196,7 +210,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
-          path: client/papyrus-windows-v${{ needs.version.outputs.version }}.zip
+          path: app/papyrus-windows-v${{ needs.version.outputs.version }}.zip
 
   release:
     name: Create GitHub Release
