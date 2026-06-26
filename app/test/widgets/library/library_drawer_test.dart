@@ -9,10 +9,8 @@ void main() {
         home: Scaffold(
           drawer: LibraryDrawer(currentPath: currentPath),
           body: Builder(
-            builder: (context) => ElevatedButton(
-              onPressed: () => Scaffold.of(context).openDrawer(),
-              child: const Text('Open Drawer'),
-            ),
+            builder: (context) =>
+                ElevatedButton(onPressed: () => Scaffold.of(context).openDrawer(), child: const Text('Open Drawer')),
           ),
         ),
       );
@@ -56,9 +54,7 @@ void main() {
       await tester.pumpAndSettle();
 
       // Books item should be selected (ListTile with selected: true)
-      final booksItem = tester.widget<ListTile>(
-        find.ancestor(of: find.text('Books'), matching: find.byType(ListTile)),
-      );
+      final booksItem = tester.widget<ListTile>(find.ancestor(of: find.text('Books'), matching: find.byType(ListTile)));
       expect(booksItem.selected, true);
     });
 
@@ -67,24 +63,17 @@ void main() {
       await tester.tap(find.text('Open Drawer'));
       await tester.pumpAndSettle();
 
-      final booksItem = tester.widget<ListTile>(
-        find.ancestor(of: find.text('Books'), matching: find.byType(ListTile)),
-      );
+      final booksItem = tester.widget<ListTile>(find.ancestor(of: find.text('Books'), matching: find.byType(ListTile)));
       expect(booksItem.selected, true);
     });
 
-    testWidgets('highlights Shelves when on /library/shelves path', (
-      tester,
-    ) async {
+    testWidgets('highlights Shelves when on /library/shelves path', (tester) async {
       await tester.pumpWidget(buildDrawer(currentPath: '/library/shelves'));
       await tester.tap(find.text('Open Drawer'));
       await tester.pumpAndSettle();
 
       final shelvesItem = tester.widget<ListTile>(
-        find.ancestor(
-          of: find.text('Shelves'),
-          matching: find.byType(ListTile),
-        ),
+        find.ancestor(of: find.text('Shelves'), matching: find.byType(ListTile)),
       );
       expect(shelvesItem.selected, true);
     });
@@ -95,16 +84,11 @@ void main() {
       await tester.pumpAndSettle();
 
       final shelvesItem = tester.widget<ListTile>(
-        find.ancestor(
-          of: find.text('Shelves'),
-          matching: find.byType(ListTile),
-        ),
+        find.ancestor(of: find.text('Shelves'), matching: find.byType(ListTile)),
       );
       expect(shelvesItem.selected, false);
 
-      final notesItem = tester.widget<ListTile>(
-        find.ancestor(of: find.text('Notes'), matching: find.byType(ListTile)),
-      );
+      final notesItem = tester.widget<ListTile>(find.ancestor(of: find.text('Notes'), matching: find.byType(ListTile)));
       expect(notesItem.selected, false);
     });
 

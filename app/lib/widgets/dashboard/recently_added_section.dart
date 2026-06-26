@@ -17,13 +17,7 @@ class RecentlyAddedSection extends StatelessWidget {
   /// Whether to use desktop styling (larger covers).
   final bool isDesktop;
 
-  const RecentlyAddedSection({
-    super.key,
-    required this.books,
-    this.onBookTap,
-    this.onSeeAll,
-    this.isDesktop = false,
-  });
+  const RecentlyAddedSection({super.key, required this.books, this.onBookTap, this.onSeeAll, this.isDesktop = false});
 
   @override
   Widget build(BuildContext context) {
@@ -51,9 +45,7 @@ class RecentlyAddedSection extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('Recently added', style: textTheme.titleMedium),
-              _buildViewAllButton(
-                onPressed: onSeeAll ?? () => context.go('/library'),
-              ),
+              _buildViewAllButton(onPressed: onSeeAll ?? () => context.go('/library')),
             ],
           ),
         ),
@@ -64,16 +56,10 @@ class RecentlyAddedSection extends StatelessWidget {
             scrollDirection: Axis.horizontal,
             padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
             itemCount: books.length,
-            separatorBuilder: (_, _) =>
-                const SizedBox(width: Spacing.sm + Spacing.xs),
+            separatorBuilder: (_, _) => const SizedBox(width: Spacing.sm + Spacing.xs),
             itemBuilder: (context, index) {
               final book = books[index];
-              return _buildBookCover(
-                context,
-                book: book,
-                width: coverWidth,
-                height: coverHeight,
-              );
+              return _buildBookCover(context, book: book, width: coverWidth, height: coverHeight);
             },
           ),
         ),
@@ -82,12 +68,7 @@ class RecentlyAddedSection extends StatelessWidget {
   }
 
   /// Builds a single book cover with tap handling and hover cursor.
-  Widget _buildBookCover(
-    BuildContext context, {
-    required Book book,
-    required double width,
-    required double height,
-  }) {
+  Widget _buildBookCover(BuildContext context, {required Book book, required double width, required double height}) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return MouseRegion(
@@ -101,11 +82,7 @@ class RecentlyAddedSection extends StatelessWidget {
             color: colorScheme.surfaceContainerHighest,
             borderRadius: BorderRadius.circular(AppRadius.md),
             boxShadow: [
-              BoxShadow(
-                color: colorScheme.shadow.withValues(alpha: 0.1),
-                blurRadius: 4,
-                offset: const Offset(0, 2),
-              ),
+              BoxShadow(color: colorScheme.shadow.withValues(alpha: 0.1), blurRadius: 4, offset: const Offset(0, 2)),
             ],
           ),
           clipBehavior: Clip.antiAlias,
@@ -113,8 +90,7 @@ class RecentlyAddedSection extends StatelessWidget {
               ? Image.network(
                   book.coverURL!,
                   fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) =>
-                      _buildCoverPlaceholder(context, book),
+                  errorBuilder: (_, _, _) => _buildCoverPlaceholder(context, book),
                 )
               : _buildCoverPlaceholder(context, book),
         ),
@@ -133,17 +109,11 @@ class RecentlyAddedSection extends StatelessWidget {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.menu_book,
-            size: 24,
-            color: colorScheme.onPrimaryContainer,
-          ),
+          Icon(Icons.menu_book, size: 24, color: colorScheme.onPrimaryContainer),
           const SizedBox(height: Spacing.xs),
           Text(
             book.title,
-            style: textTheme.labelSmall?.copyWith(
-              color: colorScheme.onPrimaryContainer,
-            ),
+            style: textTheme.labelSmall?.copyWith(color: colorScheme.onPrimaryContainer),
             maxLines: 2,
             overflow: TextOverflow.ellipsis,
             textAlign: TextAlign.center,
@@ -180,18 +150,9 @@ class RecentlyAddedSection extends StatelessWidget {
       padding: const EdgeInsets.all(Spacing.lg),
       child: Column(
         children: [
-          Icon(
-            Icons.library_books_outlined,
-            size: 40,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          Icon(Icons.library_books_outlined, size: 40, color: colorScheme.onSurfaceVariant),
           const SizedBox(height: Spacing.sm),
-          Text(
-            'No books added recently',
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+          Text('No books added recently', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         ],
       ),
     );

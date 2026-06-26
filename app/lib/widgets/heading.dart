@@ -14,10 +14,7 @@ class Heading extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Image(
-                image: AssetImage("assets/images/logo.png"),
-                height: 64.0,
-              ),
+              const Image(image: AssetImage("assets/images/logo.png"), height: 64.0),
               const SizedBox(width: 12.0),
               Text("Papyrus", style: Theme.of(context).textTheme.displayMedium),
             ],

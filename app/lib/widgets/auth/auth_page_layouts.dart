@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/auth/auth_branding.dart';
 import 'package:papyrus/widgets/auth/auth_hero_panel.dart';
 
 /// Mobile auth layout: compact hero header + scrollable form panel.
@@ -35,10 +34,7 @@ class MobileAuthLayout extends StatelessWidget {
       backgroundColor: theme.colorScheme.surface,
       body: Column(
         children: [
-          CompactAuthHeader(
-            isDark: isDark,
-            height: ComponentSizes.mobileHeroHeight,
-          ),
+          CompactAuthHeader(isDark: isDark, height: ComponentSizes.mobileHeroHeight),
           Expanded(
             child: CustomScrollView(
               slivers: [
@@ -51,7 +47,7 @@ class MobileAuthLayout extends StatelessWidget {
                       children: [
                         const SizedBox(height: Spacing.xl),
                         if (showHeader) ...[
-                          const AuthBranding(),
+                          // const AuthBranding(),
                           const SizedBox(height: Spacing.md),
                           Text(
                             heading,
@@ -62,9 +58,7 @@ class MobileAuthLayout extends StatelessWidget {
                           ),
                           Text(
                             subtitle,
-                            style: theme.textTheme.bodyMedium?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
+                            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                           ),
                           const SizedBox(height: Spacing.lg),
                         ],
@@ -126,49 +120,48 @@ class _DesktopAuthLayoutState extends State<DesktopAuthLayout> {
   Widget _buildFormPanel(ThemeData theme) {
     final isSwapped = DesktopAuthLayout._isSwapped;
 
-    return Container(
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surface,
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
-            blurRadius: 24,
-            offset: Offset(isSwapped ? 4 : -4, 0),
-          ),
-        ],
-      ),
-      child: Center(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(ComponentSizes.authFormPanelPadding),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(
-              maxWidth: ComponentSizes.authFormPanelMaxWidth,
+    return FocusTraversalOrder(
+      order: const NumericFocusOrder(1),
+      child: Container(
+        decoration: BoxDecoration(
+          color: theme.colorScheme.surface,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 24,
+              offset: Offset(isSwapped ? 4 : -4, 0),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (widget.showHeader) ...[
-                  const AuthBranding(),
-                  const SizedBox(height: Spacing.md),
-                  Text(
-                    widget.heading,
-                    style: theme.textTheme.headlineLarge?.copyWith(
-                      fontWeight: FontWeight.w600,
-                      color: theme.colorScheme.onSurface,
+          ],
+        ),
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.all(ComponentSizes.authFormPanelPadding),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: ComponentSizes.authFormPanelMaxWidth),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (widget.showHeader) ...[
+                    // const AuthBranding(),
+                    const SizedBox(height: Spacing.md),
+                    Text(
+                      widget.heading,
+                      style: theme.textTheme.headlineLarge?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        color: theme.colorScheme.onSurface,
+                      ),
                     ),
-                  ),
-                  Text(
-                    widget.subtitle,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
+                    Text(
+                      widget.subtitle,
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
-                  ),
-                  const SizedBox(height: Spacing.xl),
+                    const SizedBox(height: Spacing.xl),
+                  ],
+                  widget.form,
+                  ...widget.footer,
                 ],
-                widget.form,
-                ...widget.footer,
-              ],
+              ),
             ),
           ),
         ),
@@ -185,23 +178,25 @@ class _DesktopAuthLayoutState extends State<DesktopAuthLayout> {
     final hero = Expanded(flex: 6, child: AuthHeroPanel(isDark: isDark));
     final form = Expanded(flex: 4, child: _buildFormPanel(theme));
 
-    return Scaffold(
-      backgroundColor: theme.colorScheme.surface,
-      body: Stack(
-        children: [
-          Row(children: isSwapped ? [form, hero] : [hero, form]),
-          // Swap button at the hero/form boundary
-          Positioned(
-            left: isSwapped ? null : 0,
-            right: isSwapped ? 0 : null,
-            top: 0,
-            bottom: 0,
-            child: _SwapPanelsButton(
-              isSwapped: isSwapped,
-              onPressed: _toggleSwap,
+    return FocusTraversalGroup(
+      policy: OrderedTraversalPolicy(),
+      child: Scaffold(
+        backgroundColor: theme.colorScheme.surface,
+        body: Stack(
+          children: [
+            Row(children: isSwapped ? [form, hero] : [hero, form]),
+            Positioned(
+              left: isSwapped ? null : 0,
+              right: isSwapped ? 0 : null,
+              top: 0,
+              bottom: 0,
+              child: FocusTraversalOrder(
+                order: const NumericFocusOrder(2),
+                child: _SwapPanelsButton(isSwapped: isSwapped, onPressed: _toggleSwap),
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
@@ -229,12 +224,7 @@ class _SwapPanelsButton extends StatelessWidget {
           child: Align(
             alignment: Alignment.centerLeft,
             child: Transform.translate(
-              offset: Offset(
-                isSwapped
-                    ? totalWidth - boundaryOffset - 20
-                    : boundaryOffset - 20,
-                0,
-              ),
+              offset: Offset(isSwapped ? totalWidth - boundaryOffset - 20 : boundaryOffset - 20, 0),
               child: SizedBox(
                 width: 40,
                 height: 40,
@@ -245,11 +235,7 @@ class _SwapPanelsButton extends StatelessWidget {
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     onTap: onPressed,
-                    child: Icon(
-                      Icons.swap_horiz,
-                      size: 20,
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
+                    child: Icon(Icons.swap_horiz, size: 20, color: theme.colorScheme.onSurfaceVariant),
                   ),
                 ),
               ),

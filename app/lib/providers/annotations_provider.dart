@@ -46,8 +46,7 @@ class AnnotationsProvider extends ChangeNotifier {
   String get searchQuery => _searchQuery;
 
   /// Whether there are any annotations at all (unfiltered).
-  bool get hasAnnotations =>
-      _dataStore != null && _dataStore!.annotations.isNotEmpty;
+  bool get hasAnnotations => _dataStore != null && _dataStore!.annotations.isNotEmpty;
 
   /// Whether current filters yield results.
   bool get hasResults => annotations.isNotEmpty;
@@ -177,9 +176,7 @@ class AnnotationsProvider extends ChangeNotifier {
         case AnnotationSortOption.dateOldest:
           return a.createdAt.compareTo(b.createdAt);
         case AnnotationSortOption.bookTitle:
-          return getBookTitle(
-            a.bookId,
-          ).toLowerCase().compareTo(getBookTitle(b.bookId).toLowerCase());
+          return getBookTitle(a.bookId).toLowerCase().compareTo(getBookTitle(b.bookId).toLowerCase());
         case AnnotationSortOption.position:
           return a.location.pageNumber.compareTo(b.location.pageNumber);
       }

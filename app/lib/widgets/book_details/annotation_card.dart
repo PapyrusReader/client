@@ -49,13 +49,7 @@ class AnnotationCard extends StatefulWidget {
   final bool showActionMenu;
 
   /// Creates an annotation card widget.
-  const AnnotationCard({
-    super.key,
-    required this.annotation,
-    this.onTap,
-    this.onLongPress,
-    this.showActionMenu = true,
-  });
+  const AnnotationCard({super.key, required this.annotation, this.onTap, this.onLongPress, this.showActionMenu = true});
 
   @override
   State<AnnotationCard> createState() => _AnnotationCardState();
@@ -96,8 +90,7 @@ class _AnnotationCardState extends State<AnnotationCard> {
                   _buildHeader(context, colorScheme, textTheme, accentColor),
                   const SizedBox(height: Spacing.sm),
                   _buildHighlightText(textTheme),
-                  if (widget.annotation.hasNote)
-                    _buildNote(colorScheme, textTheme),
+                  if (widget.annotation.hasNote) _buildNote(colorScheme, textTheme),
                   const SizedBox(height: Spacing.sm),
                   _buildDate(colorScheme, textTheme),
                 ],
@@ -110,21 +103,14 @@ class _AnnotationCardState extends State<AnnotationCard> {
   }
 
   /// Header row with color indicator, location, and action menu.
-  Widget _buildHeader(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-    Color accentColor,
-  ) {
+  Widget _buildHeader(BuildContext context, ColorScheme colorScheme, TextTheme textTheme, Color accentColor) {
     return Row(
       children: [
         _buildColorDot(accentColor),
         const SizedBox(width: Spacing.sm),
         Text(
           widget.annotation.location.shortLocation,
-          style: textTheme.labelSmall?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
+          style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
         ),
         const Spacer(),
         if (widget.showActionMenu) _buildActionMenu(colorScheme),
@@ -184,28 +170,13 @@ class _AnnotationCardState extends State<AnnotationCard> {
   Widget _buildDate(ColorScheme colorScheme, TextTheme textTheme) {
     return Text(
       _formatDate(widget.annotation.createdAt),
-      style: textTheme.labelSmall?.copyWith(
-        color: colorScheme.onSurfaceVariant,
-      ),
+      style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
     );
   }
 
   /// Formats a date as "Mon DD, YYYY".
   String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 }

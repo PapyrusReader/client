@@ -23,9 +23,7 @@ Widget createTestApp({
 }) {
   return MultiProvider(
     providers: [
-      ChangeNotifierProvider<LibraryProvider>.value(
-        value: libraryProvider ?? LibraryProvider(),
-      ),
+      ChangeNotifierProvider<LibraryProvider>.value(value: libraryProvider ?? LibraryProvider()),
       ChangeNotifierProvider<DataStore>.value(value: dataStore ?? DataStore()),
       ...?additionalProviders,
     ],
@@ -51,9 +49,7 @@ Widget createTestPage({
 }) {
   return MultiProvider(
     providers: [
-      ChangeNotifierProvider<LibraryProvider>.value(
-        value: libraryProvider ?? LibraryProvider(),
-      ),
+      ChangeNotifierProvider<LibraryProvider>.value(value: libraryProvider ?? LibraryProvider()),
       ChangeNotifierProvider<DataStore>.value(value: dataStore ?? DataStore()),
       ...?additionalProviders,
     ],
@@ -124,11 +120,7 @@ List<Book> createTestBooks() {
 }
 
 /// Creates a [DataStore] pre-loaded with test data.
-DataStore createTestDataStore({
-  List<Book>? books,
-  List<Shelf>? shelves,
-  List<Tag>? tags,
-}) {
+DataStore createTestDataStore({List<Book>? books, List<Shelf>? shelves, List<Tag>? tags}) {
   final now = DateTime.now();
   final store = DataStore();
   store.loadData(
@@ -137,28 +129,13 @@ DataStore createTestDataStore({
         shelves ??
         [
           Shelf(id: 'shelf-1', name: 'Fiction', createdAt: now, updatedAt: now),
-          Shelf(
-            id: 'shelf-2',
-            name: 'Science Fiction',
-            createdAt: now,
-            updatedAt: now,
-          ),
+          Shelf(id: 'shelf-2', name: 'Science Fiction', createdAt: now, updatedAt: now),
         ],
     tags:
         tags ??
         [
-          Tag(
-            id: 'tag-1',
-            name: 'Fantasy',
-            colorHex: '#4CAF50',
-            createdAt: now,
-          ),
-          Tag(
-            id: 'tag-2',
-            name: 'Classic',
-            colorHex: '#2196F3',
-            createdAt: now,
-          ),
+          Tag(id: 'tag-1', name: 'Fantasy', colorHex: '#4CAF50', createdAt: now),
+          Tag(id: 'tag-2', name: 'Classic', colorHex: '#2196F3', createdAt: now),
         ],
   );
   return store;

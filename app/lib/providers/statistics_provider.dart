@@ -24,20 +24,7 @@ class MonthlyStats {
   });
 
   String get monthLabel {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return months[month - 1];
   }
 
@@ -66,19 +53,13 @@ class SessionStats {
   final int totalMinutes;
   final int totalPages;
 
-  const SessionStats({
-    required this.totalSessions,
-    required this.totalMinutes,
-    required this.totalPages,
-  });
+  const SessionStats({required this.totalSessions, required this.totalMinutes, required this.totalPages});
 
   /// Average session duration in minutes.
-  double get averageSessionDuration =>
-      totalSessions > 0 ? totalMinutes / totalSessions : 0;
+  double get averageSessionDuration => totalSessions > 0 ? totalMinutes / totalSessions : 0;
 
   /// Reading velocity (pages per hour).
-  double get pagesPerHour =>
-      totalMinutes > 0 ? (totalPages / totalMinutes) * 60 : 0;
+  double get pagesPerHour => totalMinutes > 0 ? (totalPages / totalMinutes) * 60 : 0;
 
   /// Formatted average session duration.
   String get averageSessionLabel {
@@ -156,10 +137,7 @@ class StatisticsProvider extends ChangeNotifier {
     final range = _getDateRangeForPeriod();
     return _dataStore!.books
         .where(
-          (b) =>
-              b.completedAt != null &&
-              b.completedAt!.isAfter(range.start) &&
-              b.completedAt!.isBefore(range.end),
+          (b) => b.completedAt != null && b.completedAt!.isAfter(range.start) && b.completedAt!.isBefore(range.end),
         )
         .length;
   }
@@ -170,10 +148,7 @@ class StatisticsProvider extends ChangeNotifier {
     final range = _getDateRangeForPeriod();
     return _dataStore!.readingGoals
         .where(
-          (g) =>
-              g.completedAt != null &&
-              g.completedAt!.isAfter(range.start) &&
-              g.completedAt!.isBefore(range.end),
+          (g) => g.completedAt != null && g.completedAt!.isAfter(range.start) && g.completedAt!.isBefore(range.end),
         )
         .length;
   }
@@ -183,11 +158,7 @@ class StatisticsProvider extends ChangeNotifier {
     if (_dataStore == null) return 0;
     final range = _getDateRangeForPeriod();
     return _dataStore!.readingSessions
-        .where(
-          (s) =>
-              s.startTime.isAfter(range.start) &&
-              s.startTime.isBefore(range.end),
-        )
+        .where((s) => s.startTime.isAfter(range.start) && s.startTime.isBefore(range.end))
         .fold(0, (sum, s) => sum + s.durationMinutes);
   }
 
@@ -196,30 +167,18 @@ class StatisticsProvider extends ChangeNotifier {
     if (_dataStore == null) return 0;
     final range = _getDateRangeForPeriod();
     return _dataStore!.readingSessions
-        .where(
-          (s) =>
-              s.startTime.isAfter(range.start) &&
-              s.startTime.isBefore(range.end),
-        )
+        .where((s) => s.startTime.isAfter(range.start) && s.startTime.isBefore(range.end))
         .fold(0, (sum, s) => sum + (s.pagesRead ?? 0));
   }
 
   /// Session statistics for the selected period.
   SessionStats get sessionStats {
     if (_dataStore == null) {
-      return const SessionStats(
-        totalSessions: 0,
-        totalMinutes: 0,
-        totalPages: 0,
-      );
+      return const SessionStats(totalSessions: 0, totalMinutes: 0, totalPages: 0);
     }
     final range = _getDateRangeForPeriod();
     final sessions = _dataStore!.readingSessions
-        .where(
-          (s) =>
-              s.startTime.isAfter(range.start) &&
-              s.startTime.isBefore(range.end),
-        )
+        .where((s) => s.startTime.isAfter(range.start) && s.startTime.isBefore(range.end))
         .toList();
 
     return SessionStats(
@@ -299,9 +258,7 @@ class StatisticsProvider extends ChangeNotifier {
 
   /// Whether custom date range is active.
   bool get hasCustomRange =>
-      _selectedPeriod == StatsPeriod.custom &&
-      _customStartDate != null &&
-      _customEndDate != null;
+      _selectedPeriod == StatsPeriod.custom && _customStartDate != null && _customEndDate != null;
 
   // ============================================================================
   // METHODS
@@ -364,33 +321,18 @@ class StatisticsProvider extends ChangeNotifier {
     switch (_selectedPeriod) {
       case StatsPeriod.week:
         final weekStart = now.subtract(Duration(days: now.weekday - 1));
-        return (
-          start: DateTime(weekStart.year, weekStart.month, weekStart.day),
-          end: now.add(const Duration(days: 1)),
-        );
+        return (start: DateTime(weekStart.year, weekStart.month, weekStart.day), end: now.add(const Duration(days: 1)));
       case StatsPeriod.month:
-        return (
-          start: DateTime(now.year, now.month, 1),
-          end: now.add(const Duration(days: 1)),
-        );
+        return (start: DateTime(now.year, now.month, 1), end: now.add(const Duration(days: 1)));
       case StatsPeriod.year:
-        return (
-          start: DateTime(now.year, 1, 1),
-          end: now.add(const Duration(days: 1)),
-        );
+        return (start: DateTime(now.year, 1, 1), end: now.add(const Duration(days: 1)));
       case StatsPeriod.allTime:
         return (start: DateTime(2000), end: now.add(const Duration(days: 1)));
       case StatsPeriod.custom:
         if (_customStartDate != null && _customEndDate != null) {
-          return (
-            start: _customStartDate!,
-            end: _customEndDate!.add(const Duration(days: 1)),
-          );
+          return (start: _customStartDate!, end: _customEndDate!.add(const Duration(days: 1)));
         }
-        return (
-          start: now.subtract(const Duration(days: 7)),
-          end: now.add(const Duration(days: 1)),
-        );
+        return (start: now.subtract(const Duration(days: 7)), end: now.add(const Duration(days: 1)));
     }
   }
 
@@ -424,19 +366,12 @@ class StatisticsProvider extends ChangeNotifier {
       final dayEnd = dayStart.add(const Duration(days: 1));
 
       final daySessions = _dataStore!.readingSessions.where(
-        (s) =>
-            s.startTime.isAfter(
-              dayStart.subtract(const Duration(seconds: 1)),
-            ) &&
-            s.startTime.isBefore(dayEnd),
+        (s) => s.startTime.isAfter(dayStart.subtract(const Duration(seconds: 1))) && s.startTime.isBefore(dayEnd),
       );
 
       return DailyActivity(
         date: date,
-        readingMinutes: daySessions.fold(
-          0,
-          (sum, s) => sum + s.durationMinutes,
-        ),
+        readingMinutes: daySessions.fold(0, (sum, s) => sum + s.durationMinutes),
         pagesRead: daySessions.fold(0, (sum, s) => sum + (s.pagesRead ?? 0)),
         booksRead: [],
       );
@@ -464,19 +399,12 @@ class StatisticsProvider extends ChangeNotifier {
       final monthEnd = DateTime(year, month + 1, 1);
 
       final monthSessions = _dataStore!.readingSessions.where(
-        (s) =>
-            s.startTime.isAfter(
-              monthStart.subtract(const Duration(seconds: 1)),
-            ) &&
-            s.startTime.isBefore(monthEnd),
+        (s) => s.startTime.isAfter(monthStart.subtract(const Duration(seconds: 1))) && s.startTime.isBefore(monthEnd),
       );
 
       final booksCompleted = _dataStore!.books
           .where(
-            (b) =>
-                b.completedAt != null &&
-                b.completedAt!.isAfter(monthStart) &&
-                b.completedAt!.isBefore(monthEnd),
+            (b) => b.completedAt != null && b.completedAt!.isAfter(monthStart) && b.completedAt!.isBefore(monthEnd),
           )
           .length;
 
@@ -485,10 +413,7 @@ class StatisticsProvider extends ChangeNotifier {
         year: year,
         booksRead: booksCompleted,
         pagesRead: monthSessions.fold(0, (sum, s) => sum + (s.pagesRead ?? 0)),
-        readingMinutes: monthSessions.fold(
-          0,
-          (sum, s) => sum + s.durationMinutes,
-        ),
+        readingMinutes: monthSessions.fold(0, (sum, s) => sum + s.durationMinutes),
       );
     }).reversed.toList();
   }

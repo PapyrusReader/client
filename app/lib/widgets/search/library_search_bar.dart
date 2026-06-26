@@ -93,23 +93,17 @@ class _LibrarySearchBarState extends State<LibrarySearchBar> {
 
     // Check if typing a field name
     if (!lastWord.contains(':')) {
-      newSuggestions = SearchQueryParser.fieldSuggestions
-          .where((s) => s.toLowerCase().startsWith(lastWord))
-          .toList();
+      newSuggestions = SearchQueryParser.fieldSuggestions.where((s) => s.toLowerCase().startsWith(lastWord)).toList();
     }
     // Check if typing status value
     else if (lastWord.startsWith('status:')) {
       final value = lastWord.substring(7);
-      newSuggestions = SearchQueryParser.statusSuggestions
-          .where((s) => s.toLowerCase().contains(value))
-          .toList();
+      newSuggestions = SearchQueryParser.statusSuggestions.where((s) => s.toLowerCase().contains(value)).toList();
     }
     // Check if typing format value
     else if (lastWord.startsWith('format:')) {
       final value = lastWord.substring(7);
-      newSuggestions = SearchQueryParser.formatSuggestions
-          .where((s) => s.toLowerCase().contains(value))
-          .toList();
+      newSuggestions = SearchQueryParser.formatSuggestions.where((s) => s.toLowerCase().contains(value)).toList();
     }
 
     _suggestions = newSuggestions;
@@ -122,9 +116,7 @@ class _LibrarySearchBarState extends State<LibrarySearchBar> {
     final lastSpace = text.lastIndexOf(' ');
     final prefix = lastSpace >= 0 ? text.substring(0, lastSpace + 1) : '';
     _controller.text = '$prefix$suggestion';
-    _controller.selection = TextSelection.fromPosition(
-      TextPosition(offset: _controller.text.length),
-    );
+    _controller.selection = TextSelection.fromPosition(TextPosition(offset: _controller.text.length));
     _suggestions = [];
     _selectedIndex = -1;
     _removeOverlay();
@@ -233,8 +225,7 @@ class _LibrarySearchBarState extends State<LibrarySearchBar> {
       return KeyEventResult.handled;
     }
     if (key == LogicalKeyboardKey.arrowUp) {
-      _selectedIndex =
-          (_selectedIndex - 1 + _suggestions.length) % _suggestions.length;
+      _selectedIndex = (_selectedIndex - 1 + _suggestions.length) % _suggestions.length;
       _showOrUpdateOverlay();
       return KeyEventResult.handled;
     }
@@ -264,9 +255,7 @@ class _LibrarySearchBarState extends State<LibrarySearchBar> {
         IconButton(
           icon: Icon(
             Icons.tune,
-            color: widget.activeFilterCount > 0
-                ? colorScheme.primary
-                : colorScheme.onSurfaceVariant,
+            color: widget.activeFilterCount > 0 ? colorScheme.primary : colorScheme.onSurfaceVariant,
           ),
           onPressed: widget.onFilterTap,
           tooltip: 'Filters',
@@ -277,18 +266,11 @@ class _LibrarySearchBarState extends State<LibrarySearchBar> {
             top: 4,
             child: Container(
               padding: const EdgeInsets.all(4),
-              decoration: BoxDecoration(
-                color: colorScheme.primary,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: colorScheme.primary, shape: BoxShape.circle),
               constraints: const BoxConstraints(minWidth: 18, minHeight: 18),
               child: Text(
                 '${widget.activeFilterCount}',
-                style: TextStyle(
-                  color: colorScheme.onPrimary,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(color: colorScheme.onPrimary, fontSize: 10, fontWeight: FontWeight.bold),
                 textAlign: TextAlign.center,
               ),
             ),
@@ -315,19 +297,12 @@ class _LibrarySearchBarState extends State<LibrarySearchBar> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (_controller.text.isNotEmpty)
-                  IconButton(
-                    icon: const Icon(Icons.clear),
-                    onPressed: _clearSearch,
-                    tooltip: 'Clear',
-                  ),
+                  IconButton(icon: const Icon(Icons.clear), onPressed: _clearSearch, tooltip: 'Clear'),
                 _buildFilterButton(colorScheme),
               ],
             ),
             isDense: true,
-            contentPadding: const EdgeInsets.symmetric(
-              horizontal: Spacing.md,
-              vertical: Spacing.sm,
-            ),
+            contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
           ),
           onChanged: _onQueryChanged,
         ),
@@ -341,11 +316,7 @@ class _SuggestionTile extends StatelessWidget {
   final bool isHighlighted;
   final VoidCallback onTap;
 
-  const _SuggestionTile({
-    required this.suggestion,
-    required this.isHighlighted,
-    required this.onTap,
-  });
+  const _SuggestionTile({required this.suggestion, required this.isHighlighted, required this.onTap});
 
   IconData _getIconForSuggestion(String suggestion) {
     final lower = suggestion.toLowerCase();
@@ -363,47 +334,29 @@ class _SuggestionTile extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final platform = Theme.of(context).platform;
     final isDesktopPlatform =
-        platform == TargetPlatform.macOS ||
-        platform == TargetPlatform.windows ||
-        platform == TargetPlatform.linux;
+        platform == TargetPlatform.macOS || platform == TargetPlatform.windows || platform == TargetPlatform.linux;
 
     return InkWell(
       onTap: onTap,
       child: Container(
-        color: isHighlighted
-            ? colorScheme.primary.withValues(alpha: 0.12)
-            : null,
-        padding: const EdgeInsets.symmetric(
-          horizontal: Spacing.md,
-          vertical: Spacing.sm,
-        ),
+        color: isHighlighted ? colorScheme.primary.withValues(alpha: 0.12) : null,
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
         child: Row(
           children: [
             Icon(
               _getIconForSuggestion(suggestion),
-              color: isHighlighted
-                  ? colorScheme.primary
-                  : colorScheme.onSurfaceVariant,
+              color: isHighlighted ? colorScheme.primary : colorScheme.onSurfaceVariant,
               size: IconSizes.small,
             ),
             const SizedBox(width: Spacing.sm),
             Expanded(
               child: Text(
                 suggestion,
-                style: TextStyle(
-                  color: isHighlighted
-                      ? colorScheme.primary
-                      : colorScheme.onSurface,
-                ),
+                style: TextStyle(color: isHighlighted ? colorScheme.primary : colorScheme.onSurface),
               ),
             ),
             if (isHighlighted && isDesktopPlatform)
-              Text(
-                'Tab',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
+              Text('Tab', style: Theme.of(context).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
           ],
         ),
       ),

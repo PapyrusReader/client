@@ -6,3 +6,4 @@ firebase-debug.log
 landing/node_modules/
 landing/css/
 test/data/
+.idea/

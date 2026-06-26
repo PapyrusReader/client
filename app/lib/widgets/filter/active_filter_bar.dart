@@ -14,12 +14,7 @@ class ActiveFilterBar extends StatelessWidget {
   /// Callback when "Clear All" is tapped.
   final VoidCallback? onClearAll;
 
-  const ActiveFilterBar({
-    super.key,
-    required this.filters,
-    this.onFilterRemoved,
-    this.onClearAll,
-  });
+  const ActiveFilterBar({super.key, required this.filters, this.onFilterRemoved, this.onClearAll});
 
   @override
   Widget build(BuildContext context) {
@@ -48,19 +43,13 @@ class ActiveFilterBar extends StatelessWidget {
               ),
               child: Text(
                 'Clear all',
-                style: TextStyle(
-                  color: colorScheme.primary,
-                  fontWeight: FontWeight.w500,
-                ),
+                style: TextStyle(color: colorScheme.primary, fontWeight: FontWeight.w500),
               ),
             );
           }
 
           final filter = filters[index];
-          return _ActiveFilterChip(
-            filter: filter,
-            onRemoved: () => onFilterRemoved?.call(filter),
-          );
+          return _ActiveFilterChip(filter: filter, onRemoved: () => onFilterRemoved?.call(filter));
         },
       ),
     );
@@ -82,24 +71,16 @@ class _ActiveFilterChip extends StatelessWidget {
       visualDensity: VisualDensity.compact,
       backgroundColor: colorScheme.secondaryContainer,
       side: BorderSide.none,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
       label: _buildLabel(context),
-      deleteIcon: Icon(
-        Icons.close,
-        size: 18,
-        color: colorScheme.onSecondaryContainer,
-      ),
+      deleteIcon: Icon(Icons.close, size: 18, color: colorScheme.onSecondaryContainer),
       onDeleted: onRemoved,
     );
   }
 
   Widget _buildLabel(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textStyle = Theme.of(
-      context,
-    ).textTheme.labelLarge?.copyWith(color: colorScheme.onSecondaryContainer);
+    final textStyle = Theme.of(context).textTheme.labelLarge?.copyWith(color: colorScheme.onSecondaryContainer);
 
     if (filter.type == ActiveFilterType.quick) {
       return Text(filter.label, style: textStyle);
@@ -111,10 +92,7 @@ class _ActiveFilterChip extends StatelessWidget {
         children: [
           TextSpan(
             text: '${filter.label}: ',
-            style: textStyle?.copyWith(
-              color: colorScheme.primary,
-              fontWeight: FontWeight.w600,
-            ),
+            style: textStyle?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.w600),
           ),
           TextSpan(text: filter.value, style: textStyle),
         ],

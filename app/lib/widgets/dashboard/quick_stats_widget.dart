@@ -34,10 +34,7 @@ class QuickStatsWidget extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -59,12 +56,7 @@ class QuickStatsWidget extends StatelessWidget {
             ],
           ),
           const SizedBox(height: Spacing.md),
-          _buildStatRow(
-            context,
-            icon: Icons.menu_book_outlined,
-            label: 'Books',
-            value: totalBooks.toString(),
-          ),
+          _buildStatRow(context, icon: Icons.menu_book_outlined, label: 'Books', value: totalBooks.toString()),
           const SizedBox(height: Spacing.sm),
           _buildStatRow(
             context,
@@ -73,31 +65,16 @@ class QuickStatsWidget extends StatelessWidget {
             value: totalShelves.toString(),
           ),
           const SizedBox(height: Spacing.sm),
-          _buildStatRow(
-            context,
-            icon: Icons.label_outline,
-            label: 'Topics',
-            value: totalTopics.toString(),
-          ),
+          _buildStatRow(context, icon: Icons.label_outline, label: 'Topics', value: totalTopics.toString()),
           const SizedBox(height: Spacing.sm),
-          _buildStatRow(
-            context,
-            icon: Icons.schedule_outlined,
-            label: 'Reading time',
-            value: totalReadingLabel,
-          ),
+          _buildStatRow(context, icon: Icons.schedule_outlined, label: 'Reading time', value: totalReadingLabel),
         ],
       ),
     );
   }
 
   /// Builds a single stat row with icon, label, and value.
-  Widget _buildStatRow(
-    BuildContext context, {
-    required IconData icon,
-    required String label,
-    required String value,
-  }) {
+  Widget _buildStatRow(BuildContext context, {required IconData icon, required String label, required String value}) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -106,17 +83,9 @@ class QuickStatsWidget extends StatelessWidget {
         Icon(icon, size: 18, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: Spacing.sm),
         Expanded(
-          child: Text(
-            label,
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+          child: Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         ),
-        Text(
-          value,
-          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-        ),
+        Text(value, style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600)),
       ],
     );
   }

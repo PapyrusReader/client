@@ -56,9 +56,7 @@ class _PasswordInputState extends State<PasswordInput> {
         suffixIcon: IconButton(
           onPressed: _toggleVisibility,
           icon: Icon(
-            _isTextHidden
-                ? Icons.visibility_outlined
-                : Icons.visibility_off_outlined,
+            _isTextHidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
             color: theme.colorScheme.onSurfaceVariant,
           ),
         ),

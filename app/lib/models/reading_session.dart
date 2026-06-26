@@ -102,13 +102,9 @@ class ReadingSession {
       id: json['id'] as String,
       bookId: json['book_id'] as String,
       startTime: DateTime.parse(json['start_time'] as String),
-      endTime: json['end_time'] != null
-          ? DateTime.parse(json['end_time'] as String)
-          : null,
+      endTime: json['end_time'] != null ? DateTime.parse(json['end_time'] as String) : null,
       startPosition: (json['start_position'] as num).toDouble(),
-      endPosition: json['end_position'] != null
-          ? (json['end_position'] as num).toDouble()
-          : null,
+      endPosition: json['end_position'] != null ? (json['end_position'] as num).toDouble() : null,
       pagesRead: json['pages_read'] as int?,
       deviceType: json['device_type'] as String?,
       deviceName: json['device_name'] as String?,

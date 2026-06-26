@@ -70,7 +70,7 @@ Many reading applications offer partial solutions but fall short on essential fe
 2. **Install dependencies**
 
    ```bash
-   cd client
+   cd app
    flutter pub get
    ```
 
@@ -86,6 +86,34 @@ Many reading applications offer partial solutions but fall short on essential fe
    # Desktop
    flutter run -d windows  # or: macos, linux
    ```
+
+### Running with the back-end
+
+When the user signs in, the Flutter client communicates with the Papyrus server for auth and asks the server for PowerSync credentials.
+
+Run the server and PowerSync locally, then start Flutter with:
+
+```bash
+cd ../server
+./scripts/bootstrap_local.sh
+cd ../client/app
+flutter run -d chrome --web-hostname papyrus.localhost --web-port 3000 --dart-define-from-file=.dart_defines
+```
+
+Authenticated books use `papyrus-account.db` and synchronize through
+PowerSync. Guest mode uses the separate local-only `papyrus-guest.db`; guest
+books remain on that device and are not merged into an account.
+
+For local web auth links, add these entries to `/etc/hosts`:
+
+```text
+127.0.0.1 papyrus.localhost
+::1 papyrus.localhost
+```
+
+See
+[`server/docs/flutter-auth-integration.md`](../server/docs/flutter-auth-integration.md)
+for the full integration guide.
 
 ## Documentation
 

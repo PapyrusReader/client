@@ -23,10 +23,7 @@ class AddGoalCard extends StatelessWidget {
         padding: EdgeInsets.all(isDesktop ? Spacing.lg : Spacing.md),
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerLowest,
-          border: Border.all(
-            color: colorScheme.outline.withValues(alpha: 0.4),
-            width: 1.5,
-          ),
+          border: Border.all(color: colorScheme.outline.withValues(alpha: 0.4), width: 1.5),
           borderRadius: BorderRadius.circular(AppRadius.xl),
         ),
         child: Column(
@@ -35,29 +32,15 @@ class AddGoalCard extends StatelessWidget {
             Container(
               width: 56,
               height: 56,
-              decoration: BoxDecoration(
-                color: colorScheme.primaryContainer,
-                shape: BoxShape.circle,
-              ),
-              child: Icon(
-                Icons.add,
-                size: 28,
-                color: colorScheme.onPrimaryContainer,
-              ),
+              decoration: BoxDecoration(color: colorScheme.primaryContainer, shape: BoxShape.circle),
+              child: Icon(Icons.add, size: 28, color: colorScheme.onPrimaryContainer),
             ),
             const SizedBox(height: Spacing.md),
-            Text(
-              'Add new goal',
-              style: textTheme.titleMedium?.copyWith(
-                color: colorScheme.primary,
-              ),
-            ),
+            Text('Add new goal', style: textTheme.titleMedium?.copyWith(color: colorScheme.primary)),
             const SizedBox(height: Spacing.xs),
             Text(
               'Create custom goals\nto track progress',
-              style: textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
           ],

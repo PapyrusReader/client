@@ -137,10 +137,7 @@ class GoalsProvider extends ChangeNotifier {
 
       // Check if goal is now completed
       if (updatedGoal.isCompleted && !goal.isArchived) {
-        updatedGoal = updatedGoal.copyWith(
-          completedAt: DateTime.now(),
-          isArchived: true,
-        );
+        updatedGoal = updatedGoal.copyWith(completedAt: DateTime.now(), isArchived: true);
       }
 
       _dataStore!.updateReadingGoal(updatedGoal);
@@ -148,23 +145,14 @@ class GoalsProvider extends ChangeNotifier {
   }
 
   /// Updates a goal's properties. Persists to DataStore.
-  Future<void> updateGoal({
-    required String goalId,
-    int? target,
-    GoalType? type,
-  }) async {
+  Future<void> updateGoal({required String goalId, int? target, GoalType? type}) async {
     if (_dataStore == null) {
       throw Exception('DataStore not attached');
     }
 
     final goal = _dataStore!.getReadingGoal(goalId);
     if (goal != null) {
-      _dataStore!.updateReadingGoal(
-        goal.copyWith(
-          targetValue: target ?? goal.targetValue,
-          type: type ?? goal.type,
-        ),
-      );
+      _dataStore!.updateReadingGoal(goal.copyWith(targetValue: target ?? goal.targetValue, type: type ?? goal.type));
     }
   }
 
@@ -176,9 +164,7 @@ class GoalsProvider extends ChangeNotifier {
 
     final goal = _dataStore!.getReadingGoal(goalId);
     if (goal != null) {
-      _dataStore!.updateReadingGoal(
-        goal.copyWith(isArchived: true, completedAt: DateTime.now()),
-      );
+      _dataStore!.updateReadingGoal(goal.copyWith(isArchived: true, completedAt: DateTime.now()));
     }
   }
 
@@ -217,9 +203,7 @@ class GoalsProvider extends ChangeNotifier {
       case GoalPeriod.yearly:
         return DateTime(now.year, 12, 31);
       case GoalPeriod.custom:
-        return now.add(
-          const Duration(days: 30),
-        ); // Should be provided by caller
+        return now.add(const Duration(days: 30)); // Should be provided by caller
     }
   }
 }

@@ -58,23 +58,14 @@ class BookGroupHeader extends StatelessWidget {
                       ? Image.network(
                           coverUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) =>
-                              Container(
-                                color: colorScheme.surfaceContainerHighest,
-                                child: Icon(
-                                  Icons.menu_book,
-                                  size: 16,
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                              ),
+                          errorBuilder: (context, error, stackTrace) => Container(
+                            color: colorScheme.surfaceContainerHighest,
+                            child: Icon(Icons.menu_book, size: 16, color: colorScheme.onSurfaceVariant),
+                          ),
                         )
                       : Container(
                           color: colorScheme.surfaceContainerHighest,
-                          child: Icon(
-                            Icons.menu_book,
-                            size: 16,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                          child: Icon(Icons.menu_book, size: 16, color: colorScheme.onSurfaceVariant),
                         ),
                 ),
               ),
@@ -85,17 +76,13 @@ class BookGroupHeader extends StatelessWidget {
                   children: [
                     Text(
                       bookTitle,
-                      style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       '$count ${count == 1 ? itemLabel : '${itemLabel}s'}',
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),

@@ -33,8 +33,7 @@ void main() {
         id: 'note-3',
         bookId: 'book-1',
         title: 'Zen of Python',
-        content:
-            'Beautiful is better than ugly. Explicit is better than implicit.',
+        content: 'Beautiful is better than ugly. Explicit is better than implicit.',
         tags: ['philosophy'],
         createdAt: DateTime(2025, 7, 20),
       ),
@@ -200,9 +199,7 @@ void main() {
 
       testWidgets('long press calls onNoteActions', (tester) async {
         Note? actionNote;
-        await tester.pumpWidget(
-          buildNotes(onNoteActions: (n) => actionNote = n),
-        );
+        await tester.pumpWidget(buildNotes(onNoteActions: (n) => actionNote = n));
 
         await tester.longPress(find.byType(NoteCard).first);
         await tester.pump();
@@ -218,9 +215,7 @@ void main() {
         expect(find.text('Add note'), findsOneWidget);
       });
 
-      testWidgets('mobile does not show add note button in header', (
-        tester,
-      ) async {
+      testWidgets('mobile does not show add note button in header', (tester) async {
         await tester.pumpWidget(buildNotes(screenSize: const Size(400, 800)));
 
         expect(find.text('Add note'), findsNothing);

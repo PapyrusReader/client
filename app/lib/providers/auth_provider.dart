@@ -1,204 +1,260 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
-import 'package:google_sign_in/google_sign_in.dart';
+import 'package:papyrus/auth/auth_api_client.dart';
+import 'package:papyrus/auth/auth_models.dart';
+import 'package:papyrus/auth/auth_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final SupabaseClient _client = Supabase.instance.client;
+  final AuthRepository _repository;
   final SharedPreferences _prefs;
-  bool _initialized = false;
-  late final StreamSubscription<AuthState> _authSubscription;
 
   static const _keyOfflineMode = 'offline_mode';
 
-  User? _user;
-  User? get user => _user;
+  AuthStatus _status = AuthStatus.bootstrapping;
+  AuthStatus get status => _status;
+
+  PapyrusUser? _user;
+  PapyrusUser? get user => _user;
 
   bool _isOfflineMode = false;
   bool get isOfflineMode => _isOfflineMode;
 
-  bool _isLoading = false;
-  bool get isLoading => _isLoading;
+  bool get isBootstrapping => _status == AuthStatus.bootstrapping;
+
+  bool get isSignedIn => _user != null && _status == AuthStatus.signedIn;
+
+  bool get isLoading {
+    return _status == AuthStatus.bootstrapping ||
+        _status == AuthStatus.authenticating ||
+        _status == AuthStatus.refreshing;
+  }
 
   String? _error;
   String? get error => _error;
 
-  AuthProvider(this._prefs) {
+  AuthProvider(this._prefs, {required AuthRepository repository, bool bootstrapOnCreate = true})
+    : _repository = repository {
     _isOfflineMode = _prefs.getBool(_keyOfflineMode) ?? false;
-    // Listen to Supabase auth state changes
-    _authSubscription = _client.auth.onAuthStateChange.listen((data) {
-      _user = data.session?.user;
-      notifyListeners();
+
+    if (bootstrapOnCreate) {
+      unawaited(bootstrap());
+    }
+  }
+
+  Future<void> bootstrap() async {
+    _setStatus(AuthStatus.bootstrapping);
+
+    try {
+      final tokens = await _repository.bootstrap();
+      _user = tokens?.user;
+      _error = null;
+      _setStatus(_user == null ? AuthStatus.signedOut : AuthStatus.signedIn);
+    } catch (error) {
+      _user = null;
+      _error = null;
+      _setStatus(AuthStatus.signedOut);
+    }
+  }
+
+  Future<bool> register({required String email, required String password, required String displayName}) async {
+    return _runTokenAction(() {
+      return _repository.register(
+        email: email,
+        password: password,
+        displayName: displayName,
+        clientType: _clientType,
+        deviceLabel: _deviceLabel,
+      );
     });
-
-    // Initialize Google Sign-In (not needed on web, where Supabase OAuth handles it)
-    if (!kIsWeb) {
-      _initGoogleSignIn();
-    }
   }
 
-  @override
-  void dispose() {
-    _authSubscription.cancel();
-    super.dispose();
+  Future<bool> login({required String email, required String password}) async {
+    return _runTokenAction(() {
+      return _repository.login(email: email, password: password, clientType: _clientType, deviceLabel: _deviceLabel);
+    });
   }
 
-  Future<void> _initGoogleSignIn() async {
-    if (_initialized) return;
-
-    try {
-      await GoogleSignIn.instance.initialize();
-      _initialized = true;
-
-      // Listen to Google Sign-In authentication events
-      GoogleSignIn.instance.authenticationEvents.listen(
-        (event) async {
-          if (event is GoogleSignInAuthenticationEventSignIn) {
-            await _handleGoogleSignInEvent(event.user);
-          } else if (event is GoogleSignInAuthenticationEventSignOut) {
-            // Google signed out; Supabase auth state listener handles state update
-          }
-        },
-        onError: (error) {
-          _error = error.toString();
-          _isLoading = false;
-          notifyListeners();
-          debugPrint('Google Sign-In Stream Error: $error');
-        },
-      );
-
-      // Attempt lightweight authentication (silent sign-in)
-      unawaited(
-        GoogleSignIn.instance.attemptLightweightAuthentication()?.then((
-          account,
-        ) async {
-          if (account != null) {
-            await _handleGoogleSignInEvent(account);
-          }
-        }),
-      );
-    } catch (e) {
-      debugPrint('Google Sign-In initialization error: $e');
-    }
-  }
-
-  Future<void> _handleGoogleSignInEvent(GoogleSignInAccount account) async {
-    try {
-      final idToken = account.authentication.idToken;
-
-      if (idToken != null) {
-        final response = await _client.auth.signInWithIdToken(
-          provider: OAuthProvider.google,
-          idToken: idToken,
-        );
-        _user = response.user;
-      }
-    } catch (e) {
-      _error = e.toString();
-      debugPrint('Supabase credential sign-in error: $e');
-    }
-  }
-
-  Future<User?> signInWithGoogle() async {
-    _isLoading = true;
+  Future<bool> signInWithGoogle() async {
+    _setStatus(AuthStatus.authenticating);
     _error = null;
-    notifyListeners();
 
     try {
-      if (kIsWeb) {
-        // Web: redirect to Google OAuth via Supabase; user is set via onAuthStateChange after return
-        await _client.auth.signInWithOAuth(OAuthProvider.google);
-      } else {
-        // Mobile/Desktop: use google_sign_in for native dialog, exchange token with Supabase
-        await _initGoogleSignIn();
+      final tokens = await _repository.signInWithGoogle(clientType: _clientType, deviceLabel: _deviceLabel);
 
-        if (!GoogleSignIn.instance.supportsAuthenticate()) {
-          // Platform doesn't support authenticate(), rely on lightweight auth
-          final account = await GoogleSignIn.instance
-              .attemptLightweightAuthentication();
-          if (account != null) {
-            await _handleGoogleSignInEvent(account);
-          } else {
-            _error = 'Sign-in not available on this platform';
-          }
-        } else {
-          final GoogleSignInAccount account = await GoogleSignIn.instance
-              .authenticate();
-
-          final idToken = account.authentication.idToken;
-
-          if (idToken != null) {
-            final response = await _client.auth.signInWithIdToken(
-              provider: OAuthProvider.google,
-              idToken: idToken,
-            );
-            _user = response.user;
-          }
-        }
+      if (tokens == null) {
+        return false;
       }
 
-      _isLoading = false;
-      notifyListeners();
-      return _user;
-    } on AuthException catch (e) {
-      _error = e.message;
-      _isLoading = false;
-      notifyListeners();
-      debugPrint('Supabase Auth Error: ${e.message}');
-      return null;
-    } on GoogleSignInException catch (e) {
-      // Handle user cancellation gracefully
-      if (e.code == GoogleSignInExceptionCode.canceled) {
-        _error = null; // Don't show error for user cancellation
-      } else {
-        _error = e.description ?? e.code.toString();
-      }
-      _isLoading = false;
-      notifyListeners();
-      debugPrint('Google Sign-In Error: ${e.code} - ${e.description}');
-      return null;
-    } catch (e) {
-      _error = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      debugPrint('Sign-In Error: $e');
-      return null;
+      _user = tokens.user;
+      _isOfflineMode = false;
+      await _prefs.setBool(_keyOfflineMode, false);
+      _setStatus(AuthStatus.signedIn);
+      return true;
+    } catch (error) {
+      _user = null;
+      _error = _messageFor(error);
+      _setStatus(AuthStatus.authError);
+      return false;
+    }
+  }
+
+  Future<bool> completeGoogleSignIn(Uri callbackUri) async {
+    return _runTokenAction(() {
+      return _repository.completeGoogleSignIn(callbackUri, clientType: _clientType, deviceLabel: _deviceLabel);
+    });
+  }
+
+  Future<bool> refresh() async {
+    _setStatus(AuthStatus.refreshing);
+
+    try {
+      final tokens = await _repository.refresh();
+      _user = tokens.user;
+      _error = null;
+      _setStatus(AuthStatus.signedIn);
+      return true;
+    } catch (error) {
+      _user = null;
+      _error = _messageFor(error);
+      _setStatus(AuthStatus.signedOut);
+      return false;
     }
   }
 
   Future<void> signOut() async {
-    _isLoading = true;
-    notifyListeners();
+    _setStatus(AuthStatus.authenticating);
 
     try {
-      await _client.auth.signOut();
-
-      if (!kIsWeb && _initialized) {
-        await GoogleSignIn.instance.signOut();
-      }
-
-      _user = null;
-      _error = null;
-      setOfflineMode(false);
-    } catch (e) {
-      _error = e.toString();
-      debugPrint('Sign-Out Error: $e');
+      await _repository.logout();
+    } catch (error) {
+      _error = _messageFor(error);
     }
 
-    _isLoading = false;
-    notifyListeners();
+    _user = null;
+    setOfflineMode(false);
+    _setStatus(AuthStatus.signedOut);
+  }
+
+  Future<bool> updateProfile({required String displayName, String? avatarUrl}) async {
+    try {
+      _user = await _repository.updateCurrentUser(displayName: displayName, avatarUrl: avatarUrl);
+      _error = null;
+      notifyListeners();
+      return true;
+    } catch (error) {
+      _error = _messageFor(error);
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<String?> forgotPassword(String email) {
+    return _runMessageAction(() => _repository.forgotPassword(email));
+  }
+
+  Future<String?> resetPassword({required String token, required String password}) {
+    return _runMessageAction(() {
+      return _repository.resetPassword(token: token, password: password);
+    });
+  }
+
+  Future<String?> verifyEmail(String token) {
+    return _runMessageAction(() => _repository.verifyEmail(token));
+  }
+
+  Future<String?> resendVerification(String email) {
+    return _runMessageAction(() => _repository.resendVerification(email));
   }
 
   void setOfflineMode(bool value) {
     _isOfflineMode = value;
     _prefs.setBool(_keyOfflineMode, value);
+
+    if (value) {
+      _user = null;
+      unawaited(_repository.clearTokens());
+      _setStatus(AuthStatus.signedOut);
+    }
+
     notifyListeners();
   }
 
   void clearError() {
     _error = null;
+    notifyListeners();
+  }
+
+  Future<bool> _runTokenAction(Future<AuthTokens> Function() action) async {
+    _setStatus(AuthStatus.authenticating);
+    _error = null;
+
+    try {
+      final tokens = await action();
+      _user = tokens.user;
+      _isOfflineMode = false;
+      await _prefs.setBool(_keyOfflineMode, false);
+      _setStatus(AuthStatus.signedIn);
+      return true;
+    } catch (error) {
+      _error = _messageFor(error);
+      _setStatus(AuthStatus.authError);
+      return false;
+    }
+  }
+
+  Future<String?> _runMessageAction(Future<String> Function() action) async {
+    _setStatus(AuthStatus.authenticating);
+    _error = null;
+
+    try {
+      final message = await action();
+      _setStatus(_user == null ? AuthStatus.signedOut : AuthStatus.signedIn);
+      return message;
+    } catch (error) {
+      _error = _messageFor(error);
+      _setStatus(_user == null ? AuthStatus.authError : AuthStatus.signedIn);
+      return null;
+    }
+  }
+
+  String _messageFor(Object error) {
+    if (error is AuthApiException) {
+      return error.message;
+    }
+
+    return 'Authentication request failed. Please try again.';
+  }
+
+  String get _clientType {
+    if (kIsWeb) {
+      return 'web';
+    }
+
+    switch (defaultTargetPlatform) {
+      case TargetPlatform.android:
+      case TargetPlatform.iOS:
+        return 'mobile';
+      case TargetPlatform.macOS:
+      case TargetPlatform.linux:
+      case TargetPlatform.windows:
+        return 'desktop';
+      case TargetPlatform.fuchsia:
+        return 'unknown';
+    }
+  }
+
+  String get _deviceLabel {
+    if (kIsWeb) {
+      return 'flutter-web';
+    }
+
+    return 'flutter-${defaultTargetPlatform.name}';
+  }
+
+  void _setStatus(AuthStatus status) {
+    _status = status;
     notifyListeners();
   }
 }

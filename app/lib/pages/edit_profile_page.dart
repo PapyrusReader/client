@@ -3,12 +3,13 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
 
 /// Page for editing user profile information (display name and avatar).
 ///
-/// Reads current values from Supabase Auth and writes back on save.
+/// Reads current values from Papyrus auth and writes back on save.
 /// Mobile: full-screen form with AppBar save action.
 /// Desktop: top-centered card within the adaptive shell.
 class EditProfilePage extends StatefulWidget {
@@ -31,8 +32,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   @override
   void initState() {
     super.initState();
-    final user = Supabase.instance.client.auth.currentUser;
-    final displayName = user?.userMetadata?['full_name'] as String? ?? '';
+    final user = context.read<AuthProvider>().user;
+    final displayName = user?.displayName ?? '';
     _nameController = TextEditingController(text: displayName);
   }
 
@@ -43,8 +44,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   bool get _hasChanges {
-    final user = Supabase.instance.client.auth.currentUser;
-    final currentName = user?.userMetadata?['full_name'] as String? ?? '';
+    final user = context.read<AuthProvider>().user;
+    final currentName = user?.displayName ?? '';
     final nameChanged = _nameController.text.trim() != currentName;
     return nameChanged || _pickedImageBytes != null || _photoRemoved;
   }
@@ -57,10 +58,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('Edit profile'),
-        leading: IconButton(
-          icon: const Icon(Icons.close),
-          onPressed: () => _handleBack(context),
-        ),
+        leading: IconButton(icon: const Icon(Icons.close), onPressed: () => _handleBack(context)),
         actions: [
           Padding(
             padding: const EdgeInsets.only(right: Spacing.sm),
@@ -70,21 +68,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
                   ? const SizedBox(
                       width: 20,
                       height: 20,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        color: Colors.white,
-                      ),
+                      child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
                     )
                   : const Text('Save'),
             ),
           ),
         ],
       ),
-      body: SafeArea(
-        child: isDesktop
-            ? _buildDesktopBody(context)
-            : _buildMobileBody(context),
-      ),
+      body: SafeArea(child: isDesktop ? _buildDesktopBody(context) : _buildMobileBody(context)),
     );
   }
 
@@ -93,10 +84,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // ===========================================================================
 
   Widget _buildMobileBody(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(Spacing.md),
-      child: _buildForm(context),
-    );
+    return SingleChildScrollView(padding: const EdgeInsets.all(Spacing.md), child: _buildForm(context));
   }
 
   Widget _buildDesktopBody(BuildContext context) {
@@ -104,10 +92,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       alignment: Alignment.topCenter,
       child: SingleChildScrollView(
         padding: const EdgeInsets.all(Spacing.xl),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: _buildForm(context),
-        ),
+        child: ConstrainedBox(constraints: const BoxConstraints(maxWidth: 480), child: _buildForm(context)),
       ),
     );
   }
@@ -130,18 +115,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
           const SizedBox(height: Spacing.xl),
 
           // Error banner
-          if (_errorMessage != null) ...[
-            _buildErrorBanner(context),
-            const SizedBox(height: Spacing.md),
-          ],
+          if (_errorMessage != null) ...[_buildErrorBanner(context), const SizedBox(height: Spacing.md)],
 
           // Display name
-          Text(
-            'Display name',
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+          Text('Display name', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
           const SizedBox(height: Spacing.sm),
           TextFormField(
             controller: _nameController,
@@ -163,18 +140,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
           const SizedBox(height: Spacing.lg),
 
           // Email (read-only)
-          Text(
-            'Email',
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+          Text('Email', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
           const SizedBox(height: Spacing.sm),
-          TextFormField(
-            initialValue: _getEmail(),
-            enabled: false,
-            decoration: const InputDecoration(),
-          ),
+          TextFormField(initialValue: _getEmail(), enabled: false, decoration: const InputDecoration()),
         ],
       ),
     );
@@ -187,25 +155,13 @@ class _EditProfilePageState extends State<EditProfilePage> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(Spacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.errorContainer,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
+      decoration: BoxDecoration(color: colorScheme.errorContainer, borderRadius: BorderRadius.circular(AppRadius.md)),
       child: Row(
         children: [
-          Icon(
-            Icons.error_outline,
-            color: colorScheme.onErrorContainer,
-            size: IconSizes.medium,
-          ),
+          Icon(Icons.error_outline, color: colorScheme.onErrorContainer, size: IconSizes.medium),
           const SizedBox(width: Spacing.sm),
           Expanded(
-            child: Text(
-              _errorMessage!,
-              style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onErrorContainer,
-              ),
-            ),
+            child: Text(_errorMessage!, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onErrorContainer)),
           ),
         ],
       ),
@@ -227,10 +183,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           Container(
             width: size,
             height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: colorScheme.primaryContainer,
-            ),
+            decoration: BoxDecoration(shape: BoxShape.circle, color: colorScheme.primaryContainer),
             clipBehavior: Clip.antiAlias,
             child: _buildAvatarImage(context, size),
           ),
@@ -245,11 +198,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 color: colorScheme.primary,
                 border: Border.all(color: colorScheme.surface, width: 2),
               ),
-              child: Icon(
-                Icons.camera_alt,
-                size: IconSizes.small,
-                color: colorScheme.onPrimary,
-              ),
+              child: Icon(Icons.camera_alt, size: IconSizes.small, color: colorScheme.onPrimary),
             ),
           ),
         ],
@@ -263,10 +212,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final initialsWidget = Center(
       child: Text(
         _initials,
-        style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-          color: colorScheme.onPrimaryContainer,
-          fontSize: size * 0.35,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.headlineMedium?.copyWith(color: colorScheme.onPrimaryContainer, fontSize: size * 0.35),
       ),
     );
 
@@ -283,9 +231,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
     // Show existing network photo if not removed.
     if (!_photoRemoved) {
-      final photoUrl =
-          Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url']
-              as String?;
+      final photoUrl = context.read<AuthProvider>().user?.avatarUrl;
       if (photoUrl != null && photoUrl.isNotEmpty) {
         return Image.network(
           photoUrl,
@@ -303,9 +249,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   bool get _hasExistingPhoto {
     if (_photoRemoved) return false;
     if (_pickedImageBytes != null) return true;
-    final photoUrl =
-        Supabase.instance.client.auth.currentUser?.userMetadata?['avatar_url']
-            as String?;
+    final photoUrl = context.read<AuthProvider>().user?.avatarUrl;
     return photoUrl != null && photoUrl.isNotEmpty;
   }
 
@@ -326,14 +270,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
             ),
             if (_hasExistingPhoto)
               ListTile(
-                leading: Icon(
-                  Icons.delete_outline,
-                  color: Theme.of(context).colorScheme.error,
-                ),
-                title: Text(
-                  'Remove photo',
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
-                ),
+                leading: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
+                title: Text('Remove photo', style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 onTap: () {
                   Navigator.pop(sheetContext);
                   setState(() {
@@ -350,10 +288,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
 
   Future<void> _pickImage() async {
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        withData: true,
-      );
+      final result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
       if (result != null && result.files.single.bytes != null) {
         setState(() {
           _pickedImageBytes = result.files.single.bytes;
@@ -362,9 +297,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not open image picker')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not open image picker')));
       }
     }
   }
@@ -382,8 +315,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     });
 
     try {
-      final client = Supabase.instance.client;
-      if (client.auth.currentUser == null) {
+      final authProvider = context.read<AuthProvider>();
+      final user = authProvider.user;
+
+      if (user == null) {
         setState(() {
           _errorMessage = 'Not signed in';
           _isSaving = false;
@@ -392,28 +327,23 @@ class _EditProfilePageState extends State<EditProfilePage> {
       }
 
       final newName = _nameController.text.trim();
-      final currentName =
-          client.auth.currentUser?.userMetadata?['full_name'] as String? ?? '';
+      final currentName = user.displayName;
 
-      final Map<String, dynamic> data = {};
-      if (newName != currentName) data['full_name'] = newName;
-      // Note: uploading a new photo requires a storage backend which isn't
-      // configured yet. Picked images are shown as a local preview but won't
-      // persist across devices until storage is set up.
-      if (_photoRemoved) data['avatar_url'] = null;
+      if (newName != currentName) {
+        final success = await authProvider.updateProfile(displayName: newName);
 
-      if (data.isNotEmpty) {
-        await client.auth.updateUser(UserAttributes(data: data));
+        if (!success) {
+          setState(() {
+            _errorMessage = authProvider.error ?? 'Failed to update profile';
+            _isSaving = false;
+          });
+          return;
+        }
       }
 
       if (context.mounted) {
         context.pop();
       }
-    } on AuthException catch (e) {
-      setState(() {
-        _errorMessage = e.message;
-        _isSaving = false;
-      });
     } catch (e) {
       setState(() {
         _errorMessage = 'Failed to update profile';
@@ -428,14 +358,9 @@ class _EditProfilePageState extends State<EditProfilePage> {
         context: context,
         builder: (dialogContext) => AlertDialog(
           title: const Text('Discard changes?'),
-          content: const Text(
-            'You have unsaved changes. Are you sure you want to discard them?',
-          ),
+          content: const Text('You have unsaved changes. Are you sure you want to discard them?'),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Keep editing'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Keep editing')),
             FilledButton(
               onPressed: () {
                 Navigator.pop(dialogContext);
@@ -456,7 +381,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
   // ===========================================================================
 
   String _getEmail() {
-    final email = Supabase.instance.client.auth.currentUser?.email;
+    final email = context.read<AuthProvider>().user?.email;
     if (email == null || email.trim().isEmpty) return 'No email provided';
     return email;
   }

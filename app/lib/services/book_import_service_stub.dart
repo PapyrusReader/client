@@ -6,6 +6,7 @@ import 'package:papyrus/services/book_import_result.dart';
 import 'package:papyrus/services/file_metadata_service.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 export 'package:papyrus/services/book_import_result.dart';
 
@@ -15,9 +16,6 @@ export 'package:papyrus/services/book_import_result.dart';
 /// in the application documents directory.
 class BookImportService {
   final _metadataService = FileMetadataService();
-
-  /// Incrementing counter used to guarantee unique book IDs.
-  int _nextId = 0;
 
   /// Imports a book file: extracts metadata and stores the file locally.
   ///
@@ -29,7 +27,7 @@ class BookImportService {
       throw ArgumentError('Filename has no extension: $filename');
     }
 
-    final bookId = 'book-${DateTime.now().millisecondsSinceEpoch}-${_nextId++}';
+    final bookId = const Uuid().v4();
 
     // Extract metadata
     final metadata = await _metadataService.extractMetadata(bytes, filename);

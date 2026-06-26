@@ -14,10 +14,7 @@ void main() {
     });
 
     Widget buildChips({LibraryProvider? provider}) {
-      return createTestApp(
-        libraryProvider: provider ?? libraryProvider,
-        child: const LibraryFilterChips(),
-      );
+      return createTestApp(libraryProvider: provider ?? libraryProvider, child: const LibraryFilterChips());
     }
 
     testWidgets('displays all five filter chips', (tester) async {
@@ -33,15 +30,11 @@ void main() {
     testWidgets('"All" chip is selected by default', (tester) async {
       await tester.pumpWidget(buildChips());
 
-      final allChip = tester.widget<FilterChip>(
-        find.ancestor(of: find.text('All'), matching: find.byType(FilterChip)),
-      );
+      final allChip = tester.widget<FilterChip>(find.ancestor(of: find.text('All'), matching: find.byType(FilterChip)));
       expect(allChip.selected, true);
     });
 
-    testWidgets('tapping "Reading" chip toggles reading filter', (
-      tester,
-    ) async {
+    testWidgets('tapping "Reading" chip toggles reading filter', (tester) async {
       await tester.pumpWidget(buildChips());
 
       await tester.tap(find.text('Reading'));
@@ -51,9 +44,7 @@ void main() {
       expect(libraryProvider.isFilterActive(LibraryFilterType.all), false);
     });
 
-    testWidgets('tapping "Favorites" chip toggles favorites filter', (
-      tester,
-    ) async {
+    testWidgets('tapping "Favorites" chip toggles favorites filter', (tester) async {
       await tester.pumpWidget(buildChips());
 
       await tester.tap(find.text('Favorites'));
@@ -62,9 +53,7 @@ void main() {
       expect(libraryProvider.isFilterActive(LibraryFilterType.favorites), true);
     });
 
-    testWidgets('tapping "Finished" chip toggles finished filter', (
-      tester,
-    ) async {
+    testWidgets('tapping "Finished" chip toggles finished filter', (tester) async {
       await tester.pumpWidget(buildChips());
 
       await tester.tap(find.text('Finished'));
@@ -94,10 +83,7 @@ void main() {
 
       expect(libraryProvider.isFilterActive(LibraryFilterType.all), true);
       expect(libraryProvider.isFilterActive(LibraryFilterType.reading), false);
-      expect(
-        libraryProvider.isFilterActive(LibraryFilterType.favorites),
-        false,
-      );
+      expect(libraryProvider.isFilterActive(LibraryFilterType.favorites), false);
     });
 
     testWidgets('tapping a filter chip twice deactivates it', (tester) async {

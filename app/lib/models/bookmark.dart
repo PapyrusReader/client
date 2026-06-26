@@ -71,12 +71,8 @@ class Bookmark {
       id: id ?? this.id,
       bookId: bookId ?? this.bookId,
       position: position ?? this.position,
-      pageNumber: identical(pageNumber, _sentinel)
-          ? this.pageNumber
-          : pageNumber as int?,
-      chapterTitle: identical(chapterTitle, _sentinel)
-          ? this.chapterTitle
-          : chapterTitle as String?,
+      pageNumber: identical(pageNumber, _sentinel) ? this.pageNumber : pageNumber as int?,
+      chapterTitle: identical(chapterTitle, _sentinel) ? this.chapterTitle : chapterTitle as String?,
       note: identical(note, _sentinel) ? this.note : note as String?,
       colorHex: colorHex ?? this.colorHex,
       createdAt: createdAt ?? this.createdAt,

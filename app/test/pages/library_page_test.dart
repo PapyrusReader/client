@@ -22,11 +22,7 @@ void main() {
       dataStore = createTestDataStore();
     });
 
-    Widget buildPage({
-      Size screenSize = const Size(400, 800),
-      LibraryProvider? provider,
-      DataStore? store,
-    }) {
+    Widget buildPage({Size screenSize = const Size(400, 800), LibraryProvider? provider, DataStore? store}) {
       return createTestPage(
         page: const LibraryPage(),
         libraryProvider: provider ?? libraryProvider,
@@ -77,9 +73,7 @@ void main() {
       });
 
       testWidgets('displays singular "book" when only 1 book', (tester) async {
-        final singleBookStore = createTestDataStore(
-          books: [createTestBooks().first],
-        );
+        final singleBookStore = createTestDataStore(books: [createTestBooks().first]);
         await tester.pumpWidget(buildPage(store: singleBookStore));
         await tester.pumpAndSettle();
 
@@ -102,9 +96,7 @@ void main() {
         expect(find.byIcon(Icons.view_list), findsOneWidget);
       });
 
-      testWidgets('switches to list view when list mode is selected', (
-        tester,
-      ) async {
+      testWidgets('switches to list view when list mode is selected', (tester) async {
         libraryProvider.setViewMode(LibraryViewMode.list);
         await tester.pumpWidget(buildPage());
         await tester.pumpAndSettle();
@@ -113,19 +105,14 @@ void main() {
         expect(find.byType(BookCard), findsNothing);
       });
 
-      testWidgets('shows empty state when no books match filter', (
-        tester,
-      ) async {
+      testWidgets('shows empty state when no books match filter', (tester) async {
         final emptyStore = createTestDataStore(books: []);
         await tester.pumpWidget(buildPage(store: emptyStore));
         await tester.pumpAndSettle();
 
         expect(find.byType(EmptyState), findsOneWidget);
         expect(find.text('No books found'), findsOneWidget);
-        expect(
-          find.text('Try adjusting your filters or add some books'),
-          findsOneWidget,
-        );
+        expect(find.text('Try adjusting your filters or add some books'), findsOneWidget);
       });
     });
 
@@ -197,9 +184,7 @@ void main() {
 
       testWidgets('shows empty state when no books on desktop', (tester) async {
         final emptyStore = createTestDataStore(books: []);
-        await tester.pumpWidget(
-          buildPage(screenSize: desktopSize, store: emptyStore),
-        );
+        await tester.pumpWidget(buildPage(screenSize: desktopSize, store: emptyStore));
         await tester.pumpAndSettle();
 
         expect(find.byType(EmptyState), findsOneWidget);
@@ -254,9 +239,7 @@ void main() {
         expect(find.text('2 books'), findsOneWidget);
       });
 
-      testWidgets('shows empty state when no books match filter', (
-        tester,
-      ) async {
+      testWidgets('shows empty state when no books match filter', (tester) async {
         // Add a filter and clear all books
         libraryProvider.addFilter(LibraryFilterType.reading);
         final storeWithNoReadingBooks = createTestDataStore(
@@ -321,9 +304,7 @@ void main() {
     // ========================================================================
 
     group('view mode switching', () {
-      testWidgets('toggling view mode on mobile updates the display', (
-        tester,
-      ) async {
+      testWidgets('toggling view mode on mobile updates the display', (tester) async {
         await tester.pumpWidget(buildPage());
         await tester.pumpAndSettle();
 
@@ -338,9 +319,7 @@ void main() {
         expect(find.byType(BookCard), findsNothing);
       });
 
-      testWidgets('tapping grid segment on mobile selects grid view', (
-        tester,
-      ) async {
+      testWidgets('tapping grid segment on mobile selects grid view', (tester) async {
         libraryProvider.setViewMode(LibraryViewMode.list);
         await tester.pumpWidget(buildPage());
         await tester.pumpAndSettle();
@@ -352,9 +331,7 @@ void main() {
         expect(libraryProvider.viewMode, LibraryViewMode.grid);
       });
 
-      testWidgets('tapping list segment on mobile selects list view', (
-        tester,
-      ) async {
+      testWidgets('tapping list segment on mobile selects list view', (tester) async {
         await tester.pumpWidget(buildPage());
         await tester.pumpAndSettle();
 
@@ -365,9 +342,7 @@ void main() {
         expect(libraryProvider.viewMode, LibraryViewMode.list);
       });
 
-      testWidgets('tapping toggle on desktop switches view mode', (
-        tester,
-      ) async {
+      testWidgets('tapping toggle on desktop switches view mode', (tester) async {
         const desktopSize = Size(1200, 800);
         await tester.pumpWidget(buildPage(screenSize: desktopSize));
         await tester.pumpAndSettle();
@@ -442,9 +417,7 @@ void main() {
     // ========================================================================
 
     group('desktop compact layout', () {
-      testWidgets('uses compact layout at narrow desktop width', (
-        tester,
-      ) async {
+      testWidgets('uses compact layout at narrow desktop width', (tester) async {
         // 850px is >= desktopSmall (840) but < 800 in maxWidth
         // after padding. Let's use exactly 860 to trigger desktop
         // but be narrow enough for compact layout.

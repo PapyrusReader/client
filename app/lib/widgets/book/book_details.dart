@@ -15,12 +15,7 @@ class BookDetails extends StatefulWidget {
   final bool isDescriptionExpanded;
   final VoidCallback? onToggleDescription;
 
-  const BookDetails({
-    super.key,
-    required this.book,
-    this.isDescriptionExpanded = false,
-    this.onToggleDescription,
-  });
+  const BookDetails({super.key, required this.book, this.isDescriptionExpanded = false, this.onToggleDescription});
 
   @override
   State<BookDetails> createState() => _BookDetailsState();
@@ -114,12 +109,7 @@ class _BookDetailsState extends State<BookDetails> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
-        ),
+        Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
         Divider(height: 1, thickness: 1, color: colorScheme.outlineVariant),
       ],
@@ -133,10 +123,9 @@ class _BookDetailsState extends State<BookDetails> {
     if (description.isEmpty) {
       return Text(
         'No description available.',
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-          fontStyle: FontStyle.italic,
-          color: colorScheme.onSurfaceVariant,
-        ),
+        style: Theme.of(
+          context,
+        ).textTheme.bodyMedium?.copyWith(fontStyle: FontStyle.italic, color: colorScheme.onSurfaceVariant),
       );
     }
 
@@ -158,10 +147,9 @@ class _BookDetailsState extends State<BookDetails> {
             onTap: widget.onToggleDescription,
             child: Text(
               widget.isDescriptionExpanded ? 'Show less' : 'Read more',
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                color: colorScheme.primary,
-                fontWeight: FontWeight.w600,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodyMedium?.copyWith(color: colorScheme.primary, fontWeight: FontWeight.w600),
             ),
           ),
         ],
@@ -210,10 +198,7 @@ class _BookDetailsState extends State<BookDetails> {
             avatar: Container(
               width: 8,
               height: 8,
-              decoration: BoxDecoration(
-                color: tag.color,
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: tag.color, shape: BoxShape.circle),
             ),
             label: Text(tag.name),
             visualDensity: VisualDensity.compact,
@@ -234,9 +219,7 @@ class _BookDetailsState extends State<BookDetails> {
 
   void _showMoveToShelfSheet(BuildContext context) {
     final dataStore = context.read<DataStore>();
-    final currentShelfIds = dataStore
-        .getShelfIdsForBook(widget.book.id)
-        .toSet();
+    final currentShelfIds = dataStore.getShelfIdsForBook(widget.book.id).toSet();
 
     MoveToShelfSheet.show(
       context,

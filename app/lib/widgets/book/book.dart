@@ -22,20 +22,13 @@ class _BookState extends State<Book> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
     isFinished = widget.data.isFinished;
-    animationController = AnimationController(
-      duration: const Duration(milliseconds: 250),
-      vsync: this,
-    );
+    animationController = AnimationController(duration: const Duration(milliseconds: 250), vsync: this);
 
-    animation = ColorTween(
-      begin: Colors.transparent,
-      end: Colors.green[500],
-    ).animate(animationController)..addListener(() => setState(() {}));
+    animation = ColorTween(begin: Colors.transparent, end: Colors.green[500]).animate(animationController)
+      ..addListener(() => setState(() {}));
 
-    backgroundAnimation = ColorTween(
-      begin: Colors.transparent,
-      end: Colors.green[100],
-    ).animate(animationController)..addListener(() => setState(() {}));
+    backgroundAnimation = ColorTween(begin: Colors.transparent, end: Colors.green[100]).animate(animationController)
+      ..addListener(() => setState(() {}));
   }
 
   @override
@@ -50,17 +43,12 @@ class _BookState extends State<Book> with SingleTickerProviderStateMixin {
       child: InkWell(
         borderRadius: BorderRadius.circular(8.0),
         onTap: () {
-          context.pushNamed(
-            'BOOK_DETAILS',
-            pathParameters: {"bookId": widget.id},
-          );
+          context.pushNamed('BOOK_DETAILS', pathParameters: {"bookId": widget.id});
         },
         onLongPress: () {
           showModalBottomSheet(
             isScrollControlled: true,
-            shape: const RoundedRectangleBorder(
-              borderRadius: BorderRadius.vertical(top: Radius.circular(18.0)),
-            ),
+            shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(18.0))),
             context: context,
             builder: (context) {
               return Container(
@@ -71,13 +59,7 @@ class _BookState extends State<Book> with SingleTickerProviderStateMixin {
                   children: [
                     TextButton(
                       onPressed: () {},
-                      child: const Row(
-                        children: [
-                          Icon(Icons.info_outline),
-                          SizedBox(width: 8),
-                          Text("View details"),
-                        ],
-                      ),
+                      child: const Row(children: [Icon(Icons.info_outline), SizedBox(width: 8), Text("View details")]),
                     ),
                     TextButton(
                       onPressed: () {
@@ -88,48 +70,26 @@ class _BookState extends State<Book> with SingleTickerProviderStateMixin {
                       },
                       child: Row(
                         children: [
-                          Icon(
-                            !isFinished
-                                ? Icons.check_box_outline_blank_rounded
-                                : Icons.check_box_rounded,
-                          ),
+                          Icon(!isFinished ? Icons.check_box_outline_blank_rounded : Icons.check_box_rounded),
                           const SizedBox(width: 8),
-                          Text(
-                            isFinished
-                                ? "Mark as unfinished"
-                                : "Mark as finished",
-                          ),
+                          Text(isFinished ? "Mark as unfinished" : "Mark as finished"),
                         ],
                       ),
                     ),
                     TextButton(
                       onPressed: () {},
                       child: const Row(
-                        children: [
-                          Icon(Icons.add_to_photos_rounded),
-                          SizedBox(width: 8),
-                          Text("Add to shelf"),
-                        ],
+                        children: [Icon(Icons.add_to_photos_rounded), SizedBox(width: 8), Text("Add to shelf")],
                       ),
                     ),
                     TextButton(
                       onPressed: () {},
-                      child: const Row(
-                        children: [
-                          Icon(Icons.download_rounded),
-                          SizedBox(width: 8),
-                          Text("Export"),
-                        ],
-                      ),
+                      child: const Row(children: [Icon(Icons.download_rounded), SizedBox(width: 8), Text("Export")]),
                     ),
                     TextButton(
                       onPressed: () {},
                       child: const Row(
-                        children: [
-                          Icon(Icons.delete_outline),
-                          SizedBox(width: 8),
-                          Text("Delete from library"),
-                        ],
+                        children: [Icon(Icons.delete_outline), SizedBox(width: 8), Text("Delete from library")],
                       ),
                     ),
                   ],
@@ -152,14 +112,8 @@ class _BookState extends State<Book> with SingleTickerProviderStateMixin {
                       right: 0,
                       bottom: 0,
                       child: widget.data.coverURL != null
-                          ? Image(
-                              image: AssetImage(widget.data.coverURL!),
-                              fit: BoxFit.cover,
-                            )
-                          : Container(
-                              color: Colors.grey[300],
-                              child: const Icon(Icons.menu_book, size: 48),
-                            ),
+                          ? Image(image: AssetImage(widget.data.coverURL!), fit: BoxFit.cover)
+                          : Container(color: Colors.grey[300], child: const Icon(Icons.menu_book, size: 48)),
                     ),
                     Positioned(
                       right: 6,
@@ -185,11 +139,7 @@ class _BookState extends State<Book> with SingleTickerProviderStateMixin {
             ),
             const SizedBox(height: 2),
             Text(widget.data.title, overflow: TextOverflow.ellipsis),
-            Text(
-              widget.data.author,
-              overflow: TextOverflow.ellipsis,
-              style: Theme.of(context).textTheme.labelSmall,
-            ),
+            Text(widget.data.author, overflow: TextOverflow.ellipsis, style: Theme.of(context).textTheme.labelSmall),
           ],
         ),
       ),

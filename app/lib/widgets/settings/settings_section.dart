@@ -57,12 +57,7 @@ class SettingsCard extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (title != null) ...[
-            Text(
-              title!,
-              style: textTheme.titleMedium?.copyWith(
-                fontWeight: FontWeight.w600,
-              ),
-            ),
+            Text(title!, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: Spacing.md),
           ],
           ...children,

@@ -60,9 +60,7 @@ class _BookmarkListItemState extends State<BookmarkListItem> {
           onLongPress: widget.onLongPress,
           child: Container(
             decoration: BoxDecoration(
-              border: Border(
-                left: BorderSide(color: widget.bookmark.color, width: 4),
-              ),
+              border: Border(left: BorderSide(color: widget.bookmark.color, width: 4)),
             ),
             child: Padding(
               padding: const EdgeInsets.all(Spacing.md),
@@ -91,10 +89,7 @@ class _BookmarkListItemState extends State<BookmarkListItem> {
         Container(
           width: 8,
           height: 8,
-          decoration: BoxDecoration(
-            color: widget.bookmark.color,
-            shape: BoxShape.circle,
-          ),
+          decoration: BoxDecoration(color: widget.bookmark.color, shape: BoxShape.circle),
         ),
         const SizedBox(width: Spacing.sm),
         Expanded(
@@ -136,11 +131,7 @@ class _BookmarkListItemState extends State<BookmarkListItem> {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(
-            Icons.note_outlined,
-            size: IconSizes.small,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          Icon(Icons.note_outlined, size: IconSizes.small, color: colorScheme.onSurfaceVariant),
           const SizedBox(width: Spacing.sm),
           Expanded(
             child: Text(
@@ -158,9 +149,7 @@ class _BookmarkListItemState extends State<BookmarkListItem> {
   Widget _buildDate(ColorScheme colorScheme, TextTheme textTheme) {
     return Text(
       formatRelativeDate(widget.bookmark.createdAt),
-      style: textTheme.labelSmall?.copyWith(
-        color: colorScheme.onSurfaceVariant,
-      ),
+      style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
     );
   }
 

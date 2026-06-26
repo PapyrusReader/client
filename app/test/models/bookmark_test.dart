@@ -18,10 +18,7 @@ void main() {
       });
 
       test('displayLocation shows chapter and page when both present', () {
-        final bookmark = buildTestBookmark(
-          chapterTitle: 'Chapter 1',
-          pageNumber: 42,
-        );
+        final bookmark = buildTestBookmark(chapterTitle: 'Chapter 1', pageNumber: 42);
         expect(bookmark.displayLocation, 'Chapter 1, Page 42');
       });
 
@@ -50,11 +47,7 @@ void main() {
 
     group('copyWith sentinel pattern', () {
       test('keeps nullable fields when not passed', () {
-        final bookmark = buildTestBookmark(
-          pageNumber: 10,
-          chapterTitle: 'Ch1',
-          note: 'A note',
-        );
+        final bookmark = buildTestBookmark(pageNumber: 10, chapterTitle: 'Ch1', note: 'A note');
         final copy = bookmark.copyWith(colorHex: '#FF0000');
 
         expect(copy.pageNumber, 10);
@@ -160,12 +153,7 @@ void main() {
       });
 
       test('defaults colorHex when missing', () {
-        final json = {
-          'id': 'bm-1',
-          'book_id': 'book-1',
-          'position': 0.5,
-          'created_at': '2025-01-01T00:00:00.000',
-        };
+        final json = {'id': 'bm-1', 'book_id': 'book-1', 'position': 0.5, 'created_at': '2025-01-01T00:00:00.000'};
 
         final bookmark = Bookmark.fromJson(json);
         expect(bookmark.colorHex, '#FF5722');

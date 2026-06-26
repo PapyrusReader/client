@@ -7,11 +7,7 @@ class QuickFilterChipData {
   final IconData icon;
   final bool isSelected;
 
-  const QuickFilterChipData({
-    required this.label,
-    required this.icon,
-    required this.isSelected,
-  });
+  const QuickFilterChipData({required this.label, required this.icon, required this.isSelected});
 }
 
 /// Horizontal scrollable filter chips, provider-agnostic.
@@ -20,12 +16,7 @@ class QuickFilterChips extends StatelessWidget {
   final ValueChanged<int> onFilterTapped;
   final double? horizontalPadding;
 
-  const QuickFilterChips({
-    super.key,
-    required this.filters,
-    required this.onFilterTapped,
-    this.horizontalPadding,
-  });
+  const QuickFilterChips({super.key, required this.filters, required this.onFilterTapped, this.horizontalPadding});
 
   @override
   Widget build(BuildContext context) {
@@ -37,12 +28,9 @@ class QuickFilterChips extends StatelessWidget {
         height: 48,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
-          padding: EdgeInsets.symmetric(
-            horizontal: horizontalPadding ?? Spacing.md,
-          ),
+          padding: EdgeInsets.symmetric(horizontal: horizontalPadding ?? Spacing.md),
           itemCount: filters.length,
-          separatorBuilder: (context, index) =>
-              const SizedBox(width: Spacing.sm),
+          separatorBuilder: (context, index) => const SizedBox(width: Spacing.sm),
           itemBuilder: (context, index) {
             final filter = filters[index];
 
@@ -53,17 +41,13 @@ class QuickFilterChips extends StatelessWidget {
                   Icon(
                     filter.icon,
                     size: IconSizes.small,
-                    color: filter.isSelected
-                        ? colorScheme.onSecondaryContainer
-                        : colorScheme.onSurfaceVariant,
+                    color: filter.isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
                   ),
                   const SizedBox(width: Spacing.xs),
                   Text(
                     filter.label,
                     style: TextStyle(
-                      color: filter.isSelected
-                          ? colorScheme.onSecondaryContainer
-                          : colorScheme.onSurfaceVariant,
+                      color: filter.isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
                     ),
                   ),
                 ],

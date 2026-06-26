@@ -40,33 +40,24 @@ class EmptyState extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(
-              icon,
-              size: iconSize,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-            ),
+            Icon(icon, size: iconSize, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
             const SizedBox(height: Spacing.md),
             Text(
               title,
-              style: Theme.of(context).textTheme.titleLarge?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
+              style: Theme.of(context).textTheme.titleLarge?.copyWith(color: colorScheme.onSurfaceVariant),
               textAlign: TextAlign.center,
             ),
             if (subtitle != null) ...[
               const SizedBox(height: Spacing.sm),
               Text(
                 subtitle!,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
                 textAlign: TextAlign.center,
               ),
             ],
-            if (action != null) ...[
-              const SizedBox(height: Spacing.lg),
-              action!,
-            ],
+            if (action != null) ...[const SizedBox(height: Spacing.lg), action!],
           ],
         ),
       ),

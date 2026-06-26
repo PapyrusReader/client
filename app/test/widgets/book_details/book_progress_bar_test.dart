@@ -38,9 +38,7 @@ void main() {
       });
 
       testWidgets('shows page numbers when provided', (tester) async {
-        await tester.pumpWidget(
-          buildWidget(progress: 0.5, currentPage: 150, totalPages: 300),
-        );
+        await tester.pumpWidget(buildWidget(progress: 0.5, currentPage: 150, totalPages: 300));
 
         expect(find.text('150 / 300 (50%)'), findsOneWidget);
       });
@@ -70,9 +68,7 @@ void main() {
     });
 
     group('onTap', () {
-      testWidgets('wraps in GestureDetector when onTap provided', (
-        tester,
-      ) async {
+      testWidgets('wraps in GestureDetector when onTap provided', (tester) async {
         var called = false;
         await tester.pumpWidget(buildWidget(onTap: () => called = true));
 
@@ -82,9 +78,7 @@ void main() {
         expect(called, true);
       });
 
-      testWidgets('does not wrap in GestureDetector when onTap is null', (
-        tester,
-      ) async {
+      testWidgets('does not wrap in GestureDetector when onTap is null', (tester) async {
         await tester.pumpWidget(buildWidget());
 
         expect(find.byType(GestureDetector), findsNothing);

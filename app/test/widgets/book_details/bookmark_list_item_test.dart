@@ -31,12 +31,7 @@ void main() {
     );
   });
 
-  Widget buildItem({
-    Bookmark? bookmark,
-    bool showActionMenu = true,
-    VoidCallback? onTap,
-    VoidCallback? onLongPress,
-  }) {
+  Widget buildItem({Bookmark? bookmark, bool showActionMenu = true, VoidCallback? onTap, VoidCallback? onLongPress}) {
     return createTestApp(
       child: BookmarkListItem(
         bookmark: bookmark ?? bookmarkWithNote,
@@ -65,10 +60,7 @@ void main() {
       testWidgets('shows note text when bookmark has a note', (tester) async {
         await tester.pumpWidget(buildItem());
 
-        expect(
-          find.text('This is an important passage to remember.'),
-          findsOneWidget,
-        );
+        expect(find.text('This is an important passage to remember.'), findsOneWidget);
       });
 
       testWidgets('hides note section when no note', (tester) async {
@@ -91,25 +83,19 @@ void main() {
         expect(dot, findsOneWidget);
       });
 
-      testWidgets('shows action menu when showActionMenu is true', (
-        tester,
-      ) async {
+      testWidgets('shows action menu when showActionMenu is true', (tester) async {
         await tester.pumpWidget(buildItem(showActionMenu: true));
 
         expect(find.byIcon(Icons.more_vert), findsOneWidget);
       });
 
-      testWidgets('hides action menu when showActionMenu is false', (
-        tester,
-      ) async {
+      testWidgets('hides action menu when showActionMenu is false', (tester) async {
         await tester.pumpWidget(buildItem(showActionMenu: false));
 
         expect(find.byIcon(Icons.more_vert), findsNothing);
       });
 
-      testWidgets('displays page-only location when no chapter', (
-        tester,
-      ) async {
+      testWidgets('displays page-only location when no chapter', (tester) async {
         await tester.pumpWidget(buildItem(bookmark: bookmarkWithoutNote));
 
         expect(find.text('Page 100'), findsOneWidget);
@@ -119,9 +105,7 @@ void main() {
     group('callbacks', () {
       testWidgets('long press calls onLongPress', (tester) async {
         var longPressed = false;
-        await tester.pumpWidget(
-          buildItem(onLongPress: () => longPressed = true),
-        );
+        await tester.pumpWidget(buildItem(onLongPress: () => longPressed = true));
 
         await tester.longPress(find.byType(BookmarkListItem));
         await tester.pump();

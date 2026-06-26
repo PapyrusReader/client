@@ -77,20 +77,7 @@ List<_AggregatedBucket> _aggregateWeekly(List<DailyActivity> activities) {
 // AXIS HELPERS
 // =============================================================================
 
-const _months = [
-  'Jan',
-  'Feb',
-  'Mar',
-  'Apr',
-  'May',
-  'Jun',
-  'Jul',
-  'Aug',
-  'Sep',
-  'Oct',
-  'Nov',
-  'Dec',
-];
+const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /// Formats a minutes value for the Y-axis (e.g., "0", "30m", "1h", "1.5h").
 String _formatMinutesLabel(double value) {
@@ -111,24 +98,7 @@ String _formatPagesLabel(double value) {
 ({double interval, double maxY}) _niceYAxis(double maxValue) {
   if (maxValue <= 0) return (interval: 15.0, maxY: 60.0);
   final rawInterval = maxValue / 3;
-  const niceSteps = [
-    5,
-    10,
-    15,
-    20,
-    25,
-    30,
-    50,
-    60,
-    100,
-    120,
-    150,
-    200,
-    250,
-    300,
-    500,
-    1000,
-  ];
+  const niceSteps = [5, 10, 15, 20, 25, 30, 50, 60, 100, 120, 150, 200, 250, 300, 500, 1000];
   var interval = (rawInterval / 100).ceil() * 100.0;
   for (final step in niceSteps) {
     if (step >= rawInterval) {
@@ -141,31 +111,18 @@ String _formatPagesLabel(double value) {
 }
 
 /// Builds a Y-axis title widget.
-Widget _buildYAxisLabel(
-  double value,
-  TextTheme textTheme,
-  ColorScheme colorScheme,
-  String Function(double) formatter,
-) {
+Widget _buildYAxisLabel(double value, TextTheme textTheme, ColorScheme colorScheme, String Function(double) formatter) {
   return Padding(
     padding: const EdgeInsets.only(right: 4),
     child: Text(
       formatter(value),
-      style: textTheme.labelSmall?.copyWith(
-        color: colorScheme.onSurfaceVariant,
-        fontSize: 10,
-      ),
+      style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant, fontSize: 10),
     ),
   );
 }
 
 /// Builds a bottom axis label for chart data points.
-Widget _buildBottomLabel(
-  double value,
-  List<DailyActivity> activities,
-  TextTheme textTheme,
-  ColorScheme colorScheme,
-) {
+Widget _buildBottomLabel(double value, List<DailyActivity> activities, TextTheme textTheme, ColorScheme colorScheme) {
   final idx = value.toInt();
   if (idx < 0 || idx >= activities.length) return const SizedBox.shrink();
 
@@ -183,8 +140,7 @@ Widget _buildBottomLabel(
       label = '${activity.date.day}';
     }
   } else {
-    if (idx == 0 ||
-        activities[idx].date.month != activities[idx - 1].date.month) {
+    if (idx == 0 || activities[idx].date.month != activities[idx - 1].date.month) {
       label = _months[activity.date.month - 1];
     }
   }
@@ -196,9 +152,7 @@ Widget _buildBottomLabel(
     child: Text(
       label,
       style: textTheme.labelSmall?.copyWith(
-        color: activity.isToday
-            ? colorScheme.primary
-            : colorScheme.onSurfaceVariant,
+        color: activity.isToday ? colorScheme.primary : colorScheme.onSurfaceVariant,
         fontWeight: activity.isToday ? FontWeight.bold : FontWeight.normal,
         fontSize: 10,
       ),
@@ -217,8 +171,7 @@ Widget _buildBucketBottomLabel(
   if (idx < 0 || idx >= buckets.length) return const SizedBox.shrink();
 
   final bucket = buckets[idx];
-  if (idx > 0 &&
-      buckets[idx].startDate.month == buckets[idx - 1].startDate.month) {
+  if (idx > 0 && buckets[idx].startDate.month == buckets[idx - 1].startDate.month) {
     return const SizedBox.shrink();
   }
 
@@ -227,9 +180,7 @@ Widget _buildBucketBottomLabel(
     child: Text(
       _months[bucket.startDate.month - 1],
       style: textTheme.labelSmall?.copyWith(
-        color: bucket.containsToday
-            ? colorScheme.primary
-            : colorScheme.onSurfaceVariant,
+        color: bucket.containsToday ? colorScheme.primary : colorScheme.onSurfaceVariant,
         fontWeight: bucket.containsToday ? FontWeight.bold : FontWeight.normal,
         fontSize: 10,
       ),
@@ -247,12 +198,7 @@ class ReadingTimeBarChart extends StatelessWidget {
   final bool isWeekly;
   final bool isDesktop;
 
-  const ReadingTimeBarChart({
-    super.key,
-    required this.activities,
-    this.isWeekly = true,
-    this.isDesktop = false,
-  });
+  const ReadingTimeBarChart({super.key, required this.activities, this.isWeekly = true, this.isDesktop = false});
 
   @override
   Widget build(BuildContext context) {
@@ -263,22 +209,12 @@ class ReadingTimeBarChart extends StatelessWidget {
     final chartHeight = isDesktop ? 200.0 : 160.0;
 
     if (activities.length > 21) {
-      return _buildAggregatedChart(
-        context,
-        colorScheme,
-        textTheme,
-        chartHeight,
-      );
+      return _buildAggregatedChart(context, colorScheme, textTheme, chartHeight);
     }
     return _buildDailyChart(context, colorScheme, textTheme, chartHeight);
   }
 
-  Widget _buildDailyChart(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-    double chartHeight,
-  ) {
+  Widget _buildDailyChart(BuildContext context, ColorScheme colorScheme, TextTheme textTheme, double chartHeight) {
     final maxMinutes = activities.maxMinutes.toDouble();
     final yAxis = _niceYAxis(maxMinutes);
 
@@ -287,10 +223,7 @@ class ReadingTimeBarChart extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final availableWidth = constraints.maxWidth - 60;
-          final barWidth = (availableWidth / activities.length * 0.6).clamp(
-            4.0,
-            isDesktop ? 20.0 : 16.0,
-          );
+          final barWidth = (availableWidth / activities.length * 0.6).clamp(4.0, isDesktop ? 20.0 : 16.0);
 
           return BarChart(
             BarChartData(
@@ -305,30 +238,19 @@ class ReadingTimeBarChart extends StatelessWidget {
                     final activity = activities[groupIndex];
                     return BarTooltipItem(
                       '${activity.dayName}\n${activity.readingTimeLabel}',
-                      textTheme.bodySmall!.copyWith(
-                        color: colorScheme.onInverseSurface,
-                      ),
+                      textTheme.bodySmall!.copyWith(color: colorScheme.onInverseSurface),
                     );
                   },
                 ),
               ),
               titlesData: FlTitlesData(
                 show: true,
-                rightTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                topTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    getTitlesWidget: (value, meta) => _buildBottomLabel(
-                      value,
-                      activities,
-                      textTheme,
-                      colorScheme,
-                    ),
+                    getTitlesWidget: (value, meta) => _buildBottomLabel(value, activities, textTheme, colorScheme),
                     reservedSize: 28,
                   ),
                 ),
@@ -337,12 +259,8 @@ class ReadingTimeBarChart extends StatelessWidget {
                     showTitles: true,
                     reservedSize: 40,
                     interval: yAxis.interval,
-                    getTitlesWidget: (value, meta) => _buildYAxisLabel(
-                      value,
-                      textTheme,
-                      colorScheme,
-                      _formatMinutesLabel,
-                    ),
+                    getTitlesWidget: (value, meta) =>
+                        _buildYAxisLabel(value, textTheme, colorScheme, _formatMinutesLabel),
                   ),
                 ),
               ),
@@ -350,10 +268,8 @@ class ReadingTimeBarChart extends StatelessWidget {
                 show: true,
                 drawVerticalLine: false,
                 horizontalInterval: yAxis.interval,
-                getDrawingHorizontalLine: (value) => FlLine(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                  strokeWidth: 1,
-                ),
+                getDrawingHorizontalLine: (value) =>
+                    FlLine(color: colorScheme.outlineVariant.withValues(alpha: 0.5), strokeWidth: 1),
               ),
               borderData: FlBorderData(show: false),
               barGroups: activities.asMap().entries.map((entry) {
@@ -364,13 +280,9 @@ class ReadingTimeBarChart extends StatelessWidget {
                   barRods: [
                     BarChartRodData(
                       toY: activity.readingMinutes.toDouble(),
-                      color: activity.isToday
-                          ? colorScheme.primary
-                          : colorScheme.primary.withValues(alpha: 0.6),
+                      color: activity.isToday ? colorScheme.primary : colorScheme.primary.withValues(alpha: 0.6),
                       width: barWidth,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(4),
-                      ),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                     ),
                   ],
                 );
@@ -383,19 +295,11 @@ class ReadingTimeBarChart extends StatelessWidget {
     );
   }
 
-  Widget _buildAggregatedChart(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-    double chartHeight,
-  ) {
+  Widget _buildAggregatedChart(BuildContext context, ColorScheme colorScheme, TextTheme textTheme, double chartHeight) {
     final buckets = _aggregateWeekly(activities);
     if (buckets.isEmpty) return _buildEmptyState(context);
 
-    final maxMinutes = buckets
-        .map((b) => b.totalMinutes)
-        .reduce((a, b) => math.max(a, b))
-        .toDouble();
+    final maxMinutes = buckets.map((b) => b.totalMinutes).reduce((a, b) => math.max(a, b)).toDouble();
     final yAxis = _niceYAxis(maxMinutes);
 
     return SizedBox(
@@ -403,10 +307,7 @@ class ReadingTimeBarChart extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) {
           final availableWidth = constraints.maxWidth - 60;
-          final barWidth = (availableWidth / buckets.length * 0.6).clamp(
-            6.0,
-            isDesktop ? 24.0 : 18.0,
-          );
+          final barWidth = (availableWidth / buckets.length * 0.6).clamp(6.0, isDesktop ? 24.0 : 18.0);
 
           return BarChart(
             BarChartData(
@@ -420,35 +321,22 @@ class ReadingTimeBarChart extends StatelessWidget {
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final bucket = buckets[groupIndex];
                     final hours = bucket.totalMinutes / 60;
-                    final timeLabel = hours >= 1
-                        ? '${hours.toStringAsFixed(1)}h'
-                        : '${bucket.totalMinutes}m';
+                    final timeLabel = hours >= 1 ? '${hours.toStringAsFixed(1)}h' : '${bucket.totalMinutes}m';
                     return BarTooltipItem(
                       '${bucket.label}\n$timeLabel total',
-                      textTheme.bodySmall!.copyWith(
-                        color: colorScheme.onInverseSurface,
-                      ),
+                      textTheme.bodySmall!.copyWith(color: colorScheme.onInverseSurface),
                     );
                   },
                 ),
               ),
               titlesData: FlTitlesData(
                 show: true,
-                rightTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                topTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
-                    getTitlesWidget: (value, meta) => _buildBucketBottomLabel(
-                      value,
-                      buckets,
-                      textTheme,
-                      colorScheme,
-                    ),
+                    getTitlesWidget: (value, meta) => _buildBucketBottomLabel(value, buckets, textTheme, colorScheme),
                     reservedSize: 28,
                   ),
                 ),
@@ -457,12 +345,8 @@ class ReadingTimeBarChart extends StatelessWidget {
                     showTitles: true,
                     reservedSize: 40,
                     interval: yAxis.interval,
-                    getTitlesWidget: (value, meta) => _buildYAxisLabel(
-                      value,
-                      textTheme,
-                      colorScheme,
-                      _formatMinutesLabel,
-                    ),
+                    getTitlesWidget: (value, meta) =>
+                        _buildYAxisLabel(value, textTheme, colorScheme, _formatMinutesLabel),
                   ),
                 ),
               ),
@@ -470,10 +354,8 @@ class ReadingTimeBarChart extends StatelessWidget {
                 show: true,
                 drawVerticalLine: false,
                 horizontalInterval: yAxis.interval,
-                getDrawingHorizontalLine: (value) => FlLine(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                  strokeWidth: 1,
-                ),
+                getDrawingHorizontalLine: (value) =>
+                    FlLine(color: colorScheme.outlineVariant.withValues(alpha: 0.5), strokeWidth: 1),
               ),
               borderData: FlBorderData(show: false),
               barGroups: buckets.asMap().entries.map((entry) {
@@ -484,13 +366,9 @@ class ReadingTimeBarChart extends StatelessWidget {
                   barRods: [
                     BarChartRodData(
                       toY: bucket.totalMinutes.toDouble(),
-                      color: bucket.containsToday
-                          ? colorScheme.primary
-                          : colorScheme.primary.withValues(alpha: 0.6),
+                      color: bucket.containsToday ? colorScheme.primary : colorScheme.primary.withValues(alpha: 0.6),
                       width: barWidth,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(4),
-                      ),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                     ),
                   ],
                 );
@@ -512,9 +390,7 @@ class ReadingTimeBarChart extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         'No reading data for this period',
-        style: textTheme.bodyMedium?.copyWith(
-          color: colorScheme.onSurfaceVariant,
-        ),
+        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
       ),
     );
   }
@@ -530,12 +406,7 @@ class PagesReadLineChart extends StatelessWidget {
   final bool isWeekly;
   final bool isDesktop;
 
-  const PagesReadLineChart({
-    super.key,
-    required this.activities,
-    this.isWeekly = true,
-    this.isDesktop = false,
-  });
+  const PagesReadLineChart({super.key, required this.activities, this.isWeekly = true, this.isDesktop = false});
 
   @override
   Widget build(BuildContext context) {
@@ -546,26 +417,13 @@ class PagesReadLineChart extends StatelessWidget {
     final chartHeight = isDesktop ? 200.0 : 160.0;
 
     if (activities.length > 21) {
-      return _buildAggregatedChart(
-        context,
-        colorScheme,
-        textTheme,
-        chartHeight,
-      );
+      return _buildAggregatedChart(context, colorScheme, textTheme, chartHeight);
     }
     return _buildDailyChart(context, colorScheme, textTheme, chartHeight);
   }
 
-  Widget _buildDailyChart(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-    double chartHeight,
-  ) {
-    final maxPages = activities
-        .map((a) => a.pagesRead)
-        .reduce((a, b) => math.max(a, b))
-        .toDouble();
+  Widget _buildDailyChart(BuildContext context, ColorScheme colorScheme, TextTheme textTheme, double chartHeight) {
+    final maxPages = activities.map((a) => a.pagesRead).reduce((a, b) => math.max(a, b)).toDouble();
     final yAxis = _niceYAxis(maxPages);
 
     final spots = activities.asMap().entries.map((entry) {
@@ -590,9 +448,7 @@ class PagesReadLineChart extends StatelessWidget {
                   final activity = activities[spot.x.toInt()];
                   return LineTooltipItem(
                     '${activity.dayName}\n${activity.pagesRead} pages',
-                    textTheme.bodySmall!.copyWith(
-                      color: colorScheme.onInverseSurface,
-                    ),
+                    textTheme.bodySmall!.copyWith(color: colorScheme.onInverseSurface),
                   );
                 }).toList();
               },
@@ -600,22 +456,13 @@ class PagesReadLineChart extends StatelessWidget {
           ),
           titlesData: FlTitlesData(
             show: true,
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
                 interval: 1,
-                getTitlesWidget: (value, meta) => _buildBottomLabel(
-                  value,
-                  activities,
-                  textTheme,
-                  colorScheme,
-                ),
+                getTitlesWidget: (value, meta) => _buildBottomLabel(value, activities, textTheme, colorScheme),
                 reservedSize: 28,
               ),
             ),
@@ -624,12 +471,7 @@ class PagesReadLineChart extends StatelessWidget {
                 showTitles: true,
                 reservedSize: 40,
                 interval: yAxis.interval,
-                getTitlesWidget: (value, meta) => _buildYAxisLabel(
-                  value,
-                  textTheme,
-                  colorScheme,
-                  _formatPagesLabel,
-                ),
+                getTitlesWidget: (value, meta) => _buildYAxisLabel(value, textTheme, colorScheme, _formatPagesLabel),
               ),
             ),
           ),
@@ -637,10 +479,8 @@ class PagesReadLineChart extends StatelessWidget {
             show: true,
             drawVerticalLine: false,
             horizontalInterval: yAxis.interval,
-            getDrawingHorizontalLine: (value) => FlLine(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-              strokeWidth: 1,
-            ),
+            getDrawingHorizontalLine: (value) =>
+                FlLine(color: colorScheme.outlineVariant.withValues(alpha: 0.5), strokeWidth: 1),
           ),
           borderData: FlBorderData(show: false),
           lineBarsData: [
@@ -662,10 +502,7 @@ class PagesReadLineChart extends StatelessWidget {
                   );
                 },
               ),
-              belowBarData: BarAreaData(
-                show: true,
-                color: colorScheme.tertiary.withValues(alpha: 0.1),
-              ),
+              belowBarData: BarAreaData(show: true, color: colorScheme.tertiary.withValues(alpha: 0.1)),
             ),
           ],
         ),
@@ -674,19 +511,11 @@ class PagesReadLineChart extends StatelessWidget {
     );
   }
 
-  Widget _buildAggregatedChart(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-    double chartHeight,
-  ) {
+  Widget _buildAggregatedChart(BuildContext context, ColorScheme colorScheme, TextTheme textTheme, double chartHeight) {
     final buckets = _aggregateWeekly(activities);
     if (buckets.isEmpty) return _buildEmptyState(context);
 
-    final maxPages = buckets
-        .map((b) => b.totalPages)
-        .reduce((a, b) => math.max(a, b))
-        .toDouble();
+    final maxPages = buckets.map((b) => b.totalPages).reduce((a, b) => math.max(a, b)).toDouble();
     final yAxis = _niceYAxis(maxPages);
 
     final spots = buckets.asMap().entries.map((entry) {
@@ -711,9 +540,7 @@ class PagesReadLineChart extends StatelessWidget {
                   final bucket = buckets[spot.x.toInt()];
                   return LineTooltipItem(
                     '${bucket.label}\n${bucket.totalPages} pages',
-                    textTheme.bodySmall!.copyWith(
-                      color: colorScheme.onInverseSurface,
-                    ),
+                    textTheme.bodySmall!.copyWith(color: colorScheme.onInverseSurface),
                   );
                 }).toList();
               },
@@ -721,22 +548,13 @@ class PagesReadLineChart extends StatelessWidget {
           ),
           titlesData: FlTitlesData(
             show: true,
-            rightTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
-            topTitles: const AxisTitles(
-              sideTitles: SideTitles(showTitles: false),
-            ),
+            rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+            topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
             bottomTitles: AxisTitles(
               sideTitles: SideTitles(
                 showTitles: true,
                 interval: 1,
-                getTitlesWidget: (value, meta) => _buildBucketBottomLabel(
-                  value,
-                  buckets,
-                  textTheme,
-                  colorScheme,
-                ),
+                getTitlesWidget: (value, meta) => _buildBucketBottomLabel(value, buckets, textTheme, colorScheme),
                 reservedSize: 28,
               ),
             ),
@@ -745,12 +563,7 @@ class PagesReadLineChart extends StatelessWidget {
                 showTitles: true,
                 reservedSize: 40,
                 interval: yAxis.interval,
-                getTitlesWidget: (value, meta) => _buildYAxisLabel(
-                  value,
-                  textTheme,
-                  colorScheme,
-                  _formatPagesLabel,
-                ),
+                getTitlesWidget: (value, meta) => _buildYAxisLabel(value, textTheme, colorScheme, _formatPagesLabel),
               ),
             ),
           ),
@@ -758,10 +571,8 @@ class PagesReadLineChart extends StatelessWidget {
             show: true,
             drawVerticalLine: false,
             horizontalInterval: yAxis.interval,
-            getDrawingHorizontalLine: (value) => FlLine(
-              color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-              strokeWidth: 1,
-            ),
+            getDrawingHorizontalLine: (value) =>
+                FlLine(color: colorScheme.outlineVariant.withValues(alpha: 0.5), strokeWidth: 1),
           ),
           borderData: FlBorderData(show: false),
           lineBarsData: [
@@ -783,10 +594,7 @@ class PagesReadLineChart extends StatelessWidget {
                   );
                 },
               ),
-              belowBarData: BarAreaData(
-                show: true,
-                color: colorScheme.tertiary.withValues(alpha: 0.1),
-              ),
+              belowBarData: BarAreaData(show: true, color: colorScheme.tertiary.withValues(alpha: 0.1)),
             ),
           ],
         ),
@@ -804,9 +612,7 @@ class PagesReadLineChart extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         'No reading data for this period',
-        style: textTheme.bodyMedium?.copyWith(
-          color: colorScheme.onSurfaceVariant,
-        ),
+        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
       ),
     );
   }
@@ -821,11 +627,7 @@ class BooksPerMonthChart extends StatelessWidget {
   final List<MonthlyStats> monthlyStats;
   final bool isDesktop;
 
-  const BooksPerMonthChart({
-    super.key,
-    required this.monthlyStats,
-    this.isDesktop = false,
-  });
+  const BooksPerMonthChart({super.key, required this.monthlyStats, this.isDesktop = false});
 
   @override
   Widget build(BuildContext context) {
@@ -833,26 +635,18 @@ class BooksPerMonthChart extends StatelessWidget {
 
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final maxBooks = monthlyStats
-        .map((m) => m.booksRead)
-        .reduce((a, b) => math.max(a, b))
-        .toDouble();
+    final maxBooks = monthlyStats.map((m) => m.booksRead).reduce((a, b) => math.max(a, b)).toDouble();
     final chartHeight = isDesktop ? 200.0 : 160.0;
 
     // Take last 6 months for display
-    final displayStats = monthlyStats.length > 6
-        ? monthlyStats.sublist(monthlyStats.length - 6)
-        : monthlyStats;
+    final displayStats = monthlyStats.length > 6 ? monthlyStats.sublist(monthlyStats.length - 6) : monthlyStats;
 
     return SizedBox(
       height: chartHeight,
       child: LayoutBuilder(
         builder: (context, constraints) {
           final availableWidth = constraints.maxWidth - 50;
-          final barWidth = (availableWidth / displayStats.length * 0.5).clamp(
-            8.0,
-            isDesktop ? 28.0 : 22.0,
-          );
+          final barWidth = (availableWidth / displayStats.length * 0.5).clamp(8.0, isDesktop ? 28.0 : 22.0);
 
           return BarChart(
             BarChartData(
@@ -867,21 +661,15 @@ class BooksPerMonthChart extends StatelessWidget {
                     final stats = displayStats[groupIndex];
                     return BarTooltipItem(
                       '${stats.fullMonthLabel}\n${stats.booksRead} books',
-                      textTheme.bodySmall!.copyWith(
-                        color: colorScheme.onInverseSurface,
-                      ),
+                      textTheme.bodySmall!.copyWith(color: colorScheme.onInverseSurface),
                     );
                   },
                 ),
               ),
               titlesData: FlTitlesData(
                 show: true,
-                rightTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
-                topTitles: const AxisTitles(
-                  sideTitles: SideTitles(showTitles: false),
-                ),
+                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
+                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
                 bottomTitles: AxisTitles(
                   sideTitles: SideTitles(
                     showTitles: true,
@@ -894,10 +682,7 @@ class BooksPerMonthChart extends StatelessWidget {
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
                           stats.monthLabel,
-                          style: textTheme.labelSmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                            fontSize: 10,
-                          ),
+                          style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant, fontSize: 10),
                         ),
                       );
                     },
@@ -910,17 +695,12 @@ class BooksPerMonthChart extends StatelessWidget {
                     reservedSize: 32,
                     interval: 1,
                     getTitlesWidget: (value, meta) {
-                      if (value == value.truncateToDouble() &&
-                          value >= 0 &&
-                          value <= meta.max * 0.95) {
+                      if (value == value.truncateToDouble() && value >= 0 && value <= meta.max * 0.95) {
                         return Padding(
                           padding: const EdgeInsets.only(right: 4),
                           child: Text(
                             '${value.toInt()}',
-                            style: textTheme.labelSmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                              fontSize: 10,
-                            ),
+                            style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant, fontSize: 10),
                           ),
                         );
                       }
@@ -933,10 +713,8 @@ class BooksPerMonthChart extends StatelessWidget {
                 show: true,
                 drawVerticalLine: false,
                 horizontalInterval: 1,
-                getDrawingHorizontalLine: (value) => FlLine(
-                  color: colorScheme.outlineVariant.withValues(alpha: 0.5),
-                  strokeWidth: 1,
-                ),
+                getDrawingHorizontalLine: (value) =>
+                    FlLine(color: colorScheme.outlineVariant.withValues(alpha: 0.5), strokeWidth: 1),
               ),
               borderData: FlBorderData(show: false),
               barGroups: displayStats.asMap().entries.map((entry) {
@@ -950,15 +728,10 @@ class BooksPerMonthChart extends StatelessWidget {
                       gradient: LinearGradient(
                         begin: Alignment.bottomCenter,
                         end: Alignment.topCenter,
-                        colors: [
-                          colorScheme.secondary,
-                          colorScheme.secondary.withValues(alpha: 0.7),
-                        ],
+                        colors: [colorScheme.secondary, colorScheme.secondary.withValues(alpha: 0.7)],
                       ),
                       width: barWidth,
-                      borderRadius: const BorderRadius.vertical(
-                        top: Radius.circular(4),
-                      ),
+                      borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
                     ),
                   ],
                 );
@@ -980,9 +753,7 @@ class BooksPerMonthChart extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         'No books read data available',
-        style: textTheme.bodyMedium?.copyWith(
-          color: colorScheme.onSurfaceVariant,
-        ),
+        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
       ),
     );
   }

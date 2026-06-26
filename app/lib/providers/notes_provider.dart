@@ -162,9 +162,7 @@ class NotesProvider extends ChangeNotifier {
     var result = all;
 
     if (_selectedTags.isNotEmpty) {
-      result = result
-          .where((n) => n.tags.any((t) => _selectedTags.contains(t)))
-          .toList();
+      result = result.where((n) => n.tags.any((t) => _selectedTags.contains(t))).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
@@ -174,10 +172,7 @@ class NotesProvider extends ChangeNotifier {
         final title = n.title.toLowerCase();
         final content = n.content.toLowerCase();
         final tags = n.tags.join(' ').toLowerCase();
-        return bookTitle.contains(query) ||
-            title.contains(query) ||
-            content.contains(query) ||
-            tags.contains(query);
+        return bookTitle.contains(query) || title.contains(query) || content.contains(query) || tags.contains(query);
       }).toList();
     }
 
@@ -192,9 +187,7 @@ class NotesProvider extends ChangeNotifier {
         case NoteSortOption.dateOldest:
           return a.createdAt.compareTo(b.createdAt);
         case NoteSortOption.bookTitle:
-          return getBookTitle(
-            a.bookId,
-          ).toLowerCase().compareTo(getBookTitle(b.bookId).toLowerCase());
+          return getBookTitle(a.bookId).toLowerCase().compareTo(getBookTitle(b.bookId).toLowerCase());
         case NoteSortOption.pinnedFirst:
           if (a.isPinned != b.isPinned) {
             return a.isPinned ? -1 : 1;

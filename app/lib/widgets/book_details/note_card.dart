@@ -109,11 +109,7 @@ class _NoteCardState extends State<NoteCard> {
   }
 
   /// Title row with action menu button.
-  Widget _buildTitleRow(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-  ) {
+  Widget _buildTitleRow(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
     return Row(
       children: [
         Expanded(
@@ -171,32 +167,18 @@ class _NoteCardState extends State<NoteCard> {
   }
 
   /// Location and date metadata row.
-  Widget _buildMetadata(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-  ) {
-    final metaStyle = textTheme.labelSmall?.copyWith(
-      color: colorScheme.onSurfaceVariant,
-    );
+  Widget _buildMetadata(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
+    final metaStyle = textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant);
 
     return Row(
       children: [
         if (widget.note.hasLocation) ...[
-          Icon(
-            Icons.location_on_outlined,
-            size: IconSizes.small,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          Icon(Icons.location_on_outlined, size: IconSizes.small, color: colorScheme.onSurfaceVariant),
           const SizedBox(width: 4),
           Text(widget.note.location!.shortLocation, style: metaStyle),
           const SizedBox(width: Spacing.md),
         ],
-        Icon(
-          Icons.access_time,
-          size: IconSizes.small,
-          color: colorScheme.onSurfaceVariant,
-        ),
+        Icon(Icons.access_time, size: IconSizes.small, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: 4),
         Text(widget.note.dateLabel, style: metaStyle),
       ],

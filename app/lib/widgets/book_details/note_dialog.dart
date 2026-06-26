@@ -14,17 +14,12 @@ class NoteDialog extends StatelessWidget {
   bool get isEditing => existingNote != null;
 
   /// Shows the dialog and returns the created/updated note, or null if cancelled.
-  static Future<Note?> show(
-    BuildContext context, {
-    required String bookId,
-    Note? existingNote,
-  }) async {
+  static Future<Note?> show(BuildContext context, {required String bookId, Note? existingNote}) async {
     return showModalBottomSheet<Note>(
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
-      builder: (context) =>
-          _BottomSheetNote(bookId: bookId, existingNote: existingNote),
+      builder: (context) => _BottomSheetNote(bookId: bookId, existingNote: existingNote),
     );
   }
 
@@ -58,12 +53,8 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> {
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController(
-      text: widget.existingNote?.title ?? '',
-    );
-    _contentController = TextEditingController(
-      text: widget.existingNote?.content ?? '',
-    );
+    _titleController = TextEditingController(text: widget.existingNote?.title ?? '');
+    _contentController = TextEditingController(text: widget.existingNote?.content ?? '');
     _tagController = TextEditingController();
     _tags = List<String>.from(widget.existingNote?.tags ?? []);
 
@@ -103,9 +94,7 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> {
   void _save() {
     if (_formKey.currentState?.validate() ?? false) {
       final note = Note(
-        id:
-            widget.existingNote?.id ??
-            DateTime.now().millisecondsSinceEpoch.toString(),
+        id: widget.existingNote?.id ?? DateTime.now().millisecondsSinceEpoch.toString(),
         bookId: widget.bookId,
         title: _titleController.text.trim(),
         content: _contentController.text.trim(),
@@ -134,19 +123,12 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> {
           return Container(
             decoration: BoxDecoration(
               color: colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(
-                top: Radius.circular(AppRadius.lg),
-              ),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
             ),
             child: Column(
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    Spacing.md,
-                    Spacing.md,
-                    Spacing.md,
-                    0,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, 0),
                   child: Column(
                     children: [
                       const BottomSheetHandle(),
@@ -184,8 +166,7 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> {
                                     hintText: 'Enter note title',
                                     border: OutlineInputBorder(),
                                   ),
-                                  textCapitalization:
-                                      TextCapitalization.sentences,
+                                  textCapitalization: TextCapitalization.sentences,
                                   validator: (value) {
                                     if (value == null || value.trim().isEmpty) {
                                       return 'Please enter a title';
@@ -202,12 +183,7 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> {
                         SliverFillRemaining(
                           hasScrollBody: false,
                           child: Padding(
-                            padding: const EdgeInsets.fromLTRB(
-                              Spacing.md,
-                              0,
-                              Spacing.md,
-                              Spacing.md,
-                            ),
+                            padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
@@ -220,14 +196,12 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> {
                                       border: OutlineInputBorder(),
                                       alignLabelWithHint: true,
                                     ),
-                                    textCapitalization:
-                                        TextCapitalization.sentences,
+                                    textCapitalization: TextCapitalization.sentences,
                                     maxLines: null,
                                     expands: true,
                                     textAlignVertical: TextAlignVertical.top,
                                     validator: (value) {
-                                      if (value == null ||
-                                          value.trim().isEmpty) {
+                                      if (value == null || value.trim().isEmpty) {
                                         return 'Please enter some content';
                                       }
                                       return null;
@@ -253,10 +227,7 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> {
                                       ),
                                     ),
                                     const SizedBox(width: Spacing.sm),
-                                    IconButton.filled(
-                                      onPressed: _addTag,
-                                      icon: const Icon(Icons.add),
-                                    ),
+                                    IconButton.filled(onPressed: _addTag, icon: const Icon(Icons.add)),
                                   ],
                                 ),
 
@@ -269,10 +240,7 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> {
                                     children: _tags.map((tag) {
                                       return Chip(
                                         label: Text(tag),
-                                        deleteIcon: const Icon(
-                                          Icons.close,
-                                          size: 18,
-                                        ),
+                                        deleteIcon: const Icon(Icons.close, size: 18),
                                         onDeleted: () => _removeTag(tag),
                                         visualDensity: VisualDensity.compact,
                                       );
@@ -281,10 +249,9 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> {
                                 else
                                   Text(
                                     'Tags will appear here',
-                                    style: Theme.of(context).textTheme.bodySmall
-                                        ?.copyWith(
-                                          color: colorScheme.onSurfaceVariant,
-                                        ),
+                                    style: Theme.of(
+                                      context,
+                                    ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                                   ),
                               ],
                             ),

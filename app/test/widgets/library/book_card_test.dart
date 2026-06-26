@@ -71,9 +71,7 @@ void main() {
       expect(find.byType(LinearProgressIndicator), findsOneWidget);
     });
 
-    testWidgets('hides progress bar when showProgress is false', (
-      tester,
-    ) async {
+    testWidgets('hides progress bar when showProgress is false', (tester) async {
       await tester.pumpWidget(buildCard(showProgress: false));
       expect(find.byType(LinearProgressIndicator), findsNothing);
     });
@@ -94,16 +92,9 @@ void main() {
       expect(find.byIcon(Icons.favorite), findsOneWidget);
     });
 
-    testWidgets('calls onToggleFavorite when favorite button tapped', (
-      tester,
-    ) async {
+    testWidgets('calls onToggleFavorite when favorite button tapped', (tester) async {
       bool? tappedValue;
-      await tester.pumpWidget(
-        buildCard(
-          isFavorite: false,
-          onToggleFavorite: (current) => tappedValue = current,
-        ),
-      );
+      await tester.pumpWidget(buildCard(isFavorite: false, onToggleFavorite: (current) => tappedValue = current));
 
       // Find and tap the favorite button (InkWell wrapping the heart icon)
       final favoriteIcon = find.byIcon(Icons.favorite_border);

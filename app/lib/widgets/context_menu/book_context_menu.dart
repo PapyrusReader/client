@@ -70,14 +70,9 @@ class BookContextMenu {
 
     showMenu<String>(
       context: context,
-      position: RelativeRect.fromRect(
-        Rect.fromLTWH(position.dx, position.dy, 0, 0),
-        Offset.zero & overlay.size,
-      ),
+      position: RelativeRect.fromRect(Rect.fromLTWH(position.dx, position.dy, 0, 0), Offset.zero & overlay.size),
       elevation: AppElevation.level2,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(AppRadius.md),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
       items: [
         const PopupMenuItem(
           value: 'select',
@@ -103,47 +98,29 @@ class BookContextMenu {
         const PopupMenuItem(
           value: 'shelf',
           height: 40,
-          child: _MenuItemRow(
-            icon: Icons.folder_outlined,
-            label: 'Move to shelf',
-          ),
+          child: _MenuItemRow(icon: Icons.folder_outlined, label: 'Move to shelf'),
         ),
         const PopupMenuItem(
           value: 'topics',
           height: 40,
-          child: _MenuItemRow(
-            icon: Icons.label_outline,
-            label: 'Manage topics',
-          ),
+          child: _MenuItemRow(icon: Icons.label_outline, label: 'Manage topics'),
         ),
         const PopupMenuDivider(),
         PopupMenuItem(
           value: 'reading',
           height: 40,
-          child: _MenuItemRow(
-            icon: Icons.auto_stories,
-            label: 'Mark as reading',
-            isSelected: book.isReading,
-          ),
+          child: _MenuItemRow(icon: Icons.auto_stories, label: 'Mark as reading', isSelected: book.isReading),
         ),
         PopupMenuItem(
           value: 'finished',
           height: 40,
-          child: _MenuItemRow(
-            icon: Icons.check_circle_outline,
-            label: 'Mark as finished',
-            isSelected: book.isFinished,
-          ),
+          child: _MenuItemRow(icon: Icons.check_circle_outline, label: 'Mark as finished', isSelected: book.isFinished),
         ),
         const PopupMenuDivider(),
         const PopupMenuItem(
           value: 'delete',
           height: 40,
-          child: _MenuItemRow(
-            icon: Icons.delete_outline,
-            label: 'Delete book',
-            isDestructive: true,
-          ),
+          child: _MenuItemRow(icon: Icons.delete_outline, label: 'Delete book', isDestructive: true),
         ),
       ],
     ).then((value) {
@@ -187,9 +164,7 @@ class BookContextMenu {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.bottomSheet),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
       ),
       builder: (context) => _BookContextBottomSheet(
         book: book,
@@ -205,11 +180,7 @@ class BookContextMenu {
     );
   }
 
-  static void _confirmDelete(
-    BuildContext context,
-    Book book,
-    VoidCallback? onDelete,
-  ) {
+  static void _confirmDelete(BuildContext context, Book book, VoidCallback? onDelete) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -219,18 +190,13 @@ class BookContextMenu {
           'This action cannot be undone.',
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               Navigator.pop(context);
               onDelete?.call();
             },
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Delete'),
           ),
         ],
@@ -268,8 +234,7 @@ class _MenuItemRow extends StatelessWidget {
         Expanded(
           child: Text(label, style: TextStyle(color: color)),
         ),
-        if (isSelected)
-          Icon(Icons.check, size: IconSizes.small, color: colorScheme.primary),
+        if (isSelected) Icon(Icons.check, size: IconSizes.small, color: colorScheme.primary),
       ],
     );
   }
@@ -315,10 +280,7 @@ class _BookContextBottomSheet extends StatelessWidget {
               child: Container(
                 width: 32,
                 height: 4,
-                decoration: BoxDecoration(
-                  color: colorScheme.outline,
-                  borderRadius: BorderRadius.circular(2),
-                ),
+                decoration: BoxDecoration(color: colorScheme.outline, borderRadius: BorderRadius.circular(2)),
               ),
             ),
             const SizedBox(height: Spacing.md),
@@ -328,11 +290,7 @@ class _BookContextBottomSheet extends StatelessWidget {
               children: [
                 ClipRRect(
                   borderRadius: BorderRadius.circular(AppRadius.sm),
-                  child: SizedBox(
-                    width: 48,
-                    height: 72,
-                    child: _buildCover(context),
-                  ),
+                  child: SizedBox(width: 48, height: 72, child: _buildCover(context)),
                 ),
                 const SizedBox(width: Spacing.md),
                 Expanded(
@@ -347,9 +305,7 @@ class _BookContextBottomSheet extends StatelessWidget {
                       ),
                       Text(
                         book.author,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                       ),
                     ],
                   ),
@@ -410,15 +366,10 @@ class _BookContextBottomSheet extends StatelessWidget {
 
             // Reading status section
             Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: Spacing.md,
-                vertical: Spacing.sm,
-              ),
+              padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
               child: Text(
                 'Reading status',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
             ),
             _BottomSheetItem(
@@ -520,9 +471,7 @@ class _BottomSheetItem extends StatelessWidget {
     return ListTile(
       leading: Icon(icon, color: effectiveIconColor),
       title: Text(label, style: TextStyle(color: color)),
-      trailing: isSelected
-          ? Icon(Icons.check, color: colorScheme.primary, size: IconSizes.small)
-          : null,
+      trailing: isSelected ? Icon(Icons.check, color: colorScheme.primary, size: IconSizes.small) : null,
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md),
       visualDensity: VisualDensity.compact,

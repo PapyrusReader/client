@@ -42,9 +42,7 @@ void main() {
 
     testWidgets('calls onQueryChanged when text is entered', (tester) async {
       String? lastQuery;
-      await tester.pumpWidget(
-        buildSearchBar(onQueryChanged: (q) => lastQuery = q),
-      );
+      await tester.pumpWidget(buildSearchBar(onQueryChanged: (q) => lastQuery = q));
 
       await tester.enterText(find.byType(TextField), 'tolkien');
       await tester.pump();
@@ -52,13 +50,9 @@ void main() {
       expect(lastQuery, 'tolkien');
     });
 
-    testWidgets('calls onFilterTap when filter button is tapped', (
-      tester,
-    ) async {
+    testWidgets('calls onFilterTap when filter button is tapped', (tester) async {
       var filterTapped = false;
-      await tester.pumpWidget(
-        buildSearchBar(onFilterTap: () => filterTapped = true),
-      );
+      await tester.pumpWidget(buildSearchBar(onFilterTap: () => filterTapped = true));
 
       await tester.tap(find.byIcon(Icons.tune));
       await tester.pump();
@@ -66,17 +60,13 @@ void main() {
       expect(filterTapped, true);
     });
 
-    testWidgets('shows filter badge when activeFilterCount > 0', (
-      tester,
-    ) async {
+    testWidgets('shows filter badge when activeFilterCount > 0', (tester) async {
       await tester.pumpWidget(buildSearchBar(activeFilterCount: 3));
 
       expect(find.text('3'), findsOneWidget);
     });
 
-    testWidgets('does not show filter badge when activeFilterCount is 0', (
-      tester,
-    ) async {
+    testWidgets('does not show filter badge when activeFilterCount is 0', (tester) async {
       await tester.pumpWidget(buildSearchBar(activeFilterCount: 0));
 
       // Badge number should not be present
@@ -92,12 +82,7 @@ void main() {
 
     testWidgets('clears text when clear button is tapped', (tester) async {
       String? lastQuery;
-      await tester.pumpWidget(
-        buildSearchBar(
-          initialQuery: 'test',
-          onQueryChanged: (q) => lastQuery = q,
-        ),
-      );
+      await tester.pumpWidget(buildSearchBar(initialQuery: 'test', onQueryChanged: (q) => lastQuery = q));
       await tester.pump();
 
       await tester.tap(find.byIcon(Icons.clear));
@@ -119,9 +104,7 @@ void main() {
     });
 
     group('suggestions', () {
-      testWidgets('shows field suggestions when typing a field prefix', (
-        tester,
-      ) async {
+      testWidgets('shows field suggestions when typing a field prefix', (tester) async {
         await tester.pumpWidget(buildSearchBar());
 
         // Focus and type a field prefix
@@ -135,9 +118,7 @@ void main() {
         expect(find.text('author:'), findsOneWidget);
       });
 
-      testWidgets('shows status suggestions when typing status:', (
-        tester,
-      ) async {
+      testWidgets('shows status suggestions when typing status:', (tester) async {
         await tester.pumpWidget(buildSearchBar());
 
         await tester.tap(find.byType(TextField));
@@ -152,9 +133,7 @@ void main() {
         expect(find.text('status:unread'), findsOneWidget);
       });
 
-      testWidgets('shows format suggestions when typing format:', (
-        tester,
-      ) async {
+      testWidgets('shows format suggestions when typing format:', (tester) async {
         await tester.pumpWidget(buildSearchBar());
 
         await tester.tap(find.byType(TextField));
@@ -170,9 +149,7 @@ void main() {
 
       testWidgets('applies suggestion when tapped', (tester) async {
         String? lastQuery;
-        await tester.pumpWidget(
-          buildSearchBar(onQueryChanged: (q) => lastQuery = q),
-        );
+        await tester.pumpWidget(buildSearchBar(onQueryChanged: (q) => lastQuery = q));
 
         await tester.tap(find.byType(TextField));
         await tester.pump();
@@ -208,9 +185,7 @@ void main() {
         expect(find.text('author:'), findsNothing);
       });
 
-      testWidgets('does not show suggestions for non-matching text', (
-        tester,
-      ) async {
+      testWidgets('does not show suggestions for non-matching text', (tester) async {
         await tester.pumpWidget(buildSearchBar());
 
         await tester.tap(find.byType(TextField));
@@ -224,9 +199,7 @@ void main() {
         expect(find.text('title:'), findsNothing);
       });
 
-      testWidgets('shows multiple field suggestions for partial match', (
-        tester,
-      ) async {
+      testWidgets('shows multiple field suggestions for partial match', (tester) async {
         await tester.pumpWidget(buildSearchBar());
 
         await tester.tap(find.byType(TextField));
@@ -261,9 +234,7 @@ void main() {
     });
 
     group('didUpdateWidget', () {
-      testWidgets('updates text when initialQuery changes and not focused', (
-        tester,
-      ) async {
+      testWidgets('updates text when initialQuery changes and not focused', (tester) async {
         // Start with empty query
         await tester.pumpWidget(buildSearchBar(initialQuery: ''));
 

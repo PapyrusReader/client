@@ -7,11 +7,7 @@ void main() {
   group('BookLocation', () {
     group('displayLocation', () {
       test('shows chapter title, number, and page when all present', () {
-        const loc = BookLocation(
-          chapter: 3,
-          chapterTitle: 'The Quest',
-          pageNumber: 42,
-        );
+        const loc = BookLocation(chapter: 3, chapterTitle: 'The Quest', pageNumber: 42);
         expect(loc.displayLocation, 'Chapter 3: The Quest, Page 42');
       });
 
@@ -40,12 +36,7 @@ void main() {
 
     group('copyWith', () {
       test('creates copy with updated fields', () {
-        const original = BookLocation(
-          chapter: 1,
-          chapterTitle: 'Intro',
-          pageNumber: 5,
-          percentage: 0.01,
-        );
+        const original = BookLocation(chapter: 1, chapterTitle: 'Intro', pageNumber: 5, percentage: 0.01);
         final copy = original.copyWith(pageNumber: 10, percentage: 0.05);
 
         expect(copy.chapter, 1);
@@ -78,15 +69,8 @@ void main() {
 
     group('copyWith', () {
       test('creates copy with updated fields', () {
-        final original = buildTestAnnotation(
-          selectedText: 'Original',
-          color: HighlightColor.yellow,
-          note: 'Note',
-        );
-        final copy = original.copyWith(
-          color: HighlightColor.blue,
-          note: 'Updated note',
-        );
+        final original = buildTestAnnotation(selectedText: 'Original', color: HighlightColor.yellow, note: 'Note');
+        final copy = original.copyWith(color: HighlightColor.blue, note: 'Updated note');
 
         expect(copy.selectedText, 'Original');
         expect(copy.color, HighlightColor.blue);
@@ -103,12 +87,7 @@ void main() {
           bookId: 'book-1',
           selectedText: 'Some text',
           color: HighlightColor.green,
-          location: const BookLocation(
-            chapter: 2,
-            chapterTitle: 'Methods',
-            pageNumber: 45,
-            percentage: 0.15,
-          ),
+          location: const BookLocation(chapter: 2, chapterTitle: 'Methods', pageNumber: 45, percentage: 0.15),
           note: 'Great point',
           createdAt: now,
           updatedAt: now,
@@ -181,12 +160,7 @@ void main() {
           bookId: 'book-rt',
           selectedText: 'Roundtrip highlight',
           color: HighlightColor.purple,
-          location: const BookLocation(
-            chapter: 3,
-            chapterTitle: 'Middle',
-            pageNumber: 100,
-            percentage: 0.5,
-          ),
+          location: const BookLocation(chapter: 3, chapterTitle: 'Middle', pageNumber: 100, percentage: 0.5),
           note: 'Roundtrip note',
           createdAt: DateTime(2025, 3, 15),
           updatedAt: DateTime(2025, 4, 1),

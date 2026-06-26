@@ -89,11 +89,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
           children: [
             // Row 1: Menu + Search + Sort
             Padding(
-              padding: const EdgeInsets.only(
-                top: Spacing.md,
-                left: Spacing.md,
-                right: Spacing.md,
-              ),
+              padding: const EdgeInsets.only(top: Spacing.md, left: Spacing.md, right: Spacing.md),
               child: Row(
                 children: [
                   IconButton(
@@ -136,11 +132,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
         children: [
           // Header row
           Container(
-            padding: const EdgeInsets.only(
-              top: Spacing.lg,
-              left: Spacing.lg,
-              right: Spacing.lg,
-            ),
+            padding: const EdgeInsets.only(top: Spacing.lg, left: Spacing.lg, right: Spacing.lg),
             child: Row(
               children: [
                 Expanded(child: _buildSearchField(provider)),
@@ -194,26 +186,10 @@ class _BookmarksPageState extends State<BookmarksPage> {
       tooltip: 'Sort bookmarks',
       onSelected: provider.setSortOption,
       itemBuilder: (context) => [
-        _buildSortMenuItem(
-          BookmarkSortOption.dateNewest,
-          'Newest first',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          BookmarkSortOption.dateOldest,
-          'Oldest first',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          BookmarkSortOption.bookTitle,
-          'By book title',
-          provider.sortOption,
-        ),
-        _buildSortMenuItem(
-          BookmarkSortOption.position,
-          'By position',
-          provider.sortOption,
-        ),
+        _buildSortMenuItem(BookmarkSortOption.dateNewest, 'Newest first', provider.sortOption),
+        _buildSortMenuItem(BookmarkSortOption.dateOldest, 'Oldest first', provider.sortOption),
+        _buildSortMenuItem(BookmarkSortOption.bookTitle, 'By book title', provider.sortOption),
+        _buildSortMenuItem(BookmarkSortOption.position, 'By position', provider.sortOption),
       ],
     );
   }
@@ -228,12 +204,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
       child: Row(
         children: [
           Expanded(child: Text(label)),
-          if (option == current)
-            Icon(
-              Icons.check,
-              size: IconSizes.small,
-              color: Theme.of(context).colorScheme.primary,
-            ),
+          if (option == current) Icon(Icons.check, size: IconSizes.small, color: Theme.of(context).colorScheme.primary),
         ],
       ),
     );
@@ -258,9 +229,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
           // Color chips
           ...Bookmark.availableColors.map((hex) {
             final isSelected = provider.activeColors.contains(hex);
-            final color = Color(
-              int.parse('FF${hex.replaceFirst('#', '')}', radix: 16),
-            );
+            final color = Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
             final name = _colorNames[hex] ?? 'Unknown';
 
             return Padding(
@@ -271,10 +240,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
                 avatar: Container(
                   width: 12,
                   height: 12,
-                  decoration: BoxDecoration(
-                    color: color,
-                    shape: BoxShape.circle,
-                  ),
+                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
                 ),
                 onSelected: (_) => provider.toggleColorFilter(hex),
               ),
@@ -346,8 +312,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
               bookTitle: provider.getBookTitle(bookmark.bookId),
               showActionMenu: isDesktop,
               onTap: () => _navigateToBook(context, bookmark.bookId),
-              onLongPress: () =>
-                  _onBookmarkActions(context, provider, bookmark),
+              onLongPress: () => _onBookmarkActions(context, provider, bookmark),
             ),
           );
         }
@@ -368,11 +333,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
     context.goNamed('BOOK_DETAILS', pathParameters: {'bookId': bookId});
   }
 
-  void _onBookmarkActions(
-    BuildContext context,
-    BookmarksProvider provider,
-    Bookmark bookmark,
-  ) async {
+  void _onBookmarkActions(BuildContext context, BookmarksProvider provider, Bookmark bookmark) async {
     final action = await BookmarkActionSheet.show(context, bookmark: bookmark);
 
     if (action == null || !mounted) return;
@@ -387,10 +348,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
     }
   }
 
-  void _onEditBookmarkNote(
-    BookmarksProvider provider,
-    Bookmark bookmark,
-  ) async {
+  void _onEditBookmarkNote(BookmarksProvider provider, Bookmark bookmark) async {
     final note = await BookmarkNoteSheet.show(context, bookmark: bookmark);
     if (!mounted) return;
 
@@ -399,10 +357,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
     }
   }
 
-  void _onChangeBookmarkColor(
-    BookmarksProvider provider,
-    Bookmark bookmark,
-  ) async {
+  void _onChangeBookmarkColor(BookmarksProvider provider, Bookmark bookmark) async {
     final colorHex = await BookmarkColorSheet.show(context, bookmark: bookmark);
     if (colorHex != null && mounted) {
       provider.updateBookmarkColor(bookmark.id, colorHex);
@@ -411,11 +366,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
 
   void _onDeleteBookmark(BookmarksProvider provider, Bookmark bookmark) async {
     final bookTitle = provider.getBookTitle(bookmark.bookId);
-    final confirmed = await DeleteBookmarkDialog.show(
-      context,
-      bookmark: bookmark,
-      bookTitle: bookTitle,
-    );
+    final confirmed = await DeleteBookmarkDialog.show(context, bookmark: bookmark, bookTitle: bookTitle);
     if (confirmed && mounted) {
       provider.deleteBookmark(bookmark.id);
     }

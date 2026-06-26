@@ -55,11 +55,7 @@ class DashboardProvider extends ChangeNotifier {
   Book? get currentBook {
     if (_dataStore == null) return null;
     final readingBooks = _dataStore!.books.where((b) => b.isReading).toList()
-      ..sort(
-        (a, b) => (b.lastReadAt ?? DateTime(2000)).compareTo(
-          a.lastReadAt ?? DateTime(2000),
-        ),
-      );
+      ..sort((a, b) => (b.lastReadAt ?? DateTime(2000)).compareTo(a.lastReadAt ?? DateTime(2000)));
     return readingBooks.isNotEmpty ? readingBooks.first : null;
   }
 
@@ -74,8 +70,7 @@ class DashboardProvider extends ChangeNotifier {
   /// Get recently added books (last 5).
   List<Book> get recentlyAdded {
     if (_dataStore == null) return [];
-    final books = List<Book>.from(_dataStore!.books)
-      ..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+    final books = List<Book>.from(_dataStore!.books)..sort((a, b) => b.addedAt.compareTo(a.addedAt));
     return books.take(5).toList();
   }
 
@@ -84,9 +79,7 @@ class DashboardProvider extends ChangeNotifier {
     if (_dataStore == null) return 0;
     final today = DateTime.now();
     final todayStart = DateTime(today.year, today.month, today.day);
-    final todaySessions = _dataStore!.readingSessions.where(
-      (s) => s.startTime.isAfter(todayStart),
-    );
+    final todaySessions = _dataStore!.readingSessions.where((s) => s.startTime.isAfter(todayStart));
     return todaySessions.fold(0, (sum, s) => sum + s.durationMinutes);
   }
 
@@ -105,10 +98,7 @@ class DashboardProvider extends ChangeNotifier {
   /// Total reading minutes from all sessions.
   int get totalReadingMinutes {
     if (_dataStore == null) return 0;
-    return _dataStore!.readingSessions.fold(
-      0,
-      (sum, s) => sum + s.durationMinutes,
-    );
+    return _dataStore!.readingSessions.fold(0, (sum, s) => sum + s.durationMinutes);
   }
 
   ActivityPeriod get activityPeriod => _activityPeriod;
@@ -253,9 +243,7 @@ class DashboardProvider extends ChangeNotifier {
       return;
     }
 
-    final offset = _activityPeriod == ActivityPeriod.week
-        ? _weekOffset
-        : _monthOffset;
+    final offset = _activityPeriod == ActivityPeriod.week ? _weekOffset : _monthOffset;
     _weeklyActivity = _generateActivityFromSessions(offset);
   }
 
@@ -263,9 +251,7 @@ class DashboardProvider extends ChangeNotifier {
     if (_dataStore == null) return [];
 
     final now = DateTime.now();
-    final weekStart = now.subtract(
-      Duration(days: now.weekday - 1 + (-offset * 7)),
-    );
+    final weekStart = now.subtract(Duration(days: now.weekday - 1 + (-offset * 7)));
 
     return List.generate(7, (i) {
       final date = weekStart.add(Duration(days: i));
@@ -274,46 +260,22 @@ class DashboardProvider extends ChangeNotifier {
 
       // Get sessions for this day
       final daySessions = _dataStore!.readingSessions.where(
-        (s) =>
-            s.startTime.isAfter(
-              dayStart.subtract(const Duration(seconds: 1)),
-            ) &&
-            s.startTime.isBefore(dayEnd),
+        (s) => s.startTime.isAfter(dayStart.subtract(const Duration(seconds: 1))) && s.startTime.isBefore(dayEnd),
       );
 
       final minutes = daySessions.fold(0, (sum, s) => sum + s.durationMinutes);
       final pages = daySessions.fold(0, (sum, s) => sum + (s.pagesRead ?? 0));
 
-      return DailyActivity(
-        date: date,
-        readingMinutes: minutes,
-        pagesRead: pages,
-        booksRead: [],
-      );
+      return DailyActivity(date: date, readingMinutes: minutes, pagesRead: pages, booksRead: []);
     });
   }
 
   String _getWeekRangeLabel(int offset) {
     final now = DateTime.now();
-    final weekStart = now.subtract(
-      Duration(days: now.weekday - 1 + (-offset * 7)),
-    );
+    final weekStart = now.subtract(Duration(days: now.weekday - 1 + (-offset * 7)));
     final weekEnd = weekStart.add(const Duration(days: 6));
 
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     if (weekStart.month == weekEnd.month) {
       return '${months[weekStart.month - 1]} ${weekStart.day}-${weekEnd.day}';

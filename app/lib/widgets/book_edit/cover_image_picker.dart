@@ -57,8 +57,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
     if (widget.initialUrl != oldWidget.initialUrl) {
       setState(() {
         _imageUrl = widget.initialUrl;
-        if (widget.initialUrl != null &&
-            !widget.initialUrl!.startsWith('data:')) {
+        if (widget.initialUrl != null && !widget.initialUrl!.startsWith('data:')) {
           _urlController.text = widget.initialUrl!;
         } else {
           _urlController.clear();
@@ -106,9 +105,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
                 onPressed: _pickImage,
                 icon: const Icon(Icons.upload, size: 18),
                 label: const Text('Upload'),
-                style: OutlinedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 12),
-                ),
+                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)),
               ),
             ),
             const SizedBox(width: Spacing.md),
@@ -119,9 +116,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
                 label: const Text('URL'),
                 style: OutlinedButton.styleFrom(
                   padding: const EdgeInsets.symmetric(vertical: 12),
-                  backgroundColor: _showUrlInput
-                      ? colorScheme.secondaryContainer
-                      : null,
+                  backgroundColor: _showUrlInput ? colorScheme.secondaryContainer : null,
                 ),
               ),
             ),
@@ -137,9 +132,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
               labelText: 'Image URL',
               hintText: 'https://...',
               isDense: true,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(AppRadius.md),
-              ),
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
               suffixIcon: _urlController.text.isNotEmpty
                   ? IconButton(
                       icon: const Icon(Icons.clear, size: 20),
@@ -181,18 +174,9 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
           color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(AppRadius.lg),
           border: Border.all(color: colorScheme.outlineVariant),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.black.withValues(alpha: 0.1),
-              blurRadius: 8,
-              offset: const Offset(0, 4),
-            ),
-          ],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))],
         ),
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(AppRadius.lg),
-          child: _buildCoverImage(context),
-        ),
+        child: ClipRRect(borderRadius: BorderRadius.circular(AppRadius.lg), child: _buildCoverImage(context)),
       ),
     );
 
@@ -217,11 +201,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
       return Stack(
         fit: StackFit.expand,
         children: [
-          Image.memory(
-            _imageBytes!,
-            fit: BoxFit.cover,
-            errorBuilder: (_, e, s) => _buildPlaceholder(context),
-          ),
+          Image.memory(_imageBytes!, fit: BoxFit.cover, errorBuilder: (_, e, s) => _buildPlaceholder(context)),
           Positioned(top: 8, right: 8, child: _buildRemoveButton(context)),
         ],
       );
@@ -277,10 +257,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
           const SizedBox(height: Spacing.sm),
           Text(
             'Tap to add cover',
-            style: TextStyle(
-              color: colorScheme.onSurfaceVariant,
-              fontSize: widget.isDesktop ? 14 : 12,
-            ),
+            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: widget.isDesktop ? 14 : 12),
           ),
         ],
       ),
@@ -294,11 +271,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
     });
 
     try {
-      final result = await FilePicker.platform.pickFiles(
-        type: FileType.image,
-        allowMultiple: false,
-        withData: true,
-      );
+      final result = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false, withData: true);
 
       if (result != null && result.files.isNotEmpty) {
         final file = result.files.first;

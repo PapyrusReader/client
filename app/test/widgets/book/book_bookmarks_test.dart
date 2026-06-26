@@ -78,9 +78,7 @@ void main() {
         expect(find.byType(BookmarkListItem), findsNWidgets(3));
       });
 
-      testWidgets('shows empty state when bookmarks list is empty', (
-        tester,
-      ) async {
+      testWidgets('shows empty state when bookmarks list is empty', (tester) async {
         await tester.pumpWidget(buildBookmarks(bookmarks: []));
 
         expect(find.text('No bookmarks yet'), findsOneWidget);
@@ -108,9 +106,7 @@ void main() {
         expect(find.byType(BookmarkListItem), findsOneWidget);
       });
 
-      testWidgets('shows no results when search has no matches', (
-        tester,
-      ) async {
+      testWidgets('shows no results when search has no matches', (tester) async {
         await tester.pumpWidget(buildBookmarks());
 
         await tester.enterText(find.byType(TextField), 'zzzznonexistent');
@@ -135,9 +131,7 @@ void main() {
     });
 
     group('sorting', () {
-      testWidgets('tapping sort button opens popup menu with 3 options', (
-        tester,
-      ) async {
+      testWidgets('tapping sort button opens popup menu with 3 options', (tester) async {
         await tester.pumpWidget(buildBookmarks());
 
         await tester.tap(find.byIcon(Icons.sort));
@@ -156,10 +150,7 @@ void main() {
 
         // The check icon next to "Newest first" should be visible (primary color)
         // while others should be transparent
-        final newestItem = find.ancestor(
-          of: find.text('Newest first'),
-          matching: find.byType(Row),
-        );
+        final newestItem = find.ancestor(of: find.text('Newest first'), matching: find.byType(Row));
         expect(newestItem, findsOneWidget);
       });
 
@@ -167,9 +158,7 @@ void main() {
         await tester.pumpWidget(buildBookmarks());
 
         // Default: newest first — bm-3 (5h ago), bm-1 (1d ago), bm-2 (3d ago)
-        var items = tester.widgetList<BookmarkListItem>(
-          find.byType(BookmarkListItem),
-        );
+        var items = tester.widgetList<BookmarkListItem>(find.byType(BookmarkListItem));
         expect(items.first.bookmark.id, 'bm-3');
 
         // Select "Oldest first"
@@ -179,9 +168,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Now: bm-2 (3d ago), bm-1 (1d ago), bm-3 (5h ago)
-        items = tester.widgetList<BookmarkListItem>(
-          find.byType(BookmarkListItem),
-        );
+        items = tester.widgetList<BookmarkListItem>(find.byType(BookmarkListItem));
         expect(items.first.bookmark.id, 'bm-2');
       });
 
@@ -194,22 +181,16 @@ void main() {
         await tester.pumpAndSettle();
 
         // By position: bm-3 (0.1), bm-1 (0.3), bm-2 (0.6)
-        final items = tester.widgetList<BookmarkListItem>(
-          find.byType(BookmarkListItem),
-        );
+        final items = tester.widgetList<BookmarkListItem>(find.byType(BookmarkListItem));
         expect(items.first.bookmark.id, 'bm-3');
         expect(items.last.bookmark.id, 'bm-2');
       });
     });
 
     group('callbacks', () {
-      testWidgets('long press on bookmark calls onBookmarkActions', (
-        tester,
-      ) async {
+      testWidgets('long press on bookmark calls onBookmarkActions', (tester) async {
         Bookmark? actionBookmark;
-        await tester.pumpWidget(
-          buildBookmarks(onBookmarkActions: (b) => actionBookmark = b),
-        );
+        await tester.pumpWidget(buildBookmarks(onBookmarkActions: (b) => actionBookmark = b));
 
         await tester.longPress(find.byType(BookmarkListItem).first);
         await tester.pump();
@@ -221,17 +202,13 @@ void main() {
 
     group('responsive', () {
       testWidgets('desktop layout shows action menu on items', (tester) async {
-        await tester.pumpWidget(
-          buildBookmarks(screenSize: const Size(1200, 800)),
-        );
+        await tester.pumpWidget(buildBookmarks(screenSize: const Size(1200, 800)));
 
         expect(find.byIcon(Icons.more_vert), findsNWidgets(3));
       });
 
       testWidgets('mobile layout hides action menu on items', (tester) async {
-        await tester.pumpWidget(
-          buildBookmarks(screenSize: const Size(400, 800)),
-        );
+        await tester.pumpWidget(buildBookmarks(screenSize: const Size(400, 800)));
 
         expect(find.byIcon(Icons.more_vert), findsNothing);
       });

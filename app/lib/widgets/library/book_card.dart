@@ -39,8 +39,7 @@ class BookCard extends StatefulWidget {
 class _BookCardState extends State<BookCard> {
   bool _isHovered = false;
 
-  bool get _isDesktop =>
-      MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
+  bool get _isDesktop => MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
 
   @override
   Widget build(BuildContext context) {
@@ -54,11 +53,7 @@ class _BookCardState extends State<BookCard> {
         onLongPressStart: _isDesktop
             ? null
             : (details) {
-                showBookContextMenu(
-                  context: context,
-                  book: widget.book,
-                  position: details.globalPosition,
-                );
+                showBookContextMenu(context: context, book: widget.book, position: details.globalPosition);
               },
         child: Card(
           clipBehavior: Clip.antiAlias,
@@ -76,25 +71,17 @@ class _BookCardState extends State<BookCard> {
                       _buildCover(context),
                       // Selection tint overlay
                       if (inSelection && widget.isSelected)
-                        Container(
-                          color: colorScheme.primary.withValues(alpha: 0.15),
-                        ),
+                        Container(color: colorScheme.primary.withValues(alpha: 0.15)),
                       // Favorite button - hidden in selection mode
                       if (!inSelection)
                         Positioned(
                           top: Spacing.xs,
                           left: Spacing.xs,
                           child: _CardIconButton(
-                            icon: widget.isFavorite
-                                ? Icons.favorite
-                                : Icons.favorite_border,
-                            color: widget.isFavorite
-                                ? colorScheme.error
-                                : Colors.white,
+                            icon: widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                            color: widget.isFavorite ? colorScheme.error : Colors.white,
                             onTap: widget.onToggleFavorite != null
-                                ? () => widget.onToggleFavorite!(
-                                    widget.isFavorite,
-                                  )
+                                ? () => widget.onToggleFavorite!(widget.isFavorite)
                                 : null,
                           ),
                         ),
@@ -104,12 +91,8 @@ class _BookCardState extends State<BookCard> {
                           top: Spacing.xs,
                           right: Spacing.xs,
                           child: _CardIconButton(
-                            icon: widget.isSelected
-                                ? Icons.check_circle
-                                : Icons.radio_button_unchecked,
-                            color: widget.isSelected
-                                ? colorScheme.primary
-                                : Colors.white,
+                            icon: widget.isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                            color: widget.isSelected ? colorScheme.primary : Colors.white,
                             onTap: widget.onSelectToggle,
                           ),
                         ),
@@ -124,17 +107,11 @@ class _BookCardState extends State<BookCard> {
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                _CardIconButton(
-                                  icon: Icons.radio_button_unchecked,
-                                  onTap: widget.onEnterSelectionMode,
-                                ),
+                                _CardIconButton(icon: Icons.radio_button_unchecked, onTap: widget.onEnterSelectionMode),
                                 const SizedBox(width: Spacing.xs),
                                 _CardIconButton(
                                   icon: Icons.more_vert,
-                                  onTap: () => showBookContextMenu(
-                                    context: context,
-                                    book: widget.book,
-                                  ),
+                                  onTap: () => showBookContextMenu(context: context, book: widget.book),
                                 ),
                               ],
                             ),
@@ -145,22 +122,17 @@ class _BookCardState extends State<BookCard> {
                         bottom: Spacing.xs,
                         left: Spacing.xs,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest
-                                .withValues(alpha: 0.9),
+                            color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
                             borderRadius: BorderRadius.circular(AppRadius.sm),
                           ),
                           child: Text(
                             widget.book.formatLabel,
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                  fontWeight: FontWeight.w600,
-                                ),
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: colorScheme.onSurfaceVariant,
+                              fontWeight: FontWeight.w600,
+                            ),
                           ),
                         ),
                       ),
@@ -172,9 +144,7 @@ class _BookCardState extends State<BookCard> {
                   LinearProgressIndicator(
                     value: widget.book.progress,
                     backgroundColor: colorScheme.surfaceContainerHighest,
-                    color: widget.book.isFinished
-                        ? colorScheme.tertiary
-                        : colorScheme.primary,
+                    color: widget.book.isFinished ? colorScheme.tertiary : colorScheme.primary,
                     minHeight: 3,
                   ),
                 // Title and author
@@ -192,9 +162,7 @@ class _BookCardState extends State<BookCard> {
                       const SizedBox(height: 2),
                       Text(
                         widget.book.author,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -235,19 +203,15 @@ class _BookCardState extends State<BookCard> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.menu_book,
-            size: IconSizes.display,
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-          ),
+          Icon(Icons.menu_book, size: IconSizes.display, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
           const SizedBox(height: Spacing.xs),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
             child: Text(
               widget.book.title,
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -277,11 +241,7 @@ class _CardIconButton extends StatelessWidget {
         onTap: onTap,
         child: Padding(
           padding: const EdgeInsets.all(6),
-          child: Icon(
-            icon,
-            size: IconSizes.small,
-            color: color ?? Colors.white,
-          ),
+          child: Icon(icon, size: IconSizes.small, color: color ?? Colors.white),
         ),
       ),
     );

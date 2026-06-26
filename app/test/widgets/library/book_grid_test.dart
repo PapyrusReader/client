@@ -14,11 +14,7 @@ void main() {
       testBooks = createTestBooks();
     });
 
-    Widget buildGrid({
-      List<Book>? books,
-      void Function(Book)? onBookTap,
-      Size screenSize = const Size(400, 800),
-    }) {
+    Widget buildGrid({List<Book>? books, void Function(Book)? onBookTap, Size screenSize = const Size(400, 800)}) {
       return createTestApp(
         dataStore: createTestDataStore(books: books ?? testBooks),
         child: BookGrid(books: books ?? testBooks, onBookTap: onBookTap),
@@ -44,9 +40,7 @@ void main() {
 
     testWidgets('passes onBookTap to each card', (tester) async {
       Book? tappedBook;
-      await tester.pumpWidget(
-        buildGrid(onBookTap: (book) => tappedBook = book),
-      );
+      await tester.pumpWidget(buildGrid(onBookTap: (book) => tappedBook = book));
       await tester.pumpAndSettle();
 
       // Tap the first card

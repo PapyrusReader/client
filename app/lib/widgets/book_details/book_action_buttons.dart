@@ -25,9 +25,7 @@ class BookActionButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final buttonHeight = isDesktop
-        ? ComponentSizes.buttonHeightDesktop
-        : ComponentSizes.buttonHeightMobile;
+    final buttonHeight = isDesktop ? ComponentSizes.buttonHeightDesktop : ComponentSizes.buttonHeightMobile;
 
     return Row(
       mainAxisSize: isDesktop ? MainAxisSize.min : MainAxisSize.max,
@@ -45,12 +43,8 @@ class BookActionButtons extends StatelessWidget {
                   )
                 : FilledButton.icon(
                     onPressed: onContinueReading,
-                    icon: Icon(
-                      book.progress > 0 ? Icons.play_arrow : Icons.menu_book,
-                    ),
-                    label: Text(
-                      book.progress > 0 ? 'Continue' : 'Start reading',
-                    ),
+                    icon: Icon(book.progress > 0 ? Icons.play_arrow : Icons.menu_book),
+                    label: Text(book.progress > 0 ? 'Continue' : 'Start reading'),
                   ),
           )
         else
@@ -66,9 +60,7 @@ class BookActionButtons extends StatelessWidget {
                     )
                   : FilledButton.icon(
                       onPressed: onContinueReading,
-                      icon: Icon(
-                        book.progress > 0 ? Icons.play_arrow : Icons.menu_book,
-                      ),
+                      icon: Icon(book.progress > 0 ? Icons.play_arrow : Icons.menu_book),
                       label: Text(book.progress > 0 ? 'Continue' : 'Read'),
                     ),
             ),
@@ -83,9 +75,7 @@ class BookActionButtons extends StatelessWidget {
             onPressed: onToggleFavorite,
             style: OutlinedButton.styleFrom(
               padding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.button),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
             ),
             child: Icon(
               book.isFavorite ? Icons.favorite : Icons.favorite_border,
@@ -103,9 +93,7 @@ class BookActionButtons extends StatelessWidget {
             onPressed: onEdit,
             style: OutlinedButton.styleFrom(
               padding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(AppRadius.button),
-              ),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
             ),
             child: Icon(Icons.edit_outlined, color: colorScheme.primary),
           ),

@@ -38,17 +38,14 @@ class ShelfCard extends StatefulWidget {
 class _ShelfCardState extends State<ShelfCard> {
   bool _isHovered = false;
 
-  bool get _isDesktop =>
-      MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
+  bool get _isDesktop => MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
 
   @override
   Widget build(BuildContext context) {
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
-      child: widget.isListItem
-          ? _buildListItem(context)
-          : _buildGridCard(context),
+      child: widget.isListItem ? _buildListItem(context) : _buildGridCard(context),
     );
   }
 
@@ -99,18 +96,12 @@ class _ShelfCardState extends State<ShelfCard> {
                   // Icon and title row
                   Row(
                     children: [
-                      Icon(
-                        widget.shelf.displayIcon,
-                        size: IconSizes.small,
-                        color: shelfColor,
-                      ),
+                      Icon(widget.shelf.displayIcon, size: IconSizes.small, color: shelfColor),
                       const SizedBox(width: Spacing.xs),
                       Expanded(
                         child: Text(
                           widget.shelf.name,
-                          style: textTheme.titleSmall?.copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
+                          style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -120,9 +111,7 @@ class _ShelfCardState extends State<ShelfCard> {
                   const SizedBox(height: 2),
                   Text(
                     widget.shelf.bookCountLabel,
-                    style: textTheme.bodySmall?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -152,19 +141,10 @@ class _ShelfCardState extends State<ShelfCard> {
           gradient: LinearGradient(
             begin: Alignment.topLeft,
             end: Alignment.bottomRight,
-            colors: [
-              shelfColor.withValues(alpha: 0.3),
-              shelfColor.withValues(alpha: 0.15),
-            ],
+            colors: [shelfColor.withValues(alpha: 0.3), shelfColor.withValues(alpha: 0.15)],
           ),
         ),
-        child: Center(
-          child: Icon(
-            widget.shelf.displayIcon,
-            size: 48,
-            color: shelfColor.withValues(alpha: 0.6),
-          ),
-        ),
+        child: Center(child: Icon(widget.shelf.displayIcon, size: 48, color: shelfColor.withValues(alpha: 0.6))),
       );
     }
 
@@ -245,10 +225,8 @@ class _ShelfCardState extends State<ShelfCard> {
             image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
           ),
         ),
-        errorWidget: (context, url, error) =>
-            _buildCoverPlaceholder(colorScheme, cover.title),
-        placeholder: (context, url) =>
-            Container(color: colorScheme.surfaceContainerHighest),
+        errorWidget: (context, url, error) => _buildCoverPlaceholder(colorScheme, cover.title),
+        placeholder: (context, url) => Container(color: colorScheme.surfaceContainerHighest),
       );
     }
 
@@ -261,20 +239,13 @@ class _ShelfCardState extends State<ShelfCard> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.menu_book,
-            size: IconSizes.display,
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-          ),
+          Icon(Icons.menu_book, size: IconSizes.display, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
           const SizedBox(height: Spacing.xs),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
             child: Text(
               title,
-              style: TextStyle(
-                fontSize: 11,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-              ),
+              style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
               textAlign: TextAlign.center,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
@@ -296,11 +267,7 @@ class _ShelfCardState extends State<ShelfCard> {
         onTap: widget.onMoreTap,
         child: Padding(
           padding: const EdgeInsets.all(6),
-          child: Icon(
-            Icons.more_vert,
-            size: IconSizes.small,
-            color: Colors.white,
-          ),
+          child: Icon(Icons.more_vert, size: IconSizes.small, color: Colors.white),
         ),
       ),
     );
@@ -321,14 +288,9 @@ class _ShelfCardState extends State<ShelfCard> {
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
         child: Container(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.md,
-            vertical: Spacing.sm,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
           decoration: BoxDecoration(
-            border: Border(
-              bottom: BorderSide(color: colorScheme.outlineVariant),
-            ),
+            border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
           ),
           child: Row(
             children: [
@@ -351,18 +313,14 @@ class _ShelfCardState extends State<ShelfCard> {
                   children: [
                     Text(
                       widget.shelf.name,
-                      style: textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     const SizedBox(height: 2),
                     Text(
                       widget.shelf.description ?? widget.shelf.bookCountLabel,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -371,19 +329,14 @@ class _ShelfCardState extends State<ShelfCard> {
               ),
               // Book count badge
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 6,
-                ),
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: colorScheme.surfaceContainerHighest,
                   borderRadius: BorderRadius.circular(AppRadius.full),
                 ),
                 child: Text(
                   '${widget.shelf.bookCount}',
-                  style: textTheme.labelLarge?.copyWith(
-                    fontWeight: FontWeight.w600,
-                  ),
+                  style: textTheme.labelLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
               // More button (desktop hover only)

@@ -60,12 +60,7 @@ class _AllBooksState extends State<BooksPage> {
                   children: [
                     ...books
                         .asMap()
-                        .map(
-                          (index, data) => MapEntry(
-                            index,
-                            widgets.Book(id: index.toString(), data: data),
-                          ),
-                        )
+                        .map((index, data) => MapEntry(index, widgets.Book(id: index.toString(), data: data)))
                         .values,
                   ],
                 ),

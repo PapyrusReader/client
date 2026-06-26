@@ -8,12 +8,9 @@ class IsbnScannerDialog extends StatefulWidget {
 
   /// Show the scanner and return the scanned ISBN, or null if cancelled.
   static Future<String?> show(BuildContext context) {
-    return Navigator.of(context).push<String>(
-      MaterialPageRoute(
-        fullscreenDialog: true,
-        builder: (context) => const IsbnScannerDialog(),
-      ),
-    );
+    return Navigator.of(
+      context,
+    ).push<String>(MaterialPageRoute(fullscreenDialog: true, builder: (context) => const IsbnScannerDialog()));
   }
 
   @override
@@ -48,11 +45,7 @@ class _IsbnScannerDialogState extends State<IsbnScannerDialog> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
-        title: const Text('Scan ISBN'),
-      ),
+      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, title: const Text('Scan ISBN')),
       body: Column(
         children: [
           Expanded(
@@ -66,31 +59,17 @@ class _IsbnScannerDialogState extends State<IsbnScannerDialog> {
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(
-                          Icons.no_photography,
-                          size: IconSizes.display,
-                          color: colorScheme.error,
-                        ),
+                        Icon(Icons.no_photography, size: IconSizes.display, color: colorScheme.error),
                         const SizedBox(height: Spacing.md),
-                        Text(
-                          'Camera unavailable',
-                          style: textTheme.titleMedium?.copyWith(
-                            color: Colors.white,
-                          ),
-                        ),
+                        Text('Camera unavailable', style: textTheme.titleMedium?.copyWith(color: Colors.white)),
                         const SizedBox(height: Spacing.sm),
                         Text(
                           'Please check camera permissions and try again.',
-                          style: textTheme.bodyMedium?.copyWith(
-                            color: Colors.white70,
-                          ),
+                          style: textTheme.bodyMedium?.copyWith(color: Colors.white70),
                           textAlign: TextAlign.center,
                         ),
                         const SizedBox(height: Spacing.lg),
-                        FilledButton(
-                          onPressed: () => Navigator.of(context).pop(),
-                          child: const Text('Go back'),
-                        ),
+                        FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Go back')),
                       ],
                     ),
                   ),
@@ -103,10 +82,7 @@ class _IsbnScannerDialogState extends State<IsbnScannerDialog> {
             padding: const EdgeInsets.all(Spacing.lg),
             child: Column(
               children: [
-                Text(
-                  'Point camera at ISBN barcode',
-                  style: textTheme.bodyLarge?.copyWith(color: Colors.white),
-                ),
+                Text('Point camera at ISBN barcode', style: textTheme.bodyLarge?.copyWith(color: Colors.white)),
                 const SizedBox(height: Spacing.md),
                 ValueListenableBuilder(
                   valueListenable: _controller,
@@ -114,9 +90,7 @@ class _IsbnScannerDialogState extends State<IsbnScannerDialog> {
                     return IconButton(
                       onPressed: () => _controller.toggleTorch(),
                       icon: Icon(
-                        state.torchState == TorchState.on
-                            ? Icons.flash_on
-                            : Icons.flash_off,
+                        state.torchState == TorchState.on ? Icons.flash_on : Icons.flash_off,
                         color: Colors.white,
                         size: IconSizes.medium,
                       ),

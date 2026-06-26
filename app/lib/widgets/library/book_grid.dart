@@ -14,12 +14,7 @@ class BookGrid extends StatelessWidget {
   final void Function(Book book)? onBookTap;
   final EdgeInsets? padding;
 
-  const BookGrid({
-    super.key,
-    required this.books,
-    this.onBookTap,
-    this.padding,
-  });
+  const BookGrid({super.key, required this.books, this.onBookTap, this.padding});
 
   @override
   Widget build(BuildContext context) {
@@ -55,13 +50,7 @@ class BookGrid extends StatelessWidget {
       context: context,
       removeTop: true,
       child: GridView.builder(
-        padding:
-            padding ??
-            const EdgeInsets.only(
-              left: Spacing.md,
-              right: Spacing.md,
-              bottom: Spacing.md,
-            ),
+        padding: padding ?? const EdgeInsets.only(left: Spacing.md, right: Spacing.md, bottom: Spacing.md),
         cacheExtent: 200,
         gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
           crossAxisCount: crossAxisCount,
@@ -72,21 +61,16 @@ class BookGrid extends StatelessWidget {
         itemCount: books.length,
         itemBuilder: (context, index) {
           final book = books[index];
-          final isFavorite = libraryProvider.isBookFavorite(
-            book.id,
-            book.isFavorite,
-          );
+          final isFavorite = libraryProvider.isBookFavorite(book.id, book.isFavorite);
           return BookCard(
             book: book,
             isFavorite: isFavorite,
-            onToggleFavorite: (current) =>
-                libraryProvider.toggleFavorite(book.id, current),
+            onToggleFavorite: (current) => libraryProvider.toggleFavorite(book.id, current),
             onTap: onBookTap != null ? () => onBookTap!(book) : null,
             isSelectionMode: isSelectionMode,
             isSelected: libraryProvider.isBookSelected(book.id),
             onSelectToggle: () => libraryProvider.toggleBookSelection(book.id),
-            onEnterSelectionMode: () =>
-                libraryProvider.enterSelectionMode(book.id),
+            onEnterSelectionMode: () => libraryProvider.enterSelectionMode(book.id),
           );
         },
       ),

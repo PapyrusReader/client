@@ -6,11 +6,7 @@ import 'package:papyrus/themes/design_tokens.dart';
 /// Used across library, shelves, and other pages that offer
 /// grid vs list view switching.
 class ViewModeToggle extends StatelessWidget {
-  const ViewModeToggle({
-    super.key,
-    required this.isGridView,
-    required this.onChanged,
-  });
+  const ViewModeToggle({super.key, required this.isGridView, required this.onChanged});
 
   final bool isGridView;
   final ValueChanged<bool> onChanged;
@@ -19,21 +15,12 @@ class ViewModeToggle extends StatelessWidget {
   Widget build(BuildContext context) {
     return SegmentedButton<bool>(
       segments: const [
-        ButtonSegment(
-          value: true,
-          icon: Icon(Icons.grid_view, size: IconSizes.small),
-        ),
-        ButtonSegment(
-          value: false,
-          icon: Icon(Icons.view_list, size: IconSizes.small),
-        ),
+        ButtonSegment(value: true, icon: Icon(Icons.grid_view, size: IconSizes.small)),
+        ButtonSegment(value: false, icon: Icon(Icons.view_list, size: IconSizes.small)),
       ],
       selected: {isGridView},
       onSelectionChanged: (selection) => onChanged(selection.first),
-      style: ButtonStyle(
-        visualDensity: VisualDensity.compact,
-        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      ),
+      style: ButtonStyle(visualDensity: VisualDensity.compact, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
     );
   }
 }

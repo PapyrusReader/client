@@ -8,9 +8,7 @@ import 'package:path_provider_platform_interface/path_provider_platform_interfac
 import 'package:plugin_platform_interface/plugin_platform_interface.dart';
 
 /// Fake path_provider that returns a temporary directory for testing.
-class _FakePathProvider extends Fake
-    with MockPlatformInterfaceMixin
-    implements PathProviderPlatform {
+class _FakePathProvider extends Fake with MockPlatformInterfaceMixin implements PathProviderPlatform {
   final Directory tempDir;
 
   _FakePathProvider(this.tempDir);
@@ -20,6 +18,8 @@ class _FakePathProvider extends Fake
 }
 
 void main() {
+  final uuidMatcher = matches(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'));
+
   late BookImportService service;
   late Directory tempDir;
 
@@ -53,7 +53,7 @@ void main() {
 
         final result = await service.importBook(bytes, 'book1.epub');
 
-        expect(result.bookId, startsWith('book-'));
+        expect(result.bookId, uuidMatcher);
         expect(result.title, isNotEmpty);
         expect(result.fileSize, bytes.length);
         expect(result.fileHash, isNotEmpty);
@@ -67,7 +67,7 @@ void main() {
 
         final result = await service.importBook(bytes, 'book2.epub');
 
-        expect(result.bookId, startsWith('book-'));
+        expect(result.bookId, uuidMatcher);
         expect(result.title, isNotEmpty);
         expect(result.fileSize, bytes.length);
         expect(result.fileHash, isNotEmpty);
@@ -80,7 +80,7 @@ void main() {
 
         final result = await service.importBook(bytes, 'book3.epub');
 
-        expect(result.bookId, startsWith('book-'));
+        expect(result.bookId, uuidMatcher);
         expect(result.title, isNotEmpty);
         expect(result.fileSize, bytes.length);
         expect(result.fileHash, isNotEmpty);
@@ -124,9 +124,7 @@ void main() {
 
         final result = await service.importBook(bytes, 'book1.epub');
 
-        final storedFile = File(
-          p.join(tempDir.path, 'books', '${result.bookId}.epub'),
-        );
+        final storedFile = File(p.join(tempDir.path, 'books', '${result.bookId}.epub'));
         expect(storedFile.existsSync(), isTrue);
         expect(storedFile.lengthSync(), bytes.length);
       });
@@ -143,21 +141,16 @@ void main() {
         final result = await service.importBook(bytes, 'bad.epub');
 
         // Should still return a result (FileMetadataService never throws)
-        expect(result.bookId, startsWith('book-'));
+        expect(result.bookId, uuidMatcher);
         expect(result.fileSize, 6);
         expect(result.fileHash, isNotEmpty);
         expect(result.fileExtension, 'epub');
       });
 
       test('imports txt file with author-title pattern', () async {
-        final bytes = Uint8List.fromList(
-          'Hello, this is a test book with some content.'.codeUnits,
-        );
+        final bytes = Uint8List.fromList('Hello, this is a test book with some content.'.codeUnits);
 
-        final result = await service.importBook(
-          bytes,
-          'Jane Austen - Pride and Prejudice.txt',
-        );
+        final result = await service.importBook(bytes, 'Jane Austen - Pride and Prejudice.txt');
 
         expect(result.title, 'Pride and Prejudice');
         expect(result.author, 'Jane Austen');

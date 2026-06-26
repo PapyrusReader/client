@@ -24,25 +24,9 @@ class DailyActivity {
   /// Full day name (e.g., "Monday", "Tuesday").
   String get dayName => _weekdayFull[date.weekday - 1];
 
-  static const _weekdayShort = [
-    'Mon',
-    'Tue',
-    'Wed',
-    'Thu',
-    'Fri',
-    'Sat',
-    'Sun',
-  ];
+  static const _weekdayShort = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
   static const _weekdayInitial = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-  static const _weekdayFull = [
-    'Monday',
-    'Tuesday',
-    'Wednesday',
-    'Thursday',
-    'Friday',
-    'Saturday',
-    'Sunday',
-  ];
+  static const _weekdayFull = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday', 'Sunday'];
 
   /// Formatted reading time (e.g., "45m", "1h 30m").
   String get readingTimeLabel {
@@ -59,18 +43,11 @@ class DailyActivity {
   /// Whether this is today.
   bool get isToday {
     final now = DateTime.now();
-    return date.year == now.year &&
-        date.month == now.month &&
-        date.day == now.day;
+    return date.year == now.year && date.month == now.month && date.day == now.day;
   }
 
   /// Create a copy with updated fields.
-  DailyActivity copyWith({
-    DateTime? date,
-    int? readingMinutes,
-    int? pagesRead,
-    List<String>? booksRead,
-  }) {
+  DailyActivity copyWith({DateTime? date, int? readingMinutes, int? pagesRead, List<String>? booksRead}) {
     return DailyActivity(
       date: date ?? this.date,
       readingMinutes: readingMinutes ?? this.readingMinutes,
@@ -85,42 +62,17 @@ class DailyActivity {
     final monday = now.subtract(Duration(days: now.weekday - 1));
 
     return [
-      DailyActivity(
-        date: monday,
-        readingMinutes: 45,
-        pagesRead: 32,
-        booksRead: ['1'],
-      ),
+      DailyActivity(date: monday, readingMinutes: 45, pagesRead: 32, booksRead: ['1']),
       DailyActivity(
         date: monday.add(const Duration(days: 1)),
         readingMinutes: 52,
         pagesRead: 38,
         booksRead: ['1', '3'],
       ),
-      DailyActivity(
-        date: monday.add(const Duration(days: 2)),
-        readingMinutes: 30,
-        pagesRead: 22,
-        booksRead: ['3'],
-      ),
-      DailyActivity(
-        date: monday.add(const Duration(days: 3)),
-        readingMinutes: 48,
-        pagesRead: 35,
-        booksRead: ['3'],
-      ),
-      DailyActivity(
-        date: monday.add(const Duration(days: 4)),
-        readingMinutes: 15,
-        pagesRead: 10,
-        booksRead: ['3'],
-      ),
-      DailyActivity(
-        date: monday.add(const Duration(days: 5)),
-        readingMinutes: 0,
-        pagesRead: 0,
-        booksRead: [],
-      ),
+      DailyActivity(date: monday.add(const Duration(days: 2)), readingMinutes: 30, pagesRead: 22, booksRead: ['3']),
+      DailyActivity(date: monday.add(const Duration(days: 3)), readingMinutes: 48, pagesRead: 35, booksRead: ['3']),
+      DailyActivity(date: monday.add(const Duration(days: 4)), readingMinutes: 15, pagesRead: 10, booksRead: ['3']),
+      DailyActivity(date: monday.add(const Duration(days: 5)), readingMinutes: 0, pagesRead: 0, booksRead: []),
       DailyActivity(
         date: monday.add(const Duration(days: 6)),
         readingMinutes: 55,
@@ -135,21 +87,14 @@ class DailyActivity {
     final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
 
-    return List.generate(
-      7,
-      (index) => DailyActivity(
-        date: monday.add(Duration(days: index)),
-        readingMinutes: 0,
-      ),
-    );
+    return List.generate(7, (index) => DailyActivity(date: monday.add(Duration(days: index)), readingMinutes: 0));
   }
 }
 
 /// Extension for calculating weekly statistics.
 extension WeeklyActivityStats on List<DailyActivity> {
   /// Total reading minutes for the week.
-  int get totalMinutes =>
-      fold(0, (sum, activity) => sum + activity.readingMinutes);
+  int get totalMinutes => fold(0, (sum, activity) => sum + activity.readingMinutes);
 
   /// Average reading minutes per day.
   int get averageMinutes => isEmpty ? 0 : totalMinutes ~/ length;
@@ -175,7 +120,5 @@ extension WeeklyActivityStats on List<DailyActivity> {
   }
 
   /// Maximum reading minutes in a single day.
-  int get maxMinutes => isEmpty
-      ? 0
-      : map((a) => a.readingMinutes).reduce((a, b) => a > b ? a : b);
+  int get maxMinutes => isEmpty ? 0 : map((a) => a.readingMinutes).reduce((a, b) => a > b ? a : b);
 }

@@ -94,11 +94,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
           children: [
             // Row 1: Menu + Search + Sort
             Padding(
-              padding: const EdgeInsets.only(
-                top: Spacing.md,
-                left: Spacing.md,
-                right: Spacing.md,
-              ),
+              padding: const EdgeInsets.only(top: Spacing.md, left: Spacing.md, right: Spacing.md),
               child: Row(
                 children: [
                   IconButton(
@@ -118,19 +114,15 @@ class _ShelvesPageState extends State<ShelvesPage> {
             SizedBox(height: Spacing.md),
             // Row 2: Count + View toggle
             Padding(
-              padding: const EdgeInsets.only(
-                left: Spacing.md,
-                right: Spacing.md,
-                bottom: Spacing.md,
-              ),
+              padding: const EdgeInsets.only(left: Spacing.md, right: Spacing.md, bottom: Spacing.md),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   Text(
                     '${provider.shelves.length} ${provider.shelves.length == 1 ? 'shelf' : 'shelves'}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                      color: Theme.of(context).colorScheme.onSurfaceVariant,
-                    ),
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                   ),
                   _buildViewToggle(provider),
                 ],
@@ -167,11 +159,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
         children: [
           // Header row
           Container(
-            padding: const EdgeInsets.only(
-              top: Spacing.lg,
-              left: Spacing.lg,
-              right: Spacing.lg,
-            ),
+            padding: const EdgeInsets.only(top: Spacing.lg, left: Spacing.lg, right: Spacing.lg),
             child: LayoutBuilder(
               builder: (context, constraints) {
                 final useCompactLayout = constraints.maxWidth < 800;
@@ -263,25 +251,13 @@ class _ShelvesPageState extends State<ShelvesPage> {
       itemBuilder: (context) => [
         _buildSortMenuItem(ShelfSortOption.name, 'Name', provider),
         _buildSortMenuItem(ShelfSortOption.bookCount, 'Book count', provider),
-        _buildSortMenuItem(
-          ShelfSortOption.dateCreated,
-          'Date created',
-          provider,
-        ),
-        _buildSortMenuItem(
-          ShelfSortOption.dateModified,
-          'Date modified',
-          provider,
-        ),
+        _buildSortMenuItem(ShelfSortOption.dateCreated, 'Date created', provider),
+        _buildSortMenuItem(ShelfSortOption.dateModified, 'Date modified', provider),
       ],
     );
   }
 
-  PopupMenuItem<ShelfSortOption> _buildSortMenuItem(
-    ShelfSortOption option,
-    String label,
-    ShelvesProvider provider,
-  ) {
+  PopupMenuItem<ShelfSortOption> _buildSortMenuItem(ShelfSortOption option, String label, ShelvesProvider provider) {
     return PopupMenuItem(
       value: option,
       child: Row(
@@ -290,9 +266,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
           Icon(
             Icons.check,
             size: IconSizes.small,
-            color: option == provider.shelfSortOption
-                ? Theme.of(context).colorScheme.primary
-                : Colors.transparent,
+            color: option == provider.shelfSortOption ? Theme.of(context).colorScheme.primary : Colors.transparent,
           ),
         ],
       ),
@@ -302,9 +276,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
   Widget _buildViewToggle(ShelvesProvider provider) {
     return ViewModeToggle(
       isGridView: provider.isGridView,
-      onChanged: (isGrid) => provider.setViewMode(
-        isGrid ? ShelvesViewMode.grid : ShelvesViewMode.list,
-      ),
+      onChanged: (isGrid) => provider.setViewMode(isGrid ? ShelvesViewMode.grid : ShelvesViewMode.list),
     );
   }
 
@@ -406,12 +378,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
     AddShelfSheet.show(
       context,
       onSave: (name, description, colorHex, icon) {
-        _provider.createShelf(
-          name: name,
-          description: description,
-          colorHex: colorHex,
-          icon: icon,
-        );
+        _provider.createShelf(name: name, description: description, colorHex: colorHex, icon: icon);
       },
     );
   }
@@ -421,13 +388,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
       context,
       shelf: shelf,
       onSave: (name, description, colorHex, icon) {
-        _provider.updateShelf(
-          shelfId: shelf.id,
-          name: name,
-          description: description,
-          colorHex: colorHex,
-          icon: icon,
-        );
+        _provider.updateShelf(shelfId: shelf.id, name: name, description: description, colorHex: colorHex, icon: icon);
       },
     );
   }
@@ -441,9 +402,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
 
     showModalBottomSheet(
       context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(vertical: Spacing.md),
@@ -458,9 +417,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
                 padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
                 child: Text(
                   shelf.name,
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
+                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
                 ),
               ),
               const SizedBox(height: Spacing.md),
@@ -475,10 +432,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
               ),
               ListTile(
                 leading: Icon(Icons.delete_outlined, color: colorScheme.error),
-                title: Text(
-                  'Delete shelf',
-                  style: TextStyle(color: colorScheme.error),
-                ),
+                title: Text('Delete shelf', style: TextStyle(color: colorScheme.error)),
                 onTap: () {
                   Navigator.of(context).pop();
                   _confirmDeleteShelf(context, shelf);
@@ -500,10 +454,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
         title: const Text('Delete shelf'),
         content: Text('Delete "${shelf.name}"? Books will not be deleted.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               Navigator.of(context).pop();

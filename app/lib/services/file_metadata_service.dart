@@ -54,8 +54,7 @@ class FileMetadataResult {
   String get primaryAuthor => authors?.isNotEmpty == true ? authors!.first : '';
 
   /// Get co-authors (all authors except the first).
-  List<String> get coAuthors =>
-      authors != null && authors!.length > 1 ? authors!.sublist(1) : [];
+  List<String> get coAuthors => authors != null && authors!.length > 1 ? authors!.sublist(1) : [];
 }
 
 /// Parsed ComicInfo.xml fields shared between CBZ and CBR extractors.
@@ -67,14 +66,7 @@ class _ComicInfoData {
   final String? language;
   final int? pageCount;
 
-  const _ComicInfoData({
-    this.title,
-    this.authors,
-    this.publisher,
-    this.description,
-    this.language,
-    this.pageCount,
-  });
+  const _ComicInfoData({this.title, this.authors, this.publisher, this.description, this.language, this.pageCount});
 }
 
 /// Service for extracting metadata from book files.
@@ -84,23 +76,13 @@ class _ComicInfoData {
 class FileMetadataService {
   static const _charsPerPage = 1500;
 
-  static const _imageExtensions = {
-    '.jpg',
-    '.jpeg',
-    '.png',
-    '.gif',
-    '.bmp',
-    '.webp',
-  };
+  static const _imageExtensions = {'.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp'};
 
   /// Extract metadata from file bytes.
   ///
   /// Format is detected from the [filename] extension. Returns partial results
   /// with warnings if extraction encounters issues.
-  Future<FileMetadataResult> extractMetadata(
-    Uint8List bytes,
-    String filename,
-  ) async {
+  Future<FileMetadataResult> extractMetadata(Uint8List bytes, String filename) async {
     final ext = p.extension(filename).toLowerCase();
 
     try {
@@ -118,9 +100,7 @@ class FileMetadataService {
         case '.txt':
           return _extractTxt(bytes, filename);
         default:
-          return FileMetadataResult(
-            warnings: ['Unsupported file format: $ext'],
-          );
+          return FileMetadataResult(warnings: ['Unsupported file format: $ext']);
       }
     } catch (e) {
       return FileMetadataResult(warnings: ['Failed to extract metadata: $e']);
@@ -140,47 +120,20 @@ class FileMetadataService {
     final title = _tryRead('EPUB title', warnings, () => book.title);
 
     final authors = _tryRead('EPUB authors', warnings, () {
-      final raw = book.authors
-          .whereType<String>()
-          .where((a) => a.isNotEmpty)
-          .toList();
+      final raw = book.authors.whereType<String>().where((a) => a.isNotEmpty).toList();
       return raw.isNotEmpty ? raw : null;
     });
 
-    final publisher = _tryRead(
-      'EPUB publisher',
-      warnings,
-      () => metadata?.publishers.firstOrNull,
-    );
-    final description = _tryRead(
-      'EPUB description',
-      warnings,
-      () => metadata?.description,
-    );
-    final language = _tryRead(
-      'EPUB language',
-      warnings,
-      () => metadata?.languages.firstOrNull,
-    );
-    final publishedDate = _tryRead(
-      'EPUB date',
-      warnings,
-      () => _findEpubDate(metadata?.dates),
-    );
+    final publisher = _tryRead('EPUB publisher', warnings, () => metadata?.publishers.firstOrNull);
+    final description = _tryRead('EPUB description', warnings, () => metadata?.description);
+    final language = _tryRead('EPUB language', warnings, () => metadata?.languages.firstOrNull);
+    final publishedDate = _tryRead('EPUB date', warnings, () => _findEpubDate(metadata?.dates));
 
-    final isbns = _tryRead(
-      'EPUB identifiers',
-      warnings,
-      () => _findEpubIsbns(metadata?.identifiers),
-    );
+    final isbns = _tryRead('EPUB identifiers', warnings, () => _findEpubIsbns(metadata?.identifiers));
 
     Uint8List? coverImageBytes;
     String? coverImageMimeType;
-    final coverImage = _tryRead(
-      'EPUB cover image',
-      warnings,
-      () => book.coverImage,
-    );
+    final coverImage = _tryRead('EPUB cover image', warnings, () => book.coverImage);
     if (coverImage != null) {
       coverImageBytes = img.encodePng(coverImage);
       coverImageMimeType = 'image/png';
@@ -205,9 +158,7 @@ class FileMetadataService {
     if (dates == null || dates.isEmpty) return null;
 
     // Prefer publication date, fall back to first date.
-    final pubDate = dates
-        .where((d) => d.event?.toLowerCase() == 'publication')
-        .firstOrNull;
+    final pubDate = dates.where((d) => d.event?.toLowerCase() == 'publication').firstOrNull;
     return (pubDate ?? dates.first).date;
   }
 
@@ -228,9 +179,7 @@ class FileMetadataService {
         isbn = clean;
       } else if (clean.length == 13 && isbn13 == null) {
         // ISBN-13 can appear without scheme in some EPUBs.
-        if (isIsbnScheme ||
-            clean.startsWith('978') ||
-            clean.startsWith('979')) {
+        if (isIsbnScheme || clean.startsWith('978') || clean.startsWith('979')) {
           isbn13 = clean;
         }
       }
@@ -340,11 +289,7 @@ class FileMetadataService {
     List<String>? authors;
     if (authorStr != null && authorStr.isNotEmpty) {
       // Authors can be separated by '&', ';', or ','
-      authors = authorStr
-          .split(RegExp(r'[;&,]'))
-          .map((a) => a.trim())
-          .where((a) => a.isNotEmpty)
-          .toList();
+      authors = authorStr.split(RegExp(r'[;&,]')).map((a) => a.trim()).where((a) => a.isNotEmpty).toList();
     }
 
     final publisher = getExthString(MobiExthTag.publisher);
@@ -357,15 +302,9 @@ class FileMetadataService {
     Uint8List? coverImageBytes;
     String? coverImageMimeType;
     try {
-      final coverRecord = DartMobiReader.getExthRecordByTag(
-        mobiData,
-        MobiExthTag.coverOffset,
-      );
+      final coverRecord = DartMobiReader.getExthRecordByTag(mobiData, MobiExthTag.coverOffset);
       if (coverRecord?.data != null) {
-        final offset = DartMobiReader.decodeExthValue(
-          coverRecord!.data!,
-          coverRecord.size!,
-        );
+        final offset = DartMobiReader.decodeExthValue(coverRecord!.data!, coverRecord.size!);
         final imageIndex = mobiData.mobiHeader?.imageIndex ?? 0;
         final coverRecordIndex = imageIndex + offset;
 
@@ -424,10 +363,7 @@ class FileMetadataService {
     final warnings = <String>[];
     final archive = ZipDecoder().decodeBytes(bytes);
 
-    final comicInfoBytes = archive.files
-        .where((f) => f.name.toLowerCase() == 'comicinfo.xml')
-        .firstOrNull
-        ?.content;
+    final comicInfoBytes = archive.files.where((f) => f.name.toLowerCase() == 'comicinfo.xml').firstOrNull?.content;
 
     final comicInfo = _parseComicInfo(comicInfoBytes, 'CBZ', warnings);
 
@@ -435,9 +371,8 @@ class FileMetadataService {
     Uint8List? coverImageBytes;
     String? coverImageMimeType;
     try {
-      final imageFiles =
-          archive.files.where((f) => f.isFile && _isImageFile(f.name)).toList()
-            ..sort((a, b) => a.name.compareTo(b.name));
+      final imageFiles = archive.files.where((f) => f.isFile && _isImageFile(f.name)).toList()
+        ..sort((a, b) => a.name.compareTo(b.name));
 
       if (imageFiles.isNotEmpty) {
         coverImageBytes = imageFiles.first.content;
@@ -464,10 +399,7 @@ class FileMetadataService {
   // CBR (RAR-based comic archive)
   // ============================================================================
 
-  Future<FileMetadataResult> _extractCbr(
-    Uint8List bytes,
-    String filename,
-  ) async {
+  Future<FileMetadataResult> _extractCbr(Uint8List bytes, String filename) async {
     final warnings = <String>[];
 
     // unrar_file requires file paths. Write bytes to a temp file, extract,
@@ -481,10 +413,7 @@ class FileMetadataService {
       final List<RarFile> files = rar.files;
 
       final comicInfoBytes = files
-          .where(
-            (f) =>
-                f.name?.toLowerCase() == 'comicinfo.xml' && f.content != null,
-          )
+          .where((f) => f.name?.toLowerCase() == 'comicinfo.xml' && f.content != null)
           .firstOrNull
           ?.content;
 
@@ -494,16 +423,8 @@ class FileMetadataService {
       Uint8List? coverImageBytes;
       String? coverImageMimeType;
       try {
-        final imageFiles =
-            files
-                .where(
-                  (f) =>
-                      f.content != null &&
-                      f.name != null &&
-                      _isImageFile(f.name!),
-                )
-                .toList()
-              ..sort((a, b) => a.name!.compareTo(b.name!));
+        final imageFiles = files.where((f) => f.content != null && f.name != null && _isImageFile(f.name!)).toList()
+          ..sort((a, b) => a.name!.compareTo(b.name!));
 
         if (imageFiles.isNotEmpty) {
           coverImageBytes = imageFiles.first.content;
@@ -564,12 +485,7 @@ class FileMetadataService {
       warnings.add('Could not estimate page count: $e');
     }
 
-    return FileMetadataResult(
-      title: title,
-      authors: authors,
-      pageCount: pageCount,
-      warnings: warnings,
-    );
+    return FileMetadataResult(title: title, authors: authors, pageCount: pageCount, warnings: warnings);
   }
 
   // ============================================================================
@@ -589,11 +505,7 @@ class FileMetadataService {
   /// Parse ComicInfo.xml bytes into metadata fields.
   ///
   /// If [xmlBytes] is null, adds a "not found" warning for [archiveType].
-  _ComicInfoData _parseComicInfo(
-    Uint8List? xmlBytes,
-    String archiveType,
-    List<String> warnings,
-  ) {
+  _ComicInfoData _parseComicInfo(Uint8List? xmlBytes, String archiveType, List<String> warnings) {
     if (xmlBytes == null) {
       warnings.add('No ComicInfo.xml found in $archiveType archive');
       return const _ComicInfoData();
@@ -657,10 +569,7 @@ class FileMetadataService {
       return 'image/jpeg';
     }
     // PNG: 89 50 4E 47
-    if (bytes[0] == 0x89 &&
-        bytes[1] == 0x50 &&
-        bytes[2] == 0x4E &&
-        bytes[3] == 0x47) {
+    if (bytes[0] == 0x89 && bytes[1] == 0x50 && bytes[2] == 0x4E && bytes[3] == 0x47) {
       return 'image/png';
     }
     // GIF: 47 49 46

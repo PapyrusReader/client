@@ -313,36 +313,24 @@ class Book {
       title: json['title'] as String,
       subtitle: json['subtitle'] as String?,
       author: json['author'] as String,
-      coAuthors:
-          (json['co_authors'] as List<dynamic>?)
-              ?.map((e) => e as String)
-              .toList() ??
-          [],
+      coAuthors: (json['co_authors'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
       isbn: json['isbn'] as String?,
       isbn13: json['isbn13'] as String?,
-      publicationDate: json['publication_date'] != null
-          ? DateTime.parse(json['publication_date'] as String)
-          : null,
+      publicationDate: json['publication_date'] != null ? DateTime.parse(json['publication_date'] as String) : null,
       publisher: json['publisher'] as String?,
       language: json['language'] as String?,
       pageCount: json['page_count'] as int?,
       description: json['description'] as String?,
       coverUrl: json['cover_image_url'] as String?,
       filePath: json['file_path'] as String?,
-      fileFormat: json['file_format'] != null
-          ? BookFormat.values.byName(json['file_format'] as String)
-          : null,
+      fileFormat: json['file_format'] != null ? BookFormat.values.byName(json['file_format'] as String) : null,
       fileSize: json['file_size'] as int?,
       fileHash: json['file_hash'] as String?,
       isPhysical: json['is_physical'] as bool? ?? false,
       physicalLocation: json['physical_location'] as String?,
       lentTo: json['lent_to'] as String?,
-      lentAt: json['lent_at'] != null
-          ? DateTime.parse(json['lent_at'] as String)
-          : null,
-      readingStatus: ReadingStatus.values.byName(
-        json['reading_status'] as String? ?? 'notStarted',
-      ),
+      lentAt: json['lent_at'] != null ? DateTime.parse(json['lent_at'] as String) : null,
+      readingStatus: ReadingStatus.values.byName(json['reading_status'] as String? ?? 'notStarted'),
       currentPage: json['current_page'] as int?,
       currentPosition: (json['current_position'] as num?)?.toDouble() ?? 0.0,
       currentCfi: json['current_cfi'] as String?,
@@ -353,15 +341,9 @@ class Book {
       seriesName: json['series_name'] as String?,
       seriesNumber: (json['series_number'] as num?)?.toDouble(),
       addedAt: DateTime.parse(json['added_at'] as String),
-      startedAt: json['started_at'] != null
-          ? DateTime.parse(json['started_at'] as String)
-          : null,
-      completedAt: json['completed_at'] != null
-          ? DateTime.parse(json['completed_at'] as String)
-          : null,
-      lastReadAt: json['last_read_at'] != null
-          ? DateTime.parse(json['last_read_at'] as String)
-          : null,
+      startedAt: json['started_at'] != null ? DateTime.parse(json['started_at'] as String) : null,
+      completedAt: json['completed_at'] != null ? DateTime.parse(json['completed_at'] as String) : null,
+      lastReadAt: json['last_read_at'] != null ? DateTime.parse(json['last_read_at'] as String) : null,
     );
   }
 }

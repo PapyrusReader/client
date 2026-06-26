@@ -5,12 +5,7 @@ class ProfileButton extends StatelessWidget {
   final IconData icon;
   final Function? onPressed;
 
-  const ProfileButton({
-    super.key,
-    required this.title,
-    required this.icon,
-    required this.onPressed,
-  });
+  const ProfileButton({super.key, required this.title, required this.icon, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {

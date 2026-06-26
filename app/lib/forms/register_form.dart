@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/widgets/buttons/google_sign_in.dart';
 import 'package:papyrus/widgets/input/email_input.dart';
+import 'package:papyrus/widgets/input/name_input.dart';
 import 'package:papyrus/widgets/input/password_input.dart';
 import 'package:papyrus/widgets/titled_divider.dart';
-import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:provider/provider.dart';
 
 class RegisterForm extends StatefulWidget {
   const RegisterForm({super.key});
@@ -17,12 +19,14 @@ class _RegisterForm extends State<RegisterForm> {
   bool isRegisterDisabled = false;
 
   final formKey = GlobalKey<FormState>();
+  final displayNameController = TextEditingController();
   final emailController = TextEditingController();
   final passwordController = TextEditingController();
   final repeatPasswordController = TextEditingController();
 
-  Future<AuthResponse> signUp() async {
-    return Supabase.instance.client.auth.signUp(
+  Future<bool> signUp() async {
+    return context.read<AuthProvider>().register(
+      displayName: displayNameController.text.trim(),
       email: emailController.text.trim(),
       password: passwordController.text,
     );
@@ -37,34 +41,36 @@ class _RegisterForm extends State<RegisterForm> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => const Center(
-        child: SizedBox(
-          width: 150,
-          height: 150,
-          child: CircularProgressIndicator(strokeWidth: 8),
-        ),
-      ),
+      builder: (context) =>
+          const Center(child: SizedBox(width: 150, height: 150, child: CircularProgressIndicator(strokeWidth: 8))),
     );
 
     try {
-      await signUp();
+      final success = await signUp();
       if (!mounted) return;
       setState(() => isRegisterDisabled = false);
       Navigator.of(context).pop();
-      context.goNamed("LIBRARY");
+
+      if (success) {
+        context.goNamed("LIBRARY");
+        return;
+      }
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          duration: const Duration(seconds: 5),
+          content: Text(context.read<AuthProvider>().error ?? "Account creation failed."),
+          backgroundColor: Theme.of(context).colorScheme.error,
+        ),
+      );
     } catch (e) {
       if (!mounted) return;
       setState(() => isRegisterDisabled = false);
       Navigator.of(context).pop();
-      var errorMessage = "Account creation failed.";
-      if (e is AuthException &&
-          e.message.toLowerCase().contains('user already registered')) {
-        errorMessage = "Account with this email already exists.";
-      }
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           duration: const Duration(seconds: 5),
-          content: Text(errorMessage),
+          content: const Text("Account creation failed."),
           backgroundColor: Theme.of(context).colorScheme.error,
         ),
       );
@@ -83,18 +89,14 @@ class _RegisterForm extends State<RegisterForm> {
           children: [
             Align(
               alignment: Alignment.centerLeft,
-              child: Text(
-                "Sign up",
-                style: Theme.of(context).textTheme.headlineMedium,
-              ),
+              child: Text("Sign up", style: Theme.of(context).textTheme.headlineMedium),
             ),
             const SizedBox(height: 16),
+            NameInput(labelText: "Display name", controller: displayNameController),
+            const SizedBox(height: 24),
             EmailInput(labelText: "Email address", controller: emailController),
             const SizedBox(height: 24),
-            PasswordInput(
-              labelText: "Password",
-              controller: passwordController,
-            ),
+            PasswordInput(labelText: "Password", controller: passwordController),
             const SizedBox(height: 24),
             PasswordInput(
               labelText: "Repeat password",
@@ -113,14 +115,7 @@ class _RegisterForm extends State<RegisterForm> {
                 minimumSize: WidgetStatePropertyAll<Size>(Size.fromHeight(46)),
                 elevation: WidgetStatePropertyAll<double>(2.0),
               ),
-              child: const Row(
-                children: [
-                  Spacer(),
-                  Text("Continue"),
-                  Spacer(),
-                  Icon(Icons.arrow_right),
-                ],
-              ),
+              child: const Row(children: [Spacer(), Text("Continue"), Spacer(), Icon(Icons.arrow_right)]),
             ),
             Expanded(
               child: Column(
@@ -133,10 +128,7 @@ class _RegisterForm extends State<RegisterForm> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       const Text("Already have an account?"),
-                      TextButton(
-                        onPressed: () => context.go("/login"),
-                        child: const Text("Sign in"),
-                      ),
+                      TextButton(onPressed: () => context.go("/login"), child: const Text("Sign in")),
                     ],
                   ),
                 ],
@@ -146,5 +138,14 @@ class _RegisterForm extends State<RegisterForm> {
         ),
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    displayNameController.dispose();
+    emailController.dispose();
+    passwordController.dispose();
+    repeatPasswordController.dispose();
+    super.dispose();
   }
 }

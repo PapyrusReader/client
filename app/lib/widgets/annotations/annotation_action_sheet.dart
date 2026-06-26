@@ -15,17 +15,12 @@ class AnnotationNoteSheet extends StatefulWidget {
   const AnnotationNoteSheet({super.key, required this.annotation});
 
   /// Show the note editing sheet. Returns the new note text, or null if cancelled.
-  static Future<String?> show(
-    BuildContext context, {
-    required Annotation annotation,
-  }) {
+  static Future<String?> show(BuildContext context, {required Annotation annotation}) {
     return showModalBottomSheet<String>(
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.bottomSheet),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
       ),
       builder: (context) => AnnotationNoteSheet(annotation: annotation),
     );
@@ -105,28 +100,17 @@ class _AnnotationNoteSheetState extends State<AnnotationNoteSheet> {
 /// Confirmation dialog for deleting an annotation.
 class DeleteAnnotationDialog {
   /// Show the delete confirmation dialog. Returns true if confirmed.
-  static Future<bool> show(
-    BuildContext context, {
-    required Annotation annotation,
-    required String bookTitle,
-  }) async {
+  static Future<bool> show(BuildContext context, {required Annotation annotation, required String bookTitle}) async {
     final result = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete annotation'),
-        content: Text(
-          'Delete annotation at ${annotation.location.shortLocation} in "$bookTitle"?',
-        ),
+        content: Text('Delete annotation at ${annotation.location.shortLocation} in "$bookTitle"?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
           FilledButton(
             onPressed: () => Navigator.pop(context, true),
-            style: FilledButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.error,
-            ),
+            style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
             child: const Text('Delete'),
           ),
         ],

@@ -95,12 +95,7 @@ void main() {
         provider.addFilter(LibraryFilterType.reading);
 
         // Set uses unique values
-        expect(
-          provider.activeFilters
-              .where((f) => f == LibraryFilterType.reading)
-              .length,
-          1,
-        );
+        expect(provider.activeFilters.where((f) => f == LibraryFilterType.reading).length, 1);
       });
     });
 
@@ -156,9 +151,7 @@ void main() {
         provider.selectShelf('Fiction');
         provider.selectTopic('Science');
         provider.addFilter(LibraryFilterType.reading);
-        provider.setSearchQuery(
-          'author:tolkien shelf:"Fiction" topic:"Science"',
-        );
+        provider.setSearchQuery('author:tolkien shelf:"Fiction" topic:"Science"');
 
         provider.clearSearch();
 

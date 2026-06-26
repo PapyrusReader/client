@@ -16,12 +16,7 @@ class DesktopSidebar extends StatelessWidget {
   final String currentPath;
   final void Function(String path) onNavigate;
 
-  const DesktopSidebar({
-    super.key,
-    required this.items,
-    required this.currentPath,
-    required this.onNavigate,
-  });
+  const DesktopSidebar({super.key, required this.items, required this.currentPath, required this.onNavigate});
 
   @override
   Widget build(BuildContext context) {
@@ -41,12 +36,7 @@ class DesktopSidebar extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: colorScheme.surfaceContainerLow,
-                border: Border(
-                  right: BorderSide(
-                    color: colorScheme.outlineVariant,
-                    width: 1,
-                  ),
-                ),
+                border: Border(right: BorderSide(color: colorScheme.outlineVariant, width: 1)),
               ),
               child: Column(
                 children: [
@@ -85,15 +75,11 @@ class DesktopSidebar extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
         child: Row(
-          mainAxisAlignment: isCollapsed
-              ? MainAxisAlignment.center
-              : MainAxisAlignment.start,
+          mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
           children: [
             // Logo icon from SVG
             SvgPicture.asset(
-              isDark
-                  ? 'assets/images/logo-icon-dark.svg'
-                  : 'assets/images/logo-icon-light.svg',
+              isDark ? 'assets/images/logo-icon-dark.svg' : 'assets/images/logo-icon-light.svg',
               width: 40,
               height: 40,
             ),
@@ -118,11 +104,7 @@ class DesktopSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildNavItem(
-    BuildContext context,
-    AppShellNavItem item,
-    bool isCollapsed,
-  ) {
+  Widget _buildNavItem(BuildContext context, AppShellNavItem item, bool isCollapsed) {
     final isSelected = isNavItemSelected(currentPath, item);
     final hasChildren = item.children != null && item.children!.isNotEmpty;
     final sidebarProvider = context.read<SidebarProvider>();
@@ -149,19 +131,13 @@ class DesktopSidebar extends StatelessWidget {
           },
           child: Container(
             height: 48,
-            padding: EdgeInsets.symmetric(
-              horizontal: isCollapsed ? Spacing.md : Spacing.md,
-            ),
+            padding: EdgeInsets.symmetric(horizontal: isCollapsed ? Spacing.md : Spacing.md),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : Colors.transparent,
+              color: isSelected ? Theme.of(context).colorScheme.primaryContainer : Colors.transparent,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Row(
-              mainAxisAlignment: isCollapsed
-                  ? MainAxisAlignment.center
-                  : MainAxisAlignment.start,
+              mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
               children: [
                 Icon(
                   isSelected ? item.selectedIcon ?? item.icon : item.icon,
@@ -179,9 +155,7 @@ class DesktopSidebar extends StatelessWidget {
                         color: isSelected
                             ? Theme.of(context).colorScheme.onPrimaryContainer
                             : Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontWeight: isSelected
-                            ? FontWeight.w600
-                            : FontWeight.normal,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                       ),
                     ),
                   ),
@@ -194,14 +168,9 @@ class DesktopSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildExpandableNavItem(
-    BuildContext context,
-    AppShellNavItem item,
-    bool isCollapsed,
-  ) {
+  Widget _buildExpandableNavItem(BuildContext context, AppShellNavItem item, bool isCollapsed) {
     final sidebarProvider = context.watch<SidebarProvider>();
-    final isExpanded =
-        item.path == '/library' && sidebarProvider.isLibraryExpanded;
+    final isExpanded = item.path == '/library' && sidebarProvider.isLibraryExpanded;
     final isSelected = isNavItemSelected(currentPath, item);
 
     return Column(
@@ -209,10 +178,7 @@ class DesktopSidebar extends StatelessWidget {
       children: [
         // Parent item
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.sm,
-            vertical: 2,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
           child: Material(
             color: Colors.transparent,
             borderRadius: BorderRadius.circular(AppRadius.md),
@@ -249,9 +215,7 @@ class DesktopSidebar extends StatelessWidget {
                           color: isSelected
                               ? Theme.of(context).colorScheme.onPrimaryContainer
                               : Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.normal,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                         ),
                       ),
                     ),
@@ -285,12 +249,7 @@ class DesktopSidebar extends StatelessWidget {
     final isSelected = currentPath.startsWith(item.path);
 
     return Padding(
-      padding: const EdgeInsets.only(
-        left: Spacing.xl + Spacing.sm,
-        right: Spacing.sm,
-        top: 2,
-        bottom: 2,
-      ),
+      padding: const EdgeInsets.only(left: Spacing.xl + Spacing.sm, right: Spacing.sm, top: 2, bottom: 2),
       child: Material(
         color: Colors.transparent,
         borderRadius: BorderRadius.circular(AppRadius.md),
@@ -301,9 +260,7 @@ class DesktopSidebar extends StatelessWidget {
             height: 40,
             padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
             decoration: BoxDecoration(
-              color: isSelected
-                  ? Theme.of(context).colorScheme.primaryContainer
-                  : Colors.transparent,
+              color: isSelected ? Theme.of(context).colorScheme.primaryContainer : Colors.transparent,
               borderRadius: BorderRadius.circular(AppRadius.md),
             ),
             child: Row(
@@ -325,41 +282,27 @@ class DesktopSidebar extends StatelessWidget {
                           color: isSelected
                               ? Theme.of(context).colorScheme.onPrimaryContainer
                               : Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: isSelected
-                              ? FontWeight.w600
-                              : FontWeight.normal,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                         ),
                       ),
                       Spacer(),
 
                       if (item.count != null)
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: Spacing.sm,
-                            vertical: 2,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
                           decoration: BoxDecoration(
                             color: isSelected
-                                ? Theme.of(context)
-                                      .colorScheme
-                                      .onPrimaryContainer
-                                      .withValues(alpha: 0.12)
-                                : Theme.of(context).colorScheme.onSurfaceVariant
-                                      .withValues(alpha: 0.12),
+                                ? Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.12)
+                                : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(AppRadius.full),
                           ),
                           child: Text(
                             item.count.toString(),
-                            style: Theme.of(context).textTheme.labelSmall
-                                ?.copyWith(
-                                  color: isSelected
-                                      ? Theme.of(
-                                          context,
-                                        ).colorScheme.onPrimaryContainer
-                                      : Theme.of(
-                                          context,
-                                        ).colorScheme.onSurfaceVariant,
-                                ),
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: isSelected
+                                  ? Theme.of(context).colorScheme.onPrimaryContainer
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
                           ),
                         ),
                     ],
@@ -384,9 +327,7 @@ class DesktopSidebar extends StatelessWidget {
           height: 56,
           padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
           child: Row(
-            mainAxisAlignment: isCollapsed
-                ? MainAxisAlignment.center
-                : MainAxisAlignment.start,
+            mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
             children: [
               Icon(
                 isCollapsed ? Icons.chevron_right : Icons.chevron_left,
@@ -396,9 +337,9 @@ class DesktopSidebar extends StatelessWidget {
                 const SizedBox(width: Spacing.md),
                 Text(
                   '',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  ),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
                 ),
               ],
             ],

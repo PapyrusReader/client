@@ -118,10 +118,7 @@ class BookDetailsProvider extends ChangeNotifier {
       }
 
       // Fallback to sample data if not found in DataStore
-      foundBook ??= SampleData.books.cast<Book?>().firstWhere(
-        (b) => b?.id == bookId,
-        orElse: () => null,
-      );
+      foundBook ??= SampleData.books.cast<Book?>().firstWhere((b) => b?.id == bookId, orElse: () => null);
 
       if (foundBook == null) {
         throw Exception('Book not found');

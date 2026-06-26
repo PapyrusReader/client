@@ -112,20 +112,7 @@ class ReadingGoal {
   }
 
   String _formatDateRange() {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     final start = '${months[startDate.month - 1]} ${startDate.day}';
     final end = '${months[endDate.month - 1]} ${endDate.day}';
     if (startDate.year != endDate.year) {
@@ -146,9 +133,7 @@ class ReadingGoal {
   /// Full goal description.
   String get description {
     if (goalDescription != null) return goalDescription!;
-    final valueStr = type == GoalType.minutes
-        ? formatDuration(targetValue)
-        : '$targetValue $typeLabel';
+    final valueStr = type == GoalType.minutes ? formatDuration(targetValue) : '$targetValue $typeLabel';
     if (isCustomPeriod) return 'Read $valueStr';
     return 'Read $valueStr $periodLabel';
   }
@@ -164,9 +149,7 @@ class ReadingGoal {
     if (isCompleted) {
       return 'Goal completed!';
     }
-    final remainStr = type == GoalType.minutes
-        ? formatDuration(remaining)
-        : '$remaining $typeLabel';
+    final remainStr = type == GoalType.minutes ? formatDuration(remaining) : '$remaining $typeLabel';
     return '$remainStr to go';
   }
 
@@ -249,9 +232,7 @@ class ReadingGoal {
       isRecurring: json['is_recurring'] as bool? ?? true,
       streak: json['streak'] as int? ?? 0,
       isArchived: json['is_archived'] as bool? ?? false,
-      completedAt: json['completed_at'] != null
-          ? DateTime.parse(json['completed_at'] as String)
-          : null,
+      completedAt: json['completed_at'] != null ? DateTime.parse(json['completed_at'] as String) : null,
     );
   }
 

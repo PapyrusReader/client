@@ -54,20 +54,10 @@ class WaveBottomClipper extends CustomClipper<Path> {
     path.lineTo(0, size.height - waveHeight);
 
     // First curve (left to center)
-    path.quadraticBezierTo(
-      size.width * 0.25,
-      size.height,
-      size.width * 0.5,
-      size.height - waveHeight,
-    );
+    path.quadraticBezierTo(size.width * 0.25, size.height, size.width * 0.5, size.height - waveHeight);
 
     // Second curve (center to right)
-    path.quadraticBezierTo(
-      size.width * 0.75,
-      size.height - waveHeight * 2,
-      size.width,
-      size.height - waveHeight,
-    );
+    path.quadraticBezierTo(size.width * 0.75, size.height - waveHeight * 2, size.width, size.height - waveHeight);
 
     path.lineTo(size.width, 0);
     path.close();

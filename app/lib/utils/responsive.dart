@@ -112,9 +112,7 @@ class Responsive {
   static double getPageMargin(BuildContext context) {
     switch (getDeviceType(context)) {
       case DeviceType.desktop:
-        return isLargeDesktop(context)
-            ? Breakpoints.desktopLargeMargin
-            : Breakpoints.desktopSmallMargin;
+        return isLargeDesktop(context) ? Breakpoints.desktopLargeMargin : Breakpoints.desktopSmallMargin;
       case DeviceType.tablet:
         return Breakpoints.tabletMargin;
       case DeviceType.mobile:
@@ -148,16 +146,12 @@ class Responsive {
 
   /// Get button height based on device type.
   static double getButtonHeight(BuildContext context) {
-    return isDesktop(context)
-        ? ComponentSizes.buttonHeightDesktop
-        : ComponentSizes.buttonHeightMobile;
+    return isDesktop(context) ? ComponentSizes.buttonHeightDesktop : ComponentSizes.buttonHeightMobile;
   }
 
   /// Get touch target size based on device type.
   static double getTouchTarget(BuildContext context) {
-    return isDesktop(context)
-        ? TouchTargets.desktopRecommended
-        : TouchTargets.mobileRecommended;
+    return isDesktop(context) ? TouchTargets.desktopRecommended : TouchTargets.mobileRecommended;
   }
 }
 
@@ -172,12 +166,7 @@ class ResponsiveBuilder extends StatelessWidget {
   /// Builder for desktop layout (optional, defaults to tablet or mobile)
   final Widget Function(BuildContext context)? desktop;
 
-  const ResponsiveBuilder({
-    super.key,
-    required this.mobile,
-    this.tablet,
-    this.desktop,
-  });
+  const ResponsiveBuilder({super.key, required this.mobile, this.tablet, this.desktop});
 
   @override
   Widget build(BuildContext context) {

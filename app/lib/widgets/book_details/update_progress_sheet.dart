@@ -10,11 +10,7 @@ class UpdateProgressSheet extends StatefulWidget {
   final Book book;
   final void Function(int page, double position) onSave;
 
-  const UpdateProgressSheet({
-    super.key,
-    required this.book,
-    required this.onSave,
-  });
+  const UpdateProgressSheet({super.key, required this.book, required this.onSave});
 
   /// Shows the bottom sheet and calls [onSave] when the user saves.
   static Future<void> show(
@@ -26,9 +22,7 @@ class UpdateProgressSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(
-          top: Radius.circular(AppRadius.bottomSheet),
-        ),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
       ),
       builder: (context) => UpdateProgressSheet(book: book, onSave: onSave),
     );
@@ -47,9 +41,7 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
   void initState() {
     super.initState();
     final currentPage = widget.book.currentPage;
-    _pageController = TextEditingController(
-      text: currentPage != null && currentPage > 0 ? '$currentPage' : '',
-    );
+    _pageController = TextEditingController(text: currentPage != null && currentPage > 0 ? '$currentPage' : '');
     _sliderValue = widget.book.currentPosition;
   }
 
@@ -70,10 +62,7 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
 
   int _calculatePage() {
     if (_hasPageCount) {
-      return (int.tryParse(_pageController.text) ?? 0).clamp(
-        0,
-        widget.book.pageCount!,
-      );
+      return (int.tryParse(_pageController.text) ?? 0).clamp(0, widget.book.pageCount!);
     }
     return (_sliderValue * (widget.book.pageCount ?? 100)).round();
   }
@@ -100,11 +89,7 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
             children: [
               const BottomSheetHandle(),
               const SizedBox(height: Spacing.md),
-              BottomSheetHeader(
-                title: 'Update progress',
-                onCancel: () => Navigator.of(context).pop(),
-                onSave: _save,
-              ),
+              BottomSheetHeader(title: 'Update progress', onCancel: () => Navigator.of(context).pop(), onSave: _save),
               const SizedBox(height: Spacing.md),
               const Divider(height: 1),
               const SizedBox(height: Spacing.md),
@@ -140,10 +125,7 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
                 decoration: const InputDecoration(
                   border: OutlineInputBorder(),
                   isDense: true,
-                  contentPadding: EdgeInsets.symmetric(
-                    horizontal: Spacing.sm,
-                    vertical: Spacing.sm,
-                  ),
+                  contentPadding: EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.sm),
                 ),
                 autofocus: true,
                 onChanged: (_) => setState(() {}),
@@ -158,9 +140,7 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
         // Live percentage preview
         Text(
           '${(_calculatePosition() * 100).round()}% complete',
-          style: Theme.of(
-            context,
-          ).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
         ),
       ],
     );
@@ -169,15 +149,9 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
   Widget _buildSlider() {
     return Column(
       children: [
-        Text(
-          '${(_sliderValue * 100).round()}% complete',
-          style: Theme.of(context).textTheme.titleMedium,
-        ),
+        Text('${(_sliderValue * 100).round()}% complete', style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: Spacing.md),
-        Slider(
-          value: _sliderValue,
-          onChanged: (value) => setState(() => _sliderValue = value),
-        ),
+        Slider(value: _sliderValue, onChanged: (value) => setState(() => _sliderValue = value)),
       ],
     );
   }

@@ -34,10 +34,7 @@ class EmailInput extends StatelessWidget {
       decoration: InputDecoration(
         border: const OutlineInputBorder(),
         labelText: labelText,
-        suffixIcon: Icon(
-          Icons.email_outlined,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
+        suffixIcon: Icon(Icons.email_outlined, color: theme.colorScheme.onSurfaceVariant),
       ),
       controller: controller,
       focusNode: focusNode,
@@ -56,9 +53,7 @@ class EmailInput extends StatelessWidget {
       return 'This field is required';
     }
 
-    if (!RegExp(
-      r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+",
-    ).hasMatch(value)) {
+    if (!RegExp(r"^[a-zA-Z0-9.a-zA-Z0-9.!#$%&'*+-/=?^_`{|}~]+@[a-zA-Z0-9]+\.[a-zA-Z]+").hasMatch(value)) {
       return 'Not a valid email';
     }
 

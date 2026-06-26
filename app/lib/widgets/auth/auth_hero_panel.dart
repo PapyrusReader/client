@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/auth/auth_branding.dart';
 import 'package:papyrus/widgets/auth/curved_bottom_clipper.dart';
 
 /// Hero gradient colors for auth pages.
@@ -14,8 +16,7 @@ class AuthColors {
   static const Color gradientEndDark = Color(0xFF272377);
 }
 
-/// Desktop hero panel with illustration background (no branding overlay).
-/// Branding should be placed on the form side for better UX.
+/// Desktop hero panel with illustration background and branding overlay.
 class AuthHeroPanel extends StatelessWidget {
   final bool isDark;
 
@@ -23,12 +24,8 @@ class AuthHeroPanel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gradientStart = isDark
-        ? AuthColors.gradientStartDark
-        : AuthColors.gradientStartLight;
-    final gradientEnd = isDark
-        ? AuthColors.gradientEndDark
-        : AuthColors.gradientEndLight;
+    final gradientStart = isDark ? AuthColors.gradientStartDark : AuthColors.gradientStartLight;
+    final gradientEnd = isDark ? AuthColors.gradientEndDark : AuthColors.gradientEndLight;
 
     return Stack(
       fit: StackFit.expand,
@@ -43,12 +40,22 @@ class AuthHeroPanel extends StatelessWidget {
             ),
           ),
         ),
-        // Illustration filling the panel - clean, no overlays
         Positioned.fill(
-          child: Image.asset(
-            'assets/images/auth-illustration.png',
-            fit: BoxFit.cover,
-            alignment: Alignment.center,
+          child: Image.asset('assets/images/auth-illustration.png', fit: BoxFit.cover, alignment: Alignment.center),
+        ),
+        const Positioned(
+          top: Spacing.xl,
+          left: Spacing.xl,
+          child: AuthBranding(
+            textColor: Colors.white,
+            iconOutlineColor: Color(0x998F89FF),
+            iconSize: 48,
+            fontSize: 32,
+            iconOutlineWidth: 2.5,
+            shadowColor: Color(0x40000000),
+            textShadowColor: Color(0x59000000),
+            textShadowOffset: Offset(0, 2),
+            textShadowBlurRadius: 6,
           ),
         ),
       ],
@@ -56,8 +63,7 @@ class AuthHeroPanel extends StatelessWidget {
   }
 }
 
-/// Compact hero header for mobile auth pages (no branding overlay).
-/// Branding should be placed in the form area below.
+/// Compact hero header for mobile auth pages with branding overlay.
 class CompactAuthHeader extends StatelessWidget {
   final bool isDark;
   final double height;
@@ -66,12 +72,8 @@ class CompactAuthHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final gradientStart = isDark
-        ? AuthColors.gradientStartDark
-        : AuthColors.gradientStartLight;
-    final gradientEnd = isDark
-        ? AuthColors.gradientEndDark
-        : AuthColors.gradientEndLight;
+    final gradientStart = isDark ? AuthColors.gradientStartDark : AuthColors.gradientStartLight;
+    final gradientEnd = isDark ? AuthColors.gradientEndDark : AuthColors.gradientEndLight;
 
     return ClipPath(
       clipper: CurvedBottomClipper(curveHeight: 30),
@@ -90,12 +92,32 @@ class CompactAuthHeader extends StatelessWidget {
                 ),
               ),
             ),
-            // Illustration - clean, no overlays
             Positioned.fill(
               child: Image.asset(
                 'assets/images/auth-illustration.png',
                 fit: BoxFit.cover,
                 alignment: Alignment.topCenter,
+              ),
+            ),
+            const Positioned(
+              top: Spacing.lg,
+              left: Spacing.lg,
+              right: Spacing.lg,
+              child: Center(
+                child: FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: AuthBranding(
+                    textColor: Colors.white,
+                    iconOutlineColor: Color(0x998F89FF),
+                    iconSize: 70,
+                    fontSize: 40,
+                    iconOutlineWidth: 3,
+                    shadowColor: Color(0x40000000),
+                    textShadowColor: Color(0x59000000),
+                    textShadowOffset: Offset(0, 2),
+                    textShadowBlurRadius: 6,
+                  ),
+                ),
               ),
             ),
           ],

@@ -17,8 +17,7 @@ import 'package:papyrus/widgets/book_details/annotation_action_sheet.dart';
 import 'package:papyrus/widgets/book_details/note_action_sheet.dart';
 import 'package:papyrus/widgets/book_details/note_dialog.dart';
 import 'package:papyrus/widgets/book_details/update_progress_sheet.dart';
-import 'package:papyrus/widgets/annotations/annotation_action_sheet.dart'
-    as annotation_sheets;
+import 'package:papyrus/widgets/annotations/annotation_action_sheet.dart' as annotation_sheets;
 import 'package:papyrus/widgets/bookmarks/bookmark_action_sheet.dart';
 import 'package:provider/provider.dart';
 
@@ -32,8 +31,7 @@ class BookDetailsPage extends StatefulWidget {
   State<BookDetailsPage> createState() => _BookDetailsPageState();
 }
 
-class _BookDetailsPageState extends State<BookDetailsPage>
-    with SingleTickerProviderStateMixin {
+class _BookDetailsPageState extends State<BookDetailsPage> with SingleTickerProviderStateMixin {
   late BookDetailsProvider _provider;
   late TabController _tabController;
 
@@ -102,10 +100,7 @@ class _BookDetailsPageState extends State<BookDetailsPage>
 
   Widget _buildLoadingState(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: const BackButton(),
-        title: const Text('Loading...'),
-      ),
+      appBar: AppBar(leading: const BackButton(), title: const Text('Loading...')),
       body: const Center(child: CircularProgressIndicator()),
     );
   }
@@ -119,10 +114,7 @@ class _BookDetailsPageState extends State<BookDetailsPage>
           children: [
             const Icon(Icons.error_outline, size: 64),
             const SizedBox(height: Spacing.md),
-            Text(
-              'Failed to load book',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Failed to load book', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: Spacing.sm),
             Text(error),
             const SizedBox(height: Spacing.lg),
@@ -142,35 +134,23 @@ class _BookDetailsPageState extends State<BookDetailsPage>
 
   Widget _buildNotFoundState(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        leading: const BackButton(),
-        title: const Text('Not found'),
-      ),
+      appBar: AppBar(leading: const BackButton(), title: const Text('Not found')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(Icons.menu_book_outlined, size: 64),
             const SizedBox(height: Spacing.md),
-            Text(
-              'Book not found',
-              style: Theme.of(context).textTheme.titleLarge,
-            ),
+            Text('Book not found', style: Theme.of(context).textTheme.titleLarge),
             const SizedBox(height: Spacing.lg),
-            FilledButton(
-              onPressed: () => context.go('/library/books'),
-              child: const Text('Back to library'),
-            ),
+            FilledButton(onPressed: () => context.go('/library/books'), child: const Text('Back to library')),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildDesktopLayout(
-    BuildContext context,
-    BookDetailsProvider provider,
-  ) {
+  Widget _buildDesktopLayout(BuildContext context, BookDetailsProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -206,10 +186,7 @@ class _BookDetailsPageState extends State<BookDetailsPage>
     );
   }
 
-  Widget _buildDesktopTabBar(
-    BuildContext context,
-    BookDetailsProvider provider,
-  ) {
+  Widget _buildDesktopTabBar(BuildContext context, BookDetailsProvider provider) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
@@ -230,10 +207,7 @@ class _BookDetailsPageState extends State<BookDetailsPage>
     );
   }
 
-  Widget _buildMobileLayout(
-    BuildContext context,
-    BookDetailsProvider provider,
-  ) {
+  Widget _buildMobileLayout(BuildContext context, BookDetailsProvider provider) {
     return Scaffold(
       appBar: AppBar(
         leading: const BackButton(),
@@ -242,9 +216,7 @@ class _BookDetailsPageState extends State<BookDetailsPage>
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: _onMenuAction,
-            itemBuilder: (context) => [
-              const PopupMenuItem(value: 'delete', child: Text('Delete')),
-            ],
+            itemBuilder: (context) => [const PopupMenuItem(value: 'delete', child: Text('Delete'))],
           ),
         ],
       ),
@@ -298,11 +270,7 @@ class _BookDetailsPageState extends State<BookDetailsPage>
                     onAddAnnotation: _onAddAnnotation,
                     onAnnotationActions: _onAnnotationActions,
                   ),
-                  BookNotes(
-                    notes: provider.notes,
-                    onAddNote: _onAddNote,
-                    onNoteActions: _onNoteActions,
-                  ),
+                  BookNotes(notes: provider.notes, onAddNote: _onAddNote, onNoteActions: _onNoteActions),
                 ],
               ),
             ),
@@ -337,11 +305,7 @@ class _BookDetailsPageState extends State<BookDetailsPage>
           onAnnotationActions: _onAnnotationActions,
         );
       case BookDetailsTab.notes:
-        return BookNotes(
-          notes: provider.notes,
-          onAddNote: _onAddNote,
-          onNoteActions: _onNoteActions,
-        );
+        return BookNotes(notes: provider.notes, onAddNote: _onAddNote, onNoteActions: _onNoteActions);
     }
   }
 
@@ -350,24 +314,15 @@ class _BookDetailsPageState extends State<BookDetailsPage>
 
     switch (provider.selectedTab) {
       case BookDetailsTab.notes:
-        return FloatingActionButton(
-          onPressed: _onAddNote,
-          child: const Icon(Icons.add),
-        );
+        return FloatingActionButton(onPressed: _onAddNote, child: const Icon(Icons.add));
       case BookDetailsTab.bookmarks:
         if (isPhysical) {
-          return FloatingActionButton(
-            onPressed: _onAddBookmark,
-            child: const Icon(Icons.add),
-          );
+          return FloatingActionButton(onPressed: _onAddBookmark, child: const Icon(Icons.add));
         }
         return null;
       case BookDetailsTab.annotations:
         if (isPhysical) {
-          return FloatingActionButton(
-            onPressed: _onAddAnnotation,
-            child: const Icon(Icons.add),
-          );
+          return FloatingActionButton(onPressed: _onAddAnnotation, child: const Icon(Icons.add));
         }
         return null;
       case BookDetailsTab.details:
@@ -384,9 +339,7 @@ class _BookDetailsPageState extends State<BookDetailsPage>
       onSave: (page, position) {
         _provider.updatePageProgress(page, position);
         if (mounted) {
-          ScaffoldMessenger.of(
-            context,
-          ).showSnackBar(const SnackBar(content: Text('Progress updated')));
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Progress updated')));
         }
       },
     );
@@ -394,17 +347,12 @@ class _BookDetailsPageState extends State<BookDetailsPage>
 
   void _onContinueReading() {
     // TODO: Navigate to reader
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(const SnackBar(content: Text('Opening book reader...')));
+    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening book reader...')));
   }
 
   void _onEdit() {
     if (_provider.book != null) {
-      context.pushNamed(
-        'BOOK_EDIT',
-        pathParameters: {'bookId': _provider.book!.id},
-      );
+      context.pushNamed('BOOK_EDIT', pathParameters: {'bookId': _provider.book!.id});
     }
   }
 
@@ -415,9 +363,7 @@ class _BookDetailsPageState extends State<BookDetailsPage>
 
     if (note != null && mounted) {
       _provider.addNote(note);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Note added')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Note added')));
     }
   }
 
@@ -432,25 +378,18 @@ class _BookDetailsPageState extends State<BookDetailsPage>
 
     if (bookmark != null && mounted) {
       _provider.addBookmark(bookmark);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Bookmark added')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Bookmark added')));
     }
   }
 
   void _onAddAnnotation() async {
     if (_provider.book == null) return;
 
-    final annotation = await AnnotationDialog.show(
-      context,
-      bookId: _provider.book!.id,
-    );
+    final annotation = await AnnotationDialog.show(context, bookId: _provider.book!.id);
 
     if (annotation != null && mounted) {
       _provider.addAnnotation(annotation);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Annotation added')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Annotation added')));
     }
   }
 
@@ -470,17 +409,11 @@ class _BookDetailsPageState extends State<BookDetailsPage>
   void _onEditNote(Note note) async {
     if (_provider.book == null) return;
 
-    final updatedNote = await NoteDialog.show(
-      context,
-      bookId: _provider.book!.id,
-      existingNote: note,
-    );
+    final updatedNote = await NoteDialog.show(context, bookId: _provider.book!.id, existingNote: note);
 
     if (updatedNote != null && mounted) {
       _provider.updateNote(note.id, updatedNote);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Note updated')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Note updated')));
     }
   }
 
@@ -489,17 +422,12 @@ class _BookDetailsPageState extends State<BookDetailsPage>
 
     if (confirmed && mounted) {
       _provider.deleteNote(note.id);
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Note deleted')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Note deleted')));
     }
   }
 
   void _onAnnotationActions(Annotation annotation) async {
-    final action = await AnnotationActionSheet.show(
-      context,
-      annotation: annotation,
-    );
+    final action = await AnnotationActionSheet.show(context, annotation: annotation);
 
     if (action == null || !mounted) return;
 
@@ -512,10 +440,7 @@ class _BookDetailsPageState extends State<BookDetailsPage>
   }
 
   void _onEditAnnotationNote(Annotation annotation) async {
-    final note = await annotation_sheets.AnnotationNoteSheet.show(
-      context,
-      annotation: annotation,
-    );
+    final note = await annotation_sheets.AnnotationNoteSheet.show(context, annotation: annotation);
     if (!mounted) return;
 
     if (note != null) {
@@ -580,9 +505,7 @@ class _BookDetailsPageState extends State<BookDetailsPage>
     switch (action) {
       case 'delete':
         // TODO: Confirm and delete
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Delete functionality coming soon')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Delete functionality coming soon')));
     }
   }
 }

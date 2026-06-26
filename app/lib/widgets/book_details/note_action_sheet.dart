@@ -13,10 +13,7 @@ class NoteActionSheet extends StatelessWidget {
   const NoteActionSheet({super.key, required this.note});
 
   /// Shows the action sheet and returns the selected action.
-  static Future<NoteAction?> show(
-    BuildContext context, {
-    required Note note,
-  }) async {
+  static Future<NoteAction?> show(BuildContext context, {required Note note}) async {
     return showModalBottomSheet<NoteAction>(
       context: context,
       builder: (context) => NoteActionSheet(note: note),
@@ -41,9 +38,7 @@ class NoteActionSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
               child: Text(
                 note.title,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -61,10 +56,7 @@ class NoteActionSheet extends StatelessWidget {
             // Delete action
             ListTile(
               leading: Icon(Icons.delete_outline, color: colorScheme.error),
-              title: Text(
-                'Delete note',
-                style: TextStyle(color: colorScheme.error),
-              ),
+              title: Text('Delete note', style: TextStyle(color: colorScheme.error)),
               onTap: () => Navigator.of(context).pop(NoteAction.delete),
             ),
 
@@ -97,14 +89,9 @@ class DeleteNoteDialog extends StatelessWidget {
 
     return AlertDialog(
       title: const Text('Delete note'),
-      content: Text(
-        'Are you sure you want to delete "${note.title}"? This action cannot be undone.',
-      ),
+      content: Text('Are you sure you want to delete "${note.title}"? This action cannot be undone.'),
       actions: [
-        TextButton(
-          onPressed: () => Navigator.of(context).pop(false),
-          child: const Text('Cancel'),
-        ),
+        TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
         FilledButton(
           onPressed: () => Navigator.of(context).pop(true),
           style: FilledButton.styleFrom(backgroundColor: colorScheme.error),

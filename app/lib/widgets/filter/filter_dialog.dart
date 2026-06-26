@@ -11,11 +11,7 @@ class FilterDialog extends StatefulWidget {
   /// Initial filter values to populate the dialog.
   final AppliedFilters? initialFilters;
 
-  const FilterDialog({
-    super.key,
-    required this.filterOptions,
-    this.initialFilters,
-  });
+  const FilterDialog({super.key, required this.filterOptions, this.initialFilters});
 
   /// Show the filter dialog and return the applied filters.
   static Future<AppliedFilters?> show(
@@ -25,10 +21,7 @@ class FilterDialog extends StatefulWidget {
   }) {
     return showDialog<AppliedFilters>(
       context: context,
-      builder: (context) => FilterDialog(
-        filterOptions: filterOptions,
-        initialFilters: initialFilters,
-      ),
+      builder: (context) => FilterDialog(filterOptions: filterOptions, initialFilters: initialFilters),
     );
   }
 
@@ -132,10 +125,9 @@ class _FilterDialogState extends State<FilterDialog> {
               // Quick filters section
               Text(
                 'Quick filters',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: Spacing.sm),
               Wrap(
@@ -172,10 +164,9 @@ class _FilterDialogState extends State<FilterDialog> {
               // Advanced filters section
               Text(
                 'Advanced filters',
-                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: Spacing.md),
 
@@ -194,21 +185,10 @@ class _FilterDialogState extends State<FilterDialog> {
               // Format dropdown
               DropdownButtonFormField<String>(
                 initialValue: _selectedFormat,
-                decoration: const InputDecoration(
-                  labelText: 'Format',
-                  prefixIcon: Icon(Icons.book_outlined),
-                ),
+                decoration: const InputDecoration(labelText: 'Format', prefixIcon: Icon(Icons.book_outlined)),
                 items: [
-                  const DropdownMenuItem(
-                    value: null,
-                    child: Text('Any format'),
-                  ),
-                  ...formats.map(
-                    (f) => DropdownMenuItem(
-                      value: f.toLowerCase(),
-                      child: Text(f.toUpperCase()),
-                    ),
-                  ),
+                  const DropdownMenuItem(value: null, child: Text('Any format')),
+                  ...formats.map((f) => DropdownMenuItem(value: f.toLowerCase(), child: Text(f.toUpperCase()))),
                 ],
                 onChanged: (v) => setState(() => _selectedFormat = v),
               ),
@@ -217,15 +197,10 @@ class _FilterDialogState extends State<FilterDialog> {
               // Shelf dropdown
               DropdownButtonFormField<String>(
                 initialValue: _selectedShelf,
-                decoration: const InputDecoration(
-                  labelText: 'Shelf',
-                  prefixIcon: Icon(Icons.folder_outlined),
-                ),
+                decoration: const InputDecoration(labelText: 'Shelf', prefixIcon: Icon(Icons.folder_outlined)),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Any shelf')),
-                  ...shelves.map(
-                    (s) => DropdownMenuItem(value: s, child: Text(s)),
-                  ),
+                  ...shelves.map((s) => DropdownMenuItem(value: s, child: Text(s))),
                 ],
                 onChanged: (v) => setState(() => _selectedShelf = v),
               ),
@@ -234,15 +209,10 @@ class _FilterDialogState extends State<FilterDialog> {
               // Topic dropdown
               DropdownButtonFormField<String>(
                 initialValue: _selectedTopic,
-                decoration: const InputDecoration(
-                  labelText: 'Topic',
-                  prefixIcon: Icon(Icons.label_outline),
-                ),
+                decoration: const InputDecoration(labelText: 'Topic', prefixIcon: Icon(Icons.label_outline)),
                 items: [
                   const DropdownMenuItem(value: null, child: Text('Any topic')),
-                  ...topics.map(
-                    (t) => DropdownMenuItem(value: t, child: Text(t)),
-                  ),
+                  ...topics.map((t) => DropdownMenuItem(value: t, child: Text(t))),
                 ],
                 onChanged: (v) => setState(() => _selectedTopic = v),
               ),
@@ -251,16 +221,10 @@ class _FilterDialogState extends State<FilterDialog> {
               // Status dropdown
               DropdownButtonFormField<String>(
                 initialValue: _selectedStatus,
-                decoration: const InputDecoration(
-                  labelText: 'Status',
-                  prefixIcon: Icon(Icons.schedule),
-                ),
+                decoration: const InputDecoration(labelText: 'Status', prefixIcon: Icon(Icons.schedule)),
                 items: const [
                   DropdownMenuItem(value: null, child: Text('Any status')),
-                  DropdownMenuItem(
-                    value: 'reading',
-                    child: Text('Currently reading'),
-                  ),
+                  DropdownMenuItem(value: 'reading', child: Text('Currently reading')),
                   DropdownMenuItem(value: 'finished', child: Text('Finished')),
                   DropdownMenuItem(value: 'unread', child: Text('Unread')),
                 ],
@@ -271,17 +235,11 @@ class _FilterDialogState extends State<FilterDialog> {
               // Progress range slider
               Row(
                 children: [
-                  Icon(
-                    Icons.show_chart,
-                    size: IconSizes.small,
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  Icon(Icons.show_chart, size: IconSizes.small, color: colorScheme.onSurfaceVariant),
                   const SizedBox(width: Spacing.sm),
                   Text(
                     'Progress',
-                    style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                      color: colorScheme.onSurfaceVariant,
-                    ),
+                    style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                   ),
                 ],
               ),
@@ -290,16 +248,11 @@ class _FilterDialogState extends State<FilterDialog> {
                 children: [
                   SizedBox(
                     width: 36,
-                    child: Text(
-                      '${_progressRange.start.toInt()}%',
-                      style: Theme.of(context).textTheme.bodySmall,
-                    ),
+                    child: Text('${_progressRange.start.toInt()}%', style: Theme.of(context).textTheme.bodySmall),
                   ),
                   Expanded(
                     child: SliderTheme(
-                      data: SliderTheme.of(
-                        context,
-                      ).copyWith(overlayShape: SliderComponentShape.noOverlay),
+                      data: SliderTheme.of(context).copyWith(overlayShape: SliderComponentShape.noOverlay),
                       child: RangeSlider(
                         values: _progressRange,
                         min: 0,
@@ -329,20 +282,11 @@ class _FilterDialogState extends State<FilterDialog> {
       actions: [
         Row(
           children: [
-            TextButton(
-              onPressed: _clearFilters,
-              child: const Text('Clear all'),
-            ),
+            TextButton(onPressed: _clearFilters, child: const Text('Clear all')),
             const Spacer(),
-            TextButton(
-              onPressed: () => Navigator.of(context).pop(),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
             const SizedBox(width: Spacing.sm),
-            FilledButton(
-              onPressed: _applyFilters,
-              child: const Text('Apply filters'),
-            ),
+            FilledButton(onPressed: _applyFilters, child: const Text('Apply filters')),
           ],
         ),
       ],

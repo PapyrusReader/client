@@ -12,10 +12,7 @@ class AnnotationActionSheet extends StatelessWidget {
   const AnnotationActionSheet({super.key, required this.annotation});
 
   /// Shows the action sheet and returns the selected action.
-  static Future<AnnotationAction?> show(
-    BuildContext context, {
-    required Annotation annotation,
-  }) async {
+  static Future<AnnotationAction?> show(BuildContext context, {required Annotation annotation}) async {
     return showModalBottomSheet<AnnotationAction>(
       context: context,
       builder: (context) => AnnotationActionSheet(annotation: annotation),
@@ -36,10 +33,7 @@ class AnnotationActionSheet extends StatelessWidget {
             Container(
               width: 40,
               height: 4,
-              decoration: BoxDecoration(
-                color: colorScheme.outlineVariant,
-                borderRadius: BorderRadius.circular(2),
-              ),
+              decoration: BoxDecoration(color: colorScheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
             ),
             const SizedBox(height: Spacing.md),
 
@@ -48,9 +42,7 @@ class AnnotationActionSheet extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
               child: Text(
                 annotation.location.shortLocation,
-                style: Theme.of(
-                  context,
-                ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
               ),
@@ -68,10 +60,7 @@ class AnnotationActionSheet extends StatelessWidget {
             // Delete action
             ListTile(
               leading: Icon(Icons.delete_outline, color: colorScheme.error),
-              title: Text(
-                'Delete annotation',
-                style: TextStyle(color: colorScheme.error),
-              ),
+              title: Text('Delete annotation', style: TextStyle(color: colorScheme.error)),
               onTap: () => Navigator.of(context).pop(AnnotationAction.delete),
             ),
 

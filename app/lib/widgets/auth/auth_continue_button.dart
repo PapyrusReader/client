@@ -7,20 +7,13 @@ class AuthContinueButton extends StatelessWidget {
   final VoidCallback onPressed;
   final bool isDesktop;
 
-  const AuthContinueButton({
-    super.key,
-    required this.isLoading,
-    required this.onPressed,
-    required this.isDesktop,
-  });
+  const AuthContinueButton({super.key, required this.isLoading, required this.onPressed, required this.isDesktop});
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    final buttonHeight = isDesktop
-        ? ComponentSizes.buttonHeightDesktop
-        : ComponentSizes.buttonHeightMobile;
+    final buttonHeight = isDesktop ? ComponentSizes.buttonHeightDesktop : ComponentSizes.buttonHeightMobile;
 
     return ElevatedButton(
       onPressed: isLoading ? null : onPressed,
@@ -29,9 +22,7 @@ class AuthContinueButton extends StatelessWidget {
         backgroundColor: theme.colorScheme.primary,
         foregroundColor: theme.colorScheme.onPrimary,
         elevation: AppElevation.level2,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(AppRadius.button),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
         padding: const EdgeInsets.symmetric(
           horizontal: Spacing.buttonPaddingHorizontal,
           vertical: Spacing.buttonPaddingVertical,
@@ -43,24 +34,15 @@ class AuthContinueButton extends StatelessWidget {
               height: 24,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
-                valueColor: AlwaysStoppedAnimation<Color>(
-                  theme.colorScheme.onPrimary,
-                ),
+                valueColor: AlwaysStoppedAnimation<Color>(theme.colorScheme.onPrimary),
               ),
             )
           : Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text(
-                  'Continue',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
-                ),
+                const Text('Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                 const SizedBox(width: Spacing.sm),
-                Icon(
-                  Icons.arrow_forward,
-                  size: IconSizes.medium,
-                  color: theme.colorScheme.onPrimary,
-                ),
+                Icon(Icons.arrow_forward, size: IconSizes.medium, color: theme.colorScheme.onPrimary),
               ],
             ),
     );

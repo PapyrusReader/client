@@ -66,12 +66,8 @@ class ProfileMenuItem extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    final contentColor = isDestructive
-        ? colorScheme.error
-        : colorScheme.onSurface;
-    final iconContainerColor = isDestructive
-        ? colorScheme.errorContainer
-        : colorScheme.surfaceContainerHighest;
+    final contentColor = isDestructive ? colorScheme.error : colorScheme.onSurface;
+    final iconContainerColor = isDestructive ? colorScheme.errorContainer : colorScheme.surfaceContainerHighest;
 
     return Material(
       color: Colors.transparent,
@@ -79,10 +75,7 @@ class ProfileMenuItem extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.md,
-            vertical: Spacing.sm,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
           child: Row(
             children: [
               _buildIconContainer(iconContainerColor, contentColor),
@@ -90,19 +83,9 @@ class ProfileMenuItem extends StatelessWidget {
               Expanded(
                 child: subtitle != null
                     ? _buildTwoLineContent(textTheme, contentColor, colorScheme)
-                    : Text(
-                        label,
-                        style: textTheme.bodyLarge?.copyWith(
-                          color: contentColor,
-                        ),
-                      ),
+                    : Text(label, style: textTheme.bodyLarge?.copyWith(color: contentColor)),
               ),
-              if (showChevron)
-                Icon(
-                  Icons.chevron_right,
-                  color: colorScheme.onSurfaceVariant,
-                  size: IconSizes.medium,
-                ),
+              if (showChevron) Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: IconSizes.medium),
             ],
           ),
         ),
@@ -121,22 +104,13 @@ class ProfileMenuItem extends StatelessWidget {
   }
 
   /// Two-line content with label and subtitle.
-  Widget _buildTwoLineContent(
-    TextTheme textTheme,
-    Color labelColor,
-    ColorScheme colorScheme,
-  ) {
+  Widget _buildTwoLineContent(TextTheme textTheme, Color labelColor, ColorScheme colorScheme) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       mainAxisSize: MainAxisSize.min,
       children: [
         Text(label, style: textTheme.bodyLarge?.copyWith(color: labelColor)),
-        Text(
-          subtitle!,
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text(subtitle!, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
       ],
     );
   }
@@ -171,18 +145,8 @@ class ProfileMenuCard extends StatelessWidget {
         children: [
           if (title != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(
-                Spacing.md,
-                Spacing.md,
-                Spacing.md,
-                Spacing.sm,
-              ),
-              child: Text(
-                title!,
-                style: textTheme.titleMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
+              padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, Spacing.sm),
+              child: Text(title!, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
             ),
           ...children,
         ],

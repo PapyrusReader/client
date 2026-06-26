@@ -46,13 +46,7 @@ class SettingsRow extends StatelessWidget {
   final bool showChevron;
 
   /// Creates a settings row widget.
-  const SettingsRow({
-    super.key,
-    required this.label,
-    this.value,
-    this.onTap,
-    this.showChevron = true,
-  });
+  const SettingsRow({super.key, required this.label, this.value, this.onTap, this.showChevron = true});
 
   @override
   Widget build(BuildContext context) {
@@ -65,10 +59,7 @@ class SettingsRow extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.sm,
-            vertical: Spacing.sm,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.sm),
           child: Row(
             children: [
               Expanded(
@@ -78,29 +69,15 @@ class SettingsRow extends StatelessWidget {
                         children: [
                           Text(label, style: textTheme.bodyLarge),
                           const SizedBox(height: 2),
-                          Text(
-                            value!,
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
-                          ),
+                          Text(value!, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                         ],
                       )
                     : Text(label, style: textTheme.bodyLarge),
               ),
               if (showChevron && onTap != null)
-                Icon(
-                  Icons.chevron_right,
-                  color: colorScheme.onSurfaceVariant,
-                  size: IconSizes.medium,
-                )
+                Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: IconSizes.medium)
               else if (value != null && !showChevron)
-                Text(
-                  value!,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
-                ),
+                Text(value!, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
             ],
           ),
         ),
@@ -121,22 +98,14 @@ class SettingsToggleRow extends StatelessWidget {
   final ValueChanged<bool>? onChanged;
 
   /// Creates a settings toggle row widget.
-  const SettingsToggleRow({
-    super.key,
-    required this.label,
-    required this.value,
-    this.onChanged,
-  });
+  const SettingsToggleRow({super.key, required this.label, required this.value, this.onChanged});
 
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Spacing.sm,
-        vertical: Spacing.xs,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
       child: Row(
         children: [
           Expanded(child: Text(label, style: textTheme.bodyLarge)),

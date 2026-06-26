@@ -107,21 +107,14 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
   // MOBILE LAYOUT
   // ============================================================================
 
-  Widget _buildMobileLayout(
-    BuildContext context,
-    Shelf shelf,
-    ShelvesProvider provider,
-  ) {
+  Widget _buildMobileLayout(BuildContext context, Shelf shelf, ShelvesProvider provider) {
     final libraryProvider = context.watch<LibraryProvider>();
     final childShelves = provider.getChildShelves(shelf.id);
     final books = provider.getFilteredBooksForShelf(
       shelf.id,
       isFavorite: (bookId) {
         final book = context.read<DataStore>().getBook(bookId);
-        return libraryProvider.isBookFavorite(
-          bookId,
-          book?.isFavorite ?? false,
-        );
+        return libraryProvider.isBookFavorite(bookId, book?.isFavorite ?? false);
       },
     );
 
@@ -138,31 +131,20 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
           children: [
             // Row 1: Selection header or Back + Search + Sort
             Padding(
-              padding: const EdgeInsets.only(
-                top: Spacing.md,
-                left: Spacing.md,
-                right: Spacing.md,
-              ),
+              padding: const EdgeInsets.only(top: Spacing.md, left: Spacing.md, right: Spacing.md),
               child: isSelectionMode
                   ? SelectionHeader(
                       selectedCount: libraryProvider.selectedCount,
                       totalCount: books.length,
                       onClose: libraryProvider.exitSelectionMode,
-                      onSelectAll: () => libraryProvider.selectAll(
-                        books.map((b) => b.id).toList(),
-                      ),
+                      onSelectAll: () => libraryProvider.selectAll(books.map((b) => b.id).toList()),
                       onDeselectAll: libraryProvider.deselectAll,
                     )
                   : Row(
                       children: [
-                        IconButton(
-                          icon: const Icon(Icons.arrow_back),
-                          onPressed: () => context.go('/library/shelves'),
-                        ),
+                        IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => context.go('/library/shelves')),
                         const SizedBox(width: Spacing.xs),
-                        Expanded(
-                          child: _buildSearchBar(provider, isDesktop: false),
-                        ),
+                        Expanded(child: _buildSearchBar(provider, isDesktop: false)),
                         const SizedBox(width: Spacing.sm),
                         _buildSortButton(provider),
                       ],
@@ -173,37 +155,25 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
             // Row 2: Shelf info + View toggle (hidden during selection)
             if (!isSelectionMode)
               Padding(
-                padding: const EdgeInsets.only(
-                  left: Spacing.md,
-                  right: Spacing.md,
-                  bottom: Spacing.md,
-                ),
+                padding: const EdgeInsets.only(left: Spacing.md, right: Spacing.md, bottom: Spacing.md),
                 child: Row(
                   children: [
                     Expanded(
                       child: Row(
                         children: [
-                          Icon(
-                            shelf.displayIcon,
-                            size: IconSizes.small,
-                            color: shelfColor,
-                          ),
+                          Icon(shelf.displayIcon, size: IconSizes.small, color: shelfColor),
                           const SizedBox(width: Spacing.xs),
                           Flexible(
                             child: Text(
                               shelf.name,
                               overflow: TextOverflow.ellipsis,
-                              style: textTheme.bodyMedium?.copyWith(
-                                fontWeight: FontWeight.w600,
-                              ),
+                              style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
                             ),
                           ),
                           const SizedBox(width: Spacing.sm),
                           Text(
                             '\u00b7 ${books.length} ${books.length == 1 ? 'book' : 'books'}',
-                            style: textTheme.bodyMedium?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                            ),
+                            style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -214,21 +184,11 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
                 ),
               ),
             // Content grid/list
-            Expanded(
-              child: _buildContent(
-                context,
-                childShelves,
-                books,
-                provider,
-                libraryProvider,
-              ),
-            ),
+            Expanded(child: _buildContent(context, childShelves, books, provider, libraryProvider)),
           ],
         ),
       ),
-      bottomNavigationBar: isSelectionMode
-          ? buildMobileBottomActionBar(context, libraryProvider)
-          : null,
+      bottomNavigationBar: isSelectionMode ? buildMobileBottomActionBar(context, libraryProvider) : null,
     );
   }
 
@@ -236,21 +196,14 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
   // DESKTOP LAYOUT
   // ============================================================================
 
-  Widget _buildDesktopLayout(
-    BuildContext context,
-    Shelf shelf,
-    ShelvesProvider provider,
-  ) {
+  Widget _buildDesktopLayout(BuildContext context, Shelf shelf, ShelvesProvider provider) {
     final libraryProvider = context.watch<LibraryProvider>();
     final childShelves = provider.getChildShelves(shelf.id);
     final books = provider.getFilteredBooksForShelf(
       shelf.id,
       isFavorite: (bookId) {
         final book = context.read<DataStore>().getBook(bookId);
-        return libraryProvider.isBookFavorite(
-          bookId,
-          book?.isFavorite ?? false,
-        );
+        return libraryProvider.isBookFavorite(bookId, book?.isFavorite ?? false);
       },
     );
 
@@ -272,19 +225,13 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
             children: [
               // Header
               Container(
-                padding: const EdgeInsets.only(
-                  top: Spacing.lg,
-                  left: Spacing.lg,
-                  right: Spacing.lg,
-                ),
+                padding: const EdgeInsets.only(top: Spacing.lg, left: Spacing.lg, right: Spacing.lg),
                 child: isSelectionMode
                     ? SelectionHeader(
                         selectedCount: libraryProvider.selectedCount,
                         totalCount: books.length,
                         onClose: libraryProvider.exitSelectionMode,
-                        onSelectAll: () => libraryProvider.selectAll(
-                          books.map((b) => b.id).toList(),
-                        ),
+                        onSelectAll: () => libraryProvider.selectAll(books.map((b) => b.id).toList()),
                         onDeselectAll: libraryProvider.deselectAll,
                         actions: buildBulkActionBar(context, libraryProvider),
                       )
@@ -298,35 +245,20 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
                               children: [
                                 Row(
                                   children: [
-                                    Expanded(
-                                      child: _buildSearchBar(
-                                        provider,
-                                        isDesktop: true,
-                                      ),
-                                    ),
+                                    Expanded(child: _buildSearchBar(provider, isDesktop: true)),
                                     const SizedBox(width: Spacing.sm),
                                     _buildSortButton(provider),
                                   ],
                                 ),
                                 const SizedBox(height: Spacing.md),
-                                Row(
-                                  children: [
-                                    const Spacer(),
-                                    _buildViewToggle(provider),
-                                  ],
-                                ),
+                                Row(children: [const Spacer(), _buildViewToggle(provider)]),
                               ],
                             );
                           }
 
                           return Row(
                             children: [
-                              Expanded(
-                                child: _buildSearchBar(
-                                  provider,
-                                  isDesktop: true,
-                                ),
-                              ),
+                              Expanded(child: _buildSearchBar(provider, isDesktop: true)),
                               const SizedBox(width: Spacing.md),
                               _buildSortButton(provider),
                               const SizedBox(width: Spacing.md),
@@ -339,15 +271,7 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
               // Filter chips
               _buildFilterChips(provider, horizontalPadding: Spacing.lg),
               // Content grid/list
-              Expanded(
-                child: _buildContent(
-                  context,
-                  childShelves,
-                  books,
-                  provider,
-                  libraryProvider,
-                ),
-              ),
+              Expanded(child: _buildContent(context, childShelves, books, provider, libraryProvider)),
             ],
           ),
         ),
@@ -366,9 +290,7 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
       onQueryChanged: provider.setBookSearchQuery,
       initialQuery: provider.bookSearchQuery,
       activeFilterCount: activeFilterCount,
-      onFilterTap: () => isDesktop
-          ? _showFilterDialog(context, provider)
-          : _showFilterBottomSheet(context, provider),
+      onFilterTap: () => isDesktop ? _showFilterDialog(context, provider) : _showFilterBottomSheet(context, provider),
     );
   }
 
@@ -386,11 +308,7 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
     );
   }
 
-  PopupMenuItem<BookSortOption> _buildSortMenuItem(
-    BookSortOption option,
-    String label,
-    ShelvesProvider provider,
-  ) {
+  PopupMenuItem<BookSortOption> _buildSortMenuItem(BookSortOption option, String label, ShelvesProvider provider) {
     return PopupMenuItem(
       value: option,
       child: Row(
@@ -399,9 +317,7 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
           Icon(
             Icons.check,
             size: IconSizes.small,
-            color: option == provider.bookSortOption
-                ? Theme.of(context).colorScheme.primary
-                : Colors.transparent,
+            color: option == provider.bookSortOption ? Theme.of(context).colorScheme.primary : Colors.transparent,
           ),
         ],
       ),
@@ -411,9 +327,7 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
   Widget _buildViewToggle(ShelvesProvider provider) {
     return ViewModeToggle(
       isGridView: provider.isGridView,
-      onChanged: (isGrid) => provider.setViewMode(
-        isGrid ? ShelvesViewMode.grid : ShelvesViewMode.list,
-      ),
+      onChanged: (isGrid) => provider.setViewMode(isGrid ? ShelvesViewMode.grid : ShelvesViewMode.list),
     );
   }
 
@@ -425,31 +339,19 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
     (type: BookFilterType.all, label: 'All', icon: Icons.apps),
     (type: BookFilterType.reading, label: 'Reading', icon: Icons.auto_stories),
     (type: BookFilterType.favorites, label: 'Favorites', icon: Icons.favorite),
-    (
-      type: BookFilterType.finished,
-      label: 'Finished',
-      icon: Icons.check_circle,
-    ),
+    (type: BookFilterType.finished, label: 'Finished', icon: Icons.check_circle),
     (type: BookFilterType.unread, label: 'Unread', icon: Icons.book),
   ];
 
-  Widget _buildFilterChips(
-    ShelvesProvider provider, {
-    double? horizontalPadding,
-  }) {
+  Widget _buildFilterChips(ShelvesProvider provider, {double? horizontalPadding}) {
     return QuickFilterChips(
       horizontalPadding: horizontalPadding,
       filters: _quickFilters
           .map(
-            (f) => QuickFilterChipData(
-              label: f.label,
-              icon: f.icon,
-              isSelected: provider.isBookFilterActive(f.type),
-            ),
+            (f) => QuickFilterChipData(label: f.label, icon: f.icon, isSelected: provider.isBookFilterActive(f.type)),
           )
           .toList(),
-      onFilterTapped: (index) =>
-          provider.toggleBookFilter(_quickFilters[index].type),
+      onFilterTapped: (index) => provider.toggleBookFilter(_quickFilters[index].type),
     );
   }
 
@@ -458,18 +360,14 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
   // ============================================================================
 
   int _countActiveAdvancedFilters(ShelvesProvider provider) {
-    if (provider.bookSearchQuery.isEmpty ||
-        !provider.bookSearchQuery.contains(':')) {
+    if (provider.bookSearchQuery.isEmpty || !provider.bookSearchQuery.contains(':')) {
       return 0;
     }
     final query = SearchQueryParser.parse(provider.bookSearchQuery);
     return query.filters.where((f) => f.field.name != 'any').length;
   }
 
-  Future<void> _showFilterBottomSheet(
-    BuildContext context,
-    ShelvesProvider provider,
-  ) async {
+  Future<void> _showFilterBottomSheet(BuildContext context, ShelvesProvider provider) async {
     final dataStore = context.read<DataStore>();
     final filterOptions = FilterOptions.fromBooks(
       dataStore.books,
@@ -494,10 +392,7 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
     }
   }
 
-  Future<void> _showFilterDialog(
-    BuildContext context,
-    ShelvesProvider provider,
-  ) async {
+  Future<void> _showFilterDialog(BuildContext context, ShelvesProvider provider) async {
     final dataStore = context.read<DataStore>();
     final filterOptions = FilterOptions.fromBooks(
       dataStore.books,
@@ -522,10 +417,7 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
     }
   }
 
-  void _applyShelfFilterResult(
-    AppliedFilters result,
-    ShelvesProvider provider,
-  ) {
+  void _applyShelfFilterResult(AppliedFilters result, ShelvesProvider provider) {
     // Apply quick filters
     if (result.filterReading) {
       provider.addBookFilter(BookFilterType.reading);
@@ -579,22 +471,10 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
     }
 
     if (provider.isListView) {
-      return _buildListContent(
-        context,
-        childShelves,
-        books,
-        provider,
-        libraryProvider,
-      );
+      return _buildListContent(context, childShelves, books, provider, libraryProvider);
     }
 
-    return _buildGridContent(
-      context,
-      childShelves,
-      books,
-      provider,
-      libraryProvider,
-    );
+    return _buildGridContent(context, childShelves, books, provider, libraryProvider);
   }
 
   Widget _buildGridContent(
@@ -630,11 +510,7 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
     }
 
     return GridView.builder(
-      padding: const EdgeInsets.only(
-        left: Spacing.md,
-        right: Spacing.md,
-        bottom: Spacing.md,
-      ),
+      padding: const EdgeInsets.only(left: Spacing.md, right: Spacing.md, bottom: Spacing.md),
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
         crossAxisCount: crossAxisCount,
         mainAxisSpacing: spacing,
@@ -645,17 +521,11 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
       itemBuilder: (context, index) {
         if (index < childShelves.length) {
           final shelf = childShelves[index];
-          return ShelfCard(
-            shelf: shelf,
-            onTap: () => context.go('/library/shelves/${shelf.id}'),
-          );
+          return ShelfCard(shelf: shelf, onTap: () => context.go('/library/shelves/${shelf.id}'));
         }
 
         final book = books[index - childShelves.length];
-        final isFavorite = libraryProvider.isBookFavorite(
-          book.id,
-          book.isFavorite,
-        );
+        final isFavorite = libraryProvider.isBookFavorite(book.id, book.isFavorite);
         final isSelectionMode = libraryProvider.isSelectionMode;
         return BookCard(
           book: book,
@@ -663,10 +533,8 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
           isSelectionMode: isSelectionMode,
           isSelected: libraryProvider.isBookSelected(book.id),
           onSelectToggle: () => libraryProvider.toggleBookSelection(book.id),
-          onEnterSelectionMode: () =>
-              libraryProvider.enterSelectionMode(book.id),
-          onToggleFavorite: (current) =>
-              libraryProvider.toggleFavorite(book.id, current),
+          onEnterSelectionMode: () => libraryProvider.enterSelectionMode(book.id),
+          onToggleFavorite: (current) => libraryProvider.toggleFavorite(book.id, current),
           onTap: () => context.go('/library/details/${book.id}'),
         );
       },
@@ -688,18 +556,11 @@ class _ShelfContentsPageState extends State<ShelfContentsPage> {
       itemBuilder: (context, index) {
         if (index < childShelves.length) {
           final shelf = childShelves[index];
-          return ShelfCard(
-            shelf: shelf,
-            isListItem: true,
-            onTap: () => context.go('/library/shelves/${shelf.id}'),
-          );
+          return ShelfCard(shelf: shelf, isListItem: true, onTap: () => context.go('/library/shelves/${shelf.id}'));
         }
 
         final book = books[index - childShelves.length];
-        final isFavorite = libraryProvider.isBookFavorite(
-          book.id,
-          book.isFavorite,
-        );
+        final isFavorite = libraryProvider.isBookFavorite(book.id, book.isFavorite);
         return BookListItem(
           book: book,
           isFavorite: isFavorite,

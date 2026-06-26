@@ -17,13 +17,7 @@ class ActiveGoalDetailsSheet extends StatefulWidget {
   /// Called when goal is deleted.
   final VoidCallback? onDelete;
 
-  const ActiveGoalDetailsSheet({
-    super.key,
-    required this.goal,
-    this.onUpdateProgress,
-    this.onEdit,
-    this.onDelete,
-  });
+  const ActiveGoalDetailsSheet({super.key, required this.goal, this.onUpdateProgress, this.onEdit, this.onDelete});
 
   /// Shows the active goal details sheet.
   static Future<void> show(
@@ -36,15 +30,9 @@ class ActiveGoalDetailsSheet extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
-      builder: (context) => ActiveGoalDetailsSheet(
-        goal: goal,
-        onUpdateProgress: onUpdateProgress,
-        onEdit: onEdit,
-        onDelete: onDelete,
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
+      builder: (context) =>
+          ActiveGoalDetailsSheet(goal: goal, onUpdateProgress: onUpdateProgress, onEdit: onEdit, onDelete: onDelete),
     );
   }
 
@@ -65,9 +53,7 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
     super.initState();
     _currentProgress = widget.goal.current;
     _currentTarget = widget.goal.target;
-    _progressController = TextEditingController(
-      text: _currentProgress.toString(),
-    );
+    _progressController = TextEditingController(text: _currentProgress.toString());
     _targetController = TextEditingController(text: _currentTarget.toString());
   }
 
@@ -108,28 +94,17 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
                   color: colorScheme.primaryContainer,
                   borderRadius: BorderRadius.circular(AppRadius.md),
                 ),
-                child: Icon(
-                  _getIconForType(widget.goal.type),
-                  size: 24,
-                  color: colorScheme.onPrimaryContainer,
-                ),
+                child: Icon(_getIconForType(widget.goal.type), size: 24, color: colorScheme.onPrimaryContainer),
               ),
               const SizedBox(width: Spacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      widget.goal.description,
-                      style: textTheme.titleLarge?.copyWith(
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
+                    Text(widget.goal.description, style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
                     Text(
                       _getGoalTypeLabel(),
-                      style: textTheme.bodyMedium?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
@@ -155,22 +130,10 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
             ),
             child: Column(
               children: [
-                _buildInfoRow(
-                  context,
-                  icon: _getRecurrenceIcon(),
-                  label: 'Type',
-                  value: widget.goal.recurrenceLabel,
-                ),
+                _buildInfoRow(context, icon: _getRecurrenceIcon(), label: 'Type', value: widget.goal.recurrenceLabel),
                 const Divider(height: Spacing.lg),
-                _buildInfoRow(
-                  context,
-                  icon: Icons.date_range,
-                  label: 'Period',
-                  value: _getPeriodDescription(),
-                ),
-                if (widget.goal.isDaily &&
-                    widget.goal.isRecurring &&
-                    widget.goal.streak > 0) ...[
+                _buildInfoRow(context, icon: Icons.date_range, label: 'Period', value: _getPeriodDescription()),
+                if (widget.goal.isDaily && widget.goal.isRecurring && widget.goal.streak > 0) ...[
                   const Divider(height: Spacing.lg),
                   _buildInfoRow(
                     context,
@@ -200,9 +163,7 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
                     foregroundColor: colorScheme.error,
                     side: BorderSide(color: colorScheme.error),
                     padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
                   ),
                 ),
               ),
@@ -214,9 +175,7 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
                   label: const Text('Done'),
                   style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
                   ),
                 ),
               ),
@@ -228,11 +187,7 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
     );
   }
 
-  Widget _buildProgressSection(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-  ) {
+  Widget _buildProgressSection(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
@@ -246,20 +201,13 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Progress',
-                style: textTheme.titleSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
+              Text('Progress', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
               if (!_isEditingProgress)
                 TextButton.icon(
                   onPressed: () => setState(() => _isEditingProgress = true),
                   icon: const Icon(Icons.edit, size: 16),
                   label: const Text('Update'),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                  ),
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
                 ),
             ],
           ),
@@ -290,22 +238,14 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
                       autofocus: true,
                       decoration: InputDecoration(
                         isDense: true,
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: Spacing.sm,
-                          vertical: Spacing.sm,
-                        ),
-                        border: OutlineInputBorder(
-                          borderRadius: BorderRadius.circular(AppRadius.sm),
-                        ),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.sm),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
                         suffixText: 'of $_currentTarget',
                       ),
                     ),
                   ),
                   const SizedBox(width: Spacing.sm),
-                  IconButton.filled(
-                    onPressed: _saveProgress,
-                    icon: const Icon(Icons.check, size: 20),
-                  ),
+                  IconButton.filled(onPressed: _saveProgress, icon: const Icon(Icons.check, size: 20)),
                   const SizedBox(width: Spacing.xs),
                   IconButton.outlined(
                     onPressed: () {
@@ -321,10 +261,7 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
           ] else ...[
             Builder(
               builder: (context) {
-                final progress = (_currentProgress / _currentTarget).clamp(
-                  0.0,
-                  1.0,
-                );
+                final progress = (_currentProgress / _currentTarget).clamp(0.0, 1.0);
                 final isCompleted = _currentProgress >= _currentTarget;
                 final progressLabel = '${(progress * 100).round()}%';
 
@@ -338,9 +275,7 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
                             widget.goal.type == GoalType.minutes
                                 ? '${formatDuration(_currentProgress)} of ${formatDuration(_currentTarget)}'
                                 : '$_currentProgress of $_currentTarget ${widget.goal.typeLabel}',
-                            style: textTheme.titleMedium?.copyWith(
-                              fontWeight: FontWeight.bold,
-                            ),
+                            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: Spacing.xs),
                           ClipRRect(
@@ -348,11 +283,8 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
                             child: LinearProgressIndicator(
                               value: progress,
                               minHeight: 8,
-                              backgroundColor:
-                                  colorScheme.surfaceContainerHighest,
-                              color: isCompleted
-                                  ? colorScheme.tertiary
-                                  : colorScheme.primary,
+                              backgroundColor: colorScheme.surfaceContainerHighest,
+                              color: isCompleted ? colorScheme.tertiary : colorScheme.primary,
                             ),
                           ),
                         ],
@@ -363,9 +295,7 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
                       progressLabel,
                       style: textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: isCompleted
-                            ? colorScheme.tertiary
-                            : colorScheme.primary,
+                        color: isCompleted ? colorScheme.tertiary : colorScheme.primary,
                       ),
                     ),
                   ],
@@ -378,11 +308,7 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
     );
   }
 
-  Widget _buildTargetSection(
-    BuildContext context,
-    ColorScheme colorScheme,
-    TextTheme textTheme,
-  ) {
+  Widget _buildTargetSection(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
     return Container(
       padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
@@ -396,20 +322,13 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                'Target',
-                style: textTheme.titleSmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
-              ),
+              Text('Target', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
               if (!_isEditingTarget)
                 TextButton.icon(
                   onPressed: () => setState(() => _isEditingTarget = true),
                   icon: const Icon(Icons.edit, size: 16),
                   label: const Text('Edit'),
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                  ),
+                  style: TextButton.styleFrom(visualDensity: VisualDensity.compact),
                 ),
             ],
           ),
@@ -442,31 +361,20 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
                             autofocus: true,
                             decoration: InputDecoration(
                               isDense: true,
-                              contentPadding: const EdgeInsets.symmetric(
-                                horizontal: Spacing.sm,
-                                vertical: Spacing.sm,
-                              ),
-                              border: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(
-                                  AppRadius.sm,
-                                ),
-                              ),
+                              contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.sm),
+                              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
                               suffixText: widget.goal.typeLabel,
                             ),
                           ),
                         ),
                         const SizedBox(width: Spacing.sm),
-                        IconButton.filled(
-                          onPressed: _saveTarget,
-                          icon: const Icon(Icons.check, size: 20),
-                        ),
+                        IconButton.filled(onPressed: _saveTarget, icon: const Icon(Icons.check, size: 20)),
                         const SizedBox(width: Spacing.xs),
                         IconButton.outlined(
                           onPressed: () {
                             setState(() {
                               _isEditingTarget = false;
-                              _targetController.text = _currentTarget
-                                  .toString();
+                              _targetController.text = _currentTarget.toString();
                             });
                           },
                           icon: const Icon(Icons.close, size: 20),
@@ -483,9 +391,7 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
                   widget.goal.type == GoalType.minutes
                       ? formatDuration(_currentTarget)
                       : '$_currentTarget ${widget.goal.typeLabel}',
-                  style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
+                  style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                 ),
               ),
             ),
@@ -508,19 +414,11 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
       children: [
         Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: Spacing.sm),
-        Text(
-          label,
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         const Spacer(),
         Text(
           value,
-          style: textTheme.bodyMedium?.copyWith(
-            fontWeight: FontWeight.w600,
-            color: valueColor,
-          ),
+          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: valueColor),
         ),
       ],
     );
@@ -540,10 +438,7 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
       children: [
         Expanded(
           child: Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Spacing.sm,
-              vertical: Spacing.xs,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
             decoration: BoxDecoration(
               border: Border.all(color: colorScheme.outline),
               borderRadius: BorderRadius.circular(AppRadius.sm),
@@ -561,12 +456,7 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
                   icon: const Icon(Icons.remove, size: 20),
                   visualDensity: VisualDensity.compact,
                 ),
-                Text(
-                  formatDuration(value),
-                  style: textTheme.titleMedium?.copyWith(
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
+                Text(formatDuration(value), style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                 IconButton(
                   onPressed: () {
                     final step = value >= 60 ? 15 : 5;
@@ -580,15 +470,9 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
           ),
         ),
         const SizedBox(width: Spacing.sm),
-        IconButton.filled(
-          onPressed: onSave,
-          icon: const Icon(Icons.check, size: 20),
-        ),
+        IconButton.filled(onPressed: onSave, icon: const Icon(Icons.check, size: 20)),
         const SizedBox(width: Spacing.xs),
-        IconButton.outlined(
-          onPressed: onCancel,
-          icon: const Icon(Icons.close, size: 20),
-        ),
+        IconButton.outlined(onPressed: onCancel, icon: const Icon(Icons.close, size: 20)),
       ],
     );
   }
@@ -622,14 +506,9 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Delete goal?'),
-        content: Text(
-          'This will permanently remove "${widget.goal.description}" from your goals.',
-        ),
+        content: Text('This will permanently remove "${widget.goal.description}" from your goals.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               Navigator.of(context).pop();
@@ -688,20 +567,7 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
   }
 
   String _formatDate(DateTime date) {
-    const months = [
-      'Jan',
-      'Feb',
-      'Mar',
-      'Apr',
-      'May',
-      'Jun',
-      'Jul',
-      'Aug',
-      'Sep',
-      'Oct',
-      'Nov',
-      'Dec',
-    ];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     return '${months[date.month - 1]} ${date.day}, ${date.year}';
   }
 

@@ -6,11 +6,7 @@ class CoAuthorEditor extends StatelessWidget {
   final List<String> coAuthors;
   final void Function(List<String>) onChanged;
 
-  const CoAuthorEditor({
-    super.key,
-    required this.coAuthors,
-    required this.onChanged,
-  });
+  const CoAuthorEditor({super.key, required this.coAuthors, required this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -19,12 +15,7 @@ class CoAuthorEditor extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Co-authors',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-        ),
+        Text('Co-authors', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
         const SizedBox(height: Spacing.xs),
         Wrap(
           spacing: Spacing.xs,
@@ -60,10 +51,7 @@ class CoAuthorEditor extends StatelessWidget {
         content: TextField(
           controller: controller,
           autofocus: true,
-          decoration: const InputDecoration(
-            labelText: 'Name',
-            hintText: 'Enter co-author name',
-          ),
+          decoration: const InputDecoration(labelText: 'Name', hintText: 'Enter co-author name'),
           onSubmitted: (value) {
             if (value.trim().isNotEmpty) {
               Navigator.pop(ctx, value.trim());
@@ -71,10 +59,7 @@ class CoAuthorEditor extends StatelessWidget {
           },
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               if (controller.text.trim().isNotEmpty) {

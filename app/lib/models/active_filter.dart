@@ -16,21 +16,12 @@ class ActiveFilter {
   /// Icon to display with the filter
   final String? iconName;
 
-  const ActiveFilter({
-    required this.type,
-    required this.label,
-    required this.value,
-    this.queryString,
-    this.iconName,
-  });
+  const ActiveFilter({required this.type, required this.label, required this.value, this.queryString, this.iconName});
 
   @override
   bool operator ==(Object other) {
     if (identical(this, other)) return true;
-    return other is ActiveFilter &&
-        other.type == type &&
-        other.label == label &&
-        other.value == value;
+    return other is ActiveFilter && other.type == type && other.label == label && other.value == value;
   }
 
   @override

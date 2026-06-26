@@ -34,10 +34,7 @@ class NameInput extends StatelessWidget {
       decoration: InputDecoration(
         border: const OutlineInputBorder(),
         labelText: labelText,
-        suffixIcon: Icon(
-          Icons.person_outline,
-          color: theme.colorScheme.onSurfaceVariant,
-        ),
+        suffixIcon: Icon(Icons.person_outline, color: theme.colorScheme.onSurfaceVariant),
       ),
       controller: controller,
       focusNode: focusNode,

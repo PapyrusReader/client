@@ -25,17 +25,11 @@ class MoveToShelfSheet extends StatefulWidget {
   bool get isBulkMode => bulkBookIds != null && bulkBookIds!.isNotEmpty;
 
   /// Shows the move to shelf sheet for a single book.
-  static Future<void> show(
-    BuildContext context, {
-    required Book book,
-    void Function(List<String> shelfIds)? onSave,
-  }) {
+  static Future<void> show(BuildContext context, {required Book book, void Function(List<String> shelfIds)? onSave}) {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => MoveToShelfSheet(book: book, onSave: onSave),
     );
   }
@@ -49,11 +43,8 @@ class MoveToShelfSheet extends StatefulWidget {
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
-      ),
-      builder: (context) =>
-          MoveToShelfSheet(bulkBookIds: bookIds, onSave: onSave),
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
+      builder: (context) => MoveToShelfSheet(bulkBookIds: bookIds, onSave: onSave),
     );
   }
 
@@ -95,11 +86,7 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
       maxChildSize: 0.9,
       expand: false,
       builder: (context, scrollController) => Padding(
-        padding: const EdgeInsets.only(
-          left: Spacing.lg,
-          right: Spacing.lg,
-          top: Spacing.md,
-        ),
+        padding: const EdgeInsets.only(left: Spacing.lg, right: Spacing.lg, top: Spacing.md),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -115,11 +102,7 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
                 if (!widget.isBulkMode) ...[
                   ClipRRect(
                     borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: SizedBox(
-                      width: 40,
-                      height: 60,
-                      child: _buildCover(context),
-                    ),
+                    child: SizedBox(width: 40, height: 60, child: _buildCover(context)),
                   ),
 
                   SizedBox(width: Spacing.sm + Spacing.xs),
@@ -140,9 +123,7 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
                         const SizedBox(height: 2),
                         Text(
                           widget.book!.title,
-                          style: textTheme.bodySmall?.copyWith(
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                          style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -176,9 +157,7 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
                       ? shelves
                       : shelves
                             .where(
-                              (searchString) => searchString.name
-                                  .toLowerCase()
-                                  .contains(_searchQuery.toLowerCase()),
+                              (searchString) => searchString.name.toLowerCase().contains(_searchQuery.toLowerCase()),
                             )
                             .toList();
 
@@ -186,9 +165,7 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
                     return Center(
                       child: Text(
                         'No shelves found',
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                       ),
                     );
                   }
@@ -196,8 +173,7 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
                   return ListView.builder(
                     controller: scrollController,
                     itemCount: filteredShelves.length,
-                    itemBuilder: (context, index) =>
-                        _buildShelfTile(context, filteredShelves[index]),
+                    itemBuilder: (context, index) => _buildShelfTile(context, filteredShelves[index]),
                   );
                 },
               ),
@@ -205,17 +181,11 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
 
             // Action buttons
             Padding(
-              padding: EdgeInsets.only(
-                top: Spacing.md,
-                bottom: MediaQuery.of(context).viewInsets.bottom + Spacing.md,
-              ),
+              padding: EdgeInsets.only(top: Spacing.md, bottom: MediaQuery.of(context).viewInsets.bottom + Spacing.md),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
+                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
                   const SizedBox(width: Spacing.md),
                   FilledButton(onPressed: _onSave, child: const Text('Save')),
                 ],
@@ -237,22 +207,14 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
         fit: BoxFit.cover,
         errorBuilder: (context, error, stackTrace) => Container(
           color: colorScheme.surfaceContainerHighest,
-          child: Icon(
-            Icons.menu_book,
-            color: colorScheme.onSurfaceVariant,
-            size: 20,
-          ),
+          child: Icon(Icons.menu_book, color: colorScheme.onSurfaceVariant, size: 20),
         ),
       );
     }
 
     return Container(
       color: colorScheme.surfaceContainerHighest,
-      child: Icon(
-        Icons.menu_book,
-        color: colorScheme.onSurfaceVariant,
-        size: 20,
-      ),
+      child: Icon(Icons.menu_book, color: colorScheme.onSurfaceVariant, size: 20),
     );
   }
 
@@ -265,24 +227,16 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
     return Card(
       margin: const EdgeInsets.only(bottom: Spacing.xs),
       elevation: 0,
-      color: isSelected
-          ? shelfColor.withValues(alpha: 0.1)
-          : colorScheme.surfaceContainerLow,
+      color: isSelected ? shelfColor.withValues(alpha: 0.1) : colorScheme.surfaceContainerLow,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.md),
-        side: BorderSide(
-          color: isSelected ? shelfColor : colorScheme.outlineVariant,
-          width: isSelected ? 2 : 1,
-        ),
+        side: BorderSide(color: isSelected ? shelfColor : colorScheme.outlineVariant, width: isSelected ? 2 : 1),
       ),
       child: InkWell(
         onTap: () => _toggleShelf(shelf.id),
         borderRadius: BorderRadius.circular(AppRadius.md),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.md,
-            vertical: Spacing.sm,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
           child: Row(
             children: [
               // Shelf icon
@@ -303,27 +257,19 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
                   children: [
                     Text(
                       shelf.name,
-                      style: textTheme.titleSmall?.copyWith(
-                        fontWeight: FontWeight.w600,
-                      ),
+                      style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                     ),
                     Text(
                       shelf.bookCountLabel,
-                      style: textTheme.bodySmall?.copyWith(
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                     ),
                   ],
                 ),
               ),
               // Checkbox
-              Checkbox(
-                value: isSelected,
-                onChanged: (_) => _toggleShelf(shelf.id),
-                activeColor: shelfColor,
-              ),
+              Checkbox(value: isSelected, onChanged: (_) => _toggleShelf(shelf.id), activeColor: shelfColor),
             ],
           ),
         ),

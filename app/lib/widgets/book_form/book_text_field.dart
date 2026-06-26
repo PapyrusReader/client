@@ -29,14 +29,9 @@ class BookTextField extends StatelessWidget {
       decoration: InputDecoration(
         labelText: required ? '$label*' : label,
         alignLabelWithHint: maxLines > 1,
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
       ),
-      validator: required
-          ? (value) =>
-                value?.trim().isEmpty == true ? '$label is required' : null
-          : null,
+      validator: required ? (value) => value?.trim().isEmpty == true ? '$label is required' : null : null,
       onChanged: onChanged,
     );
   }

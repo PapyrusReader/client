@@ -27,17 +27,10 @@ class BookInfoGrid extends StatelessWidget {
                 width: 100,
                 child: Text(
                   entry.label,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
               ),
-              Expanded(
-                child: Text(
-                  entry.value,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
+              Expanded(child: Text(entry.value, style: Theme.of(context).textTheme.bodyMedium)),
             ],
           ),
         );
@@ -59,12 +52,7 @@ class BookInfoGrid extends StatelessWidget {
     }
 
     if (book.publicationDate != null) {
-      entries.add(
-        _InfoEntry(
-          'Published',
-          DateFormat.yMMMMd().format(book.publicationDate!),
-        ),
-      );
+      entries.add(_InfoEntry('Published', DateFormat.yMMMMd().format(book.publicationDate!)));
     }
 
     if (book.isbn13 != null && book.isbn13!.isNotEmpty) {
@@ -84,19 +72,12 @@ class BookInfoGrid extends StatelessWidget {
           : book.seriesName!;
       entries.add(_InfoEntry('Series', seriesValue));
     } else if (book.seriesNumber != null) {
-      entries.add(
-        _InfoEntry('Series', '#${_formatSeriesNumber(book.seriesNumber!)}'),
-      );
+      entries.add(_InfoEntry('Series', '#${_formatSeriesNumber(book.seriesNumber!)}'));
     }
 
     // Rating
     if (book.rating != null) {
-      entries.add(
-        _InfoEntry(
-          'Rating',
-          '${'★' * book.rating!}${'☆' * (5 - book.rating!)}',
-        ),
-      );
+      entries.add(_InfoEntry('Rating', '${'★' * book.rating!}${'☆' * (5 - book.rating!)}'));
     }
 
     // Reading status
@@ -105,9 +86,7 @@ class BookInfoGrid extends StatelessWidget {
     }
 
     // Physical location
-    if (book.isPhysical &&
-        book.physicalLocation != null &&
-        book.physicalLocation!.isNotEmpty) {
+    if (book.isPhysical && book.physicalLocation != null && book.physicalLocation!.isNotEmpty) {
       entries.add(_InfoEntry('Location', book.physicalLocation!));
     }
 
@@ -124,9 +103,7 @@ class BookInfoGrid extends StatelessWidget {
 
   /// Format series number: show as integer if whole, otherwise as decimal.
   static String _formatSeriesNumber(double number) {
-    return number == number.roundToDouble()
-        ? number.toInt().toString()
-        : number.toString();
+    return number == number.roundToDouble() ? number.toInt().toString() : number.toString();
   }
 }
 

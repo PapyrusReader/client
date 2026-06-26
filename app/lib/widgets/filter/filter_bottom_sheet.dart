@@ -22,8 +22,7 @@ class FilterOptions {
     List<String> topicNames = const [],
   }) {
     return FilterOptions(
-      formats: books.map((b) => b.formatLabel.toLowerCase()).toSet().toList()
-        ..sort(),
+      formats: books.map((b) => b.formatLabel.toLowerCase()).toSet().toList()..sort(),
       shelves: shelfNames.toList()..sort(),
       topics: topicNames.toList()..sort(),
     );
@@ -208,13 +207,7 @@ class FilterBottomSheet extends StatefulWidget {
   /// Initial filter values.
   final AppliedFilters? initialFilters;
 
-  const FilterBottomSheet({
-    super.key,
-    required this.filterOptions,
-    this.onApply,
-    this.onReset,
-    this.initialFilters,
-  });
+  const FilterBottomSheet({super.key, required this.filterOptions, this.onApply, this.onReset, this.initialFilters});
 
   @override
   State<FilterBottomSheet> createState() => _FilterBottomSheetState();
@@ -237,9 +230,7 @@ class FilterBottomSheet extends StatefulWidget {
         builder: (context, scrollController) => Container(
           decoration: BoxDecoration(
             color: Theme.of(context).colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(
-              top: Radius.circular(AppRadius.xl),
-            ),
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xl)),
           ),
           child: FilterBottomSheet(
             filterOptions: filterOptions,
@@ -376,24 +367,15 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           margin: const EdgeInsets.only(top: Spacing.sm),
           width: 32,
           height: 4,
-          decoration: BoxDecoration(
-            color: colorScheme.outlineVariant,
-            borderRadius: BorderRadius.circular(2),
-          ),
+          decoration: BoxDecoration(color: colorScheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.md,
-            vertical: Spacing.xs,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.xs),
           child: Row(
             children: [
               Text('Filters', style: Theme.of(context).textTheme.titleLarge),
               const Spacer(),
-              IconButton(
-                icon: const Icon(Icons.close),
-                onPressed: () => Navigator.of(context).pop(),
-              ),
+              IconButton(icon: const Icon(Icons.close), onPressed: () => Navigator.of(context).pop()),
             ],
           ),
         ),
@@ -410,10 +392,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
           icon: Icons.person_outline,
           child: TextField(
             controller: _authorController,
-            decoration: const InputDecoration(
-              hintText: 'Enter author name...',
-              border: OutlineInputBorder(),
-            ),
+            decoration: const InputDecoration(hintText: 'Enter author name...', border: OutlineInputBorder()),
             onChanged: (_) => setState(() {}),
           ),
         ),
@@ -428,12 +407,9 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             hintText: 'Any format',
             dropdownMenuEntries: [
               const DropdownMenuEntry(value: '', label: 'Any format'),
-              ...widget.filterOptions.formats.map(
-                (f) => DropdownMenuEntry(value: f, label: f.toUpperCase()),
-              ),
+              ...widget.filterOptions.formats.map((f) => DropdownMenuEntry(value: f, label: f.toUpperCase())),
             ],
-            onSelected: (v) =>
-                setState(() => _selectedFormat = v?.isEmpty == true ? null : v),
+            onSelected: (v) => setState(() => _selectedFormat = v?.isEmpty == true ? null : v),
           ),
         ),
 
@@ -447,12 +423,9 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             hintText: 'Any shelf',
             dropdownMenuEntries: [
               const DropdownMenuEntry(value: '', label: 'Any shelf'),
-              ...widget.filterOptions.shelves.map(
-                (s) => DropdownMenuEntry(value: s, label: s),
-              ),
+              ...widget.filterOptions.shelves.map((s) => DropdownMenuEntry(value: s, label: s)),
             ],
-            onSelected: (v) =>
-                setState(() => _selectedShelf = v?.isEmpty == true ? null : v),
+            onSelected: (v) => setState(() => _selectedShelf = v?.isEmpty == true ? null : v),
           ),
         ),
 
@@ -466,12 +439,9 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             hintText: 'Any topic',
             dropdownMenuEntries: [
               const DropdownMenuEntry(value: '', label: 'Any topic'),
-              ...widget.filterOptions.topics.map(
-                (t) => DropdownMenuEntry(value: t, label: t),
-              ),
+              ...widget.filterOptions.topics.map((t) => DropdownMenuEntry(value: t, label: t)),
             ],
-            onSelected: (v) =>
-                setState(() => _selectedTopic = v?.isEmpty == true ? null : v),
+            onSelected: (v) => setState(() => _selectedTopic = v?.isEmpty == true ? null : v),
           ),
         ),
 
@@ -489,8 +459,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
               DropdownMenuEntry(value: 'finished', label: 'Finished'),
               DropdownMenuEntry(value: 'unread', label: 'Unread'),
             ],
-            onSelected: (v) =>
-                setState(() => _selectedStatus = v?.isEmpty == true ? null : v),
+            onSelected: (v) => setState(() => _selectedStatus = v?.isEmpty == true ? null : v),
           ),
         ),
       ],
@@ -508,16 +477,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
             children: [
               SizedBox(
                 width: 36,
-                child: Text(
-                  '${_progressRange.start.toInt()}%',
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
+                child: Text('${_progressRange.start.toInt()}%', style: Theme.of(context).textTheme.bodySmall),
               ),
               Expanded(
                 child: SliderTheme(
-                  data: SliderTheme.of(
-                    context,
-                  ).copyWith(overlayShape: SliderComponentShape.noOverlay),
+                  data: SliderTheme.of(context).copyWith(overlayShape: SliderComponentShape.noOverlay),
                   child: RangeSlider(
                     values: _progressRange,
                     min: 0,
@@ -561,9 +525,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 child: OutlinedButton(
                   onPressed: _resetFilters,
                   style: OutlinedButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                   ),
                   child: const Text('Reset'),
                 ),
@@ -577,9 +539,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
                 child: FilledButton(
                   onPressed: _applyFilters,
                   style: FilledButton.styleFrom(
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.md),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                   ),
                   child: const Text('Apply filters'),
                 ),
@@ -637,11 +597,7 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
     );
   }
 
-  Widget _buildFilterField({
-    required String label,
-    required IconData icon,
-    required Widget child,
-  }) {
+  Widget _buildFilterField({required String label, required IconData icon, required Widget child}) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Padding(
@@ -651,17 +607,11 @@ class _FilterBottomSheetState extends State<FilterBottomSheet> {
         children: [
           Row(
             children: [
-              Icon(
-                icon,
-                size: IconSizes.small,
-                color: colorScheme.onSurfaceVariant,
-              ),
+              Icon(icon, size: IconSizes.small, color: colorScheme.onSurfaceVariant),
               const SizedBox(width: Spacing.sm),
               Text(
                 label,
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
             ],
           ),
@@ -679,12 +629,7 @@ class _QuickFilterCheckbox extends StatelessWidget {
   final bool value;
   final ValueChanged<bool?>? onChanged;
 
-  const _QuickFilterCheckbox({
-    required this.label,
-    required this.icon,
-    required this.value,
-    this.onChanged,
-  });
+  const _QuickFilterCheckbox({required this.label, required this.icon, required this.value, this.onChanged});
 
   @override
   Widget build(BuildContext context) {
@@ -698,33 +643,23 @@ class _QuickFilterCheckbox extends StatelessWidget {
         height: 44,
         padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
         decoration: BoxDecoration(
-          color: value
-              ? colorScheme.secondaryContainer
-              : colorScheme.surfaceContainerHighest,
+          color: value ? colorScheme.secondaryContainer : colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(AppRadius.md),
           border: value ? null : Border.all(color: colorScheme.outlineVariant),
         ),
         child: Row(
           children: [
-            Checkbox(
-              value: value,
-              onChanged: onChanged,
-              materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            ),
+            Checkbox(value: value, onChanged: onChanged, materialTapTargetSize: MaterialTapTargetSize.shrinkWrap),
             Icon(
               icon,
               size: IconSizes.small,
-              color: value
-                  ? colorScheme.onSecondaryContainer
-                  : colorScheme.onSurfaceVariant,
+              color: value ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
             ),
             const SizedBox(width: Spacing.sm),
             Text(
               label,
               style: TextStyle(
-                color: value
-                    ? colorScheme.onSecondaryContainer
-                    : colorScheme.onSurfaceVariant,
+                color: value ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
                 fontWeight: value ? FontWeight.w600 : FontWeight.normal,
               ),
             ),

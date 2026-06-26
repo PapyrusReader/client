@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
+import 'package:papyrus/data/repositories/book_repository.dart';
 import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/models/book_shelf_relation.dart';
@@ -14,6 +17,12 @@ import 'package:papyrus/models/tag.dart';
 /// Central in-memory data store - the single source of truth.
 /// All repositories read from and write to this store.
 class DataStore extends ChangeNotifier {
+  DataStore({BookRepository? bookRepository}) {
+    final repository = bookRepository ?? InMemoryBookRepository();
+    _bookRepository = repository;
+    _bookSubscription = repository.watchAll().listen(replaceBooksFromSync);
+  }
+
   // Primary data collections (keyed by ID)
   final Map<String, Book> _books = {};
   final Map<String, Shelf> _shelves = {};
@@ -30,6 +39,8 @@ class DataStore extends ChangeNotifier {
   final List<BookTagRelation> _bookTagRelations = [];
 
   bool _isLoaded = false;
+  BookRepository? _bookRepository;
+  StreamSubscription<List<Book>>? _bookSubscription;
 
   // ============================================================
   // Getters for read access
@@ -53,10 +64,8 @@ class DataStore extends ChangeNotifier {
   List<Bookmark> get bookmarks => _bookmarks.values.toList();
   List<ReadingSession> get readingSessions => _readingSessions.values.toList();
   List<ReadingGoal> get readingGoals => _readingGoals.values.toList();
-  List<BookShelfRelation> get bookShelfRelations =>
-      List.unmodifiable(_bookShelfRelations);
-  List<BookTagRelation> get bookTagRelations =>
-      List.unmodifiable(_bookTagRelations);
+  List<BookShelfRelation> get bookShelfRelations => List.unmodifiable(_bookShelfRelations);
+  List<BookTagRelation> get bookTagRelations => List.unmodifiable(_bookTagRelations);
 
   // ============================================================
   // Book CRUD
@@ -64,25 +73,61 @@ class DataStore extends ChangeNotifier {
 
   Book? getBook(String id) => _books[id];
 
+  Future<void> attachBookRepository(BookRepository repository) async {
+    await _bookSubscription?.cancel();
+    _bookRepository = repository;
+    _bookSubscription = repository.watchAll().listen(
+      replaceBooksFromSync,
+      onError: (Object error, StackTrace stackTrace) {
+        FlutterError.reportError(
+          FlutterErrorDetails(exception: error, stack: stackTrace, library: 'papyrus book repository'),
+        );
+      },
+    );
+  }
+
+  Future<void> disposeBookRepository() async {
+    await _bookSubscription?.cancel();
+    _bookSubscription = null;
+    _bookRepository = null;
+  }
+
   void addBook(Book book) {
-    _books[book.id] = book;
-    notifyListeners();
+    final repository = _bookRepository;
+    if (repository == null) {
+      throw StateError('Book repository is not initialized');
+    }
+    unawaited(repository.upsert(book));
   }
 
   void updateBook(Book book) {
-    _books[book.id] = book;
-    notifyListeners();
+    final repository = _bookRepository;
+    if (repository == null) {
+      throw StateError('Book repository is not initialized');
+    }
+    unawaited(repository.upsert(book));
   }
 
   void deleteBook(String id) {
-    _books.remove(id);
-    // Also remove related data
-    _bookShelfRelations.removeWhere((r) => r.bookId == id);
-    _bookTagRelations.removeWhere((r) => r.bookId == id);
-    _annotations.removeWhere((key, a) => a.bookId == id);
-    _notes.removeWhere((key, n) => n.bookId == id);
-    _bookmarks.removeWhere((key, b) => b.bookId == id);
-    _readingSessions.removeWhere((key, s) => s.bookId == id);
+    final repository = _bookRepository;
+    if (repository == null) {
+      throw StateError('Book repository is not initialized');
+    }
+    unawaited(repository.delete(id));
+  }
+
+  void replaceBooksFromSync(List<Book> books) {
+    final syncedIds = books.map((book) => book.id).toSet();
+    _books
+      ..clear()
+      ..addEntries(books.map((book) => MapEntry(book.id, book)));
+    _bookShelfRelations.removeWhere((relation) => !syncedIds.contains(relation.bookId));
+    _bookTagRelations.removeWhere((relation) => !syncedIds.contains(relation.bookId));
+    _annotations.removeWhere((key, annotation) => !syncedIds.contains(annotation.bookId));
+    _notes.removeWhere((key, note) => !syncedIds.contains(note.bookId));
+    _bookmarks.removeWhere((key, bookmark) => !syncedIds.contains(bookmark.bookId));
+    _readingSessions.removeWhere((key, session) => !syncedIds.contains(session.bookId));
+    _isLoaded = true;
     notifyListeners();
   }
 
@@ -94,10 +139,7 @@ class DataStore extends ChangeNotifier {
   Shelf? getShelf(String id) {
     final shelf = _shelves[id];
     if (shelf == null) return null;
-    return shelf.copyWith(
-      bookCount: getBookCountForShelf(id),
-      coverPreviews: getCoverPreviewsForShelf(id),
-    );
+    return shelf.copyWith(bookCount: getBookCountForShelf(id), coverPreviews: getCoverPreviewsForShelf(id));
   }
 
   void addShelf(Shelf shelf) {
@@ -118,9 +160,7 @@ class DataStore extends ChangeNotifier {
 
   /// Get all books in a shelf.
   List<Book> getBooksInShelf(String shelfId) {
-    final bookIds = _bookShelfRelations
-        .where((r) => r.shelfId == shelfId)
-        .map((r) => r.bookId);
+    final bookIds = _bookShelfRelations.where((r) => r.shelfId == shelfId).map((r) => r.bookId);
     return bookIds.map((id) => _books[id]).whereType<Book>().toList();
   }
 
@@ -145,10 +185,7 @@ class DataStore extends ChangeNotifier {
   /// Get cover previews for a shelf (up to 4 books).
   List<CoverPreview> getCoverPreviewsForShelf(String shelfId, {int limit = 4}) {
     final books = getBooksInShelf(shelfId);
-    return books
-        .take(limit)
-        .map((b) => CoverPreview(url: b.coverUrl, title: b.title))
-        .toList();
+    return books.take(limit).map((b) => CoverPreview(url: b.coverUrl, title: b.title)).toList();
   }
 
   // ============================================================
@@ -175,9 +212,7 @@ class DataStore extends ChangeNotifier {
 
   /// Get all books with a tag.
   List<Book> getBooksWithTag(String tagId) {
-    final bookIds = _bookTagRelations
-        .where((r) => r.tagId == tagId)
-        .map((r) => r.bookId);
+    final bookIds = _bookTagRelations.where((r) => r.tagId == tagId).map((r) => r.bookId);
     return bookIds.map((id) => _books[id]).whereType<Book>().toList();
   }
 
@@ -334,9 +369,7 @@ class DataStore extends ChangeNotifier {
   ReadingGoal? getReadingGoal(String id) => _readingGoals[id];
 
   List<ReadingGoal> get activeGoals {
-    return _readingGoals.values
-        .where((g) => g.isActive && !g.isArchived)
-        .toList();
+    return _readingGoals.values.where((g) => g.isActive && !g.isArchived).toList();
   }
 
   List<ReadingGoal> get completedGoals {
@@ -363,33 +396,20 @@ class DataStore extends ChangeNotifier {
   // ============================================================
 
   void addBookToShelf(String bookId, String shelfId) {
-    final exists = _bookShelfRelations.any(
-      (r) => r.bookId == bookId && r.shelfId == shelfId,
-    );
+    final exists = _bookShelfRelations.any((r) => r.bookId == bookId && r.shelfId == shelfId);
     if (!exists) {
-      _bookShelfRelations.add(
-        BookShelfRelation(
-          bookId: bookId,
-          shelfId: shelfId,
-          addedAt: DateTime.now(),
-        ),
-      );
+      _bookShelfRelations.add(BookShelfRelation(bookId: bookId, shelfId: shelfId, addedAt: DateTime.now()));
       notifyListeners();
     }
   }
 
   void removeBookFromShelf(String bookId, String shelfId) {
-    _bookShelfRelations.removeWhere(
-      (r) => r.bookId == bookId && r.shelfId == shelfId,
-    );
+    _bookShelfRelations.removeWhere((r) => r.bookId == bookId && r.shelfId == shelfId);
     notifyListeners();
   }
 
   List<String> getShelfIdsForBook(String bookId) {
-    return _bookShelfRelations
-        .where((r) => r.bookId == bookId)
-        .map((r) => r.shelfId)
-        .toList();
+    return _bookShelfRelations.where((r) => r.bookId == bookId).map((r) => r.shelfId).toList();
   }
 
   List<Shelf> getShelvesForBook(String bookId) {
@@ -402,33 +422,20 @@ class DataStore extends ChangeNotifier {
   // ============================================================
 
   void addTagToBook(String bookId, String tagId) {
-    final exists = _bookTagRelations.any(
-      (r) => r.bookId == bookId && r.tagId == tagId,
-    );
+    final exists = _bookTagRelations.any((r) => r.bookId == bookId && r.tagId == tagId);
     if (!exists) {
-      _bookTagRelations.add(
-        BookTagRelation(
-          bookId: bookId,
-          tagId: tagId,
-          createdAt: DateTime.now(),
-        ),
-      );
+      _bookTagRelations.add(BookTagRelation(bookId: bookId, tagId: tagId, createdAt: DateTime.now()));
       notifyListeners();
     }
   }
 
   void removeTagFromBook(String bookId, String tagId) {
-    _bookTagRelations.removeWhere(
-      (r) => r.bookId == bookId && r.tagId == tagId,
-    );
+    _bookTagRelations.removeWhere((r) => r.bookId == bookId && r.tagId == tagId);
     notifyListeners();
   }
 
   List<String> getTagIdsForBook(String bookId) {
-    return _bookTagRelations
-        .where((r) => r.bookId == bookId)
-        .map((r) => r.tagId)
-        .toList();
+    return _bookTagRelations.where((r) => r.bookId == bookId).map((r) => r.tagId).toList();
   }
 
   List<Tag> getTagsForBook(String bookId) {
@@ -457,6 +464,10 @@ class DataStore extends ChangeNotifier {
       _books.clear();
       for (final book in books) {
         _books[book.id] = book;
+      }
+      final repository = _bookRepository;
+      if (repository is InMemoryBookRepository) {
+        repository.replaceAll(books);
       }
     }
     if (shelves != null) {

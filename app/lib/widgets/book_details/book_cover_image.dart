@@ -23,12 +23,7 @@ class BookCoverImage extends StatelessWidget {
   final String? bookTitle;
   final BookCoverSize size;
 
-  const BookCoverImage({
-    super.key,
-    this.imageUrl,
-    this.bookTitle,
-    this.size = BookCoverSize.medium,
-  });
+  const BookCoverImage({super.key, this.imageUrl, this.bookTitle, this.size = BookCoverSize.medium});
 
   @override
   Widget build(BuildContext context) {
@@ -41,17 +36,10 @@ class BookCoverImage extends StatelessWidget {
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.lg),
         boxShadow: [
-          BoxShadow(
-            color: colorScheme.shadow.withValues(alpha: 0.15),
-            blurRadius: 8,
-            offset: const Offset(0, 4),
-          ),
+          BoxShadow(color: colorScheme.shadow.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 4)),
         ],
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: _buildImage(context, colorScheme),
-      ),
+      child: ClipRRect(borderRadius: BorderRadius.circular(AppRadius.lg), child: _buildImage(context, colorScheme)),
     );
   }
 
@@ -60,10 +48,8 @@ class BookCoverImage extends StatelessWidget {
       return CachedNetworkImage(
         imageUrl: imageUrl!,
         fit: BoxFit.cover,
-        errorWidget: (context, url, error) =>
-            _buildPlaceholder(context, colorScheme),
-        progressIndicatorBuilder: (context, url, progress) =>
-            _buildLoadingIndicator(context, colorScheme, progress),
+        errorWidget: (context, url, error) => _buildPlaceholder(context, colorScheme),
+        progressIndicatorBuilder: (context, url, progress) => _buildLoadingIndicator(context, colorScheme, progress),
       );
     }
     return _buildPlaceholder(context, colorScheme);
@@ -89,9 +75,9 @@ class BookCoverImage extends StatelessWidget {
               padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
               child: Text(
                 bookTitle!,
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7),
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
                 textAlign: TextAlign.center,
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
@@ -103,19 +89,10 @@ class BookCoverImage extends StatelessWidget {
     );
   }
 
-  Widget _buildLoadingIndicator(
-    BuildContext context,
-    ColorScheme colorScheme,
-    DownloadProgress progress,
-  ) {
+  Widget _buildLoadingIndicator(BuildContext context, ColorScheme colorScheme, DownloadProgress progress) {
     return Container(
       color: colorScheme.surfaceContainerHighest,
-      child: Center(
-        child: CircularProgressIndicator(
-          value: progress.progress,
-          strokeWidth: 2,
-        ),
-      ),
+      child: Center(child: CircularProgressIndicator(value: progress.progress, strokeWidth: 2)),
     );
   }
 

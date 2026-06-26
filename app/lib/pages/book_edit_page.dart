@@ -80,23 +80,17 @@ class _BookEditPageState extends State<BookEditPage> {
         ? DateFormat.yMMMMd().format(book.publicationDate!)
         : '';
     _seriesNameController.text = book.seriesName ?? '';
-    _seriesNumberController.text = book.seriesNumber != null
-        ? _formatSeriesNumber(book.seriesNumber!)
-        : '';
+    _seriesNumberController.text = book.seriesNumber != null ? _formatSeriesNumber(book.seriesNumber!) : '';
     _physicalLocationController.text = book.physicalLocation ?? '';
     _lentToController.text = book.lentTo ?? '';
-    _lentAtController.text = book.lentAt != null
-        ? DateFormat.yMMMMd().format(book.lentAt!)
-        : '';
+    _lentAtController.text = book.lentAt != null ? DateFormat.yMMMMd().format(book.lentAt!) : '';
     setState(() {
       _coAuthors = List.from(book.coAuthors);
     });
   }
 
   String _formatSeriesNumber(double number) {
-    return number == number.roundToDouble()
-        ? number.toInt().toString()
-        : number.toString();
+    return number == number.roundToDouble() ? number.toInt().toString() : number.toString();
   }
 
   @override
@@ -121,8 +115,7 @@ class _BookEditPageState extends State<BookEditPage> {
     super.dispose();
   }
 
-  bool get _isDesktop =>
-      MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
+  bool get _isDesktop => MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
 
   @override
   Widget build(BuildContext context) {
@@ -144,11 +137,7 @@ class _BookEditPageState extends State<BookEditPage> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    Icon(
-                      Icons.error_outline,
-                      size: 64,
-                      color: Theme.of(context).colorScheme.error,
-                    ),
+                    Icon(Icons.error_outline, size: 64, color: Theme.of(context).colorScheme.error),
                     const SizedBox(height: Spacing.md),
                     Text(provider.error ?? 'Book not found'),
                     const SizedBox(height: Spacing.lg),
@@ -180,23 +169,15 @@ class _BookEditPageState extends State<BookEditPage> {
                 : Scaffold(
                     appBar: AppBar(
                       title: const Text('Edit book'),
-                      leading: IconButton(
-                        icon: const Icon(Icons.arrow_back),
-                        onPressed: () => _handleCancel(context),
-                      ),
+                      leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => _handleCancel(context)),
                       actions: [
                         TextButton(
-                          onPressed: provider.canSave
-                              ? () => _handleSave(context)
-                              : null,
+                          onPressed: provider.canSave ? () => _handleSave(context) : null,
                           child: const Text('Save'),
                         ),
                       ],
                     ),
-                    body: Form(
-                      key: _formKey,
-                      child: _buildMobileLayout(context, provider),
-                    ),
+                    body: Form(key: _formKey, child: _buildMobileLayout(context, provider)),
                   ),
           );
         },
@@ -208,10 +189,7 @@ class _BookEditPageState extends State<BookEditPage> {
   // LAYOUTS
   // ============================================================================
 
-  Widget _buildDesktopScaffold(
-    BuildContext context,
-    BookEditProvider provider,
-  ) {
+  Widget _buildDesktopScaffold(BuildContext context, BookEditProvider provider) {
     return Form(key: _formKey, child: _buildDesktopLayout(context, provider));
   }
 
@@ -249,13 +227,7 @@ class _BookEditPageState extends State<BookEditPage> {
                       children: [
                         _buildSectionCard(
                           title: 'Cover',
-                          children: [
-                            _buildCoverSection(
-                              context,
-                              provider,
-                              isDesktop: true,
-                            ),
-                          ],
+                          children: [_buildCoverSection(context, provider, isDesktop: true)],
                         ),
                         _buildSectionCard(
                           title: 'Fetch metadata',
@@ -269,11 +241,7 @@ class _BookEditPageState extends State<BookEditPage> {
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: _buildFormSections(
-                        context,
-                        provider,
-                        skipMetadata: true,
-                      ),
+                      children: _buildFormSections(context, provider, skipMetadata: true),
                     ),
                   ),
                 ],
@@ -288,9 +256,7 @@ class _BookEditPageState extends State<BookEditPage> {
                 child: Align(
                   alignment: Alignment.centerRight,
                   child: FilledButton(
-                    onPressed: provider.canSave
-                        ? () => _handleSave(context)
-                        : null,
+                    onPressed: provider.canSave ? () => _handleSave(context) : null,
                     child: const Text('Save'),
                   ),
                 ),
@@ -302,11 +268,7 @@ class _BookEditPageState extends State<BookEditPage> {
     );
   }
 
-  List<Widget> _buildFormSections(
-    BuildContext context,
-    BookEditProvider provider, {
-    bool skipMetadata = false,
-  }) {
+  List<Widget> _buildFormSections(BuildContext context, BookEditProvider provider, {bool skipMetadata = false}) {
     return [
       _buildBasicInfoSection(context, provider),
       _buildPublicationSection(),
@@ -315,40 +277,22 @@ class _BookEditPageState extends State<BookEditPage> {
       Card(
         margin: EdgeInsets.zero,
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.md,
-            vertical: Spacing.xs,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.xs),
           child: _buildPhysicalBookSection(context, provider),
         ),
       ),
       if (!skipMetadata)
-        _buildSectionCard(
-          title: 'Fetch metadata',
-          children: [_buildMetadataSection(context, provider)],
-        ),
+        _buildSectionCard(title: 'Fetch metadata', children: [_buildMetadataSection(context, provider)]),
     ];
   }
 
-  Widget _buildBasicInfoSection(
-    BuildContext context,
-    BookEditProvider provider,
-  ) {
+  Widget _buildBasicInfoSection(BuildContext context, BookEditProvider provider) {
     return _buildSectionCard(
       title: 'Basic information',
       children: [
-        BookTextField(
-          controller: _titleController,
-          label: 'Title',
-          required: true,
-          onChanged: _provider.updateTitle,
-        ),
+        BookTextField(controller: _titleController, label: 'Title', required: true, onChanged: _provider.updateTitle),
         const SizedBox(height: Spacing.md),
-        BookTextField(
-          controller: _subtitleController,
-          label: 'Subtitle',
-          onChanged: _provider.updateSubtitle,
-        ),
+        BookTextField(controller: _subtitleController, label: 'Subtitle', onChanged: _provider.updateSubtitle),
         const SizedBox(height: Spacing.md),
         BookTextField(
           controller: _descriptionController,
@@ -389,16 +333,8 @@ class _BookEditPageState extends State<BookEditPage> {
         ResponsiveFormRow(
           isDesktop: _isDesktop,
           children: [
-            BookTextField(
-              controller: _publisherController,
-              label: 'Publisher',
-              onChanged: _provider.updatePublisher,
-            ),
-            BookTextField(
-              controller: _languageController,
-              label: 'Language',
-              onChanged: _provider.updateLanguage,
-            ),
+            BookTextField(controller: _publisherController, label: 'Publisher', onChanged: _provider.updatePublisher),
+            BookTextField(controller: _languageController, label: 'Language', onChanged: _provider.updateLanguage),
           ],
         ),
         const SizedBox(height: Spacing.md),
@@ -433,16 +369,8 @@ class _BookEditPageState extends State<BookEditPage> {
         ResponsiveFormRow(
           isDesktop: _isDesktop,
           children: [
-            BookTextField(
-              controller: _isbnController,
-              label: 'ISBN',
-              onChanged: _provider.updateIsbn,
-            ),
-            BookTextField(
-              controller: _isbn13Controller,
-              label: 'ISBN-13',
-              onChanged: _provider.updateIsbn13,
-            ),
+            BookTextField(controller: _isbnController, label: 'ISBN', onChanged: _provider.updateIsbn),
+            BookTextField(controller: _isbn13Controller, label: 'ISBN-13', onChanged: _provider.updateIsbn13),
           ],
         ),
       ],
@@ -464,9 +392,7 @@ class _BookEditPageState extends State<BookEditPage> {
             BookTextField(
               controller: _seriesNumberController,
               label: 'Number in series',
-              keyboardType: const TextInputType.numberWithOptions(
-                decimal: true,
-              ),
+              keyboardType: const TextInputType.numberWithOptions(decimal: true),
               onChanged: (value) {
                 final number = double.tryParse(value);
                 _provider.updateSeriesNumber(number);
@@ -482,10 +408,7 @@ class _BookEditPageState extends State<BookEditPage> {
   // SECTION CARD
   // ============================================================================
 
-  Widget _buildSectionCard({
-    required String title,
-    required List<Widget> children,
-  }) {
+  Widget _buildSectionCard({required String title, required List<Widget> children}) {
     return Card(
       margin: const EdgeInsets.only(bottom: Spacing.xs),
       child: Padding(
@@ -493,12 +416,7 @@ class _BookEditPageState extends State<BookEditPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              title,
-              style: Theme.of(
-                context,
-              ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
+            Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
             const SizedBox(height: Spacing.md),
             ...children,
           ],
@@ -517,12 +435,7 @@ class _BookEditPageState extends State<BookEditPage> {
 
     return Row(
       children: [
-        Text(
-          'Rating',
-          style: Theme.of(
-            context,
-          ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-        ),
+        Text('Rating', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
         const SizedBox(width: Spacing.sm),
         ...List.generate(5, (index) {
           final starValue = index + 1;
@@ -535,9 +448,7 @@ class _BookEditPageState extends State<BookEditPage> {
               padding: const EdgeInsets.symmetric(horizontal: 2),
               child: Icon(
                 isSelected ? Icons.star_rounded : Icons.star_outline_rounded,
-                color: isSelected
-                    ? colorScheme.primary
-                    : colorScheme.onSurfaceVariant,
+                color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
                 size: 28,
               ),
             ),
@@ -551,10 +462,7 @@ class _BookEditPageState extends State<BookEditPage> {
   // PHYSICAL BOOK SECTION
   // ============================================================================
 
-  Widget _buildPhysicalBookSection(
-    BuildContext context,
-    BookEditProvider provider,
-  ) {
+  Widget _buildPhysicalBookSection(BuildContext context, BookEditProvider provider) {
     final isPhysical = provider.editedBook?.isPhysical ?? false;
 
     return Column(
@@ -577,11 +485,7 @@ class _BookEditPageState extends State<BookEditPage> {
           ResponsiveFormRow(
             isDesktop: _isDesktop,
             children: [
-              BookTextField(
-                controller: _lentToController,
-                label: 'Lent to',
-                onChanged: _provider.updateLentTo,
-              ),
+              BookTextField(controller: _lentToController, label: 'Lent to', onChanged: _provider.updateLentTo),
               BookDateField(
                 controller: _lentAtController,
                 label: 'Lent at',
@@ -599,11 +503,7 @@ class _BookEditPageState extends State<BookEditPage> {
   // COVER SECTION
   // ============================================================================
 
-  Widget _buildCoverSection(
-    BuildContext context,
-    BookEditProvider provider, {
-    required bool isDesktop,
-  }) {
+  Widget _buildCoverSection(BuildContext context, BookEditProvider provider, {required bool isDesktop}) {
     return CoverImagePicker(
       initialUrl: provider.editedBook?.coverUrl,
       initialBytes: provider.coverImageBytes,
@@ -617,10 +517,7 @@ class _BookEditPageState extends State<BookEditPage> {
   // METADATA SECTION
   // ============================================================================
 
-  Widget _buildMetadataSection(
-    BuildContext context,
-    BookEditProvider provider,
-  ) {
+  Widget _buildMetadataSection(BuildContext context, BookEditProvider provider) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Column(
@@ -629,14 +526,8 @@ class _BookEditPageState extends State<BookEditPage> {
         // Source selector
         SegmentedButton<MetadataSource>(
           segments: const [
-            ButtonSegment(
-              value: MetadataSource.openLibrary,
-              label: Text('Open Library'),
-            ),
-            ButtonSegment(
-              value: MetadataSource.googleBooks,
-              label: Text('Google Books'),
-            ),
+            ButtonSegment(value: MetadataSource.openLibrary, label: Text('Open Library')),
+            ButtonSegment(value: MetadataSource.googleBooks, label: Text('Google Books')),
           ],
           selected: {provider.selectedSource},
           onSelectionChanged: (selection) {
@@ -655,21 +546,13 @@ class _BookEditPageState extends State<BookEditPage> {
           decoration: InputDecoration(
             labelText: 'Search',
             hintText: 'Title, author, or ISBN',
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
+            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
             prefixIcon: const Icon(Icons.search),
             suffixIcon: IconButton(
               icon: provider.isFetching
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    )
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
                   : const Icon(Icons.arrow_forward),
-              onPressed: provider.isFetching
-                  ? null
-                  : () => _searchMetadata(provider),
+              onPressed: provider.isFetching ? null : () => _searchMetadata(provider),
             ),
           ),
           onFieldSubmitted: (_) => _searchMetadata(provider),
@@ -702,24 +585,15 @@ class _BookEditPageState extends State<BookEditPage> {
         // Results
         if (provider.fetchedResults.isNotEmpty) ...[
           const SizedBox(height: Spacing.md),
-          Text(
-            '${provider.fetchedResults.length} result(s)',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          Text('${provider.fetchedResults.length} result(s)', style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: Spacing.sm),
-          ...provider.fetchedResults.map(
-            (result) => _buildResultCard(context, result, provider),
-          ),
+          ...provider.fetchedResults.map((result) => _buildResultCard(context, result, provider)),
         ],
       ],
     );
   }
 
-  Widget _buildResultCard(
-    BuildContext context,
-    BookMetadataResult result,
-    BookEditProvider provider,
-  ) {
+  Widget _buildResultCard(BuildContext context, BookMetadataResult result, BookEditProvider provider) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
@@ -747,18 +621,11 @@ class _BookEditPageState extends State<BookEditPage> {
                         child: Image.network(
                           result.coverUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, e, s) => Icon(
-                            Icons.menu_book,
-                            size: 20,
-                            color: colorScheme.onSurfaceVariant,
-                          ),
+                          errorBuilder: (_, e, s) =>
+                              Icon(Icons.menu_book, size: 20, color: colorScheme.onSurfaceVariant),
                         ),
                       )
-                    : Icon(
-                        Icons.menu_book,
-                        size: 20,
-                        color: colorScheme.onSurfaceVariant,
-                      ),
+                    : Icon(Icons.menu_book, size: 20, color: colorScheme.onSurfaceVariant),
               ),
               const SizedBox(width: Spacing.sm),
               // Info
@@ -768,9 +635,7 @@ class _BookEditPageState extends State<BookEditPage> {
                   children: [
                     Text(
                       result.title ?? 'Unknown',
-                      style: textTheme.bodyMedium?.copyWith(
-                        fontWeight: FontWeight.w500,
-                      ),
+                      style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                     ),
@@ -778,9 +643,7 @@ class _BookEditPageState extends State<BookEditPage> {
                       const SizedBox(height: 2),
                       Text(
                         result.primaryAuthor,
-                        style: textTheme.bodySmall?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
+                        style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -789,28 +652,18 @@ class _BookEditPageState extends State<BookEditPage> {
                     Row(
                       children: [
                         Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                           decoration: BoxDecoration(
                             color: colorScheme.secondaryContainer,
                             borderRadius: BorderRadius.circular(4),
                           ),
                           child: Text(
                             result.sourceLabel,
-                            style: textTheme.labelSmall?.copyWith(
-                              color: colorScheme.onSecondaryContainer,
-                            ),
+                            style: textTheme.labelSmall?.copyWith(color: colorScheme.onSecondaryContainer),
                           ),
                         ),
                         const Spacer(),
-                        Text(
-                          'Tap to apply',
-                          style: textTheme.labelSmall?.copyWith(
-                            color: colorScheme.primary,
-                          ),
-                        ),
+                        Text('Tap to apply', style: textTheme.labelSmall?.copyWith(color: colorScheme.primary)),
                       ],
                     ),
                   ],
@@ -862,10 +715,7 @@ class _BookEditPageState extends State<BookEditPage> {
     }
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Applied metadata from ${result.sourceLabel}'),
-        behavior: SnackBarBehavior.floating,
-      ),
+      SnackBar(content: Text('Applied metadata from ${result.sourceLabel}'), behavior: SnackBarBehavior.floating),
     );
   }
 
@@ -874,18 +724,10 @@ class _BookEditPageState extends State<BookEditPage> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Discard changes?'),
-        content: const Text(
-          'You have unsaved changes. Are you sure you want to discard them?',
-        ),
+        content: const Text('You have unsaved changes. Are you sure you want to discard them?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text('Keep editing'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Discard'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Keep editing')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Discard')),
         ],
       ),
     );
@@ -913,10 +755,7 @@ class _BookEditPageState extends State<BookEditPage> {
   Future<void> _handleSave(BuildContext context) async {
     if (!_formKey.currentState!.validate()) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Please fix the errors before saving'),
-          behavior: SnackBarBehavior.floating,
-        ),
+        const SnackBar(content: Text('Please fix the errors before saving'), behavior: SnackBarBehavior.floating),
       );
       return;
     }
@@ -925,12 +764,9 @@ class _BookEditPageState extends State<BookEditPage> {
     if (!mounted || !context.mounted) return;
 
     if (success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Book updated'),
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Book updated'), behavior: SnackBarBehavior.floating));
       _navigateToBookDetails(context);
     } else {
       ScaffoldMessenger.of(context).showSnackBar(

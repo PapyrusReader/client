@@ -26,17 +26,9 @@ class BottomSheetHeader extends StatelessWidget {
       children: [
         TextButton(onPressed: onCancel, child: const Text('Cancel')),
         const Spacer(),
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-        ),
+        Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
         const Spacer(),
-        FilledButton(
-          onPressed: canSave ? onSave : null,
-          child: Text(saveLabel),
-        ),
+        FilledButton(onPressed: canSave ? onSave : null, child: Text(saveLabel)),
       ],
     );
   }

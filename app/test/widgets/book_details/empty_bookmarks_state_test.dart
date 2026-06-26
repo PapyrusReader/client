@@ -8,10 +8,7 @@ void main() {
   group('EmptyBookmarksState', () {
     Widget buildWidget({bool isPhysical = false, VoidCallback? onAddBookmark}) {
       return createTestApp(
-        child: EmptyBookmarksState(
-          isPhysical: isPhysical,
-          onAddBookmark: onAddBookmark,
-        ),
+        child: EmptyBookmarksState(isPhysical: isPhysical, onAddBookmark: onAddBookmark),
       );
     }
 
@@ -33,10 +30,7 @@ void main() {
       testWidgets('shows digital book description', (tester) async {
         await tester.pumpWidget(buildWidget());
 
-        expect(
-          find.text('Bookmarks you create while reading will appear here.'),
-          findsOneWidget,
-        );
+        expect(find.text('Bookmarks you create while reading will appear here.'), findsOneWidget);
       });
 
       testWidgets('does not show add bookmark button', (tester) async {
@@ -50,10 +44,7 @@ void main() {
       testWidgets('shows physical book description', (tester) async {
         await tester.pumpWidget(buildWidget(isPhysical: true));
 
-        expect(
-          find.text('Save pages you want to return to later.'),
-          findsOneWidget,
-        );
+        expect(find.text('Save pages you want to return to later.'), findsOneWidget);
       });
 
       testWidgets('shows add bookmark button', (tester) async {
@@ -65,9 +56,7 @@ void main() {
 
       testWidgets('add button calls onAddBookmark', (tester) async {
         var called = false;
-        await tester.pumpWidget(
-          buildWidget(isPhysical: true, onAddBookmark: () => called = true),
-        );
+        await tester.pumpWidget(buildWidget(isPhysical: true, onAddBookmark: () => called = true));
 
         await tester.tap(find.text('Add bookmark'));
         expect(called, true);

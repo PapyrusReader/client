@@ -7,11 +7,7 @@ class ResponsiveFormRow extends StatelessWidget {
   final bool isDesktop;
   final List<Widget> children;
 
-  const ResponsiveFormRow({
-    super.key,
-    required this.isDesktop,
-    required this.children,
-  });
+  const ResponsiveFormRow({super.key, required this.isDesktop, required this.children});
 
   @override
   Widget build(BuildContext context) {

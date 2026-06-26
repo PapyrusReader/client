@@ -15,12 +15,7 @@ class ContinueReadingCard extends StatelessWidget {
   /// Whether to use desktop styling (larger cover, different layout).
   final bool isDesktop;
 
-  const ContinueReadingCard({
-    super.key,
-    this.book,
-    this.onContinue,
-    this.isDesktop = false,
-  });
+  const ContinueReadingCard({super.key, this.book, this.onContinue, this.isDesktop = false});
 
   @override
   Widget build(BuildContext context) {
@@ -43,10 +38,7 @@ class ContinueReadingCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
       child: Row(
         children: [
@@ -56,18 +48,11 @@ class ContinueReadingCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  book!.title,
-                  style: textTheme.titleMedium,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(book!.title, style: textTheme.titleMedium, maxLines: 2, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: Spacing.xs),
                 Text(
                   book!.author,
-                  style: textTheme.bodyMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -103,10 +88,7 @@ class ContinueReadingCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
       child: Row(
         children: [
@@ -117,18 +99,11 @@ class ContinueReadingCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(
-                  book!.title,
-                  style: textTheme.headlineSmall,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
+                Text(book!.title, style: textTheme.headlineSmall, maxLines: 2, overflow: TextOverflow.ellipsis),
                 const SizedBox(height: Spacing.xs),
                 Text(
                   book!.author,
-                  style: textTheme.titleMedium?.copyWith(
-                    color: colorScheme.onSurfaceVariant,
-                  ),
+                  style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -168,38 +143,22 @@ class ContinueReadingCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        border: Border.all(
-          color: colorScheme.outlineVariant,
-          width: BorderWidths.thin,
-        ),
+        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.menu_book_outlined,
-            size: 48,
-            color: colorScheme.onSurfaceVariant,
-          ),
+          Icon(Icons.menu_book_outlined, size: 48, color: colorScheme.onSurfaceVariant),
           const SizedBox(height: Spacing.md),
-          Text(
-            'No book in progress',
-            style: textTheme.titleMedium,
-            textAlign: TextAlign.center,
-          ),
+          Text('No book in progress', style: textTheme.titleMedium, textAlign: TextAlign.center),
           const SizedBox(height: Spacing.xs),
           Text(
             'Start reading from your library',
-            style: textTheme.bodyMedium?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
+            style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: Spacing.md),
-          TextButton(
-            onPressed: () => context.go('/library'),
-            child: const Text('Browse library'),
-          ),
+          TextButton(onPressed: () => context.go('/library'), child: const Text('Browse library')),
         ],
       ),
     );
@@ -210,11 +169,7 @@ class ContinueReadingCard extends StatelessWidget {
   // ============================================================================
 
   /// Builds the book cover image with rounded corners.
-  Widget _buildCover(
-    BuildContext context, {
-    required double width,
-    required double height,
-  }) {
+  Widget _buildCover(BuildContext context, {required double width, required double height}) {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Container(
@@ -239,13 +194,7 @@ class ContinueReadingCard extends StatelessWidget {
   Widget _buildCoverPlaceholder(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Center(
-      child: Icon(
-        Icons.menu_book,
-        size: 32,
-        color: colorScheme.onSurfaceVariant,
-      ),
-    );
+    return Center(child: Icon(Icons.menu_book, size: 32, color: colorScheme.onSurfaceVariant));
   }
 
   /// Builds the circular play button for mobile layout.
@@ -259,9 +208,7 @@ class ContinueReadingCard extends StatelessWidget {
         onPressed: onContinue ?? () => _navigateToBook(context),
         style: FilledButton.styleFrom(
           padding: EdgeInsets.zero,
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppRadius.full),
-          ),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
         ),
         child: Icon(Icons.play_arrow, color: colorScheme.onPrimary),
       ),

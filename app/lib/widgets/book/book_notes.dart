@@ -49,13 +49,7 @@ class BookNotes extends StatefulWidget {
   final Function(Note)? onNoteActions;
 
   /// Creates a notes tab widget.
-  const BookNotes({
-    super.key,
-    required this.notes,
-    this.onAddNote,
-    this.onNoteTap,
-    this.onNoteActions,
-  });
+  const BookNotes({super.key, required this.notes, this.onAddNote, this.onNoteTap, this.onNoteActions});
 
   @override
   State<BookNotes> createState() => _BookNotesState();
@@ -115,9 +109,7 @@ class _BookNotesState extends State<BookNotes> {
     final isDesktop = screenWidth >= Breakpoints.desktopSmall;
 
     if (widget.notes.isEmpty) {
-      return SingleChildScrollView(
-        child: EmptyNotesState(onAddNote: widget.onAddNote),
-      );
+      return SingleChildScrollView(child: EmptyNotesState(onAddNote: widget.onAddNote));
     }
 
     if (isDesktop) return _buildDesktopLayout(context);
@@ -136,12 +128,7 @@ class _BookNotesState extends State<BookNotes> {
               ? _buildNoResultsState(context, colorScheme)
               : _buildNotesList(
                   filtered,
-                  padding: const EdgeInsets.fromLTRB(
-                    Spacing.md,
-                    Spacing.sm,
-                    Spacing.md,
-                    Spacing.md,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.sm, Spacing.md, Spacing.md),
                   separatorHeight: Spacing.md,
                   showActionMenu: true,
                 ),
@@ -166,11 +153,7 @@ class _BookNotesState extends State<BookNotes> {
           const SizedBox(width: Spacing.sm),
           _buildSortButton(),
           const SizedBox(width: Spacing.md),
-          FilledButton.icon(
-            onPressed: widget.onAddNote,
-            icon: const Icon(Icons.add),
-            label: const Text('Add note'),
-          ),
+          FilledButton.icon(onPressed: widget.onAddNote, icon: const Icon(Icons.add), label: const Text('Add note')),
         ],
       ),
     );
@@ -188,12 +171,7 @@ class _BookNotesState extends State<BookNotes> {
               ? _buildNoResultsState(context, colorScheme)
               : _buildNotesList(
                   filtered,
-                  padding: const EdgeInsets.fromLTRB(
-                    Spacing.md,
-                    0,
-                    Spacing.md,
-                    Spacing.md,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
                   separatorHeight: Spacing.sm,
                   showActionMenu: false,
                 ),
@@ -244,9 +222,7 @@ class _BookNotesState extends State<BookNotes> {
           Icon(
             Icons.check,
             size: IconSizes.small,
-            color: option == _sortOption
-                ? Theme.of(context).colorScheme.primary
-                : Colors.transparent,
+            color: option == _sortOption ? Theme.of(context).colorScheme.primary : Colors.transparent,
           ),
         ],
       ),
@@ -280,32 +256,21 @@ class _BookNotesState extends State<BookNotes> {
   Widget _buildNoResultsState(BuildContext context, ColorScheme colorScheme) {
     return SingleChildScrollView(
       child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: Spacing.xl,
-          vertical: Spacing.xxl,
-        ),
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.xl, vertical: Spacing.xxl),
         child: Center(
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(
-                Icons.search_off,
-                size: 48,
-                color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-              ),
+              Icon(Icons.search_off, size: 48, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
               const SizedBox(height: Spacing.md),
               Text(
                 'No notes found',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: Spacing.xs),
               Text(
                 'Try a different search term',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: colorScheme.onSurfaceVariant,
-                ),
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
             ],
