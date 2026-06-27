@@ -11,7 +11,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:powersync/powersync.dart';
 
 typedef PowerSyncConnectorFactory = PowerSyncBackendConnector Function();
-typedef LibraryDatabasePathResolver = Future<String> Function(LibraryDatabaseMode mode);
+typedef LibraryDatabasePathResolver =
+    Future<String> Function(LibraryDatabaseMode mode, String? profileKey, String? userId);
 
 class PapyrusPowerSyncService implements BookRepository {
   final PowerSyncConnectorFactory connectorFactory;
@@ -27,6 +28,7 @@ class PapyrusPowerSyncService implements BookRepository {
   Future<void>? _modeOperation;
   LibraryDatabaseMode? _mode;
   String? _authenticatedUserId;
+  String? _authenticatedProfileKey;
   SyncState _syncState = const SyncState();
 
   PapyrusPowerSyncService({required this.connectorFactory, this.pathResolver, this.connectAuthenticated = true});
@@ -37,8 +39,12 @@ class PapyrusPowerSyncService implements BookRepository {
 
   Future<void> activateGuest() => _switchMode(LibraryDatabaseMode.guest);
 
-  Future<void> activateAuthenticated(String userId) {
-    return _switchMode(LibraryDatabaseMode.authenticated, authenticatedUserId: userId);
+  Future<void> activateAuthenticated(String userId, {String profileKey = 'official'}) {
+    return _switchMode(
+      LibraryDatabaseMode.authenticated,
+      authenticatedUserId: userId,
+      authenticatedProfileKey: profileKey,
+    );
   }
 
   Future<void> setOnline(bool online) async {
@@ -54,15 +60,54 @@ class PapyrusPowerSyncService implements BookRepository {
     }
   }
 
-  Future<void> deactivate({bool clearAuthenticated = true}) async {
+  Future<void> reconnect() async {
     await _modeOperation;
-    final previousMode = _mode;
-    await _closeActive(clearAuthenticated: clearAuthenticated);
-    if (clearAuthenticated && previousMode != LibraryDatabaseMode.authenticated) {
-      await _clearStoredAuthenticatedDatabase();
+    if (_mode != LibraryDatabaseMode.authenticated) {
+      throw StateError('Only authenticated libraries can connect to PowerSync');
     }
+    final database = _requireDatabase();
+    _watchStatus(database);
+    await database.disconnect();
+    await database.connect(connector: connectorFactory());
+  }
+
+  Future<void> clearGuestLibrary() async {
+    await _modeOperation;
+    if (_mode != LibraryDatabaseMode.guest) {
+      throw StateError('Only guest libraries can be cleared with clearGuestLibrary');
+    }
+    final database = _requireDatabase();
+    await database.execute('DELETE FROM books');
+    _booksController.add(const []);
+    _setSyncState(const SyncState());
+  }
+
+  Future<void> clearAuthenticatedCache() async {
+    await _modeOperation;
+    if (_mode != LibraryDatabaseMode.authenticated) {
+      throw StateError('Only authenticated libraries can clear the account cache');
+    }
+    final userId = _authenticatedUserId;
+    final profileKey = _authenticatedProfileKey ?? 'official';
+    if (userId == null) {
+      throw StateError('Authenticated library is missing a user id');
+    }
+
+    await _closeActive(clearAuthenticated: true);
     _mode = null;
     _authenticatedUserId = null;
+    _authenticatedProfileKey = null;
+    _booksController.add(const []);
+    _setSyncState(const SyncState());
+    await activateAuthenticated(userId, profileKey: profileKey);
+  }
+
+  Future<void> deactivate({bool clearAuthenticated = true}) async {
+    await _modeOperation;
+    await _closeActive(clearAuthenticated: clearAuthenticated);
+    _mode = null;
+    _authenticatedUserId = null;
+    _authenticatedProfileKey = null;
     _booksController.add(const []);
     _setSyncState(const SyncState());
   }
@@ -104,15 +149,20 @@ class PapyrusPowerSyncService implements BookRepository {
     await _syncStateController.close();
   }
 
-  Future<void> _switchMode(LibraryDatabaseMode mode, {String? authenticatedUserId}) async {
+  Future<void> _switchMode(
+    LibraryDatabaseMode mode, {
+    String? authenticatedUserId,
+    String? authenticatedProfileKey,
+  }) async {
     await _modeOperation;
     if (_mode == mode &&
         _database != null &&
-        (mode == LibraryDatabaseMode.guest || _authenticatedUserId == authenticatedUserId)) {
+        (mode == LibraryDatabaseMode.guest ||
+            (_authenticatedUserId == authenticatedUserId && _authenticatedProfileKey == authenticatedProfileKey))) {
       return;
     }
 
-    final operation = _performModeSwitch(mode, authenticatedUserId);
+    final operation = _performModeSwitch(mode, authenticatedUserId, authenticatedProfileKey);
     _modeOperation = operation;
     try {
       await operation;
@@ -123,10 +173,15 @@ class PapyrusPowerSyncService implements BookRepository {
     }
   }
 
-  Future<void> _performModeSwitch(LibraryDatabaseMode mode, String? authenticatedUserId) async {
-    await _closeActive(clearAuthenticated: _mode == LibraryDatabaseMode.authenticated);
+  Future<void> _performModeSwitch(
+    LibraryDatabaseMode mode,
+    String? authenticatedUserId,
+    String? authenticatedProfileKey,
+  ) async {
+    await _closeActive(clearAuthenticated: false);
     _mode = mode;
     _authenticatedUserId = authenticatedUserId;
+    _authenticatedProfileKey = authenticatedProfileKey;
     _booksController.add(const []);
 
     final database = PowerSyncDatabase(
@@ -239,27 +294,23 @@ class PapyrusPowerSyncService implements BookRepository {
     await database.close();
   }
 
-  Future<void> _clearStoredAuthenticatedDatabase() async {
-    final database = PowerSyncDatabase(
-      schema: papyrusAccountSchema,
-      path: await _databasePath(LibraryDatabaseMode.authenticated),
-    );
-    await database.initialize();
-    await database.disconnectAndClear(clearLocal: true);
-    await database.close();
-  }
-
   Future<String> _databasePath(LibraryDatabaseMode mode) async {
     final customResolver = pathResolver;
     if (customResolver != null) {
-      return customResolver(mode);
+      return customResolver(mode, _authenticatedProfileKey, _authenticatedUserId);
     }
 
-    final fileName = mode == LibraryDatabaseMode.guest ? 'papyrus-guest.db' : 'papyrus-account.db';
+    final fileName = mode == LibraryDatabaseMode.guest
+        ? 'papyrus-guest.db'
+        : 'papyrus-account-${_safeFileComponent(_authenticatedProfileKey ?? 'official')}-${_safeFileComponent(_authenticatedUserId ?? 'anonymous')}.db';
     if (kIsWeb) {
       return fileName;
     }
     final directory = await getApplicationSupportDirectory();
     return path.join(directory.path, fileName);
+  }
+
+  String _safeFileComponent(String value) {
+    return value.replaceAll(RegExp(r'[^a-zA-Z0-9_.-]'), '_');
   }
 }

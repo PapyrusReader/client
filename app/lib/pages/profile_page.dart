@@ -1,8 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/powersync/powersync_service.dart';
+import 'package:papyrus/powersync/storage_sync_controller.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
+import 'package:papyrus/providers/sync_settings_provider.dart';
 import 'package:papyrus/powersync/sync_state.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
@@ -195,26 +200,70 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   Widget _buildMobileStorageSyncSection(BuildContext context) {
-    final prefs = context.watch<PreferencesProvider>();
-    final auth = context.watch<AuthProvider>();
-    final sync = context.watch<SyncState>();
+    final controller = _storageSyncController(context);
+
+    if (controller.isGuest) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const SettingsSectionHeader(title: 'Storage & sync'),
+          const SettingsRow(label: 'Library', value: 'Stored on this device'),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+            child: Text(
+              'Nothing is sent to Papyrus servers while offline mode is on.',
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+            ),
+          ),
+          SettingsRow(
+            label: 'Backup',
+            value: 'Export or import a backup',
+            onTap: () => _showOfflineBackupActions(context),
+          ),
+          SettingsRow(label: 'Clear local library', onTap: () => _confirmClearLocalLibrary(context)),
+        ],
+      );
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Storage & sync'),
-        SettingsRow(label: 'Storage backend', value: prefs.storageBackend, onTap: () => _showStoragePicker(context)),
+        SettingsRow(label: 'Current mode', value: controller.modeLabel),
+        SettingsRow(label: 'Local database', value: controller.databaseLabel),
         SettingsRow(
-          label: 'Sync server',
-          value: prefs.serverUrl.isEmpty ? 'Not connected' : prefs.serverUrl,
-          onTap: () {},
+          label: 'Metadata sync',
+          value: controller.metadataSyncLabel,
+          onTap: controller.shouldShowServerSettings ? () => _showSyncServerPicker(context) : null,
+          showChevron: controller.shouldShowServerSettings,
         ),
-        SettingsRow(label: 'Current status', value: _syncStatusLabel(auth, sync)),
-        SettingsToggleRow(
-          label: 'Sync enabled',
-          value: prefs.syncEnabled,
-          onChanged: (value) => prefs.syncEnabled = value,
+        if (controller.shouldShowCustomServerUrls) ...[
+          SettingsRow(label: 'API server', value: controller.syncSettings.activeApiConfig.serverBaseUri.toString()),
+          SettingsRow(
+            label: 'PowerSync service',
+            value: controller.syncSettings.activeApiConfig.powerSyncServiceUri.toString(),
+          ),
+        ],
+        if (controller.shouldShowServerSettings) ...[
+          SettingsRow(label: 'Current status', value: controller.statusLabel),
+          SettingsRow(label: 'Pending writes', value: controller.pendingWritesLabel),
+          SettingsRow(label: 'Sync detail', value: controller.syncDetail),
+        ],
+        SettingsRow(
+          label: 'Media storage',
+          value: controller.mediaStorageLabel,
+          onTap: controller.shouldShowServerSettings ? () => _showMediaStoragePicker(context) : null,
+          showChevron: controller.shouldShowServerSettings,
         ),
+        if (controller.mediaStorageRestrictionMessage case final message?)
+          SettingsRow(label: 'Media policy', value: message),
+        if (controller.canReconnect) SettingsRow(label: 'Reconnect sync', onTap: () => _handleReconnectSync(context)),
+        if (controller.canClearGuestLibrary)
+          SettingsRow(label: 'Clear local library', onTap: () => _confirmClearLocalLibrary(context)),
+        if (controller.canClearAuthenticatedCache)
+          SettingsRow(label: 'Clear account local cache', onTap: () => _confirmClearAuthenticatedCache(context)),
       ],
     );
   }
@@ -889,33 +938,20 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildStorageSyncContent(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final prefs = context.watch<PreferencesProvider>();
-    final auth = context.watch<AuthProvider>();
-    final sync = context.watch<SyncState>();
-    final connected = sync.connected;
+    final controller = _storageSyncController(context);
+    final connected = controller.syncState.connected;
+
+    if (controller.isGuest) return _buildOfflineStorageSyncContent(context);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingsCard(
-          title: 'Storage backends',
+          title: 'Library storage',
           children: [
-            _buildDropdownField(
-              context,
-              label: 'Primary backend',
-              value: prefs.storageBackend,
-              options: const ['Local', 'Cloud', 'Self-hosted'],
-              onChanged: (value) => prefs.storageBackend = value,
-            ),
-            const SizedBox(height: Spacing.md),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: () {},
-                icon: const Icon(Icons.add, size: IconSizes.small),
-                label: const Text('Add storage backend'),
-              ),
-            ),
+            _buildInfoRow(context, label: 'Current mode', value: controller.modeLabel),
+            _buildInfoRow(context, label: 'Local database', value: controller.databaseLabel),
+            _buildInfoRow(context, label: 'Metadata sync', value: controller.metadataSyncLabel),
           ],
         ),
         const SizedBox(height: Spacing.lg),
@@ -930,7 +966,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       Text('Server', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                       const SizedBox(height: Spacing.xs),
-                      Text(prefs.serverUrl.isEmpty ? 'Not connected' : prefs.serverUrl, style: textTheme.bodyLarge),
+                      Text(controller.metadataSyncLabel, style: textTheme.bodyLarge),
                     ],
                   ),
                 ),
@@ -941,7 +977,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     borderRadius: BorderRadius.circular(AppRadius.sm),
                   ),
                   child: Text(
-                    _syncStatusLabel(auth, sync),
+                    controller.statusLabel,
                     style: textTheme.labelSmall?.copyWith(
                       color: connected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
                     ),
@@ -950,50 +986,160 @@ class _ProfilePageState extends State<ProfilePage> {
               ],
             ),
             const SizedBox(height: Spacing.md),
-            _buildSegmentedField<String>(
-              context,
-              label: 'Server type',
-              value: prefs.serverType,
-              options: const {'official': 'Official', 'self-hosted': 'Self-hosted'},
-              onChanged: (value) => prefs.serverType = value,
+            if (controller.shouldShowServerSettings) ...[
+              _buildSegmentedField<SyncServerType>(
+                context,
+                label: 'Sync server',
+                value: controller.syncSettings.serverType,
+                options: const {SyncServerType.official: 'Official server', SyncServerType.custom: 'Custom server'},
+                onChanged: (value) => _selectSyncServerType(context, value),
+              ),
+              if (controller.shouldShowCustomServerUrls) ...[
+                const SizedBox(height: Spacing.md),
+                _buildInfoRow(
+                  context,
+                  label: 'API server',
+                  value: controller.syncSettings.activeApiConfig.serverBaseUri.toString(),
+                ),
+                _buildInfoRow(
+                  context,
+                  label: 'PowerSync service',
+                  value: controller.syncSettings.activeApiConfig.powerSyncServiceUri.toString(),
+                ),
+                const SizedBox(height: Spacing.sm),
+                OutlinedButton(
+                  onPressed: () => _showCustomServerDialog(context),
+                  child: const Text('Edit custom server'),
+                ),
+              ],
+              const SizedBox(height: Spacing.md),
+              _buildInfoRow(context, label: 'Status', value: controller.statusLabel),
+              _buildInfoRow(context, label: 'Pending writes', value: controller.pendingWritesLabel),
+              const SizedBox(height: Spacing.md),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+                child: Text(
+                  controller.syncDetail,
+                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                ),
+              ),
+            ] else
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+                child: Text(
+                  'Guest libraries stay fully offline. No server connection is used.',
+                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                ),
+              ),
+            if (controller.canReconnect ||
+                controller.canClearGuestLibrary ||
+                controller.canClearAuthenticatedCache) ...[
+              const SizedBox(height: Spacing.sm),
+              Wrap(
+                spacing: Spacing.sm,
+                runSpacing: Spacing.sm,
+                alignment: WrapAlignment.start,
+                children: [
+                  if (controller.canReconnect)
+                    OutlinedButton.icon(
+                      onPressed: () => _handleReconnectSync(context),
+                      icon: const Icon(Icons.sync, size: IconSizes.small),
+                      label: const Text('Reconnect sync'),
+                    ),
+                  if (controller.canClearGuestLibrary)
+                    OutlinedButton.icon(
+                      onPressed: () => _confirmClearLocalLibrary(context),
+                      icon: const Icon(Icons.delete_outline, size: IconSizes.small),
+                      label: const Text('Clear local library'),
+                    ),
+                  if (controller.canClearAuthenticatedCache)
+                    OutlinedButton.icon(
+                      onPressed: () => _confirmClearAuthenticatedCache(context),
+                      icon: const Icon(Icons.cleaning_services_outlined, size: IconSizes.small),
+                      label: const Text('Clear account local cache'),
+                    ),
+                ],
+              ),
+            ],
+          ],
+        ),
+        const SizedBox(height: Spacing.lg),
+        SettingsCard(
+          title: 'Media storage',
+          children: [
+            _buildInfoRow(context, label: 'Book files and covers', value: controller.mediaStorageLabel),
+            if (controller.mediaStorageRestrictionMessage case final message?)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+                child: Text(message, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+              ),
+            if (controller.shouldShowServerSettings && controller.syncSettings.serverType == SyncServerType.custom) ...[
+              const SizedBox(height: Spacing.md),
+              _buildSegmentedField<MediaStorageBackend>(
+                context,
+                label: 'Media destination',
+                value: controller.syncSettings.mediaStorageBackend,
+                options: const {
+                  MediaStorageBackend.local: 'Local device',
+                  MediaStorageBackend.selfHosted: 'Self-hosted server',
+                },
+                onChanged: (value) => controller.syncSettings.mediaStorageBackend = value,
+              ),
+            ],
+            if (controller.shouldShowServerSettings && controller.syncSettings.serverType == SyncServerType.official)
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+                child: Text(
+                  'Use a custom server if you want Papyrus-managed media storage. Third-party storage backends can be added later.',
+                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                ),
+              ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildOfflineStorageSyncContent(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    final mutedStyle = textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
+
+    return SettingsCard(
+      title: 'Library storage',
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('Your library is stored on this device.', style: textTheme.bodyLarge),
+              const SizedBox(height: Spacing.sm),
+              Text(
+                'Nothing is sent to Papyrus servers while offline mode is on. Export a backup before changing devices or clearing app data.',
+                style: mutedStyle,
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: Spacing.md),
+        Wrap(
+          spacing: Spacing.sm,
+          runSpacing: Spacing.sm,
+          children: [
+            OutlinedButton.icon(
+              onPressed: () => _showBackupUnavailable(context, 'Backup export'),
+              icon: const Icon(Icons.file_download_outlined, size: IconSizes.small),
+              label: const Text('Export backup'),
             ),
-            const SizedBox(height: Spacing.md),
-            SettingsToggleRow(
-              label: 'Sync enabled',
-              value: prefs.syncEnabled,
-              onChanged: (value) => prefs.syncEnabled = value,
+            OutlinedButton.icon(
+              onPressed: () => _showBackupUnavailable(context, 'Backup import'),
+              icon: const Icon(Icons.file_upload_outlined, size: IconSizes.small),
+              label: const Text('Import backup'),
             ),
-            const SizedBox(height: Spacing.md),
-            _buildDropdownField(
-              context,
-              label: 'Sync interval',
-              value: prefs.syncInterval,
-              options: const ['realtime', '1min', '5min', 'manual'],
-              labels: const {
-                'realtime': 'Real-time',
-                '1min': 'Every minute',
-                '5min': 'Every 5 minutes',
-                'manual': 'Manual only',
-              },
-              onChanged: (value) => prefs.syncInterval = value,
-            ),
-            const SizedBox(height: Spacing.md),
-            _buildSegmentedField<String>(
-              context,
-              label: 'Conflict resolution',
-              value: prefs.conflictResolution,
-              options: const {'server': 'Server wins', 'client': 'Client wins', 'ask': 'Ask me'},
-              onChanged: (value) => prefs.conflictResolution = value,
-            ),
-            const SizedBox(height: Spacing.md),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
-              child: Text(_syncDetail(sync), style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            ),
-            const SizedBox(height: Spacing.sm),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton(onPressed: () {}, child: const Text('Sync now')),
+            OutlinedButton.icon(
+              onPressed: () => _confirmClearLocalLibrary(context),
+              icon: const Icon(Icons.delete_outline, size: IconSizes.small),
+              label: const Text('Clear local library'),
             ),
           ],
         ),
@@ -1001,22 +1147,32 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  String _syncStatusLabel(AuthProvider auth, SyncState sync) {
-    if (auth.isOfflineMode) return 'Guest local';
-    if (sync.uploadError != null || sync.downloadError != null) return 'Error';
-    if (sync.connecting) return 'Connecting';
-    if (sync.uploading || sync.downloading) return 'Syncing';
-    if (sync.connected) return sync.hasPendingWrites ? 'Pending upload' : 'Connected';
-    return 'Offline';
+  StorageSyncController _storageSyncController(BuildContext context) {
+    return StorageSyncController(
+      authProvider: context.watch<AuthProvider>(),
+      powerSyncService: context.read<PapyrusPowerSyncService>(),
+      syncSettings: context.watch<SyncSettingsProvider>(),
+      syncState: context.watch<SyncState>(),
+    );
   }
 
-  String _syncDetail(SyncState sync) {
-    final error = sync.uploadError ?? sync.downloadError;
-    if (error != null) return 'Sync error: $error';
-    if (sync.hasPendingWrites) return 'Local changes are waiting to upload';
-    final lastSyncedAt = sync.lastSyncedAt;
-    if (lastSyncedAt == null) return 'No completed sync yet';
-    return 'Last sync: ${lastSyncedAt.toLocal()}';
+  Widget _buildInfoRow(BuildContext context, {required String label, required String value}) {
+    final colorScheme = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 160,
+            child: Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+          ),
+          Expanded(child: SelectableText(value, style: textTheme.bodyMedium)),
+        ],
+      ),
+    );
   }
 
   // -- Privacy & data ---------------------------------------------------------
@@ -1207,6 +1363,213 @@ class _ProfilePageState extends State<ProfilePage> {
 
   void _showLicenses(BuildContext context) {
     showLicensePage(context: context, applicationName: 'Papyrus', applicationVersion: '1.0.0');
+  }
+
+  void _showSyncServerPicker(BuildContext context) {
+    final settings = context.read<SyncSettingsProvider>();
+
+    _showPickerSheet(
+      context,
+      items: const [('Official server', 'official'), ('Custom server', 'custom')],
+      selected: settings.serverType.name,
+      onSelected: (value) {
+        final serverType = value == SyncServerType.custom.name ? SyncServerType.custom : SyncServerType.official;
+        unawaited(_selectSyncServerType(context, serverType));
+      },
+    );
+  }
+
+  Future<void> _selectSyncServerType(BuildContext context, SyncServerType value) async {
+    final settings = context.read<SyncSettingsProvider>();
+
+    if (value == SyncServerType.official) {
+      settings.serverType = SyncServerType.official;
+      return;
+    }
+
+    if (settings.customApiUrl.isEmpty || settings.customPowerSyncUrl.isEmpty) {
+      await _showCustomServerDialog(context, switchToCustomAfterSave: true);
+      return;
+    }
+
+    settings.serverType = SyncServerType.custom;
+  }
+
+  void _showMediaStoragePicker(BuildContext context) {
+    final settings = context.read<SyncSettingsProvider>();
+    final items = settings.serverType == SyncServerType.custom
+        ? const [('Local device only', 'local'), ('Self-hosted server', 'selfHosted')]
+        : const [('Local device only', 'local')];
+
+    _showPickerSheet(
+      context,
+      items: items,
+      selected: settings.mediaStorageBackend.name,
+      onSelected: (value) {
+        settings.mediaStorageBackend = value == MediaStorageBackend.selfHosted.name
+            ? MediaStorageBackend.selfHosted
+            : MediaStorageBackend.local;
+      },
+    );
+  }
+
+  Future<void> _showCustomServerDialog(BuildContext context, {bool switchToCustomAfterSave = false}) async {
+    final settings = context.read<SyncSettingsProvider>();
+    final apiController = TextEditingController(
+      text: settings.customApiUrl.isEmpty ? 'http://localhost:8080' : settings.customApiUrl,
+    );
+    final powerSyncController = TextEditingController(
+      text: settings.customPowerSyncUrl.isEmpty ? 'http://localhost:8081' : settings.customPowerSyncUrl,
+    );
+    final messenger = ScaffoldMessenger.of(context);
+
+    try {
+      await showDialog<void>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('Custom sync server'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                controller: apiController,
+                decoration: const InputDecoration(labelText: 'Papyrus API URL'),
+                keyboardType: TextInputType.url,
+              ),
+              const SizedBox(height: Spacing.md),
+              TextField(
+                controller: powerSyncController,
+                decoration: const InputDecoration(labelText: 'PowerSync service URL'),
+                keyboardType: TextInputType.url,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
+            FilledButton(
+              onPressed: () {
+                try {
+                  settings.setCustomServerUrls(apiUrl: apiController.text, powerSyncUrl: powerSyncController.text);
+                  if (switchToCustomAfterSave) {
+                    settings.serverType = SyncServerType.custom;
+                  }
+                  Navigator.pop(dialogContext);
+                } catch (error) {
+                  messenger.showSnackBar(SnackBar(content: Text('Invalid server URL: $error')));
+                }
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      apiController.dispose();
+      powerSyncController.dispose();
+    }
+  }
+
+  Future<void> _handleReconnectSync(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<PapyrusPowerSyncService>().reconnect();
+      messenger.showSnackBar(const SnackBar(content: Text('Sync reconnect requested.')));
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('Could not reconnect sync: $error')));
+    }
+  }
+
+  void _showOfflineBackupActions(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              leading: const Icon(Icons.file_download_outlined),
+              title: const Text('Export backup'),
+              subtitle: const Text('Save a copy for another device'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _showBackupUnavailable(context, 'Backup export');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.file_upload_outlined),
+              title: const Text('Import backup'),
+              subtitle: const Text('Restore from a saved copy'),
+              onTap: () {
+                Navigator.pop(sheetContext);
+                _showBackupUnavailable(context, 'Backup import');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showBackupUnavailable(BuildContext context, String action) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$action is not available yet.')));
+  }
+
+  Future<void> _confirmClearLocalLibrary(BuildContext context) async {
+    final confirmed = await _confirmStorageAction(
+      context,
+      title: 'Clear local library',
+      message:
+          'This deletes the library stored on this device. This cannot be undone unless you have exported a backup.',
+      actionLabel: 'Clear library',
+    );
+    if (!confirmed || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<PapyrusPowerSyncService>().clearGuestLibrary();
+      messenger.showSnackBar(const SnackBar(content: Text('Local library cleared.')));
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('Could not clear local library: $error')));
+    }
+  }
+
+  Future<void> _confirmClearAuthenticatedCache(BuildContext context) async {
+    final confirmed = await _confirmStorageAction(
+      context,
+      title: 'Clear account local cache',
+      message:
+          'This clears only the local account cache on this device. Synced books remain on the server and will download again after reconnecting.',
+      actionLabel: 'Clear local cache',
+    );
+    if (!confirmed || !context.mounted) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await context.read<PapyrusPowerSyncService>().clearAuthenticatedCache();
+      messenger.showSnackBar(const SnackBar(content: Text('Account local cache cleared.')));
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: Text('Could not clear account cache: $error')));
+    }
+  }
+
+  Future<bool> _confirmStorageAction(
+    BuildContext context, {
+    required String title,
+    required String message,
+    required String actionLabel,
+  }) async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (dialogContext) => AlertDialog(
+            title: Text(title),
+            content: Text(message),
+            actions: [
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+              FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: Text(actionLabel)),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   // ============================================================================
@@ -1409,17 +1772,6 @@ class _ProfilePageState extends State<ProfilePage> {
       items: [('Markdown', 'Markdown'), ('PDF', 'PDF'), ('TXT', 'TXT'), ('HTML', 'HTML')],
       selected: prefs.annotationExportFormat,
       onSelected: (value) => prefs.annotationExportFormat = value,
-    );
-  }
-
-  void _showStoragePicker(BuildContext context) {
-    final prefs = context.read<PreferencesProvider>();
-
-    _showPickerSheet(
-      context,
-      items: [('Local', 'Local'), ('Cloud', 'Cloud'), ('Self-hosted', 'Self-hosted')],
-      selected: prefs.storageBackend,
-      onSelected: (value) => prefs.storageBackend = value,
     );
   }
 

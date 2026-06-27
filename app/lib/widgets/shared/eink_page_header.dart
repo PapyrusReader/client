@@ -30,7 +30,7 @@ class EinkPageHeader extends StatelessWidget {
         children: [
           Text(title, style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.bold)),
           const Spacer(),
-          if (trailing != null) trailing!,
+          ?trailing,
         ],
       ),
     );

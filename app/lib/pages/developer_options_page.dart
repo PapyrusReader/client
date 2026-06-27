@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/settings/settings_row.dart';
-import 'package:papyrus/widgets/settings/settings_section.dart';
 import 'package:provider/provider.dart';
 
 /// Developer options page with debug-only settings.
@@ -67,32 +65,6 @@ class DeveloperOptionsPage extends StatelessWidget {
           const Text(
             'DEVELOPER OPTIONS',
             style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, letterSpacing: 1),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEinkToggle(bool isOn) {
-    return Container(
-      width: 56,
-      height: 32,
-      decoration: BoxDecoration(
-        border: Border.all(color: Colors.black, width: BorderWidths.einkDefault),
-      ),
-      child: Row(
-        children: [
-          Expanded(
-            child: Container(
-              color: isOn ? Colors.black : Colors.white,
-              child: Center(child: isOn ? const Icon(Icons.check, color: Colors.white, size: 16) : null),
-            ),
-          ),
-          Expanded(
-            child: Container(
-              color: isOn ? Colors.white : Colors.black,
-              child: Center(child: !isOn ? const Icon(Icons.close, color: Colors.white, size: 16) : null),
-            ),
           ),
         ],
       ),

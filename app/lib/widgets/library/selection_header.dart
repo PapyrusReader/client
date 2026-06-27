@@ -42,7 +42,7 @@ class SelectionHeader extends StatelessWidget {
           child: Text(_allSelected ? 'Deselect all' : 'Select all'),
         ),
         const Spacer(),
-        if (actions != null) actions!,
+        ?actions,
       ],
     );
   }

@@ -36,8 +36,10 @@ void main() {
     return PapyrusPowerSyncService(
       connectorFactory: OfflineConnector.new,
       connectAuthenticated: false,
-      pathResolver: (mode) async =>
-          path.join(directory.path, mode == LibraryDatabaseMode.guest ? 'guest.db' : 'account.db'),
+      pathResolver: (mode, profileKey, userId) async => path.join(
+        directory.path,
+        mode == LibraryDatabaseMode.guest ? 'guest.db' : 'account-${profileKey ?? 'default'}-${userId ?? 'none'}.db',
+      ),
     );
   }
 
@@ -66,5 +68,53 @@ void main() {
 
     expect(await second.getById('account-book'), isNull);
     await second.close();
+  });
+
+  test('clearGuestLibrary removes only guest-local books', () async {
+    final first = service();
+    await first.activateGuest();
+    await first.upsert(_book('guest-book'));
+
+    await first.clearGuestLibrary();
+
+    expect(await first.getById('guest-book'), isNull);
+    await first.close();
+  });
+
+  test('clearAuthenticatedCache removes local account cache for the active account', () async {
+    final first = service();
+    await first.activateAuthenticated('user-one');
+    await first.upsert(_book('account-book'));
+
+    await first.clearAuthenticatedCache();
+
+    expect(first.mode, LibraryDatabaseMode.authenticated);
+    expect(await first.getById('account-book'), isNull);
+    await first.close();
+  });
+
+  test('reconnect requires an authenticated database', () async {
+    final first = service();
+    await first.activateGuest();
+
+    expect(first.reconnect(), throwsStateError);
+    await first.close();
+  });
+
+  test('authenticated cache is isolated by sync server profile', () async {
+    final first = service();
+    await first.activateAuthenticated('user-one', profileKey: 'official');
+    await first.upsert(_book('official-book'));
+
+    await first.activateAuthenticated('user-one', profileKey: 'custom-local');
+
+    expect(await first.getById('official-book'), isNull);
+    await first.upsert(_book('custom-book'));
+
+    await first.activateAuthenticated('user-one', profileKey: 'official');
+
+    expect((await first.getById('official-book'))?.title, 'Persistent guest book');
+    expect(await first.getById('custom-book'), isNull);
+    await first.close();
   });
 }
