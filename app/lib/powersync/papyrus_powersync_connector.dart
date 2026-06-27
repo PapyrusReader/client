@@ -7,8 +7,9 @@ import 'package:powersync/powersync.dart';
 class PapyrusPowerSyncConnector extends PowerSyncBackendConnector {
   final AuthRepository authRepository;
   final PapyrusApiConfig config;
+  final Future<void> Function()? onUploadComplete;
 
-  PapyrusPowerSyncConnector({required this.authRepository, required this.config});
+  PapyrusPowerSyncConnector({required this.authRepository, required this.config, this.onUploadComplete});
 
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async {
@@ -47,6 +48,7 @@ class PapyrusPowerSyncConnector extends PowerSyncBackendConnector {
 
       await authRepository.uploadPowerSyncBatch(batch);
       await transaction.complete();
+      await onUploadComplete?.call();
     }
   }
 }

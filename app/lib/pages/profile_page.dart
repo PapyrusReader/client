@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/storage_sync_controller.dart';
 import 'package:papyrus/providers/auth_provider.dart';
@@ -1017,6 +1018,7 @@ class _ProfilePageState extends State<ProfilePage> {
       syncSettings: context.watch<SyncSettingsProvider>(),
       syncState: context.watch<SyncState>(),
       fileStorageUsedBytes: _fileStorageUsedBytes(context.watch<DataStore>()),
+      mediaStorageUsage: context.watch<MediaUploadQueue>().storageUsage,
     );
   }
 

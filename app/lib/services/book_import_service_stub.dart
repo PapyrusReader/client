@@ -86,6 +86,21 @@ class BookImportService {
     return null;
   }
 
+  /// Stores raw book bytes under the app-local book cache for [bookId].
+  ///
+  /// Used when a signed-in device lazily downloads a book file from the
+  /// selected server.
+  Future<void> storeBookFile(String bookId, String extension, Uint8List bytes) async {
+    final normalizedExtension = extension.toLowerCase().replaceFirst('.', '');
+    if (normalizedExtension.isEmpty) {
+      throw ArgumentError('Book file extension cannot be empty.');
+    }
+    await deleteBookFile(bookId);
+    final booksDir = await _getBooksDirectory();
+    final file = File(p.join(booksDir.path, '$bookId.$normalizedExtension'));
+    await file.writeAsBytes(bytes);
+  }
+
   /// No-op on native — no worker to terminate.
   void dispose() {}
 

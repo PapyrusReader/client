@@ -8,11 +8,13 @@
  *     { type: 'process', format: 'epub', bookId, fileData: ArrayBuffer }
  *     { type: 'delete',  bookId }
  *     { type: 'getFile', bookId }
+ *     { type: 'storeFile', format, bookId, fileData: ArrayBuffer }
  *
  *   Outgoing:
  *     { type: 'success', action: 'process', bookId, metadata, coverData, coverMimeType, fileSize, fileHash }
  *     { type: 'success', action: 'delete',  bookId }
  *     { type: 'success', action: 'getFile', bookId, fileData }
+ *     { type: 'success', action: 'storeFile', bookId }
  *     { type: 'error',   message }
  */
 
@@ -34,6 +36,9 @@ self.onmessage = async (event) => {
         break;
       case 'getFile':
         await handleGetFile(msg);
+        break;
+      case 'storeFile':
+        await handleStoreFile(msg);
         break;
       default:
         postMessage({ type: 'error', message: `Unknown message type: ${msg.type}` });
@@ -90,6 +95,17 @@ async function handleGetFile(msg) {
     { type: 'success', action: 'getFile', bookId, fileData },
     fileData ? [fileData] : [],
   );
+}
+
+// ---------------------------------------------------------------------------
+// StoreFile handler
+// ---------------------------------------------------------------------------
+
+async function handleStoreFile(msg) {
+  const { bookId, format, fileData } = msg;
+  await opfsDelete(bookId);
+  await opfsWrite(bookId, format, new Uint8Array(fileData));
+  postMessage({ type: 'success', action: 'storeFile', bookId });
 }
 
 // ---------------------------------------------------------------------------

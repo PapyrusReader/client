@@ -7,6 +7,9 @@ import 'package:papyrus/auth/auth_repository.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/media/media_cache_service.dart';
+import 'package:papyrus/media/media_models.dart';
+import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/papyrus_powersync_connector.dart';
 import 'package:papyrus/powersync/sync_state.dart';
@@ -14,6 +17,8 @@ import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
+import 'package:papyrus/services/book_import_service_stub.dart'
+    if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/providers/sidebar_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:provider/provider.dart';
@@ -42,6 +47,8 @@ class _PapyrusState extends State<Papyrus> {
   late final DataStore _dataStore;
   late final AuthProvider _authProvider;
   late final SyncSettingsProvider _syncSettingsProvider;
+  late final MediaUploadQueue _mediaUploadQueue;
+  late final BookImportService _bookImportService;
   late final PapyrusPowerSyncService _powerSyncService;
   late final PapyrusApiConfig _officialApiConfig;
   late AuthRepository _authRepository;
@@ -59,10 +66,15 @@ class _PapyrusState extends State<Papyrus> {
     _authRepository = _buildAuthRepository(_syncSettingsProvider.activeApiConfig, _activeProfileKey);
 
     _dataStore = DataStore();
+    _mediaUploadQueue = MediaUploadQueue(widget.prefs);
+    _bookImportService = BookImportService();
     _authProvider = AuthProvider(widget.prefs, repository: _authRepository);
     _powerSyncService = PapyrusPowerSyncService(
-      connectorFactory: () =>
-          PapyrusPowerSyncConnector(authRepository: _authRepository, config: _syncSettingsProvider.activeApiConfig),
+      connectorFactory: () => PapyrusPowerSyncConnector(
+        authRepository: _authRepository,
+        config: _syncSettingsProvider.activeApiConfig,
+        onUploadComplete: _processMediaUploads,
+      ),
     );
     unawaited(_dataStore.attachBookRepository(_powerSyncService));
     _appRouter = AppRouter(authProvider: _authProvider);
@@ -76,6 +88,7 @@ class _PapyrusState extends State<Papyrus> {
     _authProvider.removeListener(_syncPowerSyncAuthState);
     _syncSettingsProvider.removeListener(_handleSyncSettingsChanged);
     unawaited(_disposeDataServices());
+    _bookImportService.dispose();
     _authProvider.dispose();
     _syncSettingsProvider.dispose();
     super.dispose();
@@ -99,6 +112,8 @@ class _PapyrusState extends State<Papyrus> {
     if (user != null && !_authProvider.isOfflineMode) {
       final userId = user.userId;
       unawaited(_powerSyncService.activateAuthenticated(userId, profileKey: _activeProfileKey));
+      unawaited(_refreshMediaUsage());
+      unawaited(_processMediaUploads());
       return;
     }
 
@@ -128,10 +143,39 @@ class _PapyrusState extends State<Papyrus> {
       await _powerSyncService.deactivate(clearAuthenticated: false);
       _authRepository = _buildAuthRepository(_syncSettingsProvider.activeApiConfig, _activeProfileKey);
       await _authProvider.replaceRepository(_authRepository, bootstrapNewRepository: !_authProvider.isOfflineMode);
+      unawaited(_refreshMediaUsage());
     } finally {
       _switchingSyncProfile = false;
       _syncPowerSyncAuthState();
     }
+  }
+
+  Future<void> _refreshMediaUsage() async {
+    if (!_authProvider.isSignedIn || _authProvider.isOfflineMode) return;
+    try {
+      await _mediaUploadQueue.refreshUsage(_authRepository.fetchMediaUsage);
+    } catch (_) {
+      // Usage is informational; failed refresh must not block data sync.
+    }
+  }
+
+  Future<void> _processMediaUploads() async {
+    if (!_authProvider.isSignedIn || _authProvider.isOfflineMode) return;
+    await _mediaUploadQueue.processPending(
+      dataStore: _dataStore,
+      readBookFile: _bookImportService.getBookFile,
+      uploadMedia: (payload) async {
+        try {
+          return await _authRepository.uploadMedia(payload);
+        } on AuthApiException catch (error) {
+          if (error.statusCode == 409) {
+            throw const MediaUploadException.storageFull();
+          }
+          rethrow;
+        }
+      },
+    );
+    await _refreshMediaUsage();
   }
 
   @override
@@ -140,8 +184,11 @@ class _PapyrusState extends State<Papyrus> {
       providers: [
         // Core data store - single source of truth
         ChangeNotifierProvider.value(value: _dataStore),
+        ChangeNotifierProvider.value(value: _mediaUploadQueue),
         ChangeNotifierProvider.value(value: _syncSettingsProvider),
         Provider.value(value: _powerSyncService),
+        Provider.value(value: _bookImportService),
+        Provider(create: _createMediaCacheService),
         StreamProvider<SyncState>.value(value: _powerSyncService.syncStates, initialData: _powerSyncService.syncState),
         // Auth and UI state providers
         ChangeNotifierProvider.value(value: _authProvider),
@@ -165,3 +212,5 @@ class _PapyrusState extends State<Papyrus> {
     );
   }
 }
+
+MediaCacheService _createMediaCacheService(BuildContext _) => const MediaCacheService();

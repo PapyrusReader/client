@@ -1,6 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:provider/provider.dart';
+
+final Map<String, Future<Uint8List>> _privateCoverDownloads = {};
 
 /// Cover image size variants.
 enum BookCoverSize {
@@ -20,10 +26,11 @@ enum BookCoverSize {
 /// Book cover image widget with size variants and placeholder.
 class BookCoverImage extends StatelessWidget {
   final String? imageUrl;
+  final String? mediaId;
   final String? bookTitle;
   final BookCoverSize size;
 
-  const BookCoverImage({super.key, this.imageUrl, this.bookTitle, this.size = BookCoverSize.medium});
+  const BookCoverImage({super.key, this.imageUrl, this.mediaId, this.bookTitle, this.size = BookCoverSize.medium});
 
   @override
   Widget build(BuildContext context) {
@@ -50,6 +57,24 @@ class BookCoverImage extends StatelessWidget {
         fit: BoxFit.cover,
         errorWidget: (context, url, error) => _buildPlaceholder(context, colorScheme),
         progressIndicatorBuilder: (context, url, progress) => _buildLoadingIndicator(context, colorScheme, progress),
+      );
+    }
+    if (mediaId != null && mediaId!.isNotEmpty) {
+      final future = _privateCoverDownloads.putIfAbsent(
+        mediaId!,
+        () => context.read<AuthProvider>().downloadMedia(mediaId!),
+      );
+      return FutureBuilder<Uint8List>(
+        future: future,
+        builder: (context, snapshot) {
+          if (snapshot.hasData) {
+            return Image.memory(snapshot.data!, fit: BoxFit.cover);
+          }
+          if (snapshot.hasError) {
+            return _buildPlaceholder(context, colorScheme);
+          }
+          return _buildIndeterminateLoadingIndicator(colorScheme);
+        },
       );
     }
     return _buildPlaceholder(context, colorScheme);
@@ -93,6 +118,13 @@ class BookCoverImage extends StatelessWidget {
     return Container(
       color: colorScheme.surfaceContainerHighest,
       child: Center(child: CircularProgressIndicator(value: progress.progress, strokeWidth: 2)),
+    );
+  }
+
+  Widget _buildIndeterminateLoadingIndicator(ColorScheme colorScheme) {
+    return Container(
+      color: colorScheme.surfaceContainerHighest,
+      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
     );
   }
 

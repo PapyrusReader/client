@@ -13,6 +13,8 @@ const _bookColumns = [
   Column.integer('page_count'),
   Column.text('description'),
   Column.text('cover_image_url'),
+  Column.text('file_media_id'),
+  Column.text('cover_media_id'),
   Column.text('reading_status'),
   Column.integer('current_page'),
   Column.real('current_position'),

@@ -177,6 +177,27 @@ void main() {
       });
     });
 
+    group('storeBookFile', () {
+      test('stores downloaded book bytes with the provided extension', () async {
+        final bytes = Uint8List.fromList('downloaded epub bytes'.codeUnits);
+
+        await service.storeBookFile('downloaded-book', 'epub', bytes);
+
+        final retrieved = await service.getBookFile('downloaded-book');
+        final storedFile = File(p.join(tempDir.path, 'books', 'downloaded-book.epub'));
+        expect(storedFile.existsSync(), isTrue);
+        expect(retrieved, bytes);
+      });
+
+      test('normalizes extension and replaces existing cached file', () async {
+        await service.storeBookFile('downloaded-book', '.epub', Uint8List.fromList([1, 2, 3]));
+        await service.storeBookFile('downloaded-book', 'epub', Uint8List.fromList([4, 5]));
+
+        final retrieved = await service.getBookFile('downloaded-book');
+        expect(retrieved, Uint8List.fromList([4, 5]));
+      });
+    });
+
     group('deleteBookFile', () {
       test('removes stored file', () async {
         final bytes = loadTestFile('book1.epub');

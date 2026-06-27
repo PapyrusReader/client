@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:papyrus/auth/auth_models.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
+import 'package:papyrus/media/media_models.dart';
 
 class AuthApiException implements Exception {
   final int statusCode;
@@ -151,6 +154,46 @@ class AuthApiClient {
     await _postJson(config.endpoint('/sync/powersync-upload'), accessToken: accessToken, body: {'batch': batch});
   }
 
+  Future<MediaStorageUsage> fetchMediaUsage(String accessToken) async {
+    final json = await _getJson(config.endpoint('/media/usage'), accessToken: accessToken);
+    return MediaStorageUsage.fromJson(json);
+  }
+
+  Future<MediaAsset> uploadMedia(String accessToken, MediaUploadPayload payload) async {
+    final request = http.MultipartRequest('POST', config.endpoint('/media'))
+      ..headers.addAll(_authHeaders(accessToken))
+      ..fields['book_id'] = payload.bookId
+      ..fields['kind'] = payload.kind.apiValue
+      ..files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          payload.bytes,
+          filename: payload.filename,
+          contentType: _mediaType(payload.contentType),
+        ),
+      );
+
+    final response = await http.Response.fromStream(await _httpClient.send(request));
+    return MediaAsset.fromJson(_decodeResponse(response));
+  }
+
+  Future<Uint8List> downloadMedia(String accessToken, String assetId) async {
+    final response = await _httpClient.get(config.endpoint('/media/$assetId'), headers: _authHeaders(accessToken));
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return response.bodyBytes;
+    }
+    _decodeResponse(response);
+    throw const AuthApiException(statusCode: 0, message: 'Media download failed');
+  }
+
+  Future<void> deleteMedia(String accessToken, String assetId) async {
+    final response = await _httpClient.delete(config.endpoint('/media/$assetId'), headers: _authHeaders(accessToken));
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return;
+    }
+    _decodeResponse(response);
+  }
+
   Future<Map<String, dynamic>> _getJson(Uri uri, {String? accessToken}) async {
     final response = await _httpClient.get(uri, headers: _headers(accessToken));
 
@@ -183,6 +226,16 @@ class AuthApiClient {
       'Accept': 'application/json',
       if (accessToken != null) 'Authorization': 'Bearer $accessToken',
     };
+  }
+
+  Map<String, String> _authHeaders(String accessToken) {
+    return {'Accept': 'application/json', 'Authorization': 'Bearer $accessToken'};
+  }
+
+  MediaType _mediaType(String contentType) {
+    final parts = contentType.split('/');
+    if (parts.length != 2) return MediaType('application', 'octet-stream');
+    return MediaType(parts[0], parts[1]);
   }
 
   Map<String, dynamic> _decodeResponse(http.Response response) {

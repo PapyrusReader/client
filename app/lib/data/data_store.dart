@@ -97,6 +97,8 @@ class DataStore extends ChangeNotifier {
     if (repository == null) {
       throw StateError('Book repository is not initialized');
     }
+    _books[book.id] = book;
+    notifyListeners();
     unawaited(repository.upsert(book));
   }
 
@@ -105,6 +107,8 @@ class DataStore extends ChangeNotifier {
     if (repository == null) {
       throw StateError('Book repository is not initialized');
     }
+    _books[book.id] = book;
+    notifyListeners();
     unawaited(repository.upsert(book));
   }
 

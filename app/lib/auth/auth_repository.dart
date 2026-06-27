@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_web_auth_2/flutter_web_auth_2.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/auth/auth_models.dart';
+import 'package:papyrus/media/media_models.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/platform/web_redirect.dart';
 
@@ -191,6 +192,30 @@ class AuthRepository {
   Future<void> uploadPowerSyncBatch(List<Map<String, dynamic>> batch) {
     return _withFreshAccessToken((accessToken) {
       return apiClient.uploadPowerSyncBatch(accessToken, batch);
+    });
+  }
+
+  Future<MediaStorageUsage> fetchMediaUsage() {
+    return _withFreshAccessToken((accessToken) {
+      return apiClient.fetchMediaUsage(accessToken);
+    });
+  }
+
+  Future<MediaAsset> uploadMedia(MediaUploadPayload payload) {
+    return _withFreshAccessToken((accessToken) {
+      return apiClient.uploadMedia(accessToken, payload);
+    });
+  }
+
+  Future<Uint8List> downloadMedia(String assetId) {
+    return _withFreshAccessToken((accessToken) {
+      return apiClient.downloadMedia(accessToken, assetId);
+    });
+  }
+
+  Future<void> deleteMedia(String assetId) {
+    return _withFreshAccessToken((accessToken) {
+      return apiClient.deleteMedia(accessToken, assetId);
     });
   }
 

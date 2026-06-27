@@ -4,7 +4,11 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/models/book.dart';
+import 'package:papyrus/powersync/powersync_service.dart';
+import 'package:papyrus/powersync/sync_state.dart';
+import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/services/book_import_service_stub.dart'
     if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -190,10 +194,55 @@ class _ImportContentState extends State<_ImportContent> {
     );
 
     dataStore.addBook(book);
+    unawaited(_enqueueOnlineMediaUploads(book, result));
 
     final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
     messenger.showSnackBar(SnackBar(content: Text('Added "${book.title}" to library')));
+  }
+
+  Future<void> _enqueueOnlineMediaUploads(Book book, BookImportResult result) async {
+    final isOnlineAccount =
+        context.read<AuthProvider>().isSignedIn &&
+        context.read<PapyrusPowerSyncService>().mode == LibraryDatabaseMode.authenticated;
+    if (!isOnlineAccount) return;
+
+    final queue = context.read<MediaUploadQueue>();
+    await queue.enqueueBookFile(
+      book: book,
+      filename: _filename ?? '${book.id}.${result.fileExtension}',
+      contentType: _contentTypeForExtension(result.fileExtension),
+    );
+
+    final coverImage = result.coverImage;
+    if (coverImage != null) {
+      await queue.enqueueCover(
+        book: book,
+        filename: '${book.id}-cover.${_coverExtension(result.coverMimeType)}',
+        contentType: result.coverMimeType ?? 'image/jpeg',
+        bytes: coverImage,
+      );
+    }
+  }
+
+  String _contentTypeForExtension(String extension) {
+    return switch (extension) {
+      'epub' => 'application/epub+zip',
+      'pdf' => 'application/pdf',
+      'txt' => 'text/plain',
+      'cbz' => 'application/vnd.comicbook+zip',
+      'cbr' => 'application/vnd.comicbook-rar',
+      _ => 'application/octet-stream',
+    };
+  }
+
+  String _coverExtension(String? contentType) {
+    return switch (contentType) {
+      'image/png' => 'png',
+      'image/webp' => 'webp',
+      'image/gif' => 'gif',
+      _ => 'jpg',
+    };
   }
 
   @override

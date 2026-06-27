@@ -1,10 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/media/media_cache_service.dart';
 import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/models/bookmark.dart';
 import 'package:papyrus/models/note.dart';
+import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/book_details_provider.dart';
+import 'package:papyrus/services/book_import_service_stub.dart'
+    if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book/book_annotations.dart';
 import 'package:papyrus/widgets/book/book_bookmarks.dart';
@@ -345,7 +349,30 @@ class _BookDetailsPageState extends State<BookDetailsPage> with SingleTickerProv
     );
   }
 
-  void _onContinueReading() {
+  Future<void> _onContinueReading() async {
+    final book = _provider.book;
+    if (book == null) return;
+
+    if (book.fileMediaId != null) {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(const SnackBar(content: Text('Preparing book file...')));
+
+      try {
+        final importService = context.read<BookImportService>();
+        await context.read<MediaCacheService>().ensureBookFileCached(
+          book,
+          readLocalBookFile: importService.getBookFile,
+          writeLocalBookFile: importService.storeBookFile,
+          downloadMedia: context.read<AuthProvider>().downloadMedia,
+        );
+      } catch (_) {
+        if (!mounted) return;
+        messenger.showSnackBar(const SnackBar(content: Text('Could not download this book file.')));
+        return;
+      }
+    }
+
+    if (!mounted) return;
     // TODO: Navigate to reader
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening book reader...')));
   }

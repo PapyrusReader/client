@@ -141,8 +141,8 @@ class SyncSettingsProvider extends ChangeNotifier {
     return activeCustomServer?.fileStorageQuotaBytes ?? officialFileStorageQuotaBytes;
   }
 
-  String fileStorageLabel({required int usedBytes}) {
-    final quotaBytes = fileStorageQuotaBytes;
+  String fileStorageLabel({required int usedBytes, int? quotaBytesOverride}) {
+    final quotaBytes = quotaBytesOverride ?? fileStorageQuotaBytes;
     if (quotaBytes == null) return '${_formatBytes(usedBytes)} used';
 
     final availableBytes = quotaBytes > usedBytes ? quotaBytes - usedBytes : 0;
