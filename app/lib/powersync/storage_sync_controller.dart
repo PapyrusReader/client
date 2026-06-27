@@ -45,20 +45,14 @@ class StorageSyncController {
     return 'Not connected';
   }
 
-  String get metadataSyncLabel {
-    if (isGuest) return 'Metadata sync off';
+  String get dataSyncLabel {
+    if (isGuest) return 'Data sync off';
     return syncSettings.activeServerLabel;
   }
 
   bool get shouldShowServerSettings => !isGuest;
 
-  bool get shouldShowCustomServerUrls {
-    return shouldShowServerSettings && syncSettings.serverType == SyncServerType.custom;
-  }
-
-  String get mediaStorageLabel => syncSettings.mediaStorageLabel;
-
-  String? get mediaStorageRestrictionMessage => syncSettings.mediaStorageRestrictionMessage;
+  String get fileStorageLabel => syncSettings.fileStorageLabel;
 
   String get statusLabel {
     if (isGuest) return 'Guest local';

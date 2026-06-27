@@ -116,17 +116,18 @@ void main() {
     required AuthProvider authProvider,
     required _FakePowerSyncService powerSyncService,
     Size screenSize = const Size(400, 900),
+    SyncSettingsProvider? syncSettingsProvider,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final config = PapyrusApiConfig(
       serverBaseUri: Uri.parse('https://api.test'),
-      powerSyncServiceUri: Uri.parse('https://powersync.test'),
+      powerSyncServiceUri: Uri.parse('https://data-sync.test'),
     );
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<SyncSettingsProvider>(
-          create: (_) => SyncSettingsProvider(prefs, officialConfig: config),
+        ChangeNotifierProvider<SyncSettingsProvider>.value(
+          value: syncSettingsProvider ?? SyncSettingsProvider(prefs, officialConfig: config),
         ),
         Provider<PapyrusPowerSyncService>.value(value: powerSyncService),
         StreamProvider<SyncState>.value(value: powerSyncService.syncStates, initialData: powerSyncService.syncState),
@@ -160,7 +161,7 @@ void main() {
     expect(find.text('Metadata sync off'), findsNothing);
     expect(find.text('Clear guest library'), findsNothing);
     expect(find.text('https://api.test'), findsNothing);
-    expect(find.text('https://powersync.test'), findsNothing);
+    expect(find.text('https://data-sync.test'), findsNothing);
     expect(find.text('Current mode'), findsNothing);
     expect(find.text('Local database'), findsNothing);
     expect(find.text('Metadata sync'), findsNothing);
@@ -199,33 +200,77 @@ void main() {
     expect(find.text('Media storage'), findsNothing);
   });
 
-  testWidgets('authenticated storage sync UI shows official metadata sync and local-only media policy', (tester) async {
+  testWidgets('authenticated storage sync UI shows data sync and hides implementation details', (tester) async {
     final auth = await buildAuthProvider(signedIn: true);
     final service = _FakePowerSyncService(
       currentMode: LibraryDatabaseMode.authenticated,
       currentSyncState: SyncState(connected: true, lastSyncedAt: DateTime.utc(2026, 6, 27, 10, 30)),
     );
 
-    await tester.pumpWidget(await buildPage(authProvider: auth, powerSyncService: service));
+    await tester.pumpWidget(
+      await buildPage(authProvider: auth, powerSyncService: service, screenSize: const Size(1200, 900)),
+    );
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage & sync'), 400);
+    await tester.tap(find.text('Storage & sync').first);
     await tester.pumpAndSettle();
 
-    expect(find.text('Account synced'), findsWidgets);
-    expect(find.text('Server-scoped account cache'), findsOneWidget);
+    expect(find.text('Data sync'), findsOneWidget);
     expect(find.text('Official server'), findsWidgets);
-    expect(find.text('Local device only'), findsOneWidget);
-    expect(find.textContaining('Official servers do not store book files or covers'), findsOneWidget);
+    expect(find.text('Up to 1 GB included'), findsOneWidget);
     expect(find.text('Connected'), findsWidgets);
-    expect(find.text('Reconnect sync'), findsOneWidget);
+    expect(find.text('Reconnect'), findsOneWidget);
+    expect(find.text('Manage servers'), findsOneWidget);
     expect(find.text('Clear account local cache'), findsOneWidget);
+    expect(find.text('Metadata sync'), findsNothing);
+    expect(find.text('PowerSync service'), findsNothing);
+    expect(find.textContaining('PowerSync'), findsNothing);
+    expect(find.text('Library storage'), findsNothing);
+    expect(find.text('Media storage'), findsNothing);
+    expect(find.text('Local database'), findsNothing);
+    expect(find.text('Server-scoped account cache'), findsNothing);
 
-    await tester.ensureVisible(find.text('Reconnect sync'));
+    await tester.ensureVisible(find.text('Reconnect'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Reconnect sync'));
+    await tester.tap(find.text('Reconnect'));
     await tester.pump();
 
     expect(service.reconnectCalls, 1);
+  });
+
+  testWidgets('manage servers lists official and custom servers for switching', (tester) async {
+    final prefs = await SharedPreferences.getInstance();
+    final syncSettings = SyncSettingsProvider(
+      prefs,
+      officialConfig: PapyrusApiConfig(
+        serverBaseUri: Uri.parse('https://api.test'),
+        powerSyncServiceUri: Uri.parse('https://data-sync.test'),
+      ),
+      discoveryFetcher: (serverUrl) async => DataSyncDiscoverySettings(
+        dataSyncUri: Uri.parse('https://sync.${serverUrl.host}'),
+        fileStorageQuotaBytes: 1_073_741_824,
+      ),
+    );
+    await syncSettings.addCustomServer('https://reader.example');
+    syncSettings.selectServer(SyncSettingsProvider.officialServerId);
+    final auth = await buildAuthProvider(signedIn: true);
+    final service = _FakePowerSyncService(
+      currentMode: LibraryDatabaseMode.authenticated,
+      currentSyncState: const SyncState(connected: true),
+    );
+
+    await tester.pumpWidget(
+      await buildPage(authProvider: auth, powerSyncService: service, syncSettingsProvider: syncSettings),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Storage & sync'), 400);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Manage servers'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Sync servers'), findsOneWidget);
+    expect(find.text('Official server'), findsWidgets);
+    expect(find.text('reader.example'), findsOneWidget);
+    expect(find.text('Add custom server'), findsOneWidget);
   });
 
   testWidgets('storage sync UI shows pending writes and sync errors', (tester) async {
@@ -235,9 +280,11 @@ void main() {
       currentSyncState: const SyncState(connected: true, hasPendingWrites: true, uploadError: 'upload failed'),
     );
 
-    await tester.pumpWidget(await buildPage(authProvider: auth, powerSyncService: service));
+    await tester.pumpWidget(
+      await buildPage(authProvider: auth, powerSyncService: service, screenSize: const Size(1200, 900)),
+    );
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage & sync'), 400);
+    await tester.tap(find.text('Storage & sync').first);
     await tester.pumpAndSettle();
 
     expect(find.text('Error'), findsWidgets);

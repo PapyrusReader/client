@@ -231,35 +231,16 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Storage & sync'),
-        SettingsRow(label: 'Current mode', value: controller.modeLabel),
-        SettingsRow(label: 'Local database', value: controller.databaseLabel),
         SettingsRow(
-          label: 'Metadata sync',
-          value: controller.metadataSyncLabel,
-          onTap: controller.shouldShowServerSettings ? () => _showSyncServerPicker(context) : null,
-          showChevron: controller.shouldShowServerSettings,
+          label: 'Data sync',
+          value: controller.dataSyncLabel,
+          onTap: () => _showManageSyncServersSheet(context),
         ),
-        if (controller.shouldShowCustomServerUrls) ...[
-          SettingsRow(label: 'API server', value: controller.syncSettings.activeApiConfig.serverBaseUri.toString()),
-          SettingsRow(
-            label: 'PowerSync service',
-            value: controller.syncSettings.activeApiConfig.powerSyncServiceUri.toString(),
-          ),
-        ],
-        if (controller.shouldShowServerSettings) ...[
-          SettingsRow(label: 'Current status', value: controller.statusLabel),
-          SettingsRow(label: 'Pending writes', value: controller.pendingWritesLabel),
-          SettingsRow(label: 'Sync detail', value: controller.syncDetail),
-        ],
-        SettingsRow(
-          label: 'Media storage',
-          value: controller.mediaStorageLabel,
-          onTap: controller.shouldShowServerSettings ? () => _showMediaStoragePicker(context) : null,
-          showChevron: controller.shouldShowServerSettings,
-        ),
-        if (controller.mediaStorageRestrictionMessage case final message?)
-          SettingsRow(label: 'Media policy', value: message),
-        if (controller.canReconnect) SettingsRow(label: 'Reconnect sync', onTap: () => _handleReconnectSync(context)),
+        SettingsRow(label: 'Current status', value: controller.statusLabel),
+        SettingsRow(label: 'Pending changes', value: controller.pendingWritesLabel),
+        SettingsRow(label: 'File storage', value: controller.fileStorageLabel, showChevron: false),
+        SettingsRow(label: 'Manage servers', onTap: () => _showManageSyncServersSheet(context)),
+        if (controller.canReconnect) SettingsRow(label: 'Reconnect', onTap: () => _handleReconnectSync(context)),
         if (controller.canClearGuestLibrary)
           SettingsRow(label: 'Clear local library', onTap: () => _confirmClearLocalLibrary(context)),
         if (controller.canClearAuthenticatedCache)
@@ -939,160 +920,43 @@ class _ProfilePageState extends State<ProfilePage> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final controller = _storageSyncController(context);
-    final connected = controller.syncState.connected;
 
     if (controller.isGuest) return _buildOfflineStorageSyncContent(context);
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return SettingsCard(
+      title: 'Data sync',
       children: [
-        SettingsCard(
-          title: 'Library storage',
-          children: [
-            _buildInfoRow(context, label: 'Current mode', value: controller.modeLabel),
-            _buildInfoRow(context, label: 'Local database', value: controller.databaseLabel),
-            _buildInfoRow(context, label: 'Metadata sync', value: controller.metadataSyncLabel),
-          ],
+        _buildInfoRow(context, label: 'Active server', value: controller.dataSyncLabel),
+        _buildInfoRow(context, label: 'Status', value: controller.statusLabel),
+        _buildInfoRow(context, label: 'Pending changes', value: controller.pendingWritesLabel),
+        _buildInfoRow(context, label: 'File storage', value: controller.fileStorageLabel),
+        const SizedBox(height: Spacing.sm),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+          child: Text(controller.syncDetail, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
         ),
-        const SizedBox(height: Spacing.lg),
-        SettingsCard(
-          title: 'Metadata sync',
+        const SizedBox(height: Spacing.sm),
+        Wrap(
+          spacing: Spacing.sm,
+          runSpacing: Spacing.sm,
+          alignment: WrapAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Server', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-                      const SizedBox(height: Spacing.xs),
-                      Text(controller.metadataSyncLabel, style: textTheme.bodyLarge),
-                    ],
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
-                  decoration: BoxDecoration(
-                    color: connected ? colorScheme.primaryContainer : colorScheme.surfaceContainerHighest,
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                  ),
-                  child: Text(
-                    controller.statusLabel,
-                    style: textTheme.labelSmall?.copyWith(
-                      color: connected ? colorScheme.onPrimaryContainer : colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ),
-              ],
+            if (controller.canReconnect)
+              OutlinedButton.icon(
+                onPressed: () => _handleReconnectSync(context),
+                icon: const Icon(Icons.sync, size: IconSizes.small),
+                label: const Text('Reconnect'),
+              ),
+            OutlinedButton.icon(
+              onPressed: () => _showManageSyncServersSheet(context),
+              icon: const Icon(Icons.dns_outlined, size: IconSizes.small),
+              label: const Text('Manage servers'),
             ),
-            const SizedBox(height: Spacing.md),
-            if (controller.shouldShowServerSettings) ...[
-              _buildSegmentedField<SyncServerType>(
-                context,
-                label: 'Sync server',
-                value: controller.syncSettings.serverType,
-                options: const {SyncServerType.official: 'Official server', SyncServerType.custom: 'Custom server'},
-                onChanged: (value) => _selectSyncServerType(context, value),
-              ),
-              if (controller.shouldShowCustomServerUrls) ...[
-                const SizedBox(height: Spacing.md),
-                _buildInfoRow(
-                  context,
-                  label: 'API server',
-                  value: controller.syncSettings.activeApiConfig.serverBaseUri.toString(),
-                ),
-                _buildInfoRow(
-                  context,
-                  label: 'PowerSync service',
-                  value: controller.syncSettings.activeApiConfig.powerSyncServiceUri.toString(),
-                ),
-                const SizedBox(height: Spacing.sm),
-                OutlinedButton(
-                  onPressed: () => _showCustomServerDialog(context),
-                  child: const Text('Edit custom server'),
-                ),
-              ],
-              const SizedBox(height: Spacing.md),
-              _buildInfoRow(context, label: 'Status', value: controller.statusLabel),
-              _buildInfoRow(context, label: 'Pending writes', value: controller.pendingWritesLabel),
-              const SizedBox(height: Spacing.md),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
-                child: Text(
-                  controller.syncDetail,
-                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                ),
-              ),
-            ] else
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
-                child: Text(
-                  'Guest libraries stay fully offline. No server connection is used.',
-                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                ),
-              ),
-            if (controller.canReconnect ||
-                controller.canClearGuestLibrary ||
-                controller.canClearAuthenticatedCache) ...[
-              const SizedBox(height: Spacing.sm),
-              Wrap(
-                spacing: Spacing.sm,
-                runSpacing: Spacing.sm,
-                alignment: WrapAlignment.start,
-                children: [
-                  if (controller.canReconnect)
-                    OutlinedButton.icon(
-                      onPressed: () => _handleReconnectSync(context),
-                      icon: const Icon(Icons.sync, size: IconSizes.small),
-                      label: const Text('Reconnect sync'),
-                    ),
-                  if (controller.canClearGuestLibrary)
-                    OutlinedButton.icon(
-                      onPressed: () => _confirmClearLocalLibrary(context),
-                      icon: const Icon(Icons.delete_outline, size: IconSizes.small),
-                      label: const Text('Clear local library'),
-                    ),
-                  if (controller.canClearAuthenticatedCache)
-                    OutlinedButton.icon(
-                      onPressed: () => _confirmClearAuthenticatedCache(context),
-                      icon: const Icon(Icons.cleaning_services_outlined, size: IconSizes.small),
-                      label: const Text('Clear account local cache'),
-                    ),
-                ],
-              ),
-            ],
-          ],
-        ),
-        const SizedBox(height: Spacing.lg),
-        SettingsCard(
-          title: 'Media storage',
-          children: [
-            _buildInfoRow(context, label: 'Book files and covers', value: controller.mediaStorageLabel),
-            if (controller.mediaStorageRestrictionMessage case final message?)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
-                child: Text(message, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-              ),
-            if (controller.shouldShowServerSettings && controller.syncSettings.serverType == SyncServerType.custom) ...[
-              const SizedBox(height: Spacing.md),
-              _buildSegmentedField<MediaStorageBackend>(
-                context,
-                label: 'Media destination',
-                value: controller.syncSettings.mediaStorageBackend,
-                options: const {
-                  MediaStorageBackend.local: 'Local device',
-                  MediaStorageBackend.selfHosted: 'Self-hosted server',
-                },
-                onChanged: (value) => controller.syncSettings.mediaStorageBackend = value,
-              ),
-            ],
-            if (controller.shouldShowServerSettings && controller.syncSettings.serverType == SyncServerType.official)
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
-                child: Text(
-                  'Use a custom server if you want Papyrus-managed media storage. Third-party storage backends can be added later.',
-                  style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                ),
+            if (controller.canClearAuthenticatedCache)
+              OutlinedButton.icon(
+                onPressed: () => _confirmClearAuthenticatedCache(context),
+                icon: const Icon(Icons.cleaning_services_outlined, size: IconSizes.small),
+                label: const Text('Clear account local cache'),
               ),
           ],
         ),
@@ -1365,97 +1229,103 @@ class _ProfilePageState extends State<ProfilePage> {
     showLicensePage(context: context, applicationName: 'Papyrus', applicationVersion: '1.0.0');
   }
 
-  void _showSyncServerPicker(BuildContext context) {
-    final settings = context.read<SyncSettingsProvider>();
-
-    _showPickerSheet(
-      context,
-      items: const [('Official server', 'official'), ('Custom server', 'custom')],
-      selected: settings.serverType.name,
-      onSelected: (value) {
-        final serverType = value == SyncServerType.custom.name ? SyncServerType.custom : SyncServerType.official;
-        unawaited(_selectSyncServerType(context, serverType));
-      },
+  void _showManageSyncServersSheet(BuildContext context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (sheetContext) => SafeArea(
+        child: Consumer<SyncSettingsProvider>(
+          builder: (context, settings, _) {
+            return ListView(
+              shrinkWrap: true,
+              children: [
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, Spacing.sm),
+                  child: Text('Sync servers', style: Theme.of(context).textTheme.titleMedium),
+                ),
+                ListTile(
+                  leading: Icon(
+                    settings.activeServerId == SyncSettingsProvider.officialServerId
+                        ? Icons.radio_button_checked
+                        : Icons.radio_button_unchecked,
+                  ),
+                  title: const Text('Official server'),
+                  subtitle: const Text('Papyrus-hosted data sync and file storage'),
+                  onTap: () {
+                    settings.selectServer(SyncSettingsProvider.officialServerId);
+                    Navigator.pop(sheetContext);
+                  },
+                ),
+                for (final server in settings.customServers)
+                  ListTile(
+                    leading: Icon(
+                      settings.activeServerId == server.id ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                    ),
+                    title: Text(server.label),
+                    subtitle: Text(server.url),
+                    onTap: () {
+                      settings.selectServer(server.id);
+                      Navigator.pop(sheetContext);
+                    },
+                    trailing: PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          Navigator.pop(sheetContext);
+                          unawaited(_showCustomServerDialog(context, server: server));
+                        } else if (value == 'remove') {
+                          settings.removeCustomServer(server.id);
+                        }
+                      },
+                      itemBuilder: (context) => const [
+                        PopupMenuItem(value: 'edit', child: Text('Edit')),
+                        PopupMenuItem(value: 'remove', child: Text('Remove')),
+                      ],
+                    ),
+                  ),
+                ListTile(
+                  leading: const Icon(Icons.add),
+                  title: const Text('Add custom server'),
+                  onTap: () {
+                    Navigator.pop(sheetContext);
+                    unawaited(_showCustomServerDialog(context));
+                  },
+                ),
+              ],
+            );
+          },
+        ),
+      ),
     );
   }
 
-  Future<void> _selectSyncServerType(BuildContext context, SyncServerType value) async {
+  Future<void> _showCustomServerDialog(BuildContext context, {CustomSyncServer? server}) async {
     final settings = context.read<SyncSettingsProvider>();
-
-    if (value == SyncServerType.official) {
-      settings.serverType = SyncServerType.official;
-      return;
-    }
-
-    if (settings.customApiUrl.isEmpty || settings.customPowerSyncUrl.isEmpty) {
-      await _showCustomServerDialog(context, switchToCustomAfterSave: true);
-      return;
-    }
-
-    settings.serverType = SyncServerType.custom;
-  }
-
-  void _showMediaStoragePicker(BuildContext context) {
-    final settings = context.read<SyncSettingsProvider>();
-    final items = settings.serverType == SyncServerType.custom
-        ? const [('Local device only', 'local'), ('Self-hosted server', 'selfHosted')]
-        : const [('Local device only', 'local')];
-
-    _showPickerSheet(
-      context,
-      items: items,
-      selected: settings.mediaStorageBackend.name,
-      onSelected: (value) {
-        settings.mediaStorageBackend = value == MediaStorageBackend.selfHosted.name
-            ? MediaStorageBackend.selfHosted
-            : MediaStorageBackend.local;
-      },
-    );
-  }
-
-  Future<void> _showCustomServerDialog(BuildContext context, {bool switchToCustomAfterSave = false}) async {
-    final settings = context.read<SyncSettingsProvider>();
-    final apiController = TextEditingController(
-      text: settings.customApiUrl.isEmpty ? 'http://localhost:8080' : settings.customApiUrl,
-    );
-    final powerSyncController = TextEditingController(
-      text: settings.customPowerSyncUrl.isEmpty ? 'http://localhost:8081' : settings.customPowerSyncUrl,
-    );
+    final urlController = TextEditingController(text: server?.url ?? '');
     final messenger = ScaffoldMessenger.of(context);
 
     try {
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: const Text('Custom sync server'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: apiController,
-                decoration: const InputDecoration(labelText: 'Papyrus API URL'),
-                keyboardType: TextInputType.url,
-              ),
-              const SizedBox(height: Spacing.md),
-              TextField(
-                controller: powerSyncController,
-                decoration: const InputDecoration(labelText: 'PowerSync service URL'),
-                keyboardType: TextInputType.url,
-              ),
-            ],
+          title: Text(server == null ? 'Add custom server' : 'Edit custom server'),
+          content: TextField(
+            controller: urlController,
+            decoration: const InputDecoration(labelText: 'Server URL'),
+            keyboardType: TextInputType.url,
+            autofocus: true,
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
             FilledButton(
-              onPressed: () {
+              onPressed: () async {
                 try {
-                  settings.setCustomServerUrls(apiUrl: apiController.text, powerSyncUrl: powerSyncController.text);
-                  if (switchToCustomAfterSave) {
-                    settings.serverType = SyncServerType.custom;
+                  if (server == null) {
+                    await settings.addCustomServer(urlController.text);
+                  } else {
+                    await settings.updateCustomServer(server.id, urlController.text);
                   }
-                  Navigator.pop(dialogContext);
+                  if (dialogContext.mounted) Navigator.pop(dialogContext);
                 } catch (error) {
-                  messenger.showSnackBar(SnackBar(content: Text('Invalid server URL: $error')));
+                  messenger.showSnackBar(SnackBar(content: Text('Could not save server: $error')));
                 }
               },
               child: const Text('Save'),
@@ -1464,8 +1334,7 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       );
     } finally {
-      apiController.dispose();
-      powerSyncController.dispose();
+      urlController.dispose();
     }
   }
 
