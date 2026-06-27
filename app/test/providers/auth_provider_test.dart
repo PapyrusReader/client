@@ -104,6 +104,20 @@ void main() {
     expect(provider.isSignedIn, isFalse);
     expect(repository.clearCalled, isTrue);
   });
+
+  test('switching auth repository bootstraps the new server session without clearing the old one', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final officialRepository = FakeAuthRepository()..bootstrapResult = _tokens('Official User');
+    final customRepository = FakeAuthRepository()..bootstrapResult = _tokens('Custom User');
+    final provider = AuthProvider(prefs, repository: officialRepository, bootstrapOnCreate: false);
+
+    await provider.bootstrap();
+    await provider.replaceRepository(customRepository);
+
+    expect(officialRepository.clearCalled, isFalse);
+    expect(provider.isSignedIn, isTrue);
+    expect(provider.user?.displayName, 'Custom User');
+  });
 }
 
 AuthTokens _tokens(String displayName) {

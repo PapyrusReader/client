@@ -58,7 +58,8 @@ void main() {
     PapyrusPowerSyncService service(AuthRepository repository, String label) {
       return PapyrusPowerSyncService(
         connectorFactory: () => PapyrusPowerSyncConnector(authRepository: repository, config: config),
-        pathResolver: (mode) async => path.join(root.path, '$label-${mode.name}.db'),
+        pathResolver: (mode, profileKey, userId) async =>
+            path.join(root.path, '$label-${mode.name}-${profileKey ?? 'default'}-${userId ?? 'none'}.db'),
       );
     }
 

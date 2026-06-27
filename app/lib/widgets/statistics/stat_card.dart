@@ -203,7 +203,7 @@ class StatSectionCard extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text(title, style: textTheme.titleMedium),
-              if (action != null) action!,
+              ?action,
             ],
           ),
           const SizedBox(height: Spacing.md),

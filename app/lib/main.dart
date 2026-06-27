@@ -13,6 +13,7 @@ import 'package:papyrus/powersync/sync_state.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
+import 'package:papyrus/providers/sync_settings_provider.dart';
 import 'package:papyrus/providers/sidebar_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:provider/provider.dart';
@@ -40,37 +41,52 @@ class Papyrus extends StatefulWidget {
 class _PapyrusState extends State<Papyrus> {
   late final DataStore _dataStore;
   late final AuthProvider _authProvider;
+  late final SyncSettingsProvider _syncSettingsProvider;
   late final PapyrusPowerSyncService _powerSyncService;
+  late final PapyrusApiConfig _officialApiConfig;
+  late AuthRepository _authRepository;
+  late String _activeProfileKey;
   late final AppRouter _appRouter;
+  bool _switchingSyncProfile = false;
 
   @override
   void initState() {
     super.initState();
 
-    final apiConfig = PapyrusApiConfig.fromEnvironment();
-    final tokenStore = TokenStore(const SecureRefreshTokenStorage());
-    final authRepository = AuthRepository(
-      apiClient: AuthApiClient(config: apiConfig),
-      tokenStore: tokenStore,
-    );
+    _officialApiConfig = PapyrusApiConfig.fromEnvironment();
+    _syncSettingsProvider = SyncSettingsProvider(widget.prefs, officialConfig: _officialApiConfig);
+    _activeProfileKey = _syncSettingsProvider.activeProfileKey;
+    _authRepository = _buildAuthRepository(_syncSettingsProvider.activeApiConfig, _activeProfileKey);
 
     _dataStore = DataStore();
-    _authProvider = AuthProvider(widget.prefs, repository: authRepository);
+    _authProvider = AuthProvider(widget.prefs, repository: _authRepository);
     _powerSyncService = PapyrusPowerSyncService(
-      connectorFactory: () => PapyrusPowerSyncConnector(authRepository: authRepository, config: apiConfig),
+      connectorFactory: () =>
+          PapyrusPowerSyncConnector(authRepository: _authRepository, config: _syncSettingsProvider.activeApiConfig),
     );
     unawaited(_dataStore.attachBookRepository(_powerSyncService));
     _appRouter = AppRouter(authProvider: _authProvider);
     _authProvider.addListener(_syncPowerSyncAuthState);
+    _syncSettingsProvider.addListener(_handleSyncSettingsChanged);
     _syncPowerSyncAuthState();
   }
 
   @override
   void dispose() {
     _authProvider.removeListener(_syncPowerSyncAuthState);
+    _syncSettingsProvider.removeListener(_handleSyncSettingsChanged);
     unawaited(_disposeDataServices());
     _authProvider.dispose();
+    _syncSettingsProvider.dispose();
     super.dispose();
+  }
+
+  AuthRepository _buildAuthRepository(PapyrusApiConfig config, String profileKey) {
+    final tokenStore = TokenStore(SecureRefreshTokenStorage.scoped(profileKey));
+    return AuthRepository(
+      apiClient: AuthApiClient(config: config),
+      tokenStore: tokenStore,
+    );
   }
 
   Future<void> _disposeDataServices() async {
@@ -82,7 +98,7 @@ class _PapyrusState extends State<Papyrus> {
     final user = _authProvider.user;
     if (user != null && !_authProvider.isOfflineMode) {
       final userId = user.userId;
-      unawaited(_powerSyncService.activateAuthenticated(userId));
+      unawaited(_powerSyncService.activateAuthenticated(userId, profileKey: _activeProfileKey));
       return;
     }
 
@@ -91,8 +107,30 @@ class _PapyrusState extends State<Papyrus> {
       return;
     }
 
-    if (!_authProvider.isBootstrapping) {
-      unawaited(_powerSyncService.deactivate());
+    if (!_authProvider.isBootstrapping && _powerSyncService.mode != null) {
+      unawaited(_powerSyncService.deactivate(clearAuthenticated: !_switchingSyncProfile));
+    }
+  }
+
+  void _handleSyncSettingsChanged() {
+    final nextProfileKey = _syncSettingsProvider.activeProfileKey;
+    if (nextProfileKey == _activeProfileKey) {
+      return;
+    }
+
+    _activeProfileKey = nextProfileKey;
+    unawaited(_switchActiveSyncProfile());
+  }
+
+  Future<void> _switchActiveSyncProfile() async {
+    _switchingSyncProfile = true;
+    try {
+      await _powerSyncService.deactivate(clearAuthenticated: false);
+      _authRepository = _buildAuthRepository(_syncSettingsProvider.activeApiConfig, _activeProfileKey);
+      await _authProvider.replaceRepository(_authRepository, bootstrapNewRepository: !_authProvider.isOfflineMode);
+    } finally {
+      _switchingSyncProfile = false;
+      _syncPowerSyncAuthState();
     }
   }
 
@@ -102,6 +140,7 @@ class _PapyrusState extends State<Papyrus> {
       providers: [
         // Core data store - single source of truth
         ChangeNotifierProvider.value(value: _dataStore),
+        ChangeNotifierProvider.value(value: _syncSettingsProvider),
         Provider.value(value: _powerSyncService),
         StreamProvider<SyncState>.value(value: _powerSyncService.syncStates, initialData: _powerSyncService.syncState),
         // Auth and UI state providers

@@ -12,19 +12,30 @@ class SecureRefreshTokenStorage implements RefreshTokenStorage {
   static const _refreshTokenKey = 'papyrus_refresh_token';
 
   final FlutterSecureStorage _storage;
+  final String namespace;
 
-  const SecureRefreshTokenStorage([this._storage = const FlutterSecureStorage()]);
+  const SecureRefreshTokenStorage([this._storage = const FlutterSecureStorage()]) : namespace = 'default';
 
-  @override
-  Future<String?> read() => _storage.read(key: _refreshTokenKey);
+  const SecureRefreshTokenStorage.scoped(this.namespace, [this._storage = const FlutterSecureStorage()]);
 
-  @override
-  Future<void> write(String refreshToken) {
-    return _storage.write(key: _refreshTokenKey, value: refreshToken);
+  String get _storageKey {
+    if (namespace == 'default') {
+      return _refreshTokenKey;
+    }
+
+    return '$_refreshTokenKey.$namespace';
   }
 
   @override
-  Future<void> delete() => _storage.delete(key: _refreshTokenKey);
+  Future<String?> read() => _storage.read(key: _storageKey);
+
+  @override
+  Future<void> write(String refreshToken) {
+    return _storage.write(key: _storageKey, value: refreshToken);
+  }
+
+  @override
+  Future<void> delete() => _storage.delete(key: _storageKey);
 }
 
 class TokenStore {

@@ -7,7 +7,7 @@ import 'package:papyrus/auth/auth_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthProvider extends ChangeNotifier {
-  final AuthRepository _repository;
+  AuthRepository _repository;
   final SharedPreferences _prefs;
 
   static const _keyOfflineMode = 'offline_mode';
@@ -41,6 +41,19 @@ class AuthProvider extends ChangeNotifier {
     if (bootstrapOnCreate) {
       unawaited(bootstrap());
     }
+  }
+
+  Future<void> replaceRepository(AuthRepository repository, {bool bootstrapNewRepository = true}) async {
+    _repository = repository;
+    _user = null;
+    _error = null;
+
+    if (_isOfflineMode || !bootstrapNewRepository) {
+      _setStatus(AuthStatus.signedOut);
+      return;
+    }
+
+    await bootstrap();
   }
 
   Future<void> bootstrap() async {
