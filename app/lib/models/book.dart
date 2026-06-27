@@ -74,6 +74,8 @@ class Book {
   final int? pageCount;
   final String? description;
   final String? coverUrl;
+  final String? fileMediaId;
+  final String? coverMediaId;
 
   // Digital book fields
   final String? filePath;
@@ -123,6 +125,8 @@ class Book {
     this.pageCount,
     this.description,
     this.coverUrl,
+    this.fileMediaId,
+    this.coverMediaId,
     this.filePath,
     this.fileFormat,
     this.fileSize,
@@ -203,6 +207,8 @@ class Book {
     String? description,
     String? coverUrl,
     bool clearCoverUrl = false,
+    String? fileMediaId,
+    String? coverMediaId,
     String? filePath,
     BookFormat? fileFormat,
     int? fileSize,
@@ -240,6 +246,8 @@ class Book {
       pageCount: pageCount ?? this.pageCount,
       description: description ?? this.description,
       coverUrl: clearCoverUrl ? null : (coverUrl ?? this.coverUrl),
+      fileMediaId: fileMediaId ?? this.fileMediaId,
+      coverMediaId: coverMediaId ?? this.coverMediaId,
       filePath: filePath ?? this.filePath,
       fileFormat: fileFormat ?? this.fileFormat,
       fileSize: fileSize ?? this.fileSize,
@@ -281,6 +289,8 @@ class Book {
       'page_count': pageCount,
       'description': description,
       'cover_image_url': coverUrl,
+      'file_media_id': fileMediaId,
+      'cover_media_id': coverMediaId,
       'file_path': filePath,
       'file_format': fileFormat?.name,
       'file_size': fileSize,
@@ -322,6 +332,8 @@ class Book {
       pageCount: json['page_count'] as int?,
       description: json['description'] as String?,
       coverUrl: json['cover_image_url'] as String?,
+      fileMediaId: json['file_media_id'] as String?,
+      coverMediaId: json['cover_media_id'] as String?,
       filePath: json['file_path'] as String?,
       fileFormat: json['file_format'] != null ? BookFormat.values.byName(json['file_format'] as String) : null,
       fileSize: json['file_size'] as int?,

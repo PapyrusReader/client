@@ -7,6 +7,7 @@ import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
+import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/pages/profile_page.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
@@ -131,6 +132,7 @@ void main() {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<DataStore>.value(value: dataStore ?? DataStore()),
+        ChangeNotifierProvider<MediaUploadQueue>(create: (_) => MediaUploadQueue(prefs)),
         ChangeNotifierProvider<SyncSettingsProvider>.value(
           value: syncSettingsProvider ?? SyncSettingsProvider(prefs, officialConfig: config),
         ),

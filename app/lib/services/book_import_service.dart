@@ -212,6 +212,45 @@ class BookImportService {
     return (fileDataJs as JSArrayBuffer).toDart.asUint8List();
   }
 
+  /// Stores raw book bytes in OPFS for [bookId].
+  ///
+  /// Throws [UnsupportedError] when called on non-web platforms.
+  Future<void> storeBookFile(String bookId, String extension, Uint8List bytes) async {
+    if (!kIsWeb) {
+      throw UnsupportedError('BookImportService is only supported on web.');
+    }
+
+    final normalizedExtension = extension.toLowerCase().replaceFirst('.', '');
+    if (normalizedExtension.isEmpty) {
+      throw ArgumentError('Book file extension cannot be empty.');
+    }
+
+    final completer = Completer<JSObject>();
+    final worker = _getWorker();
+
+    _pending['storeFile:$bookId'] = completer;
+
+    final actualBytes = bytes.offsetInBytes == 0 && bytes.lengthInBytes == bytes.buffer.lengthInBytes
+        ? bytes
+        : Uint8List.fromList(bytes);
+    final jsBuffer = actualBytes.buffer.toJS;
+    final message = JSObject();
+    message['type'] = 'storeFile'.toJS;
+    message['format'] = normalizedExtension.toJS;
+    message['bookId'] = bookId.toJS;
+    message['fileData'] = jsBuffer;
+
+    worker.postMessage(message, [jsBuffer].toJS);
+
+    await completer.future.timeout(
+      _timeout,
+      onTimeout: () {
+        _pending.remove('storeFile:$bookId');
+        throw TimeoutException('Store file timed out after ${_timeout.inSeconds}s', _timeout);
+      },
+    );
+  }
+
   /// Terminates the Web Worker and releases resources.
   void dispose() {
     _worker?.terminate();
