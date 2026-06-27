@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/storage_sync_controller.dart';
 import 'package:papyrus/providers/auth_provider.dart';
@@ -237,14 +238,13 @@ class _ProfilePageState extends State<ProfilePage> {
           onTap: () => _showManageSyncServersSheet(context),
         ),
         SettingsRow(label: 'Current status', value: controller.statusLabel),
-        SettingsRow(label: 'Pending changes', value: controller.pendingWritesLabel),
-        SettingsRow(label: 'File storage', value: controller.fileStorageLabel, showChevron: false),
+        SettingsRow(label: 'File storage', value: controller.fileStorageLabel),
         SettingsRow(label: 'Manage servers', onTap: () => _showManageSyncServersSheet(context)),
         if (controller.canReconnect) SettingsRow(label: 'Reconnect', onTap: () => _handleReconnectSync(context)),
         if (controller.canClearGuestLibrary)
           SettingsRow(label: 'Clear local library', onTap: () => _confirmClearLocalLibrary(context)),
         if (controller.canClearAuthenticatedCache)
-          SettingsRow(label: 'Clear account local cache', onTap: () => _confirmClearAuthenticatedCache(context)),
+          SettingsRow(label: 'Clear local copy', onTap: () => _confirmClearAuthenticatedCache(context)),
       ],
     );
   }
@@ -928,7 +928,6 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         _buildInfoRow(context, label: 'Active server', value: controller.dataSyncLabel),
         _buildInfoRow(context, label: 'Status', value: controller.statusLabel),
-        _buildInfoRow(context, label: 'Pending changes', value: controller.pendingWritesLabel),
         _buildInfoRow(context, label: 'File storage', value: controller.fileStorageLabel),
         const SizedBox(height: Spacing.sm),
         Padding(
@@ -956,7 +955,7 @@ class _ProfilePageState extends State<ProfilePage> {
               OutlinedButton.icon(
                 onPressed: () => _confirmClearAuthenticatedCache(context),
                 icon: const Icon(Icons.cleaning_services_outlined, size: IconSizes.small),
-                label: const Text('Clear account local cache'),
+                label: const Text('Clear local copy'),
               ),
           ],
         ),
@@ -1017,7 +1016,12 @@ class _ProfilePageState extends State<ProfilePage> {
       powerSyncService: context.read<PapyrusPowerSyncService>(),
       syncSettings: context.watch<SyncSettingsProvider>(),
       syncState: context.watch<SyncState>(),
+      fileStorageUsedBytes: _fileStorageUsedBytes(context.watch<DataStore>()),
     );
+  }
+
+  int _fileStorageUsedBytes(DataStore dataStore) {
+    return dataStore.books.fold<int>(0, (total, book) => total + (book.fileSize ?? 0));
   }
 
   Widget _buildInfoRow(BuildContext context, {required String label, required String value}) {
@@ -1405,19 +1409,19 @@ class _ProfilePageState extends State<ProfilePage> {
   Future<void> _confirmClearAuthenticatedCache(BuildContext context) async {
     final confirmed = await _confirmStorageAction(
       context,
-      title: 'Clear account local cache',
+      title: 'Clear local copy',
       message:
-          'This clears only the local account cache on this device. Synced books remain on the server and will download again after reconnecting.',
-      actionLabel: 'Clear local cache',
+          'This removes synced library data stored on this device. Your library stays on the server and will download again when sync reconnects.',
+      actionLabel: 'Clear local copy',
     );
     if (!confirmed || !context.mounted) return;
 
     final messenger = ScaffoldMessenger.of(context);
     try {
       await context.read<PapyrusPowerSyncService>().clearAuthenticatedCache();
-      messenger.showSnackBar(const SnackBar(content: Text('Account local cache cleared.')));
+      messenger.showSnackBar(const SnackBar(content: Text('Local copy cleared.')));
     } catch (error) {
-      messenger.showSnackBar(SnackBar(content: Text('Could not clear account cache: $error')));
+      messenger.showSnackBar(SnackBar(content: Text('Could not clear local copy: $error')));
     }
   }
 

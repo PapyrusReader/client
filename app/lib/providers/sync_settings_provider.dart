@@ -141,10 +141,12 @@ class SyncSettingsProvider extends ChangeNotifier {
     return activeCustomServer?.fileStorageQuotaBytes ?? officialFileStorageQuotaBytes;
   }
 
-  String get fileStorageLabel {
+  String fileStorageLabel({required int usedBytes}) {
     final quotaBytes = fileStorageQuotaBytes;
-    if (quotaBytes == null) return 'Available';
-    return 'Up to ${_formatQuota(quotaBytes)} included';
+    if (quotaBytes == null) return '${_formatBytes(usedBytes)} used';
+
+    final availableBytes = quotaBytes > usedBytes ? quotaBytes - usedBytes : 0;
+    return '${_formatBytes(usedBytes)} used, ${_formatBytes(availableBytes)} available of ${_formatBytes(quotaBytes)}';
   }
 
   bool get isOfficialServer => activeServerId == officialServerId;
@@ -326,9 +328,18 @@ class SyncSettingsProvider extends ChangeNotifier {
     return '${uri.authority}$path';
   }
 
-  String _formatQuota(int bytes) {
-    final gib = bytes / (1024 * 1024 * 1024);
-    if (gib == gib.roundToDouble()) return '${gib.round()} GB';
-    return '${gib.toStringAsFixed(1)} GB';
+  String _formatBytes(int bytes) {
+    const mib = 1024 * 1024;
+    const gib = 1024 * mib;
+
+    if (bytes >= gib) return '${_formatByteValue(bytes / gib)} GB';
+    if (bytes == 0) return '0 MB';
+    return '${_formatByteValue(bytes / mib)} MB';
+  }
+
+  String _formatByteValue(double value) {
+    if (value == value.roundToDouble()) return value.round().toString();
+    if (value >= 10) return value.toStringAsFixed(1);
+    return value.toStringAsFixed(2);
   }
 }

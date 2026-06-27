@@ -41,7 +41,7 @@ void main() {
     expect(provider.activeProfileKey, 'official');
     expect(provider.activeApiConfig.serverBaseUri, Uri.parse('https://api.papyrus.test'));
     expect(provider.activeApiConfig.powerSyncServiceUri, Uri.parse('https://data-sync.papyrus.test'));
-    expect(provider.fileStorageLabel, 'Up to 1 GB included');
+    expect(provider.fileStorageLabel(usedBytes: 0), '0 MB used, 1 GB available of 1 GB');
     expect(provider.customServers, isEmpty);
   });
 

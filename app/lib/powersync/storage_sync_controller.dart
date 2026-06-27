@@ -9,12 +9,14 @@ class StorageSyncController {
     required this.powerSyncService,
     required this.syncSettings,
     required this.syncState,
+    required this.fileStorageUsedBytes,
   });
 
   final AuthProvider authProvider;
   final PapyrusPowerSyncService powerSyncService;
   final SyncSettingsProvider syncSettings;
   final SyncState syncState;
+  final int fileStorageUsedBytes;
 
   LibraryDatabaseMode? get databaseMode => powerSyncService.mode;
 
@@ -52,7 +54,7 @@ class StorageSyncController {
 
   bool get shouldShowServerSettings => !isGuest;
 
-  String get fileStorageLabel => syncSettings.fileStorageLabel;
+  String get fileStorageLabel => syncSettings.fileStorageLabel(usedBytes: fileStorageUsedBytes);
 
   String get statusLabel {
     if (isGuest) return 'Guest local';
@@ -61,7 +63,7 @@ class StorageSyncController {
     if (syncState.connecting) return 'Connecting';
     if (syncState.uploading || syncState.downloading) return 'Syncing';
     if (syncState.connected) {
-      return syncState.hasPendingWrites ? 'Pending upload' : 'Connected';
+      return syncState.hasPendingWrites ? 'Waiting to sync' : 'Connected';
     }
     return 'Offline';
   }
@@ -69,14 +71,11 @@ class StorageSyncController {
   String get syncDetail {
     final error = syncState.uploadError ?? syncState.downloadError;
     if (error != null) return 'Sync error: $error';
-    if (syncState.hasPendingWrites) return 'Local changes are waiting to upload';
+    if (syncState.hasPendingWrites) return 'Changes will sync automatically';
     final lastSyncedAt = syncState.lastSyncedAt;
     if (lastSyncedAt == null) return 'No completed sync yet';
     return 'Last sync: ${lastSyncedAt.toLocal()}';
   }
-
-  String get pendingWritesLabel =>
-      syncState.hasPendingWrites ? 'Local changes pending upload' : 'No pending local writes';
 
   bool get canReconnect => isAuthenticated;
   bool get canClearGuestLibrary => databaseMode == LibraryDatabaseMode.guest;
