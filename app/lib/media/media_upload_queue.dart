@@ -123,6 +123,26 @@ class MediaUploadQueue extends ChangeNotifier {
     );
   }
 
+  Future<void> retryFailed({String? bookId}) async {
+    _tasks = _tasks
+        .map((task) {
+          final matchesBook = bookId == null || task.bookId == bookId;
+          if (!matchesBook || task.status != MediaUploadTaskStatus.failed) {
+            return task;
+          }
+          return task.copyWith(status: MediaUploadTaskStatus.pending);
+        })
+        .toList(growable: false);
+    await _save();
+    notifyListeners();
+  }
+
+  Future<void> removeTasksForBook(String bookId) async {
+    _tasks = _tasks.where((task) => task.bookId != bookId).toList(growable: false);
+    await _save();
+    notifyListeners();
+  }
+
   Future<void> processPending({
     required DataStore dataStore,
     required BookFileReader readBookFile,

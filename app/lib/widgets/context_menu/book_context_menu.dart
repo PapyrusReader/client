@@ -17,6 +17,7 @@ class BookContextMenu {
     VoidCallback? onMoveToShelf,
     VoidCallback? onManageTopics,
     Function(ReadingStatus)? onStatusChange,
+    VoidCallback? onDownload,
     VoidCallback? onDelete,
   }) {
     final screenWidth = MediaQuery.of(context).size.width;
@@ -34,6 +35,7 @@ class BookContextMenu {
         onMoveToShelf: onMoveToShelf,
         onManageTopics: onManageTopics,
         onStatusChange: onStatusChange,
+        onDownload: onDownload,
         onDelete: onDelete,
       );
     } else {
@@ -47,6 +49,7 @@ class BookContextMenu {
         onMoveToShelf: onMoveToShelf,
         onManageTopics: onManageTopics,
         onStatusChange: onStatusChange,
+        onDownload: onDownload,
         onDelete: onDelete,
       );
     }
@@ -63,6 +66,7 @@ class BookContextMenu {
     VoidCallback? onMoveToShelf,
     VoidCallback? onManageTopics,
     Function(ReadingStatus)? onStatusChange,
+    VoidCallback? onDownload,
     VoidCallback? onDelete,
   }) {
     final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
@@ -117,10 +121,16 @@ class BookContextMenu {
           child: _MenuItemRow(icon: Icons.check_circle_outline, label: 'Mark as finished', isSelected: book.isFinished),
         ),
         const PopupMenuDivider(),
+        if (!book.isPhysical)
+          const PopupMenuItem(
+            value: 'download',
+            height: 40,
+            child: _MenuItemRow(icon: Icons.file_download_outlined, label: 'Download'),
+          ),
         const PopupMenuItem(
           value: 'delete',
           height: 40,
-          child: _MenuItemRow(icon: Icons.delete_outline, label: 'Delete book', isDestructive: true),
+          child: _MenuItemRow(icon: Icons.delete_outline, label: 'Delete', isDestructive: true),
         ),
       ],
     ).then((value) {
@@ -142,6 +152,8 @@ class BookContextMenu {
           onStatusChange?.call(ReadingStatus.inProgress);
         case 'finished':
           onStatusChange?.call(ReadingStatus.completed);
+        case 'download':
+          onDownload?.call();
         case 'delete':
           _confirmDelete(context, book, onDelete);
       }
@@ -158,6 +170,7 @@ class BookContextMenu {
     VoidCallback? onMoveToShelf,
     VoidCallback? onManageTopics,
     Function(ReadingStatus)? onStatusChange,
+    VoidCallback? onDownload,
     VoidCallback? onDelete,
   }) {
     showModalBottomSheet(
@@ -175,6 +188,7 @@ class BookContextMenu {
         onMoveToShelf: onMoveToShelf,
         onManageTopics: onManageTopics,
         onStatusChange: onStatusChange,
+        onDownload: onDownload,
         onDelete: onDelete,
       ),
     );
@@ -250,6 +264,7 @@ class _BookContextBottomSheet extends StatelessWidget {
   final VoidCallback? onMoveToShelf;
   final VoidCallback? onManageTopics;
   final Function(ReadingStatus)? onStatusChange;
+  final VoidCallback? onDownload;
   final VoidCallback? onDelete;
 
   const _BookContextBottomSheet({
@@ -261,6 +276,7 @@ class _BookContextBottomSheet extends StatelessWidget {
     this.onMoveToShelf,
     this.onManageTopics,
     this.onStatusChange,
+    this.onDownload,
     this.onDelete,
   });
 
@@ -402,9 +418,18 @@ class _BookContextBottomSheet extends StatelessWidget {
 
             const Divider(),
 
+            if (!book.isPhysical)
+              _BottomSheetItem(
+                icon: Icons.file_download_outlined,
+                label: 'Download',
+                onTap: () {
+                  Navigator.pop(context);
+                  onDownload?.call();
+                },
+              ),
             _BottomSheetItem(
               icon: Icons.delete_outline,
-              label: 'Delete book',
+              label: 'Delete',
               isDestructive: true,
               onTap: () {
                 Navigator.pop(context);

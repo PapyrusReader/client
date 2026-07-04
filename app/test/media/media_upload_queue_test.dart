@@ -60,6 +60,47 @@ void main() {
     expect(dataStore.getBook(book.id)?.fileMediaId, isNull);
     expect(dataStore.getBook(book.id)?.filePath, 'book-1');
   });
+
+  test('retryFailed returns failed upload tasks to pending', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final repository = InMemoryBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
+    await repository.upsert(book);
+    await pumpEventQueue();
+    final queue = MediaUploadQueue(prefs);
+    await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
+
+    await queue.processPending(
+      dataStore: dataStore,
+      readBookFile: (bookId) async => Uint8List.fromList('epub bytes'.codeUnits),
+      uploadMedia: (payload) async => throw const MediaUploadException.storageFull(),
+    );
+
+    await queue.retryFailed();
+
+    expect(queue.pendingTasks.single.status, MediaUploadTaskStatus.pending);
+    expect(queue.pendingTasks.single.errorMessage, isNull);
+  });
+
+  test('removeTasksForBook removes queued book file and cover uploads', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final queue = MediaUploadQueue(prefs);
+    final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
+
+    await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
+    await queue.enqueueCover(
+      book: book,
+      filename: 'cover.jpg',
+      contentType: 'image/jpeg',
+      bytes: Uint8List.fromList('cover'.codeUnits),
+    );
+
+    await queue.removeTasksForBook(book.id);
+
+    expect(queue.pendingTasks, isEmpty);
+    expect(prefs.getString('media_upload_queue'), '[]');
+  });
 }
 
 Book _book({String? filePath, int? fileSize, String? fileHash}) {

@@ -11,6 +11,7 @@ class StorageSyncController {
     required this.syncSettings,
     required this.syncState,
     required this.fileStorageUsedBytes,
+    this.failedMediaUploadCount = 0,
     this.mediaStorageUsage,
   });
 
@@ -19,6 +20,7 @@ class StorageSyncController {
   final SyncSettingsProvider syncSettings;
   final SyncState syncState;
   final int fileStorageUsedBytes;
+  final int failedMediaUploadCount;
   final MediaStorageUsage? mediaStorageUsage;
 
   LibraryDatabaseMode? get databaseMode => powerSyncService.mode;
@@ -89,6 +91,12 @@ class StorageSyncController {
   bool get canReconnect => isAuthenticated;
   bool get canClearGuestLibrary => databaseMode == LibraryDatabaseMode.guest;
   bool get canClearAuthenticatedCache => databaseMode == LibraryDatabaseMode.authenticated;
+  bool get hasFailedMediaUploads => failedMediaUploadCount > 0;
+
+  String get failedMediaUploadLabel {
+    if (failedMediaUploadCount == 1) return '1 failed';
+    return '$failedMediaUploadCount failed';
+  }
 
   Future<void> reconnect() => powerSyncService.reconnect();
   Future<void> clearGuestLibrary() => powerSyncService.clearGuestLibrary();

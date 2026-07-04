@@ -17,6 +17,7 @@ import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
+import 'package:papyrus/services/book_download_service.dart';
 import 'package:papyrus/services/book_import_service_stub.dart'
     if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/providers/sidebar_provider.dart';
@@ -188,6 +189,7 @@ class _PapyrusState extends State<Papyrus> {
         ChangeNotifierProvider.value(value: _syncSettingsProvider),
         Provider.value(value: _powerSyncService),
         Provider.value(value: _bookImportService),
+        Provider(create: _createBookDownloadService),
         Provider(create: _createMediaCacheService),
         StreamProvider<SyncState>.value(value: _powerSyncService.syncStates, initialData: _powerSyncService.syncState),
         // Auth and UI state providers
@@ -212,5 +214,7 @@ class _PapyrusState extends State<Papyrus> {
     );
   }
 }
+
+BookDownloadService _createBookDownloadService(BuildContext _) => const BookDownloadService();
 
 MediaCacheService _createMediaCacheService(BuildContext _) => const MediaCacheService();
