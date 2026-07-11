@@ -70,6 +70,24 @@ void main() {
     await repository.controller.close();
   });
 
+  test('stale sync snapshots do not clear an uploaded cover media id', () async {
+    final repository = FakeBookRepository();
+    final store = DataStore(bookRepository: repository);
+    final syncedBook = _book('one', 'First');
+
+    repository.controller.add([syncedBook]);
+    await pumpEventQueue();
+
+    store.updateBook(syncedBook.copyWith(coverMediaId: 'cover-asset'));
+    repository.controller.add([syncedBook]);
+    await pumpEventQueue();
+
+    expect(store.getBook(syncedBook.id)?.coverMediaId, 'cover-asset');
+
+    await store.disposeBookRepository();
+    await repository.controller.close();
+  });
+
   test('book mutations delegate to the active repository', () async {
     final repository = FakeBookRepository();
     final store = DataStore();

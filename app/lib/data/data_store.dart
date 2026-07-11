@@ -156,10 +156,22 @@ class DataStore extends ChangeNotifier {
   }
 
   void replaceBooksFromSync(List<Book> books) {
-    final syncedIds = books.map((book) => book.id).toSet();
+    final mergedBooks = books
+        .map((book) {
+          final localBook = _books[book.id];
+          if (book.coverMediaId == null && localBook?.coverMediaId != null) {
+            // PowerSync can briefly emit the downloaded server row before its
+            // pending local media-reference update is acknowledged. Keep the
+            // established local reference through that transient null snapshot.
+            return book.copyWith(coverMediaId: localBook!.coverMediaId);
+          }
+          return book;
+        })
+        .toList(growable: false);
+    final syncedIds = mergedBooks.map((book) => book.id).toSet();
     _books
       ..clear()
-      ..addEntries(books.map((book) => MapEntry(book.id, book)));
+      ..addEntries(mergedBooks.map((book) => MapEntry(book.id, book)));
     _bookShelfRelations.removeWhere((relation) => !syncedIds.contains(relation.bookId));
     _bookTagRelations.removeWhere((relation) => !syncedIds.contains(relation.bookId));
     _annotations.removeWhere((key, annotation) => !syncedIds.contains(annotation.bookId));
