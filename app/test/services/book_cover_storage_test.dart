@@ -1,8 +1,11 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/media/cover_storage_bucket.dart';
+import 'package:papyrus/media/local_cover_image_provider.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/services/book_import_service_stub.dart';
 import 'package:path_provider_platform_interface/path_provider_platform_interface.dart';
@@ -25,12 +28,14 @@ void main() {
   late BookImportService service;
 
   setUp(() async {
+    _clearImageCache();
     root = await Directory.systemTemp.createTemp('papyrus-cover-cache-');
     PathProviderPlatform.instance = _FakePathProvider(root);
     service = BookImportService();
   });
 
   tearDown(() async {
+    _clearImageCache();
     if (root.existsSync()) {
       await root.delete(recursive: true);
     }
@@ -175,6 +180,117 @@ void main() {
     expect(await service.getCoverFile(scope, 'asset-1'), isNull);
   });
 
+  for (final deletion in <({String name, MediaStorageScope scope, CoverStorageBucket bucket, String id})>[
+    (
+      name: 'cached',
+      scope: MediaStorageScope(profileKey: 'official', userId: 'user-1'),
+      bucket: CoverStorageBucket.cached,
+      id: 'asset-1',
+    ),
+    (
+      name: 'pending',
+      scope: MediaStorageScope(profileKey: 'official', userId: 'user-1'),
+      bucket: CoverStorageBucket.pending,
+      id: 'book-1',
+    ),
+    (name: 'guest', scope: MediaStorageScope.localGuest, bucket: CoverStorageBucket.guestBooks, id: 'book-1'),
+  ]) {
+    testWidgets('deleting a ${deletion.name} cover evicts its decoded image', (tester) async {
+      var loads = 0;
+      Future<Uint8List?> loadBytes() async {
+        loads++;
+        return _pngBytes;
+      }
+
+      await tester.runAsync(() => _storeCover(service, deletion.scope, deletion.bucket, deletion.id));
+      await _pumpCover(tester, deletion.scope, deletion.bucket, deletion.id, loadBytes);
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
+
+      await tester.runAsync(() => _deleteCover(service, deletion.scope, deletion.bucket, deletion.id));
+      await _pumpCover(tester, deletion.scope, deletion.bucket, deletion.id, loadBytes);
+
+      expect(loads, 2);
+    });
+  }
+
+  testWidgets('promotion evicts pending decoded image but preserves cached target', (tester) async {
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    var pendingLoads = 0;
+    var cachedLoads = 0;
+
+    await tester.runAsync(() async {
+      await service.storePendingCoverFile(scope, 'book-1', _pngBytes);
+      await service.storeCoverFile(scope, 'asset-1', _pngBytes);
+    });
+    await _pumpCover(tester, scope, CoverStorageBucket.pending, 'book-1', () async {
+      pendingLoads++;
+      return _pngBytes;
+    });
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await _pumpCover(tester, scope, CoverStorageBucket.cached, 'asset-1', () async {
+      cachedLoads++;
+      return _pngBytes;
+    });
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+
+    await tester.runAsync(() => service.promotePendingCoverFile(scope, bookId: 'book-1', mediaId: 'asset-1'));
+    await _pumpCover(tester, scope, CoverStorageBucket.pending, 'book-1', () async {
+      pendingLoads++;
+      return _pngBytes;
+    });
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await _pumpCover(tester, scope, CoverStorageBucket.cached, 'asset-1', () async {
+      cachedLoads++;
+      return _pngBytes;
+    });
+
+    expect(pendingLoads, 2);
+    expect(cachedLoads, 1);
+  });
+
+  testWidgets('ordinary cover stores do not evict a decoded image', (tester) async {
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    var loads = 0;
+    Future<Uint8List?> loadBytes() async {
+      loads++;
+      return _pngBytes;
+    }
+
+    await _pumpCover(tester, scope, CoverStorageBucket.cached, 'asset-1', loadBytes);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await tester.runAsync(() => service.storeCoverFile(scope, 'asset-1', _pngBytes));
+    await _pumpCover(tester, scope, CoverStorageBucket.cached, 'asset-1', loadBytes);
+
+    expect(loads, 1);
+  });
+
+  testWidgets('filesystem deletion failure preserves a decoded image', (tester) async {
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    var loads = 0;
+    Future<Uint8List?> loadBytes() async {
+      loads++;
+      return _pngBytes;
+    }
+
+    await _pumpCover(tester, scope, CoverStorageBucket.cached, 'asset-1', loadBytes);
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+
+    final blocker = File('${root.path}/not-a-directory')..writeAsStringSync('blocked');
+    PathProviderPlatform.instance = _FakePathProvider(Directory(blocker.path));
+    await tester.runAsync(
+      () => expectLater(service.deleteCoverFile(scope, 'asset-1'), throwsA(isA<FileSystemException>())),
+    );
+    await _pumpCover(tester, scope, CoverStorageBucket.cached, 'asset-1', loadBytes);
+
+    expect(loads, 1);
+  });
+
   test('clearing covers removes only the selected scope', () async {
     final first = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     final second = MediaStorageScope(profileKey: 'official', userId: 'user-2');
@@ -298,6 +414,88 @@ vm.runInContext(source, context);
     expect(helper, contains("message['bucket'] = bucket.pathComponent.toJS;"));
     expect(helper, isNot(contains('bytes.offsetInBytes == 0 && bytes.lengthInBytes == bytes.buffer.lengthInBytes')));
   });
+
+  test('web cover mutations evict only successfully removed decoded keys', () {
+    final source = File('lib/services/book_import_service.dart').readAsStringSync();
+    final deleteHelper = source.substring(
+      source.indexOf('Future<void> _deleteCoverFile'),
+      source.indexOf('Future<void> clearCoverFiles'),
+    );
+    final promotion = source.substring(
+      source.indexOf('Future<void> promotePendingCoverFile'),
+      source.indexOf('Future<Uint8List?> _getCoverFile'),
+    );
+    final storeHelper = source.substring(
+      source.indexOf('Future<void> _storeCoverFile'),
+      source.indexOf('Future<void> _deleteCoverFile'),
+    );
+
+    expect(source, contains("import 'package:papyrus/media/local_cover_image_provider.dart';"));
+    expect(
+      deleteHelper.indexOf("await _sendCoverRequest(type: 'deleteCover'"),
+      lessThan(deleteHelper.indexOf('LocalCoverImageProvider.evictKey(')),
+    );
+    expect(deleteHelper, contains('scopeKey: scope.persistenceKey'));
+    expect(deleteHelper, contains('bucket: bucket'));
+    expect(deleteHelper, contains('fileId: id'));
+    expect(
+      promotion.indexOf("await _sendCoverRequest(\n      type: 'promoteCover'"),
+      lessThan(promotion.indexOf('LocalCoverImageProvider.evictKey(')),
+    );
+    expect(promotion, contains('bucket: CoverStorageBucket.pending'));
+    expect(promotion, contains('fileId: bookId'));
+    expect(promotion, isNot(contains('fileId: mediaId')));
+    expect(storeHelper, isNot(contains('LocalCoverImageProvider.evictKey(')));
+  });
+}
+
+final Uint8List _pngBytes = base64Decode(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk'
+  '+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+);
+
+Future<void> _storeCover(BookImportService service, MediaStorageScope scope, CoverStorageBucket bucket, String id) {
+  return switch (bucket) {
+    CoverStorageBucket.cached => service.storeCoverFile(scope, id, _pngBytes),
+    CoverStorageBucket.pending => service.storePendingCoverFile(scope, id, _pngBytes),
+    CoverStorageBucket.guestBooks => service.storeGuestCoverFile(id, _pngBytes),
+  };
+}
+
+Future<void> _deleteCover(BookImportService service, MediaStorageScope scope, CoverStorageBucket bucket, String id) {
+  return switch (bucket) {
+    CoverStorageBucket.cached => service.deleteCoverFile(scope, id),
+    CoverStorageBucket.pending => service.deletePendingCoverFile(scope, id),
+    CoverStorageBucket.guestBooks => service.deleteGuestCoverFile(id),
+  };
+}
+
+Future<void> _pumpCover(
+  WidgetTester tester,
+  MediaStorageScope scope,
+  CoverStorageBucket bucket,
+  String id,
+  Future<Uint8List?> Function() loadBytes,
+) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      home: Image(
+        image: LocalCoverImageProvider(
+          scopeKey: scope.persistenceKey,
+          bucket: bucket,
+          fileId: id,
+          loadBytes: loadBytes,
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+void _clearImageCache() {
+  final cache = PaintingBinding.instance.imageCache;
+  cache.clear();
+  cache.clearLiveImages();
 }
 
 bool _bytesEqual(Uint8List first, Uint8List? second) {

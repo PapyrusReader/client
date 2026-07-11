@@ -4,6 +4,7 @@ import 'dart:js_interop_unsafe';
 
 import 'package:flutter/foundation.dart';
 import 'package:papyrus/media/cover_storage_bucket.dart';
+import 'package:papyrus/media/local_cover_image_provider.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/services/book_import_result.dart';
 import 'package:uuid/uuid.dart';
@@ -310,6 +311,11 @@ class BookImportService {
       mediaId: bookId,
       targetMediaId: mediaId,
     );
+    LocalCoverImageProvider.evictKey(
+      scopeKey: scope.persistenceKey,
+      bucket: CoverStorageBucket.pending,
+      fileId: bookId,
+    );
   }
 
   Future<Uint8List?> _getCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
@@ -327,6 +333,7 @@ class BookImportService {
 
   Future<void> _deleteCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
     await _sendCoverRequest(type: 'deleteCover', scope: scope, bucket: bucket, mediaId: id);
+    LocalCoverImageProvider.evictKey(scopeKey: scope.persistenceKey, bucket: bucket, fileId: id);
   }
 
   Future<void> clearCoverFiles(MediaStorageScope scope) async {

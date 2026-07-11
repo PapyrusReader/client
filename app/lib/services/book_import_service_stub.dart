@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
 import 'package:papyrus/media/cover_storage_bucket.dart';
+import 'package:papyrus/media/local_cover_image_provider.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/services/book_import_result.dart';
 import 'package:papyrus/services/file_metadata_service.dart';
@@ -283,6 +284,7 @@ class BookImportService {
     if (await file.exists()) {
       await file.delete();
     }
+    LocalCoverImageProvider.evictKey(scopeKey: scope.persistenceKey, bucket: bucket, fileId: id);
   }
 
   Future<File> _coverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
