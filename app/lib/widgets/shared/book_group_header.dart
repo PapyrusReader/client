@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 
 /// A collapsible header showing a book's cover thumbnail, title, item count,
 /// and expand/collapse chevron.
@@ -11,6 +12,9 @@ class BookGroupHeader extends StatelessWidget {
 
   /// Optional cover image URL for the thumbnail.
   final String? coverUrl;
+
+  /// Optional private cover media ID for authenticated books.
+  final String? coverMediaId;
 
   /// Number of items in this group (e.g. 3 notes).
   final int count;
@@ -28,6 +32,7 @@ class BookGroupHeader extends StatelessWidget {
     super.key,
     required this.bookTitle,
     this.coverUrl,
+    this.coverMediaId,
     required this.count,
     required this.itemLabel,
     required this.isCollapsed,
@@ -54,19 +59,14 @@ class BookGroupHeader extends StatelessWidget {
                 child: SizedBox(
                   width: 32,
                   height: 48,
-                  child: coverUrl != null && coverUrl!.isNotEmpty
-                      ? Image.network(
-                          coverUrl!,
-                          fit: BoxFit.cover,
-                          errorBuilder: (context, error, stackTrace) => Container(
-                            color: colorScheme.surfaceContainerHighest,
-                            child: Icon(Icons.menu_book, size: 16, color: colorScheme.onSurfaceVariant),
-                          ),
-                        )
-                      : Container(
-                          color: colorScheme.surfaceContainerHighest,
-                          child: Icon(Icons.menu_book, size: 16, color: colorScheme.onSurfaceVariant),
-                        ),
+                  child: PrivateBookCover(
+                    imageUrl: coverUrl,
+                    mediaId: coverMediaId,
+                    placeholder: Container(
+                      color: colorScheme.surfaceContainerHighest,
+                      child: Icon(Icons.menu_book, size: 16, color: colorScheme.onSurfaceVariant),
+                    ),
+                  ),
                 ),
               ),
               const SizedBox(width: Spacing.sm),

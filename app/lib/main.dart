@@ -217,4 +217,4 @@ class _PapyrusState extends State<Papyrus> {
 
 BookDownloadService _createBookDownloadService(BuildContext _) => const BookDownloadService();
 
-MediaCacheService _createMediaCacheService(BuildContext _) => const MediaCacheService();
+MediaCacheService _createMediaCacheService(BuildContext _) => MediaCacheService();

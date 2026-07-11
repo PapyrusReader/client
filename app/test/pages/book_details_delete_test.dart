@@ -135,7 +135,7 @@ void main() {
       title: 'Download Me',
       author: 'Author',
       fileFormat: BookFormat.epub,
-      fileHash: const MediaCacheService().sha256Hex(bytes),
+      fileHash: MediaCacheService().sha256Hex(bytes),
       addedAt: DateTime.utc(2026),
     );
 
@@ -164,7 +164,7 @@ void main() {
           ChangeNotifierProvider<DataStore>.value(value: dataStore),
           ChangeNotifierProvider<MediaUploadQueue>.value(value: mediaUploadQueue),
           Provider<BookImportService>.value(value: importService),
-          Provider<MediaCacheService>.value(value: const MediaCacheService()),
+          Provider<MediaCacheService>.value(value: MediaCacheService()),
           Provider<BookDownloadService>.value(value: downloadService),
         ],
         child: MaterialApp.router(routerConfig: router),

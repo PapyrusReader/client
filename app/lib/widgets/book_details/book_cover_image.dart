@@ -1,12 +1,6 @@
-import 'dart:typed_data';
-
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:provider/provider.dart';
-
-final Map<String, Future<Uint8List>> _privateCoverDownloads = {};
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 
 /// Cover image size variants.
 enum BookCoverSize {
@@ -51,33 +45,7 @@ class BookCoverImage extends StatelessWidget {
   }
 
   Widget _buildImage(BuildContext context, ColorScheme colorScheme) {
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: imageUrl!,
-        fit: BoxFit.cover,
-        errorWidget: (context, url, error) => _buildPlaceholder(context, colorScheme),
-        progressIndicatorBuilder: (context, url, progress) => _buildLoadingIndicator(context, colorScheme, progress),
-      );
-    }
-    if (mediaId != null && mediaId!.isNotEmpty) {
-      final future = _privateCoverDownloads.putIfAbsent(
-        mediaId!,
-        () => context.read<AuthProvider>().downloadMedia(mediaId!),
-      );
-      return FutureBuilder<Uint8List>(
-        future: future,
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            return Image.memory(snapshot.data!, fit: BoxFit.cover);
-          }
-          if (snapshot.hasError) {
-            return _buildPlaceholder(context, colorScheme);
-          }
-          return _buildIndeterminateLoadingIndicator(colorScheme);
-        },
-      );
-    }
-    return _buildPlaceholder(context, colorScheme);
+    return PrivateBookCover(imageUrl: imageUrl, mediaId: mediaId, placeholder: _buildPlaceholder(context, colorScheme));
   }
 
   Widget _buildPlaceholder(BuildContext context, ColorScheme colorScheme) {
@@ -111,20 +79,6 @@ class BookCoverImage extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-
-  Widget _buildLoadingIndicator(BuildContext context, ColorScheme colorScheme, DownloadProgress progress) {
-    return Container(
-      color: colorScheme.surfaceContainerHighest,
-      child: Center(child: CircularProgressIndicator(value: progress.progress, strokeWidth: 2)),
-    );
-  }
-
-  Widget _buildIndeterminateLoadingIndicator(ColorScheme colorScheme) {
-    return Container(
-      color: colorScheme.surfaceContainerHighest,
-      child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
     );
   }
 

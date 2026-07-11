@@ -189,7 +189,10 @@ class DataStore extends ChangeNotifier {
   /// Get cover previews for a shelf (up to 4 books).
   List<CoverPreview> getCoverPreviewsForShelf(String shelfId, {int limit = 4}) {
     final books = getBooksInShelf(shelfId);
-    return books.take(limit).map((b) => CoverPreview(url: b.coverUrl, title: b.title)).toList();
+    return books
+        .take(limit)
+        .map((b) => CoverPreview(url: b.coverUrl, mediaId: b.coverMediaId, title: b.title))
+        .toList();
   }
 
   // ============================================================

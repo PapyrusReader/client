@@ -1,14 +1,16 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/media/media_cache_service.dart';
+import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/models/book.dart';
 
 void main() {
   late MediaCacheService service;
 
   setUp(() {
-    service = const MediaCacheService();
+    service = MediaCacheService();
   });
 
   test('uses cached book file when its hash matches', () async {
@@ -83,6 +85,86 @@ void main() {
       ),
       throwsStateError,
     );
+  });
+
+  test('cover download persists and the next load reads local bytes', () async {
+    final coverService = MediaCacheService();
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    Uint8List? stored;
+    var downloads = 0;
+
+    Future<Uint8List> load() {
+      return coverService.ensureCoverCached(
+        scope: scope,
+        mediaId: 'asset-1',
+        readLocalCover: (_, _) async => stored,
+        writeLocalCover: (_, _, bytes) async => stored = bytes,
+        downloadMedia: (_) async {
+          downloads++;
+          return Uint8List.fromList([1, 2, 3]);
+        },
+      );
+    }
+
+    final first = await load();
+    final second = await load();
+
+    expect(first, Uint8List.fromList([1, 2, 3]));
+    expect(second, first);
+    expect(downloads, 1);
+  });
+
+  test('overlapping cover requests share one download', () async {
+    final coverService = MediaCacheService();
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    final gate = Completer<Uint8List>();
+    var downloads = 0;
+
+    Future<Uint8List> load() {
+      return coverService.ensureCoverCached(
+        scope: scope,
+        mediaId: 'asset-1',
+        readLocalCover: (_, _) async => null,
+        writeLocalCover: (_, _, _) async {},
+        downloadMedia: (_) {
+          downloads++;
+          return gate.future;
+        },
+      );
+    }
+
+    final first = load();
+    final second = load();
+    await Future<void>.delayed(Duration.zero);
+    expect(downloads, 1);
+    gate.complete(Uint8List.fromList([1, 2, 3]));
+
+    expect(await first, await second);
+    expect(downloads, 1);
+  });
+
+  test('cover download failures are retryable', () async {
+    final coverService = MediaCacheService();
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    var downloads = 0;
+
+    Future<Uint8List> load() {
+      return coverService.ensureCoverCached(
+        scope: scope,
+        mediaId: 'asset-1',
+        readLocalCover: (_, _) async => null,
+        writeLocalCover: (_, _, _) async {},
+        downloadMedia: (_) async {
+          downloads++;
+          if (downloads == 1) throw StateError('offline');
+          return Uint8List.fromList([1]);
+        },
+      );
+    }
+
+    await expectLater(load(), throwsStateError);
+    expect(await load(), Uint8List.fromList([1]));
+    expect(downloads, 2);
   });
 }
 

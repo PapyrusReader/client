@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 
 /// Context menu for book actions.
 /// Shows a bottom sheet on mobile and a popup menu on desktop.
@@ -450,22 +451,11 @@ class _BookContextBottomSheet extends StatelessWidget {
 
   Widget _buildCover(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
-    if (book.coverURL != null && book.coverURL!.isNotEmpty) {
-      return Image.network(
-        book.coverURL!,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
-          color: colorScheme.surfaceContainerHighest,
-          child: Icon(Icons.menu_book, color: colorScheme.onSurfaceVariant),
-        ),
-      );
-    }
-
-    return Container(
+    final placeholder = Container(
       color: colorScheme.surfaceContainerHighest,
       child: Icon(Icons.menu_book, color: colorScheme.onSurfaceVariant),
     );
+    return PrivateBookCover(imageUrl: book.coverURL, mediaId: book.coverMediaId, placeholder: placeholder);
   }
 }
 

@@ -278,6 +278,7 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
         BookGroupHeader(
           bookTitle: provider.getBookTitle(entry.key),
           coverUrl: provider.getBookCoverUrl(entry.key),
+          coverMediaId: provider.getBookCoverMediaId(entry.key),
           count: entry.value.length,
           itemLabel: 'annotation',
           isCollapsed: isCollapsed,
