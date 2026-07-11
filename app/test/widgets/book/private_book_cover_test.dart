@@ -9,9 +9,14 @@ import 'package:papyrus/auth/auth_models.dart';
 import 'package:papyrus/auth/auth_repository.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
+import 'package:papyrus/media/cover_storage_bucket.dart';
+import 'package:papyrus/media/local_cover_image_provider.dart';
+import 'package:papyrus/media/media_cache_service.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
+import 'package:papyrus/services/book_import_service_stub.dart'
+    if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -53,6 +58,58 @@ void main() {
 
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+    final cache = PaintingBinding.instance.imageCache;
+    cache.clear();
+    cache.clearLiveImages();
+  });
+
+  tearDown(() {
+    final cache = PaintingBinding.instance.imageCache;
+    cache.clear();
+    cache.clearLiveImages();
+  });
+
+  testWidgets('provider-backed media cover reuses its decoded image across pages', (tester) async {
+    final importService = _RecordingBookImportService(Uint8List.fromList(pngBytes));
+    final harness = await _buildProviderHarness(importService: importService);
+
+    PrivateBookCover cover() {
+      return const PrivateBookCover(
+        bookId: 'book-1',
+        mediaId: 'asset-1',
+        placeholder: SizedBox(key: Key('placeholder')),
+      );
+    }
+
+    await tester.pumpWidget(harness.wrap(Align(child: cover())));
+    final firstPageImage = tester.widget<Image>(find.byType(Image));
+    await tester.runAsync(() async {
+      final firstFrame = Completer<void>();
+      final stream = firstPageImage.image.resolve(ImageConfiguration.empty);
+      late ImageStreamListener listener;
+      listener = ImageStreamListener(
+        (_, _) {
+          if (!firstFrame.isCompleted) firstFrame.complete();
+        },
+        onError: (Object error, StackTrace? stackTrace) {
+          if (!firstFrame.isCompleted) firstFrame.completeError(error, stackTrace);
+        },
+      );
+      stream.addListener(listener);
+      await firstFrame.future;
+      stream.removeListener(listener);
+    });
+    await tester.pump();
+    expect(importService.cachedCoverReads, 1);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await tester.pumpWidget(harness.wrap(Center(child: cover())));
+    await tester.pump();
+
+    expect(importService.cachedCoverReads, 1);
+    expect(find.byKey(const Key('placeholder')), findsNothing);
+    expect(find.byType(Image), findsOneWidget);
   });
 
   testWidgets('private cover renders lazily loaded bytes', (tester) async {
@@ -286,20 +343,35 @@ void main() {
     await tester.pumpAndSettle();
     expect(guestLoads, 1);
     expect(pendingLoads, 0);
-    expect(identical((tester.widget<Image>(find.byType(Image)).image as MemoryImage).bytes, guestBytes), isTrue);
+    _expectLocalCoverKey(
+      tester,
+      scopeKey: MediaStorageScope.localGuest.persistenceKey,
+      bucket: CoverStorageBucket.guestBooks,
+      fileId: 'book-1',
+    );
 
     harness.authProvider.setOfflineMode(false);
     await harness.authProvider.bootstrap();
     await tester.pumpAndSettle();
     expect(guestLoads, 1);
     expect(pendingLoads, 1);
-    expect(identical((tester.widget<Image>(find.byType(Image)).image as MemoryImage).bytes, accountBytes), isTrue);
+    _expectLocalCoverKey(
+      tester,
+      scopeKey: '${SyncSettingsProvider.officialServerId}--user-1',
+      bucket: CoverStorageBucket.pending,
+      fileId: 'book-1',
+    );
 
     harness.authProvider.setOfflineMode(true);
     await tester.pumpAndSettle();
-    expect(guestLoads, 2);
+    expect(guestLoads, 1);
     expect(pendingLoads, 1);
-    expect(identical((tester.widget<Image>(find.byType(Image)).image as MemoryImage).bytes, guestBytes), isTrue);
+    _expectLocalCoverKey(
+      tester,
+      scopeKey: MediaStorageScope.localGuest.persistenceKey,
+      bucket: CoverStorageBucket.guestBooks,
+      fileId: 'book-1',
+    );
   });
 
   testWidgets('profile changes reload pending cover in the new scope', (tester) async {
@@ -327,7 +399,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(scopes.map((scope) => scope.profileKey), [SyncSettingsProvider.officialServerId, startsWith('custom-')]);
-    expect(identical((tester.widget<Image>(find.byType(Image)).image as MemoryImage).bytes, customBytes), isTrue);
+    final customScope = scopes.last;
+    _expectLocalCoverKey(
+      tester,
+      scopeKey: customScope.persistenceKey,
+      bucket: CoverStorageBucket.pending,
+      fileId: 'book-1',
+    );
   });
 
   testWidgets('injected to provider transition subscribes to later profile changes', (tester) async {
@@ -363,13 +441,23 @@ void main() {
     await tester.pumpWidget(build(injected: false));
     await tester.pumpAndSettle();
     expect(scopes.map((scope) => scope.profileKey), [SyncSettingsProvider.officialServerId]);
-    expect(identical((tester.widget<Image>(find.byType(Image)).image as MemoryImage).bytes, officialBytes), isTrue);
+    _expectLocalCoverKey(
+      tester,
+      scopeKey: scopes.single.persistenceKey,
+      bucket: CoverStorageBucket.pending,
+      fileId: 'book-1',
+    );
 
     harness.syncSettings.setCustomServerUrls(apiUrl: 'https://custom.test', powerSyncUrl: 'https://sync.custom.test');
     await tester.pumpAndSettle();
 
     expect(scopes.map((scope) => scope.profileKey), [SyncSettingsProvider.officialServerId, startsWith('custom-')]);
-    expect(identical((tester.widget<Image>(find.byType(Image)).image as MemoryImage).bytes, customBytes), isTrue);
+    _expectLocalCoverKey(
+      tester,
+      scopeKey: scopes.last.persistenceKey,
+      bucket: CoverStorageBucket.pending,
+      fileId: 'book-1',
+    );
   });
 
   testWidgets('local cover falls back to placeholder when there are no bytes', (tester) async {
@@ -490,25 +578,49 @@ void main() {
   });
 }
 
+void _expectLocalCoverKey(
+  WidgetTester tester, {
+  required String scopeKey,
+  required CoverStorageBucket bucket,
+  required String fileId,
+}) {
+  final provider = tester.widget<Image>(find.byType(Image)).image as LocalCoverImageProvider;
+  expect(provider.key, LocalCoverImageKey(scopeKey: scopeKey, bucket: bucket, fileId: fileId));
+}
+
 class _ProviderHarness {
-  const _ProviderHarness({required this.repository, required this.authProvider, required this.syncSettings});
+  const _ProviderHarness({
+    required this.repository,
+    required this.authProvider,
+    required this.syncSettings,
+    required this.importService,
+    required this.cacheService,
+  });
 
   final _GatedAuthRepository repository;
   final AuthProvider authProvider;
   final SyncSettingsProvider syncSettings;
+  final BookImportService importService;
+  final MediaCacheService cacheService;
 
   Widget wrap(Widget child) {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
         ChangeNotifierProvider<SyncSettingsProvider>.value(value: syncSettings),
+        Provider<BookImportService>.value(value: importService),
+        Provider<MediaCacheService>.value(value: cacheService),
       ],
       child: MaterialApp(home: child),
     );
   }
 }
 
-Future<_ProviderHarness> _buildProviderHarness({bool offline = false}) async {
+Future<_ProviderHarness> _buildProviderHarness({
+  bool offline = false,
+  BookImportService? importService,
+  MediaCacheService? cacheService,
+}) async {
   final prefs = await SharedPreferences.getInstance();
   final tokens = AuthTokens(
     accessToken: 'access-token',
@@ -539,5 +651,24 @@ Future<_ProviderHarness> _buildProviderHarness({bool offline = false}) async {
       powerSyncServiceUri: Uri.parse('https://sync.test'),
     ),
   );
-  return _ProviderHarness(repository: repository, authProvider: authProvider, syncSettings: syncSettings);
+  return _ProviderHarness(
+    repository: repository,
+    authProvider: authProvider,
+    syncSettings: syncSettings,
+    importService: importService ?? BookImportService(),
+    cacheService: cacheService ?? MediaCacheService(),
+  );
+}
+
+class _RecordingBookImportService extends BookImportService {
+  _RecordingBookImportService(this.coverBytes);
+
+  final Uint8List coverBytes;
+  int cachedCoverReads = 0;
+
+  @override
+  Future<Uint8List?> getCoverFile(MediaStorageScope scope, String mediaId) async {
+    cachedCoverReads++;
+    return coverBytes;
+  }
 }
