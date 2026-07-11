@@ -9,9 +9,15 @@ class FakeBookRepository implements BookRepository {
   final StreamController<List<Book>> controller = StreamController<List<Book>>.broadcast();
   final List<Book> upserts = [];
   final List<String> deletes = [];
+  Completer<void>? upsertGate;
+  Completer<void>? deleteGate;
+  Object? upsertError;
+  Object? deleteError;
 
   @override
   Future<void> delete(String id) async {
+    await deleteGate?.future;
+    if (deleteError != null) throw deleteError!;
     deletes.add(id);
   }
 
@@ -22,6 +28,8 @@ class FakeBookRepository implements BookRepository {
 
   @override
   Future<void> upsert(Book book) async {
+    await upsertGate?.future;
+    if (upsertError != null) throw upsertError!;
     upserts.add(book);
   }
 
@@ -65,6 +73,48 @@ void main() {
 
     expect(repository.upserts.map((item) => item.title), ['First', 'Updated']);
     expect(repository.deletes, ['one']);
+    await store.disposeBookRepository();
+    await repository.controller.close();
+  });
+
+  test('awaitable book mutations complete only after repository writes finish', () async {
+    final repository = FakeBookRepository()
+      ..upsertGate = Completer<void>()
+      ..deleteGate = Completer<void>();
+    final store = DataStore(bookRepository: repository);
+    final book = _book('one', 'First');
+
+    var addCompleted = false;
+    final add = store.addBookAndWait(book).then((_) => addCompleted = true);
+    await pumpEventQueue();
+    expect(addCompleted, isFalse);
+    repository.upsertGate!.complete();
+    await add;
+    expect(repository.upserts, [book]);
+
+    var deleteCompleted = false;
+    final delete = store.deleteBookAndWait(book.id).then((_) => deleteCompleted = true);
+    await pumpEventQueue();
+    expect(deleteCompleted, isFalse);
+    repository.deleteGate!.complete();
+    await delete;
+    expect(repository.deletes, [book.id]);
+
+    await store.disposeBookRepository();
+    await repository.controller.close();
+  });
+
+  test('awaitable book mutations surface repository errors', () async {
+    final addFailure = StateError('upsert failed');
+    final deleteFailure = StateError('delete failed');
+    final repository = FakeBookRepository()
+      ..upsertError = addFailure
+      ..deleteError = deleteFailure;
+    final store = DataStore(bookRepository: repository);
+
+    await expectLater(store.addBookAndWait(_book('one', 'First')), throwsA(same(addFailure)));
+    await expectLater(store.deleteBookAndWait('one'), throwsA(same(deleteFailure)));
+
     await store.disposeBookRepository();
     await repository.controller.close();
   });

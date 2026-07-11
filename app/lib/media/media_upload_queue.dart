@@ -184,7 +184,7 @@ class MediaUploadQueue extends ChangeNotifier {
       _tasks = nextTasks;
       notifyListeners();
     });
-    await onWorkAvailable?.call();
+    await _notifyWorkAvailableBestEffort();
   }
 
   Future<void> retryFailed({String? bookId}) async {
@@ -338,6 +338,21 @@ class MediaUploadQueue extends ChangeNotifier {
       notifyListeners();
     });
     await onWorkAvailable?.call();
+  }
+
+  Future<void> _notifyWorkAvailableBestEffort() async {
+    try {
+      await onWorkAvailable?.call();
+    } catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'papyrus media upload queue',
+          context: ErrorDescription('while notifying work for a committed import batch'),
+        ),
+      );
+    }
   }
 
   Future<void> _removeTaskIfCurrent(MediaStorageScope scope, MediaUploadTask task, int version) {

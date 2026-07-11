@@ -93,13 +93,15 @@ class DataStore extends ChangeNotifier {
   }
 
   void addBook(Book book) {
+    unawaited(addBookAndWait(book));
+  }
+
+  Future<void> addBookAndWait(Book book) async {
     final repository = _bookRepository;
     if (repository == null) {
       throw StateError('Book repository is not initialized');
     }
-    _books[book.id] = book;
-    notifyListeners();
-    unawaited(repository.upsert(book));
+    await repository.upsert(book);
   }
 
   void updateBook(Book book) {
@@ -113,11 +115,15 @@ class DataStore extends ChangeNotifier {
   }
 
   void deleteBook(String id) {
+    unawaited(deleteBookAndWait(id));
+  }
+
+  Future<void> deleteBookAndWait(String id) async {
     final repository = _bookRepository;
     if (repository == null) {
       throw StateError('Book repository is not initialized');
     }
-    unawaited(repository.delete(id));
+    await repository.delete(id);
   }
 
   void replaceBooksFromSync(List<Book> books) {

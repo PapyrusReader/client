@@ -9,7 +9,7 @@ typedef PendingCoverStore = Future<void> Function(MediaStorageScope scope, Strin
 typedef GuestCoverStore = Future<void> Function(String bookId, Uint8List bytes);
 typedef PendingCoverDelete = FutureOr<void> Function(MediaStorageScope scope, String bookId);
 typedef GuestCoverDelete = FutureOr<void> Function(String bookId);
-typedef BookAdder = void Function(Book book);
+typedef BookAdder = FutureOr<void> Function(Book book);
 typedef BookDelete = FutureOr<void> Function(String bookId);
 typedef ImportedBookMediaEnqueuer =
     Future<void> Function({
@@ -88,7 +88,7 @@ class BookImportCommitService {
         coverStored = true;
       }
 
-      _addBook(book);
+      await _addBook(book);
       metadataAdded = true;
 
       if (accountScope != null) {

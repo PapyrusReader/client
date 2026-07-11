@@ -186,8 +186,8 @@ class _ImportContentState extends State<_ImportContent> {
         storeGuestCover: importService.storeGuestCoverFile,
         deletePendingCover: importService.deletePendingCoverFile,
         deleteGuestCover: importService.deleteGuestCoverFile,
-        addBook: dataStore.addBook,
-        deleteBook: dataStore.deleteBook,
+        addBook: dataStore.addBookAndWait,
+        deleteBook: dataStore.deleteBookAndWait,
         enqueueImportedBookMedia: queue.enqueueImportedBookMedia,
       );
       committedBook = await commitService.commit(

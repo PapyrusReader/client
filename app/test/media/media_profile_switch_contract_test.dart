@@ -42,7 +42,8 @@ void main() {
     expect(commit, contains('storeGuestCover: importService.storeGuestCoverFile'));
     expect(commit, contains('deletePendingCover: importService.deletePendingCoverFile'));
     expect(commit, contains('deleteGuestCover: importService.deleteGuestCoverFile'));
-    expect(commit, contains('deleteBook: dataStore.deleteBook'));
+    expect(commit, contains('addBook: dataStore.addBookAndWait'));
+    expect(commit, contains('deleteBook: dataStore.deleteBookAndWait'));
     expect(commit, contains('enqueueImportedBookMedia: queue.enqueueImportedBookMedia'));
     expect(commit, contains('accountScope: accountScope'));
     expect(commit, isNot(contains('bytesToDataUri')));

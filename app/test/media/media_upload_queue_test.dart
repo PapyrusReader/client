@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:typed_data';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
@@ -522,6 +522,33 @@ void main() {
     expect(prefs.getString('media_upload_queue:${capturedScope.persistenceKey}'), isNull);
     expect(prefs.getString('media_upload_queue:${switchedScope.persistenceKey}'), isNull);
     expect(callbacks, 0);
+  });
+
+  test('enqueueImportedBookMedia reports callback failure without rolling back durable tasks', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    final failure = StateError('processor unavailable');
+    final reportedErrors = <FlutterErrorDetails>[];
+    final previousOnError = FlutterError.onError;
+    FlutterError.onError = reportedErrors.add;
+    addTearDown(() => FlutterError.onError = previousOnError);
+    final queue = MediaUploadQueue(prefs, onWorkAvailable: () async => throw failure);
+    await queue.activateScope(scope);
+
+    await queue.enqueueImportedBookMedia(
+      scope: scope,
+      book: _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash'),
+      filename: 'book.epub',
+      contentType: 'application/epub+zip',
+      coverFilename: 'book-cover.jpg',
+      coverContentType: 'image/jpeg',
+    );
+
+    expect(queue.pendingTasks, hasLength(2));
+    final stored = jsonDecode(prefs.getString('media_upload_queue:${scope.persistenceKey}')!) as List<dynamic>;
+    expect(stored, hasLength(2));
+    expect(reportedErrors, hasLength(1));
+    expect(reportedErrors.single.exception, same(failure));
   });
 
   test('retry invokes work callback only when failed tasks become pending', () async {

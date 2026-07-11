@@ -1,7 +1,10 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/data/repositories/book_repository.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/models/book.dart';
@@ -328,6 +331,135 @@ void main() {
     expect(prefs.getString('media_upload_queue:${accountScope.persistenceKey}'), isNull);
     expect(prefs.getString('media_upload_queue:${switchedScope.persistenceKey}'), isNull);
   });
+
+  test('enqueue failure waits for metadata rollback and leaves repository empty', () async {
+    final failure = StateError('enqueue failed');
+    final repository = _GatedDeleteBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final service = BookImportCommitService(
+      storePendingCover: (_, _, _) async => fail('cover storage must be skipped'),
+      storeGuestCover: (_, _) async => fail('cover storage must be skipped'),
+      deletePendingCover: (_, _) async => fail('cover cleanup must be skipped'),
+      deleteGuestCover: (_) async => fail('cover cleanup must be skipped'),
+      addBook: dataStore.addBookAndWait,
+      deleteBook: dataStore.deleteBookAndWait,
+      enqueueImportedBookMedia:
+          ({
+            required scope,
+            required book,
+            required filename,
+            required contentType,
+            coverFilename,
+            coverContentType,
+          }) async {
+            expect(await repository.getById(book.id), same(book));
+            throw failure;
+          },
+    );
+
+    var completed = false;
+    final commit = service.commit(
+      result: _result(),
+      sourceFilename: 'original.epub',
+      addedAt: addedAt,
+      localFilePath: 'book-1',
+      accountScope: accountScope,
+    );
+    commit.then((_) => completed = true, onError: (_) => completed = true);
+
+    await repository.deleteStarted.future;
+    expect(completed, isFalse);
+    expect(await repository.getById('book-1'), isNotNull);
+
+    repository.allowDelete.complete();
+    await expectLater(commit, throwsA(same(failure)));
+    expect(await repository.getById('book-1'), isNull);
+
+    await dataStore.disposeBookRepository();
+    await repository.dispose();
+  });
+
+  test('account enqueue waits for metadata upsert to finish', () async {
+    final repository = _GatedDeleteBookRepository(gateUpsert: true);
+    final dataStore = DataStore(bookRepository: repository);
+    var enqueueStarted = false;
+    final service = BookImportCommitService(
+      storePendingCover: (_, _, _) async => fail('cover storage must be skipped'),
+      storeGuestCover: (_, _) async => fail('cover storage must be skipped'),
+      deletePendingCover: (_, _) async => fail('cover cleanup must be skipped'),
+      deleteGuestCover: (_) async => fail('cover cleanup must be skipped'),
+      addBook: dataStore.addBookAndWait,
+      deleteBook: dataStore.deleteBookAndWait,
+      enqueueImportedBookMedia:
+          ({
+            required scope,
+            required book,
+            required filename,
+            required contentType,
+            coverFilename,
+            coverContentType,
+          }) async {
+            enqueueStarted = true;
+          },
+    );
+
+    final commit = service.commit(
+      result: _result(),
+      sourceFilename: 'original.epub',
+      addedAt: addedAt,
+      localFilePath: 'book-1',
+      accountScope: accountScope,
+    );
+    await repository.upsertStarted!.future;
+    expect(enqueueStarted, isFalse);
+
+    repository.allowUpsert!.complete();
+    await commit;
+    expect(enqueueStarted, isTrue);
+
+    await dataStore.disposeBookRepository();
+    await repository.dispose();
+  });
+}
+
+class _GatedDeleteBookRepository implements BookRepository {
+  _GatedDeleteBookRepository({bool gateUpsert = false})
+    : upsertStarted = gateUpsert ? Completer<void>() : null,
+      allowUpsert = gateUpsert ? Completer<void>() : null;
+
+  final _books = <String, Book>{};
+  final _changes = StreamController<List<Book>>.broadcast(sync: true);
+  final deleteStarted = Completer<void>();
+  final allowDelete = Completer<void>();
+  final Completer<void>? upsertStarted;
+  final Completer<void>? allowUpsert;
+
+  @override
+  Future<void> delete(String id) async {
+    deleteStarted.complete();
+    await allowDelete.future;
+    _books.remove(id);
+    _changes.add(List.unmodifiable(_books.values));
+  }
+
+  @override
+  Future<Book?> getById(String id) async => _books[id];
+
+  @override
+  Future<void> upsert(Book book) async {
+    upsertStarted?.complete();
+    await allowUpsert?.future;
+    _books[book.id] = book;
+    _changes.add(List.unmodifiable(_books.values));
+  }
+
+  @override
+  Stream<List<Book>> watchAll() async* {
+    yield List.unmodifiable(_books.values);
+    yield* _changes.stream;
+  }
+
+  Future<void> dispose() => _changes.close();
 }
 
 BookImportResult _result({Uint8List? coverImage, String? coverMimeType}) {
