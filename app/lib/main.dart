@@ -227,6 +227,7 @@ class _PapyrusState extends State<Papyrus> {
     await _mediaUploadQueue.processPending(
       dataStore: _dataStore,
       readBookFile: _bookImportService.getBookFile,
+      readPendingCover: _bookImportService.getPendingCoverFile,
       uploadMedia: (payload) async {
         try {
           return await repository.uploadMedia(payload);

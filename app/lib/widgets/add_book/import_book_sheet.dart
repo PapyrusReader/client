@@ -208,6 +208,7 @@ class _ImportContentState extends State<_ImportContent> {
     if (!isOnlineAccount) return;
 
     final queue = context.read<MediaUploadQueue>();
+    final importService = context.read<BookImportService>();
     await queue.enqueueBookFile(
       book: book,
       filename: _filename ?? '${book.id}.${result.fileExtension}',
@@ -216,11 +217,15 @@ class _ImportContentState extends State<_ImportContent> {
 
     final coverImage = result.coverImage;
     if (coverImage != null) {
+      final scope = queue.activeScope;
+      if (scope == null) {
+        throw StateError('Cannot queue cover upload without an active media storage scope');
+      }
+      await importService.storePendingCoverFile(scope, book.id, coverImage);
       await queue.enqueueCover(
         book: book,
         filename: '${book.id}-cover.${_coverExtension(result.coverMimeType)}',
         contentType: result.coverMimeType ?? 'image/jpeg',
-        bytes: coverImage,
       );
     }
   }
