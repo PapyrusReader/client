@@ -29,6 +29,7 @@ void main() {
     await queue.processPending(
       dataStore: dataStore,
       readBookFile: (bookId) async => Uint8List.fromList('epub bytes'.codeUnits),
+      readPendingCover: (_, _) async => null,
       uploadMedia: (payload) async {
         expect(payload.bookId, book.id);
         expect(payload.kind, MediaKind.bookFile);
@@ -54,6 +55,7 @@ void main() {
     await queue.processPending(
       dataStore: dataStore,
       readBookFile: (bookId) async => Uint8List.fromList('epub bytes'.codeUnits),
+      readPendingCover: (_, _) async => null,
       uploadMedia: (payload) async => throw const MediaUploadException.storageFull(),
     );
 
@@ -77,6 +79,7 @@ void main() {
     await queue.processPending(
       dataStore: dataStore,
       readBookFile: (bookId) async => Uint8List.fromList('epub bytes'.codeUnits),
+      readPendingCover: (_, _) async => null,
       uploadMedia: (payload) async => throw const MediaUploadException.storageFull(),
     );
 
@@ -92,17 +95,141 @@ void main() {
     final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
 
     await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
-    await queue.enqueueCover(
-      book: book,
-      filename: 'cover.jpg',
-      contentType: 'image/jpeg',
-      bytes: Uint8List.fromList('cover'.codeUnits),
-    );
+    await queue.enqueueCover(book: book, filename: 'cover.jpg', contentType: 'image/jpeg');
 
     await queue.removeTasksForBook(book.id);
 
     expect(queue.pendingTasks, isEmpty);
     expect(prefs.getString('media_upload_queue:official--user-1'), '[]');
+  });
+
+  test('enqueueCover persists metadata without cover bytes', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final queue = await _activeQueue(prefs);
+    final book = _book(filePath: 'book-1');
+
+    await queue.enqueueCover(book: book, filename: 'cover.jpg', contentType: 'image/jpeg');
+
+    final stored = jsonDecode(prefs.getString('media_upload_queue:official--user-1')!) as List<dynamic>;
+    final task = stored.single as Map<String, dynamic>;
+    expect(task, isNot(contains('cover_base64')));
+    expect(prefs.getString('media_upload_queue:official--user-1'), isNot(contains(base64Encode('cover'.codeUnits))));
+  });
+
+  test('restored cover task reads scoped pending file and stores returned media id', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final repository = InMemoryBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final book = _book(filePath: 'book-1');
+    await repository.upsert(book);
+    await pumpEventQueue();
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    final originalQueue = MediaUploadQueue(prefs);
+    await originalQueue.activateScope(scope);
+    await originalQueue.enqueueCover(book: book, filename: 'cover.jpg', contentType: 'image/jpeg');
+    final restoredQueue = MediaUploadQueue(prefs);
+    await restoredQueue.activateScope(scope);
+    final coverBytes = Uint8List.fromList('cover file'.codeUnits);
+
+    await restoredQueue.processPending(
+      dataStore: dataStore,
+      readBookFile: (_) async => null,
+      readPendingCover: (requestedScope, bookId) async {
+        expect(requestedScope, scope);
+        expect(bookId, book.id);
+        return coverBytes;
+      },
+      uploadMedia: (payload) async {
+        expect(payload.kind, MediaKind.coverImage);
+        expect(payload.bytes, coverBytes);
+        return _asset(assetId: 'cover-asset', bookId: book.id, kind: MediaKind.coverImage);
+      },
+    );
+
+    expect(restoredQueue.pendingTasks, isEmpty);
+    expect(dataStore.getBook(book.id)?.coverMediaId, 'cover-asset');
+  });
+
+  test('missing pending cover file leaves task pending with a local file error', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final repository = InMemoryBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final book = _book(filePath: 'book-1');
+    await repository.upsert(book);
+    await pumpEventQueue();
+    final queue = await _activeQueue(prefs);
+    await queue.enqueueCover(book: book, filename: 'cover.jpg', contentType: 'image/jpeg');
+    var uploads = 0;
+
+    await queue.processPending(
+      dataStore: dataStore,
+      readBookFile: (_) async => null,
+      readPendingCover: (_, _) async => null,
+      uploadMedia: (_) async {
+        uploads++;
+        return _asset(assetId: 'cover-asset', bookId: book.id, kind: MediaKind.coverImage);
+      },
+    );
+
+    expect(uploads, 0);
+    expect(queue.pendingTasks, hasLength(1));
+    expect(queue.pendingTasks.single.status, MediaUploadTaskStatus.pending);
+    expect(queue.pendingTasks.single.errorMessage, 'Local file not found');
+  });
+
+  test('legacy embedded cover bytes survive failure and are drained on retry', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final repository = InMemoryBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final book = _book(filePath: 'book-1');
+    await repository.upsert(book);
+    await pumpEventQueue();
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    final coverBytes = Uint8List.fromList('legacy cover'.codeUnits);
+    await prefs.setString(
+      'media_upload_queue:${scope.persistenceKey}',
+      jsonEncode([
+        {
+          'id': '${book.id}:cover_image',
+          'book_id': book.id,
+          'kind': 'cover_image',
+          'filename': 'cover.jpg',
+          'content_type': 'image/jpeg',
+          'status': 'pending',
+          'cover_base64': base64Encode(coverBytes),
+          'error_message': null,
+        },
+      ]),
+    );
+    final queue = MediaUploadQueue(prefs);
+    await queue.activateScope(scope);
+    var attempts = 0;
+
+    Future<void> process() => queue.processPending(
+      dataStore: dataStore,
+      readBookFile: (_) async => null,
+      readPendingCover: (_, _) async => throw StateError('legacy task must use embedded bytes'),
+      uploadMedia: (payload) async {
+        attempts++;
+        expect(payload.bytes, coverBytes);
+        if (attempts == 1) {
+          throw const MediaUploadException.storageFull();
+        }
+        return _asset(assetId: 'cover-asset', bookId: book.id, kind: MediaKind.coverImage);
+      },
+    );
+
+    await process();
+    final failedTask =
+        (jsonDecode(prefs.getString('media_upload_queue:${scope.persistenceKey}')!) as List<dynamic>).single
+            as Map<String, dynamic>;
+    expect(failedTask['cover_base64'], base64Encode(coverBytes));
+    await queue.retryFailed();
+    await process();
+
+    expect(attempts, 2);
+    expect(queue.pendingTasks, isEmpty);
+    expect(dataStore.getBook(book.id)?.coverMediaId, 'cover-asset');
   });
 
   test('pending uploads are isolated and restored per media scope', () async {
@@ -153,6 +280,7 @@ void main() {
       return queue.processPending(
         dataStore: dataStore,
         readBookFile: (_) async => Uint8List.fromList([1, 2, 3]),
+        readPendingCover: (_, _) async => null,
         uploadMedia: (_) {
           uploads++;
           return gate.future;
@@ -169,6 +297,45 @@ void main() {
     gate.complete(_asset(assetId: 'file-asset', bookId: book.id, kind: MediaKind.bookFile));
     await Future.wait([first, second]);
     expect(uploads, 1);
+  });
+
+  test('processing requested during a failed upload runs another pass', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final repository = InMemoryBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
+    await repository.upsert(book);
+    await pumpEventQueue();
+    final queue = await _activeQueue(prefs);
+    await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
+    final firstAttemptStarted = Completer<void>();
+    final releaseFirstAttempt = Completer<void>();
+    var attempts = 0;
+
+    Future<void> process() => queue.processPending(
+      dataStore: dataStore,
+      readBookFile: (_) async => Uint8List.fromList([1]),
+      readPendingCover: (_, _) async => null,
+      uploadMedia: (payload) async {
+        attempts++;
+        if (attempts == 1) {
+          firstAttemptStarted.complete();
+          await releaseFirstAttempt.future;
+          throw StateError('book has not synced yet');
+        }
+        return _asset(assetId: 'file-asset', bookId: payload.bookId, kind: payload.kind);
+      },
+    );
+
+    final first = process();
+    await firstAttemptStarted.future;
+    final retrySignal = process();
+    releaseFirstAttempt.complete();
+    await Future.wait([first, retrySignal]);
+
+    expect(attempts, 2);
+    expect(queue.pendingTasks, isEmpty);
+    expect(dataStore.getBook(book.id)?.fileMediaId, 'file-asset');
   });
 
   test('enqueue during an upload is persisted and drained before processing completes', () async {
@@ -188,6 +355,7 @@ void main() {
     Future<void> process() => queue.processPending(
       dataStore: dataStore,
       readBookFile: (_) async => Uint8List.fromList([1]),
+      readPendingCover: (_, _) async => null,
       uploadMedia: (payload) async {
         uploadedBookIds.add(payload.bookId);
         if (payload.bookId == firstBook.id) {
@@ -236,6 +404,7 @@ void main() {
     final processing = queue.processPending(
       dataStore: dataStore,
       readBookFile: (_) async => Uint8List.fromList([1]),
+      readPendingCover: (_, _) async => null,
       uploadMedia: (_) async {
         uploadStarted.complete();
         await releaseUpload.future;
@@ -288,6 +457,7 @@ void main() {
     await queue.processPending(
       dataStore: dataStore,
       readBookFile: (_) async => Uint8List.fromList([1]),
+      readPendingCover: (_, _) async => null,
       uploadMedia: (_) async => throw const MediaUploadException.storageFull(),
     );
 

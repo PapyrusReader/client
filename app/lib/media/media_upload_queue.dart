@@ -9,6 +9,7 @@ import 'package:papyrus/models/book.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 typedef BookFileReader = Future<Uint8List?> Function(String bookId);
+typedef PendingCoverReader = Future<Uint8List?> Function(MediaStorageScope scope, String bookId);
 typedef MediaUploader = Future<MediaAsset> Function(MediaUploadPayload payload);
 typedef MediaWorkAvailableCallback = Future<void> Function();
 
@@ -56,7 +57,7 @@ class MediaUploadTask {
       'filename': filename,
       'content_type': contentType,
       'status': status.name,
-      'cover_base64': coverBase64,
+      if (coverBase64 != null) 'cover_base64': coverBase64,
       'error_message': errorMessage,
     };
   }
@@ -86,6 +87,7 @@ class MediaUploadQueue extends ChangeNotifier {
   MediaStorageScope? _activeScope;
   MediaStorageUsage? _storageUsage;
   Future<void>? _processing;
+  bool _processAgain = false;
   Future<void> _mutationTail = Future<void>.value();
   Map<String, int> _taskVersions = {};
 
@@ -124,12 +126,7 @@ class MediaUploadQueue extends ChangeNotifier {
     );
   }
 
-  Future<void> enqueueCover({
-    required Book book,
-    required String filename,
-    required String contentType,
-    required Uint8List bytes,
-  }) {
+  Future<void> enqueueCover({required Book book, required String filename, required String contentType}) {
     return _enqueue(
       MediaUploadTask(
         id: '${book.id}:cover_image',
@@ -138,7 +135,6 @@ class MediaUploadQueue extends ChangeNotifier {
         filename: filename,
         contentType: contentType,
         status: MediaUploadTaskStatus.pending,
-        coverBase64: base64Encode(bytes),
       ),
     );
   }
@@ -182,10 +178,14 @@ class MediaUploadQueue extends ChangeNotifier {
   Future<void> processPending({
     required DataStore dataStore,
     required BookFileReader readBookFile,
+    required PendingCoverReader readPendingCover,
     required MediaUploader uploadMedia,
   }) {
     final inFlight = _processing;
-    if (inFlight != null) return inFlight;
+    if (inFlight != null) {
+      _processAgain = true;
+      return inFlight;
+    }
     final scope = _activeScope;
     if (scope == null) return Future<void>.value();
 
@@ -194,7 +194,16 @@ class MediaUploadQueue extends ChangeNotifier {
     _processing = operation;
     unawaited(() async {
       try {
-        await _processPending(scope: scope, dataStore: dataStore, readBookFile: readBookFile, uploadMedia: uploadMedia);
+        do {
+          _processAgain = false;
+          await _processPending(
+            scope: scope,
+            dataStore: dataStore,
+            readBookFile: readBookFile,
+            readPendingCover: readPendingCover,
+            uploadMedia: uploadMedia,
+          );
+        } while (_processAgain && _activeScope == scope);
         _clearProcessing(operation);
         completer.complete();
       } catch (error, stackTrace) {
@@ -209,6 +218,7 @@ class MediaUploadQueue extends ChangeNotifier {
     required MediaStorageScope scope,
     required DataStore dataStore,
     required BookFileReader readBookFile,
+    required PendingCoverReader readPendingCover,
     required MediaUploader uploadMedia,
   }) async {
     final processedVersions = <String>{};
@@ -226,7 +236,7 @@ class MediaUploadQueue extends ChangeNotifier {
         final version = _taskVersions[task.id] ?? 0;
         processedVersions.add('${task.id}:$version');
 
-        final bytes = await _bytesForTask(task, readBookFile);
+        final bytes = await _bytesForTask(task, scope, readBookFile, readPendingCover);
         if (bytes == null) {
           await _replaceTaskIfCurrent(
             scope,
@@ -340,10 +350,16 @@ class MediaUploadQueue extends ChangeNotifier {
     }
   }
 
-  Future<Uint8List?> _bytesForTask(MediaUploadTask task, BookFileReader readBookFile) async {
+  Future<Uint8List?> _bytesForTask(
+    MediaUploadTask task,
+    MediaStorageScope scope,
+    BookFileReader readBookFile,
+    PendingCoverReader readPendingCover,
+  ) async {
     if (task.kind == MediaKind.coverImage) {
       final coverBase64 = task.coverBase64;
-      return coverBase64 == null ? null : base64Decode(coverBase64);
+      if (coverBase64 != null) return base64Decode(coverBase64);
+      return readPendingCover(scope, task.bookId);
     }
     return readBookFile(task.bookId);
   }
