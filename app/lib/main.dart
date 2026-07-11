@@ -7,6 +7,7 @@ import 'package:papyrus/auth/auth_repository.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/media/cover_upload_persistence.dart';
 import 'package:papyrus/media/media_cache_service.dart';
 import 'package:papyrus/media/media_models.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
@@ -228,16 +229,26 @@ class _PapyrusState extends State<Papyrus> {
       dataStore: _dataStore,
       readBookFile: _bookImportService.getBookFile,
       readPendingCover: _bookImportService.getPendingCoverFile,
-      uploadMedia: (payload) async {
-        try {
-          return await repository.uploadMedia(payload);
-        } on AuthApiException catch (error) {
-          if (error.statusCode == 409) {
-            throw const MediaUploadException.storageFull();
+      uploadMedia: (payload) => uploadAndPersistCover(
+        scope: scope,
+        payload: payload,
+        uploadMedia: (payload) async {
+          try {
+            return await repository.uploadMedia(payload);
+          } on AuthApiException catch (error) {
+            if (error.statusCode == 409) {
+              throw const MediaUploadException.storageFull();
+            }
+            rethrow;
           }
-          rethrow;
-        }
-      },
+        },
+        promotePendingCover: _bookImportService.promotePendingCoverFile,
+        onPromotionError: (error, stackTrace) {
+          FlutterError.reportError(
+            FlutterErrorDetails(exception: error, stack: stackTrace, library: 'papyrus cover promotion'),
+          );
+        },
+      ),
     );
     if (identical(repository, _authRepository) && _mediaUploadQueue.activeScope == scope) {
       await _refreshMediaUsage();

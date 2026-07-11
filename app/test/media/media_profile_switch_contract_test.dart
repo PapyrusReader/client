@@ -25,6 +25,19 @@ void main() {
     expect(processor, contains('!identical(repository, _authRepository)'));
   });
 
+  test('successful cover upload promotes the captured pending cover best effort', () {
+    final source = File('lib/main.dart').readAsStringSync();
+    final processor = source.substring(
+      source.indexOf('Future<void> _processMediaUploads()'),
+      source.indexOf('@override\n  Widget build'),
+    );
+
+    expect(processor, contains('uploadAndPersistCover('));
+    expect(processor, contains('scope: scope'));
+    expect(processor, contains('promotePendingCover: _bookImportService.promotePendingCoverFile'));
+    expect(processor, contains("library: 'papyrus cover promotion'"));
+  });
+
   test('production import delegates scoped cover persistence and queueing to the commit boundary', () {
     final mainSource = File('lib/main.dart').readAsStringSync();
     final processor = mainSource.substring(
