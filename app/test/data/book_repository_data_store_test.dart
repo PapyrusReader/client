@@ -77,6 +77,30 @@ void main() {
     await repository.controller.close();
   });
 
+  test('legacy addBook updates the snapshot and notifies listeners before returning', () async {
+    final repository = FakeBookRepository();
+    final store = DataStore(bookRepository: repository);
+    final book = _book('one', 'First');
+    var notifications = 0;
+    store.addListener(() => notifications++);
+
+    store.addBook(book);
+
+    expect(store.getBook(book.id), same(book));
+    expect(notifications, 1);
+
+    await store.disposeBookRepository();
+    await repository.controller.close();
+  });
+
+  test('legacy addBook and deleteBook reject a missing repository synchronously', () async {
+    final store = DataStore();
+    await store.disposeBookRepository();
+
+    expect(() => store.addBook(_book('one', 'First')), throwsStateError);
+    expect(() => store.deleteBook('one'), throwsStateError);
+  });
+
   test('awaitable book mutations complete only after repository writes finish', () async {
     final repository = FakeBookRepository()
       ..upsertGate = Completer<void>()
