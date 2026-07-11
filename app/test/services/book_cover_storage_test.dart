@@ -91,4 +91,15 @@ void main() {
       expect(source, contains("case '$action':"));
     }
   });
+
+  test('web cover writes transfer a copy so caller bytes remain renderable', () {
+    final source = File('lib/services/book_import_service.dart').readAsStringSync();
+    final helper = source.substring(
+      source.indexOf('Future<JSObject> _sendCoverRequest'),
+      source.indexOf('BookImportResult _parseImportResult'),
+    );
+
+    expect(helper, contains('final actualBytes = Uint8List.fromList(bytes);'));
+    expect(helper, isNot(contains('bytes.offsetInBytes == 0 && bytes.lengthInBytes == bytes.buffer.lengthInBytes')));
+  });
 }

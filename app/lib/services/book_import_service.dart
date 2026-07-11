@@ -317,9 +317,9 @@ class BookImportService {
     if (bytes == null) {
       worker.postMessage(message);
     } else {
-      final actualBytes = bytes.offsetInBytes == 0 && bytes.lengthInBytes == bytes.buffer.lengthInBytes
-          ? bytes
-          : Uint8List.fromList(bytes);
+      // Cover bytes are also returned to Image.memory on a cache miss. Transfer
+      // a copy so postMessage does not detach the caller's backing buffer.
+      final actualBytes = Uint8List.fromList(bytes);
       final jsBuffer = actualBytes.buffer.toJS;
       message['fileData'] = jsBuffer;
       worker.postMessage(message, [jsBuffer].toJS);

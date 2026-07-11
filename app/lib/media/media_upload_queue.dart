@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
@@ -85,6 +86,8 @@ class MediaUploadQueue extends ChangeNotifier {
   MediaStorageScope? _activeScope;
   MediaStorageUsage? _storageUsage;
   Future<void>? _processing;
+  Future<void> _mutationTail = Future<void>.value();
+  Map<String, int> _taskVersions = {};
 
   List<MediaUploadTask> get pendingTasks => List.unmodifiable(_tasks);
   MediaStorageScope? get activeScope => _activeScope;
@@ -93,8 +96,10 @@ class MediaUploadQueue extends ChangeNotifier {
   Future<void> activateScope(MediaStorageScope? scope) async {
     if (_activeScope == scope) return;
     await waitUntilIdle();
+    await _waitForMutations();
     _activeScope = scope;
     _tasks = scope == null ? [] : _loadTasks(scope);
+    _taskVersions = {for (final task in _tasks) task.id: 0};
     _storageUsage = null;
     notifyListeners();
   }
@@ -141,18 +146,21 @@ class MediaUploadQueue extends ChangeNotifier {
   Future<void> retryFailed({String? bookId}) async {
     final scope = _requireActiveScope();
     var retriedAny = false;
-    _tasks = _tasks
-        .map((task) {
-          final matchesBook = bookId == null || task.bookId == bookId;
-          if (!matchesBook || task.status != MediaUploadTaskStatus.failed) {
-            return task;
-          }
-          retriedAny = true;
-          return task.copyWith(status: MediaUploadTaskStatus.pending);
-        })
-        .toList(growable: false);
-    await _save(scope);
-    notifyListeners();
+    await _withMutation(() async {
+      _tasks = _tasks
+          .map((task) {
+            final matchesBook = bookId == null || task.bookId == bookId;
+            if (!matchesBook || task.status != MediaUploadTaskStatus.failed) {
+              return task;
+            }
+            retriedAny = true;
+            _advanceTaskVersion(task.id);
+            return task.copyWith(status: MediaUploadTaskStatus.pending);
+          })
+          .toList(growable: false);
+      await _save(scope);
+      notifyListeners();
+    });
     if (retriedAny) {
       await onWorkAvailable?.call();
     }
@@ -161,9 +169,14 @@ class MediaUploadQueue extends ChangeNotifier {
   Future<void> removeTasksForBook(String bookId) async {
     final scope = _activeScope;
     if (scope == null) return;
-    _tasks = _tasks.where((task) => task.bookId != bookId).toList(growable: false);
-    await _save(scope);
-    notifyListeners();
+    await _withMutation(() async {
+      for (final task in _tasks.where((task) => task.bookId == bookId)) {
+        _advanceTaskVersion(task.id);
+      }
+      _tasks = _tasks.where((task) => task.bookId != bookId).toList(growable: false);
+      await _save(scope);
+      notifyListeners();
+    });
   }
 
   Future<void> processPending({
@@ -176,17 +189,19 @@ class MediaUploadQueue extends ChangeNotifier {
     final scope = _activeScope;
     if (scope == null) return Future<void>.value();
 
-    final operation = _processPending(
-      scope: scope,
-      dataStore: dataStore,
-      readBookFile: readBookFile,
-      uploadMedia: uploadMedia,
-    );
+    final completer = Completer<void>();
+    final operation = completer.future;
     _processing = operation;
-    operation.then(
-      (_) => _clearProcessing(operation),
-      onError: (Object error, StackTrace stackTrace) => _clearProcessing(operation),
-    );
+    unawaited(() async {
+      try {
+        await _processPending(scope: scope, dataStore: dataStore, readBookFile: readBookFile, uploadMedia: uploadMedia);
+        _clearProcessing(operation);
+        completer.complete();
+      } catch (error, stackTrace) {
+        _clearProcessing(operation);
+        completer.completeError(error, stackTrace);
+      }
+    }());
     return operation;
   }
 
@@ -196,52 +211,133 @@ class MediaUploadQueue extends ChangeNotifier {
     required BookFileReader readBookFile,
     required MediaUploader uploadMedia,
   }) async {
-    final nextTasks = <MediaUploadTask>[];
-    for (final task in _tasks) {
-      if (task.status == MediaUploadTaskStatus.failed) {
-        nextTasks.add(task);
-        continue;
-      }
+    final processedVersions = <String>{};
+    while (_activeScope == scope) {
+      await _waitForMutations();
+      final tasks = _tasks
+          .where((task) {
+            if (task.status == MediaUploadTaskStatus.failed) return false;
+            return !processedVersions.contains(_taskVersionKey(task.id));
+          })
+          .toList(growable: false);
+      if (tasks.isEmpty) return;
 
-      final bytes = await _bytesForTask(task, readBookFile);
-      if (bytes == null) {
-        nextTasks.add(task.copyWith(status: MediaUploadTaskStatus.pending, errorMessage: 'Local file not found'));
-        continue;
-      }
+      for (final task in tasks) {
+        final version = _taskVersions[task.id] ?? 0;
+        processedVersions.add('${task.id}:$version');
 
-      try {
-        final asset = await uploadMedia(
-          MediaUploadPayload(
-            bookId: task.bookId,
-            kind: task.kind,
-            filename: task.filename,
-            contentType: task.contentType,
-            bytes: bytes,
-          ),
-        );
-        _applyUploadedAsset(dataStore, asset);
-      } on MediaUploadException catch (error) {
-        nextTasks.add(
-          task.copyWith(
-            status: error.storageFull ? MediaUploadTaskStatus.failed : MediaUploadTaskStatus.pending,
-            errorMessage: error.message,
-          ),
-        );
-      } catch (error) {
-        nextTasks.add(task.copyWith(status: MediaUploadTaskStatus.pending, errorMessage: error.toString()));
+        final bytes = await _bytesForTask(task, readBookFile);
+        if (bytes == null) {
+          await _replaceTaskIfCurrent(
+            scope,
+            task,
+            version,
+            task.copyWith(status: MediaUploadTaskStatus.pending, errorMessage: 'Local file not found'),
+          );
+          continue;
+        }
+
+        try {
+          final asset = await uploadMedia(
+            MediaUploadPayload(
+              bookId: task.bookId,
+              kind: task.kind,
+              filename: task.filename,
+              contentType: task.contentType,
+              bytes: bytes,
+            ),
+          );
+          _applyUploadedAsset(dataStore, asset);
+          await _removeTaskIfCurrent(scope, task, version);
+        } on MediaUploadException catch (error) {
+          await _replaceTaskIfCurrent(
+            scope,
+            task,
+            version,
+            task.copyWith(
+              status: error.storageFull ? MediaUploadTaskStatus.failed : MediaUploadTaskStatus.pending,
+              errorMessage: error.message,
+            ),
+          );
+        } catch (error) {
+          await _replaceTaskIfCurrent(
+            scope,
+            task,
+            version,
+            task.copyWith(status: MediaUploadTaskStatus.pending, errorMessage: error.toString()),
+          );
+        }
       }
     }
-    _tasks = nextTasks;
-    await _save(scope);
-    notifyListeners();
   }
 
   Future<void> _enqueue(MediaUploadTask task) async {
     final scope = _requireActiveScope();
-    _tasks = [..._tasks.where((existing) => existing.id != task.id), task];
-    await _save(scope);
-    notifyListeners();
+    await _withMutation(() async {
+      _advanceTaskVersion(task.id);
+      _tasks = [..._tasks.where((existing) => existing.id != task.id), task];
+      await _save(scope);
+      notifyListeners();
+    });
     await onWorkAvailable?.call();
+  }
+
+  Future<void> _removeTaskIfCurrent(MediaStorageScope scope, MediaUploadTask task, int version) {
+    return _withMutation(() async {
+      final index = _currentTaskIndex(task, version);
+      if (index < 0) return;
+      _tasks = [..._tasks]..removeAt(index);
+      await _save(scope);
+      notifyListeners();
+    });
+  }
+
+  Future<void> _replaceTaskIfCurrent(
+    MediaStorageScope scope,
+    MediaUploadTask task,
+    int version,
+    MediaUploadTask replacement,
+  ) {
+    return _withMutation(() async {
+      final index = _currentTaskIndex(task, version);
+      if (index < 0) return;
+      _tasks = [..._tasks]..[index] = replacement;
+      await _save(scope);
+      notifyListeners();
+    });
+  }
+
+  int _currentTaskIndex(MediaUploadTask task, int version) {
+    if ((_taskVersions[task.id] ?? 0) != version) return -1;
+    return _tasks.indexWhere((candidate) => identical(candidate, task));
+  }
+
+  String _taskVersionKey(String taskId) => '$taskId:${_taskVersions[taskId] ?? 0}';
+
+  void _advanceTaskVersion(String taskId) {
+    _taskVersions[taskId] = (_taskVersions[taskId] ?? 0) + 1;
+  }
+
+  Future<T> _withMutation<T>(FutureOr<T> Function() mutation) {
+    final previous = _mutationTail;
+    final released = Completer<void>();
+    _mutationTail = released.future;
+    return (() async {
+      await previous;
+      try {
+        return await mutation();
+      } finally {
+        released.complete();
+      }
+    })();
+  }
+
+  Future<void> _waitForMutations() async {
+    while (true) {
+      final pending = _mutationTail;
+      await pending;
+      if (identical(pending, _mutationTail)) return;
+    }
   }
 
   Future<Uint8List?> _bytesForTask(MediaUploadTask task, BookFileReader readBookFile) async {

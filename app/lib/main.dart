@@ -13,6 +13,7 @@ import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/papyrus_powersync_connector.dart';
+import 'package:papyrus/powersync/sync_profile_switch_queue.dart';
 import 'package:papyrus/powersync/sync_state.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/library_provider.dart';
@@ -55,6 +56,7 @@ class _PapyrusState extends State<Papyrus> {
   late final PapyrusApiConfig _officialApiConfig;
   late AuthRepository _authRepository;
   late String _activeProfileKey;
+  late final SyncProfileSwitchQueue _profileSwitchQueue;
   late final AppRouter _appRouter;
   bool _switchingSyncProfile = false;
   Future<void>? _authStateOperation;
@@ -68,6 +70,14 @@ class _PapyrusState extends State<Papyrus> {
     _syncSettingsProvider = SyncSettingsProvider(widget.prefs, officialConfig: _officialApiConfig);
     _activeProfileKey = _syncSettingsProvider.activeProfileKey;
     _authRepository = _buildAuthRepository(_syncSettingsProvider.activeApiConfig, _activeProfileKey);
+    _profileSwitchQueue = SyncProfileSwitchQueue(
+      initialProfileKey: _activeProfileKey,
+      onError: (error, stackTrace) {
+        FlutterError.reportError(
+          FlutterErrorDetails(exception: error, stack: stackTrace, library: 'papyrus sync profile lifecycle'),
+        );
+      },
+    );
 
     _dataStore = DataStore();
     _mediaUploadQueue = MediaUploadQueue(widget.prefs, onWorkAvailable: _processMediaUploads);
@@ -171,21 +181,18 @@ class _PapyrusState extends State<Papyrus> {
 
   void _handleSyncSettingsChanged() {
     final nextProfileKey = _syncSettingsProvider.activeProfileKey;
-    if (nextProfileKey == _activeProfileKey) {
-      return;
-    }
-
-    _activeProfileKey = nextProfileKey;
-    unawaited(_switchActiveSyncProfile());
+    final nextConfig = _syncSettingsProvider.activeApiConfig;
+    _profileSwitchQueue.request(nextProfileKey, () => _switchActiveSyncProfile(nextProfileKey, nextConfig));
   }
 
-  Future<void> _switchActiveSyncProfile() async {
+  Future<void> _switchActiveSyncProfile(String nextProfileKey, PapyrusApiConfig nextConfig) async {
     _switchingSyncProfile = true;
     try {
       await _mediaUploadQueue.waitUntilIdle();
       await _mediaUploadQueue.activateScope(null);
       await _powerSyncService.deactivate(clearAuthenticated: false);
-      _authRepository = _buildAuthRepository(_syncSettingsProvider.activeApiConfig, _activeProfileKey);
+      _authRepository = _buildAuthRepository(nextConfig, nextProfileKey);
+      _activeProfileKey = nextProfileKey;
       await _authProvider.replaceRepository(_authRepository, bootstrapNewRepository: !_authProvider.isOfflineMode);
       unawaited(_refreshMediaUsage());
     } finally {
@@ -205,14 +212,18 @@ class _PapyrusState extends State<Papyrus> {
   }
 
   Future<void> _processMediaUploads() async {
-    if (!_authProvider.isSignedIn || _authProvider.isOfflineMode) return;
+    if (_switchingSyncProfile || !_authProvider.isSignedIn || _authProvider.isOfflineMode) return;
     final user = _authProvider.user;
     if (user == null) return;
-    final scope = MediaStorageScope(profileKey: _activeProfileKey, userId: user.userId);
+    final profileKey = _activeProfileKey;
+    final repository = _authRepository;
+    final scope = MediaStorageScope(profileKey: profileKey, userId: user.userId);
     if (_mediaUploadQueue.activeScope != scope) {
       await _mediaUploadQueue.activateScope(scope);
     }
-    final repository = _authRepository;
+    if (_switchingSyncProfile || profileKey != _activeProfileKey || !identical(repository, _authRepository)) {
+      return;
+    }
     await _mediaUploadQueue.processPending(
       dataStore: _dataStore,
       readBookFile: _bookImportService.getBookFile,

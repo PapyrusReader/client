@@ -171,6 +171,86 @@ void main() {
     expect(uploads, 1);
   });
 
+  test('enqueue during an upload is persisted and drained before processing completes', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final repository = InMemoryBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final firstBook = _book(id: '11111111-1111-1111-1111-111111111111', filePath: 'book-1');
+    final secondBook = _book(id: '22222222-2222-2222-2222-222222222222', filePath: 'book-2');
+    await repository.upsert(firstBook);
+    await repository.upsert(secondBook);
+    await pumpEventQueue();
+    final firstUploadStarted = Completer<void>();
+    final releaseFirstUpload = Completer<void>();
+    final uploadedBookIds = <String>[];
+    late MediaUploadQueue queue;
+
+    Future<void> process() => queue.processPending(
+      dataStore: dataStore,
+      readBookFile: (_) async => Uint8List.fromList([1]),
+      uploadMedia: (payload) async {
+        uploadedBookIds.add(payload.bookId);
+        if (payload.bookId == firstBook.id) {
+          firstUploadStarted.complete();
+          await releaseFirstUpload.future;
+        }
+        return _asset(assetId: 'asset-${payload.bookId}', bookId: payload.bookId, kind: payload.kind);
+      },
+    );
+
+    queue = MediaUploadQueue(prefs, onWorkAvailable: process);
+    await queue.activateScope(MediaStorageScope(profileKey: 'official', userId: 'user-1'));
+    final firstEnqueue = queue.enqueueBookFile(
+      book: firstBook,
+      filename: 'first.epub',
+      contentType: 'application/epub+zip',
+    );
+    await firstUploadStarted.future;
+    final secondEnqueue = queue.enqueueBookFile(
+      book: secondBook,
+      filename: 'second.epub',
+      contentType: 'application/epub+zip',
+    );
+    await pumpEventQueue();
+    releaseFirstUpload.complete();
+
+    await Future.wait([firstEnqueue, secondEnqueue]);
+
+    expect(uploadedBookIds, [firstBook.id, secondBook.id]);
+    expect(queue.pendingTasks, isEmpty);
+    expect(prefs.getString('media_upload_queue:official--user-1'), '[]');
+  });
+
+  test('removing a book during a failed upload does not resurrect its task', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final repository = InMemoryBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final book = _book(filePath: 'book-1');
+    await repository.upsert(book);
+    await pumpEventQueue();
+    final uploadStarted = Completer<void>();
+    final releaseUpload = Completer<void>();
+    final queue = await _activeQueue(prefs);
+    await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
+
+    final processing = queue.processPending(
+      dataStore: dataStore,
+      readBookFile: (_) async => Uint8List.fromList([1]),
+      uploadMedia: (_) async {
+        uploadStarted.complete();
+        await releaseUpload.future;
+        throw const MediaUploadException('network failure');
+      },
+    );
+    await uploadStarted.future;
+    await queue.removeTasksForBook(book.id);
+    releaseUpload.complete();
+    await processing;
+
+    expect(queue.pendingTasks, isEmpty);
+    expect(prefs.getString('media_upload_queue:official--user-1'), '[]');
+  });
+
   test('enqueue invokes work callback after scoped tasks are persisted', () async {
     final prefs = await SharedPreferences.getInstance();
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
@@ -218,9 +298,9 @@ void main() {
   });
 }
 
-Book _book({String? filePath, int? fileSize, String? fileHash}) {
+Book _book({String id = '11111111-1111-1111-1111-111111111111', String? filePath, int? fileSize, String? fileHash}) {
   return Book(
-    id: '11111111-1111-1111-1111-111111111111',
+    id: id,
     title: 'Book',
     author: 'Author',
     filePath: filePath,
