@@ -11,6 +11,7 @@ typedef PendingCoverDelete = FutureOr<void> Function(MediaStorageScope scope, St
 typedef GuestCoverDelete = FutureOr<void> Function(String bookId);
 typedef BookAdder = FutureOr<void> Function(Book book);
 typedef BookDelete = FutureOr<void> Function(String bookId);
+typedef LibraryContextValidator = bool Function();
 typedef ImportedBookMediaEnqueuer =
     Future<void> Function({
       required MediaStorageScope scope,
@@ -31,13 +32,15 @@ class BookImportCommitService {
     required BookAdder addBook,
     required BookDelete deleteBook,
     required ImportedBookMediaEnqueuer enqueueImportedBookMedia,
+    LibraryContextValidator isLibraryContextCurrent = _alwaysCurrent,
   }) : _storePendingCover = storePendingCover,
        _storeGuestCover = storeGuestCover,
        _deletePendingCover = deletePendingCover,
        _deleteGuestCover = deleteGuestCover,
        _addBook = addBook,
        _deleteBook = deleteBook,
-       _enqueueImportedBookMedia = enqueueImportedBookMedia;
+       _enqueueImportedBookMedia = enqueueImportedBookMedia,
+       _isLibraryContextCurrent = isLibraryContextCurrent;
 
   final PendingCoverStore _storePendingCover;
   final GuestCoverStore _storeGuestCover;
@@ -46,6 +49,7 @@ class BookImportCommitService {
   final BookAdder _addBook;
   final BookDelete _deleteBook;
   final ImportedBookMediaEnqueuer _enqueueImportedBookMedia;
+  final LibraryContextValidator _isLibraryContextCurrent;
 
   Future<Book> commit({
     required BookImportResult result,
@@ -88,8 +92,11 @@ class BookImportCommitService {
         coverStored = true;
       }
 
+      _ensureLibraryContextCurrent();
+
       await _addBook(book);
       metadataAdded = true;
+      _ensureLibraryContextCurrent();
 
       if (accountScope != null) {
         await _enqueueImportedBookMedia(
@@ -117,7 +124,15 @@ class BookImportCommitService {
       Error.throwWithStackTrace(error, stackTrace);
     }
   }
+
+  void _ensureLibraryContextCurrent() {
+    if (!_isLibraryContextCurrent()) {
+      throw StateError('Library context changed during book import');
+    }
+  }
 }
+
+bool _alwaysCurrent() => true;
 
 Future<void> _bestEffort(FutureOr<void> Function() compensation) async {
   try {

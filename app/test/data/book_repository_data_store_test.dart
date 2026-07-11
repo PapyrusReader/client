@@ -1,9 +1,14 @@
 import 'dart:async';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
+import 'package:papyrus/media/media_models.dart';
+import 'package:papyrus/media/media_storage_scope.dart';
+import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/models/book.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeBookRepository implements BookRepository {
   final StreamController<List<Book>> controller = StreamController<List<Book>>.broadcast();
@@ -42,6 +47,10 @@ Book _book(String id, String title) {
 }
 
 void main() {
+  setUp(() {
+    SharedPreferences.setMockInitialValues({});
+  });
+
   test('repository stream is the source of the DataStore book snapshot', () async {
     final repository = FakeBookRepository();
     final store = DataStore();
@@ -138,6 +147,78 @@ void main() {
 
     await expectLater(store.addBookAndWait(_book('one', 'First')), throwsA(same(addFailure)));
     await expectLater(store.deleteBookAndWait('one'), throwsA(same(deleteFailure)));
+
+    await store.disposeBookRepository();
+    await repository.controller.close();
+  });
+
+  test('repository-bound add is observable before a delayed watch stream emits', () async {
+    final repository = FakeBookRepository();
+    final store = DataStore(bookRepository: repository);
+    final captured = store.requireBookRepository();
+    final book = _book('one', 'First');
+
+    await store.addBookToRepositoryAndWait(captured, book);
+
+    expect(store.isBookRepositoryCurrent(captured), isTrue);
+    expect(store.getBook(book.id), same(book));
+
+    await store.disposeBookRepository();
+    await repository.controller.close();
+  });
+
+  test('repository-bound delete targets captured repository after active repository changes', () async {
+    final first = FakeBookRepository();
+    final second = FakeBookRepository();
+    final store = DataStore(bookRepository: first);
+    final captured = store.requireBookRepository();
+    final book = _book('one', 'First');
+    await store.addBookToRepositoryAndWait(captured, book);
+    await store.attachBookRepository(second);
+
+    await store.deleteBookFromRepositoryAndWait(captured, book.id);
+
+    expect(first.deletes, [book.id]);
+    expect(second.deletes, isEmpty);
+    expect(store.isBookRepositoryCurrent(captured), isFalse);
+
+    await store.disposeBookRepository();
+    await first.controller.close();
+    await second.controller.close();
+  });
+
+  test('immediate queue upload sees repository-bound add before delayed watch stream', () async {
+    final repository = FakeBookRepository();
+    final store = DataStore(bookRepository: repository);
+    final captured = store.requireBookRepository();
+    final book = _book('one', 'First').copyWith(filePath: 'one.epub', fileSize: 3, fileHash: 'hash');
+    await store.addBookToRepositoryAndWait(captured, book);
+    final prefs = await SharedPreferences.getInstance();
+    final queue = MediaUploadQueue(prefs);
+    await queue.activateScope(MediaStorageScope(profileKey: 'official', userId: 'user-1'));
+    await queue.enqueueBookFile(book: book, filename: 'one.epub', contentType: 'application/epub+zip');
+
+    await queue.processPending(
+      dataStore: store,
+      readBookFile: (_) async => Uint8List.fromList([1, 2, 3]),
+      readPendingCover: (_, _) async => null,
+      uploadMedia: (payload) async => MediaAsset(
+        assetId: 'file-media',
+        ownerUserId: 'user-1',
+        bookId: payload.bookId,
+        kind: MediaKind.bookFile,
+        originalFilename: payload.filename,
+        contentType: payload.contentType,
+        extension: 'epub',
+        sizeBytes: payload.bytes.length,
+        sha256: 'hash',
+        storagePath: 'books/file-media.epub',
+      ),
+    );
+
+    expect(store.getBook(book.id)?.fileMediaId, 'file-media');
+    await pumpEventQueue();
+    expect(repository.upserts.last.fileMediaId, 'file-media');
 
     await store.disposeBookRepository();
     await repository.controller.close();

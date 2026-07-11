@@ -167,11 +167,12 @@ class _ImportContentState extends State<_ImportContent> {
     Book? committedBook;
     try {
       final dataStore = context.read<DataStore>();
+      final bookRepository = dataStore.requireBookRepository();
       final queue = context.read<MediaUploadQueue>();
       final importService = context.read<BookImportService>();
-      final isOnlineAccount =
-          context.read<AuthProvider>().isSignedIn &&
-          context.read<PapyrusPowerSyncService>().mode == LibraryDatabaseMode.authenticated;
+      final authProvider = context.read<AuthProvider>();
+      final powerSyncService = context.read<PapyrusPowerSyncService>();
+      final isOnlineAccount = authProvider.isSignedIn && powerSyncService.mode == LibraryDatabaseMode.authenticated;
       final accountScope = isOnlineAccount ? queue.activeScope : null;
       if (isOnlineAccount && accountScope == null) {
         throw StateError('Cannot import account media without an active media storage scope');
@@ -186,9 +187,16 @@ class _ImportContentState extends State<_ImportContent> {
         storeGuestCover: importService.storeGuestCoverFile,
         deletePendingCover: importService.deletePendingCoverFile,
         deleteGuestCover: importService.deleteGuestCoverFile,
-        addBook: dataStore.addBookAndWait,
-        deleteBook: dataStore.deleteBookAndWait,
+        addBook: (book) => dataStore.addBookToRepositoryAndWait(bookRepository, book),
+        deleteBook: (bookId) => dataStore.deleteBookFromRepositoryAndWait(bookRepository, bookId),
         enqueueImportedBookMedia: queue.enqueueImportedBookMedia,
+        isLibraryContextCurrent: () {
+          final currentIsOnlineAccount =
+              authProvider.isSignedIn && powerSyncService.mode == LibraryDatabaseMode.authenticated;
+          return dataStore.isBookRepositoryCurrent(bookRepository) &&
+              currentIsOnlineAccount == isOnlineAccount &&
+              queue.activeScope == accountScope;
+        },
       );
       committedBook = await commitService.commit(
         result: result,

@@ -92,6 +92,16 @@ class DataStore extends ChangeNotifier {
     _bookRepository = null;
   }
 
+  BookRepository requireBookRepository() {
+    final repository = _bookRepository;
+    if (repository == null) {
+      throw StateError('Book repository is not initialized');
+    }
+    return repository;
+  }
+
+  bool isBookRepositoryCurrent(BookRepository repository) => identical(_bookRepository, repository);
+
   void addBook(Book book) {
     final repository = _bookRepository;
     if (repository == null) {
@@ -103,11 +113,16 @@ class DataStore extends ChangeNotifier {
   }
 
   Future<void> addBookAndWait(Book book) async {
-    final repository = _bookRepository;
-    if (repository == null) {
-      throw StateError('Book repository is not initialized');
-    }
+    final repository = requireBookRepository();
+    await addBookToRepositoryAndWait(repository, book);
+  }
+
+  Future<void> addBookToRepositoryAndWait(BookRepository repository, Book book) async {
     await repository.upsert(book);
+    if (isBookRepositoryCurrent(repository) && !identical(_books[book.id], book)) {
+      _books[book.id] = book;
+      notifyListeners();
+    }
   }
 
   void updateBook(Book book) {
@@ -129,11 +144,15 @@ class DataStore extends ChangeNotifier {
   }
 
   Future<void> deleteBookAndWait(String id) async {
-    final repository = _bookRepository;
-    if (repository == null) {
-      throw StateError('Book repository is not initialized');
-    }
+    final repository = requireBookRepository();
+    await deleteBookFromRepositoryAndWait(repository, id);
+  }
+
+  Future<void> deleteBookFromRepositoryAndWait(BookRepository repository, String id) async {
     await repository.delete(id);
+    if (isBookRepositoryCurrent(repository) && _books.remove(id) != null) {
+      notifyListeners();
+    }
   }
 
   void replaceBooksFromSync(List<Book> books) {
