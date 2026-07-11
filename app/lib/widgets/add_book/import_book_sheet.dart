@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
+import 'package:papyrus/models/book.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/sync_state.dart';
 import 'package:papyrus/providers/auth_provider.dart';
@@ -105,9 +106,10 @@ class _ImportContentState extends State<_ImportContent> {
   }
 
   bool _picking = false;
+  bool _committing = false;
 
   Future<void> _pickAndProcess() async {
-    if (_picking) return;
+    if (_picking || _committing) return;
     _picking = true;
 
     try {
@@ -157,9 +159,12 @@ class _ImportContentState extends State<_ImportContent> {
   }
 
   Future<void> _addToLibrary() async {
+    if (_committing) return;
     final result = _result;
     if (result == null) return;
+    setState(() => _committing = true);
 
+    Book? committedBook;
     try {
       final dataStore = context.read<DataStore>();
       final queue = context.read<MediaUploadQueue>();
@@ -179,29 +184,35 @@ class _ImportContentState extends State<_ImportContent> {
       final commitService = BookImportCommitService(
         storePendingCover: importService.storePendingCoverFile,
         storeGuestCover: importService.storeGuestCoverFile,
+        deletePendingCover: importService.deletePendingCoverFile,
+        deleteGuestCover: importService.deleteGuestCoverFile,
         addBook: dataStore.addBook,
-        enqueueBookFile: queue.enqueueBookFile,
-        enqueueCover: queue.enqueueCover,
+        deleteBook: dataStore.deleteBook,
+        enqueueImportedBookMedia: queue.enqueueImportedBookMedia,
       );
-      final book = await commitService.commit(
+      committedBook = await commitService.commit(
         result: result,
         sourceFilename: _filename ?? '${result.bookId}.$ext',
         addedAt: DateTime.now(),
         localFilePath: filePath,
         accountScope: accountScope,
       );
-
-      if (!mounted) return;
-      final messenger = ScaffoldMessenger.of(context);
-      Navigator.of(context).pop();
-      messenger.showSnackBar(SnackBar(content: Text('Added "${book.title}" to library')));
     } catch (error) {
       if (!mounted) return;
       setState(() {
         _state = _ImportState.error;
         _errorMessage = error.toString();
       });
+    } finally {
+      if (mounted) {
+        setState(() => _committing = false);
+      }
     }
+
+    if (!mounted || committedBook == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.of(context).pop();
+    messenger.showSnackBar(SnackBar(content: Text('Added "${committedBook.title}" to library')));
   }
 
   @override
@@ -257,7 +268,7 @@ class _ImportContentState extends State<_ImportContent> {
               ),
               const SizedBox(height: Spacing.lg),
               FilledButton.icon(
-                onPressed: _pickAndProcess,
+                onPressed: _committing ? null : _pickAndProcess,
                 icon: const Icon(Icons.folder_open),
                 label: const Text('Browse files'),
               ),
@@ -342,19 +353,21 @@ class _ImportContentState extends State<_ImportContent> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () {
-                  setState(() {
-                    _state = _ImportState.idle;
-                    _result = null;
-                    _filename = null;
-                  });
-                },
+                onPressed: _committing
+                    ? null
+                    : () {
+                        setState(() {
+                          _state = _ImportState.idle;
+                          _result = null;
+                          _filename = null;
+                        });
+                      },
                 child: const Text('Pick different file'),
               ),
             ),
             const SizedBox(width: Spacing.md),
             Expanded(
-              child: FilledButton(onPressed: _addToLibrary, child: const Text('Add to library')),
+              child: FilledButton(onPressed: _committing ? null : _addToLibrary, child: const Text('Add to library')),
             ),
           ],
         ),
@@ -383,7 +396,7 @@ class _ImportContentState extends State<_ImportContent> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: Spacing.lg),
-          FilledButton(onPressed: _pickAndProcess, child: const Text('Try again')),
+          FilledButton(onPressed: _committing ? null : _pickAndProcess, child: const Text('Try again')),
         ],
       ),
     );

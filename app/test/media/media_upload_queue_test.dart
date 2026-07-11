@@ -469,6 +469,61 @@ void main() {
     expect(jsonDecode(storedAtCallback!) as List<dynamic>, hasLength(1));
   });
 
+  test('enqueueImportedBookMedia persists both tasks under captured scope before one callback', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    var callbacks = 0;
+    List<dynamic>? storedAtCallback;
+    final queue = MediaUploadQueue(
+      prefs,
+      onWorkAvailable: () async {
+        callbacks++;
+        storedAtCallback = jsonDecode(prefs.getString('media_upload_queue:${scope.persistenceKey}')!) as List<dynamic>;
+      },
+    );
+    await queue.activateScope(scope);
+
+    await queue.enqueueImportedBookMedia(
+      scope: scope,
+      book: _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash'),
+      filename: 'book.epub',
+      contentType: 'application/epub+zip',
+      coverFilename: 'book-cover.jpg',
+      coverContentType: 'image/jpeg',
+    );
+
+    expect(callbacks, 1);
+    expect(storedAtCallback, hasLength(2));
+    expect(queue.pendingTasks.map((task) => task.kind), [MediaKind.bookFile, MediaKind.coverImage]);
+  });
+
+  test('enqueueImportedBookMedia rejects a switched scope without writing tasks', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final capturedScope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    final switchedScope = MediaStorageScope(profileKey: 'official', userId: 'user-2');
+    var callbacks = 0;
+    final queue = MediaUploadQueue(prefs, onWorkAvailable: () async => callbacks++);
+    await queue.activateScope(capturedScope);
+    await queue.activateScope(switchedScope);
+
+    await expectLater(
+      queue.enqueueImportedBookMedia(
+        scope: capturedScope,
+        book: _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash'),
+        filename: 'book.epub',
+        contentType: 'application/epub+zip',
+        coverFilename: 'book-cover.jpg',
+        coverContentType: 'image/jpeg',
+      ),
+      throwsStateError,
+    );
+
+    expect(queue.pendingTasks, isEmpty);
+    expect(prefs.getString('media_upload_queue:${capturedScope.persistenceKey}'), isNull);
+    expect(prefs.getString('media_upload_queue:${switchedScope.persistenceKey}'), isNull);
+    expect(callbacks, 0);
+  });
+
   test('retry invokes work callback only when failed tasks become pending', () async {
     final prefs = await SharedPreferences.getInstance();
     var callbacks = 0;

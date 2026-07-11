@@ -40,9 +40,24 @@ void main() {
     expect(commit, contains("throw StateError('Cannot import account media without an active media storage scope')"));
     expect(commit, contains('storePendingCover: importService.storePendingCoverFile'));
     expect(commit, contains('storeGuestCover: importService.storeGuestCoverFile'));
-    expect(commit, contains('enqueueBookFile: queue.enqueueBookFile'));
-    expect(commit, contains('enqueueCover: queue.enqueueCover'));
+    expect(commit, contains('deletePendingCover: importService.deletePendingCoverFile'));
+    expect(commit, contains('deleteGuestCover: importService.deleteGuestCoverFile'));
+    expect(commit, contains('deleteBook: dataStore.deleteBook'));
+    expect(commit, contains('enqueueImportedBookMedia: queue.enqueueImportedBookMedia'));
     expect(commit, contains('accountScope: accountScope'));
     expect(commit, isNot(contains('bytesToDataUri')));
+  });
+
+  test('import commit guard prevents repeat commits and disables mutable actions', () {
+    final source = File('lib/widgets/add_book/import_book_sheet.dart').readAsStringSync();
+    final commitStart = source.indexOf('Future<void> _addToLibrary()');
+    final commit = source.substring(commitStart, source.indexOf('@override\n  Widget build', commitStart));
+
+    expect(commit, contains('if (_committing) return;'));
+    expect(commit, contains('_committing = true'));
+    expect(commit, contains('_committing = false'));
+    expect(source, contains('onPressed: _committing ? null : _addToLibrary'));
+    expect(RegExp(r'onPressed: _committing \? null : _pickAndProcess').allMatches(source), hasLength(2));
+    expect(source, contains('onPressed: _committing\n                    ? null'));
   });
 }

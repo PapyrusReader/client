@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:papyrus/media/media_storage_scope.dart';
@@ -6,29 +7,45 @@ import 'package:papyrus/services/book_import_result.dart';
 
 typedef PendingCoverStore = Future<void> Function(MediaStorageScope scope, String bookId, Uint8List bytes);
 typedef GuestCoverStore = Future<void> Function(String bookId, Uint8List bytes);
+typedef PendingCoverDelete = FutureOr<void> Function(MediaStorageScope scope, String bookId);
+typedef GuestCoverDelete = FutureOr<void> Function(String bookId);
 typedef BookAdder = void Function(Book book);
-typedef MediaEnqueuer =
-    Future<void> Function({required Book book, required String filename, required String contentType});
+typedef BookDelete = FutureOr<void> Function(String bookId);
+typedef ImportedBookMediaEnqueuer =
+    Future<void> Function({
+      required MediaStorageScope scope,
+      required Book book,
+      required String filename,
+      required String contentType,
+      String? coverFilename,
+      String? coverContentType,
+    });
 
 /// Commits an imported book and its local media in a safe, deterministic order.
 class BookImportCommitService {
   const BookImportCommitService({
     required PendingCoverStore storePendingCover,
     required GuestCoverStore storeGuestCover,
+    required PendingCoverDelete deletePendingCover,
+    required GuestCoverDelete deleteGuestCover,
     required BookAdder addBook,
-    required MediaEnqueuer enqueueBookFile,
-    required MediaEnqueuer enqueueCover,
+    required BookDelete deleteBook,
+    required ImportedBookMediaEnqueuer enqueueImportedBookMedia,
   }) : _storePendingCover = storePendingCover,
        _storeGuestCover = storeGuestCover,
+       _deletePendingCover = deletePendingCover,
+       _deleteGuestCover = deleteGuestCover,
        _addBook = addBook,
-       _enqueueBookFile = enqueueBookFile,
-       _enqueueCover = enqueueCover;
+       _deleteBook = deleteBook,
+       _enqueueImportedBookMedia = enqueueImportedBookMedia;
 
   final PendingCoverStore _storePendingCover;
   final GuestCoverStore _storeGuestCover;
+  final PendingCoverDelete _deletePendingCover;
+  final GuestCoverDelete _deleteGuestCover;
   final BookAdder _addBook;
-  final MediaEnqueuer _enqueueBookFile;
-  final MediaEnqueuer _enqueueCover;
+  final BookDelete _deleteBook;
+  final ImportedBookMediaEnqueuer _enqueueImportedBookMedia;
 
   Future<Book> commit({
     required BookImportResult result,
@@ -59,28 +76,54 @@ class BookImportCommitService {
     );
 
     final coverImage = result.coverImage;
-    if (coverImage != null) {
-      if (accountScope != null) {
-        await _storePendingCover(accountScope, book.id, coverImage);
-      } else {
-        await _storeGuestCover(book.id, coverImage);
-      }
-    }
-
-    _addBook(book);
-
-    if (accountScope != null) {
-      await _enqueueBookFile(book: book, filename: sourceFilename, contentType: _bookContentType(result.fileExtension));
+    var coverStored = false;
+    var metadataAdded = false;
+    try {
       if (coverImage != null) {
-        await _enqueueCover(
+        if (accountScope != null) {
+          await _storePendingCover(accountScope, book.id, coverImage);
+        } else {
+          await _storeGuestCover(book.id, coverImage);
+        }
+        coverStored = true;
+      }
+
+      _addBook(book);
+      metadataAdded = true;
+
+      if (accountScope != null) {
+        await _enqueueImportedBookMedia(
+          scope: accountScope,
           book: book,
-          filename: '${book.id}-cover.${_coverExtension(result.coverMimeType)}',
-          contentType: result.coverMimeType ?? 'image/jpeg',
+          filename: sourceFilename,
+          contentType: _bookContentType(result.fileExtension),
+          coverFilename: coverImage == null ? null : '${book.id}-cover.${_coverExtension(result.coverMimeType)}',
+          coverContentType: coverImage == null ? null : result.coverMimeType ?? 'image/jpeg',
         );
       }
-    }
 
-    return book;
+      return book;
+    } catch (error, stackTrace) {
+      if (metadataAdded) {
+        await _bestEffort(() => _deleteBook(book.id));
+      }
+      if (coverStored) {
+        if (accountScope != null) {
+          await _bestEffort(() => _deletePendingCover(accountScope, book.id));
+        } else {
+          await _bestEffort(() => _deleteGuestCover(book.id));
+        }
+      }
+      Error.throwWithStackTrace(error, stackTrace);
+    }
+  }
+}
+
+Future<void> _bestEffort(FutureOr<void> Function() compensation) async {
+  try {
+    await compensation();
+  } catch (_) {
+    // Preserve the import failure; compensation is intentionally best effort.
   }
 }
 

@@ -139,6 +139,54 @@ class MediaUploadQueue extends ChangeNotifier {
     );
   }
 
+  Future<void> enqueueImportedBookMedia({
+    required MediaStorageScope scope,
+    required Book book,
+    required String filename,
+    required String contentType,
+    String? coverFilename,
+    String? coverContentType,
+  }) async {
+    if ((coverFilename == null) != (coverContentType == null)) {
+      throw ArgumentError('Cover filename and content type must be provided together');
+    }
+
+    final tasks = [
+      MediaUploadTask(
+        id: '${book.id}:book_file',
+        bookId: book.id,
+        kind: MediaKind.bookFile,
+        filename: filename,
+        contentType: contentType,
+        status: MediaUploadTaskStatus.pending,
+      ),
+      if (coverFilename != null)
+        MediaUploadTask(
+          id: '${book.id}:cover_image',
+          bookId: book.id,
+          kind: MediaKind.coverImage,
+          filename: coverFilename,
+          contentType: coverContentType!,
+          status: MediaUploadTaskStatus.pending,
+        ),
+    ];
+
+    await _withMutation(() async {
+      if (_activeScope != scope) {
+        throw StateError('Authenticated media upload scope changed before import commit');
+      }
+      final taskIds = tasks.map((task) => task.id).toSet();
+      final nextTasks = [..._tasks.where((task) => !taskIds.contains(task.id)), ...tasks];
+      await _saveTasks(scope, nextTasks);
+      for (final task in tasks) {
+        _advanceTaskVersion(task.id);
+      }
+      _tasks = nextTasks;
+      notifyListeners();
+    });
+    await onWorkAvailable?.call();
+  }
+
   Future<void> retryFailed({String? bookId}) async {
     final scope = _requireActiveScope();
     var retriedAny = false;
@@ -394,8 +442,13 @@ class MediaUploadQueue extends ChangeNotifier {
     }
   }
 
-  Future<void> _save(MediaStorageScope scope) {
-    return _prefs.setString(_storageKey(scope), jsonEncode(_tasks.map((task) => task.toJson()).toList()));
+  Future<void> _save(MediaStorageScope scope) => _saveTasks(scope, _tasks);
+
+  Future<void> _saveTasks(MediaStorageScope scope, List<MediaUploadTask> tasks) async {
+    final saved = await _prefs.setString(_storageKey(scope), jsonEncode(tasks.map((task) => task.toJson()).toList()));
+    if (!saved) {
+      throw StateError('Could not persist media upload queue');
+    }
   }
 
   String _storageKey(MediaStorageScope scope) => '$_storageKeyPrefix${scope.persistenceKey}';
