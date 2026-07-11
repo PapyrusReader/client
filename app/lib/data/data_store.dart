@@ -226,7 +226,7 @@ class DataStore extends ChangeNotifier {
     final books = getBooksInShelf(shelfId);
     return books
         .take(limit)
-        .map((b) => CoverPreview(url: b.coverUrl, mediaId: b.coverMediaId, title: b.title))
+        .map((b) => CoverPreview(bookId: b.id, url: b.coverUrl, mediaId: b.coverMediaId, title: b.title))
         .toList();
   }
 

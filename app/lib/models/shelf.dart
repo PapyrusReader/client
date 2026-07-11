@@ -5,11 +5,12 @@ typedef ShelfData = Shelf;
 
 /// Lightweight cover preview data for shelf mosaic.
 class CoverPreview {
+  final String bookId;
   final String? url;
   final String? mediaId;
   final String title;
 
-  const CoverPreview({this.url, this.mediaId, required this.title});
+  const CoverPreview({required this.bookId, this.url, this.mediaId, required this.title});
 }
 
 /// Data model for a book shelf (collection).

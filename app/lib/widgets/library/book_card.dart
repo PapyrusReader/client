@@ -179,6 +179,7 @@ class _BookCardState extends State<BookCard> {
 
   Widget _buildCover(BuildContext context) {
     return PrivateBookCover(
+      bookId: widget.book.id,
       imageUrl: widget.book.coverURL,
       mediaId: widget.book.coverMediaId,
       placeholder: _buildPlaceholder(context),

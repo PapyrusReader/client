@@ -8,6 +8,7 @@ import 'package:papyrus/media/media_models.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/models/book.dart';
+import 'package:papyrus/models/shelf.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class FakeBookRepository implements BookRepository {
@@ -185,6 +186,23 @@ void main() {
     await store.disposeBookRepository();
     await first.controller.close();
     await second.controller.close();
+  });
+
+  test('shelf cover previews retain the source book id', () async {
+    final repository = FakeBookRepository();
+    final store = DataStore(bookRepository: repository);
+    final book = _book('book-1', 'First');
+    final createdAt = DateTime.utc(2026, 1, 1);
+    final shelf = Shelf(id: 'shelf-1', name: 'Shelf', createdAt: createdAt, updatedAt: createdAt);
+
+    store.addBook(book);
+    store.addShelf(shelf);
+    store.addBookToShelf(book.id, shelf.id);
+
+    expect(store.getCoverPreviewsForShelf(shelf.id).single.bookId, book.id);
+
+    await store.disposeBookRepository();
+    await repository.controller.close();
   });
 
   test('immediate queue upload sees repository-bound add before delayed watch stream', () async {

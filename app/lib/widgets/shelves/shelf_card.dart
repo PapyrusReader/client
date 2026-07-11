@@ -217,6 +217,7 @@ class _ShelfCardState extends State<ShelfCard> {
 
   Widget _buildCoverImage(CoverPreview cover, ColorScheme colorScheme) {
     return PrivateBookCover(
+      bookId: cover.bookId,
       imageUrl: cover.url,
       mediaId: cover.mediaId,
       placeholder: _buildCoverPlaceholder(colorScheme, cover.title),

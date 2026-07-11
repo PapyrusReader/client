@@ -41,6 +41,7 @@ class BookHeader extends StatelessWidget {
       children: [
         // Cover image
         BookCoverImage(
+          bookId: book.id,
           imageUrl: book.coverURL,
           mediaId: book.coverMediaId,
           bookTitle: book.title,
@@ -117,6 +118,7 @@ class BookHeader extends StatelessWidget {
 
           // Cover image (centered)
           BookCoverImage(
+            bookId: book.id,
             imageUrl: book.coverURL,
             mediaId: book.coverMediaId,
             bookTitle: book.title,

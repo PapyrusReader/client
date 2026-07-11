@@ -19,12 +19,20 @@ enum BookCoverSize {
 
 /// Book cover image widget with size variants and placeholder.
 class BookCoverImage extends StatelessWidget {
+  final String? bookId;
   final String? imageUrl;
   final String? mediaId;
   final String? bookTitle;
   final BookCoverSize size;
 
-  const BookCoverImage({super.key, this.imageUrl, this.mediaId, this.bookTitle, this.size = BookCoverSize.medium});
+  const BookCoverImage({
+    super.key,
+    this.bookId,
+    this.imageUrl,
+    this.mediaId,
+    this.bookTitle,
+    this.size = BookCoverSize.medium,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -45,7 +53,12 @@ class BookCoverImage extends StatelessWidget {
   }
 
   Widget _buildImage(BuildContext context, ColorScheme colorScheme) {
-    return PrivateBookCover(imageUrl: imageUrl, mediaId: mediaId, placeholder: _buildPlaceholder(context, colorScheme));
+    return PrivateBookCover(
+      bookId: bookId,
+      imageUrl: imageUrl,
+      mediaId: mediaId,
+      placeholder: _buildPlaceholder(context, colorScheme),
+    );
   }
 
   Widget _buildPlaceholder(BuildContext context, ColorScheme colorScheme) {

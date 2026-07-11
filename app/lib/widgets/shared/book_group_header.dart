@@ -7,6 +7,9 @@ import 'package:papyrus/widgets/book/private_book_cover.dart';
 ///
 /// Used in notes, annotations, and bookmarks pages to group items by book.
 class BookGroupHeader extends StatelessWidget {
+  /// The source book ID used to load an imported local cover.
+  final String bookId;
+
   /// The book title to display.
   final String bookTitle;
 
@@ -30,6 +33,7 @@ class BookGroupHeader extends StatelessWidget {
 
   const BookGroupHeader({
     super.key,
+    required this.bookId,
     required this.bookTitle,
     this.coverUrl,
     this.coverMediaId,
@@ -60,6 +64,7 @@ class BookGroupHeader extends StatelessWidget {
                   width: 32,
                   height: 48,
                   child: PrivateBookCover(
+                    bookId: bookId,
                     imageUrl: coverUrl,
                     mediaId: coverMediaId,
                     placeholder: Container(

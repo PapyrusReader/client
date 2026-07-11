@@ -267,6 +267,7 @@ class _NotesPageState extends State<NotesPage> {
       final isCollapsed = _collapsedGroups.contains(entry.key);
       items.add(
         BookGroupHeader(
+          bookId: entry.key,
           bookTitle: provider.getBookTitle(entry.key),
           coverUrl: provider.getBookCoverUrl(entry.key),
           coverMediaId: provider.getBookCoverMediaId(entry.key),

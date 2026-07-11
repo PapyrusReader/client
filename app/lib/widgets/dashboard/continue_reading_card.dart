@@ -182,6 +182,7 @@ class ContinueReadingCard extends StatelessWidget {
       ),
       clipBehavior: Clip.antiAlias,
       child: PrivateBookCover(
+        bookId: book?.id,
         imageUrl: book?.coverURL,
         mediaId: book?.coverMediaId,
         placeholder: _buildCoverPlaceholder(context),
