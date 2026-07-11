@@ -268,29 +268,12 @@ class BookImportService {
     final file = await _coverFile(scope, bucket, id);
     final operationId = const Uuid().v4();
     final tempFile = File('${file.path}.$operationId.tmp');
-    final backupFile = File('${file.path}.$operationId.bak');
-    var priorMoved = false;
-    var replacementInstalled = false;
     try {
       await tempFile.writeAsBytes(bytes, flush: true);
-      if (await file.exists()) {
-        await file.rename(backupFile.path);
-        priorMoved = true;
-      }
       await tempFile.rename(file.path);
-      replacementInstalled = true;
-    } catch (_) {
-      if (priorMoved && await backupFile.exists()) {
-        await backupFile.rename(file.path);
-        priorMoved = false;
-      }
-      rethrow;
     } finally {
       if (await tempFile.exists()) {
         await tempFile.delete();
-      }
-      if (replacementInstalled && await backupFile.exists()) {
-        await backupFile.delete();
       }
     }
   }

@@ -141,7 +141,7 @@ async function handleGetCover(msg) {
 
 async function handleStoreCover(msg) {
   const { requestId, scopeKey, bucket, mediaId, fileData } = msg;
-  await withCoverLock(scopeKey, bucket, mediaId, () =>
+  await withCoverLocks([[scopeKey, bucket, mediaId]], () =>
     opfsWriteCover(scopeKey, bucket, mediaId, new Uint8Array(fileData)),
   );
   postMessage({ type: 'success', action: 'storeCover', requestId });
@@ -149,7 +149,7 @@ async function handleStoreCover(msg) {
 
 async function handleDeleteCover(msg) {
   const { requestId, scopeKey, bucket, mediaId } = msg;
-  await withCoverLock(scopeKey, bucket, mediaId, () =>
+  await withCoverLocks([[scopeKey, bucket, mediaId]], () =>
     opfsDeleteCover(scopeKey, bucket, mediaId),
   );
   postMessage({ type: 'success', action: 'deleteCover', requestId });
@@ -161,14 +161,18 @@ async function handlePromoteCover(msg) {
     throw new Error('promoteCover requires the pending bucket');
   }
   validateFilePart(targetMediaId, 'targetMediaId');
-  await withCoverLock(scopeKey, bucket, mediaId, async () => {
-    const bytes = await opfsReadCover(scopeKey, bucket, mediaId);
-    if (!bytes) return;
-    await withCoverLock(scopeKey, 'cached', targetMediaId, () =>
-      opfsWriteCover(scopeKey, 'cached', targetMediaId, bytes),
-    );
-    await opfsDeleteCover(scopeKey, bucket, mediaId);
-  });
+  await withCoverLocks(
+    [
+      [scopeKey, bucket, mediaId],
+      [scopeKey, 'cached', targetMediaId],
+    ],
+    async () => {
+      const bytes = await opfsReadCover(scopeKey, bucket, mediaId);
+      if (!bytes) return;
+      await opfsWriteCover(scopeKey, 'cached', targetMediaId, bytes);
+      await opfsDeleteCover(scopeKey, bucket, mediaId);
+    },
+  );
   postMessage({ type: 'success', action: 'promoteCover', requestId });
 }
 
@@ -653,7 +657,7 @@ function validateFilePart(value, fieldName) {
 }
 
 const COVER_BUCKETS = new Set(['cached', 'pending', 'books']);
-const coverOperations = new Map();
+const inWorkerCoverOperations = new Map();
 
 function validateCoverBucket(bucket) {
   if (!COVER_BUCKETS.has(bucket)) {
@@ -661,19 +665,41 @@ function validateCoverBucket(bucket) {
   }
 }
 
-async function withCoverLock(scopeKey, bucket, mediaId, operation) {
+function coverLockName(scopeKey, bucket, mediaId) {
   validateFilePart(scopeKey, 'scopeKey');
   validateCoverBucket(bucket);
   validateFilePart(mediaId, 'mediaId');
-  const key = `${scopeKey}|${bucket}|${mediaId}`;
-  const previous = coverOperations.get(key) || Promise.resolve();
-  const current = previous.catch(() => {}).then(operation);
-  coverOperations.set(key, current);
+  return `papyrus:cover:${scopeKey}:${bucket}:${mediaId}`;
+}
+
+async function withCoverLocks(coverKeys, operation) {
+  const lockNames = [...new Set(coverKeys.map((key) => coverLockName(...key)))].sort();
+  if (navigator.locks && typeof navigator.locks.request === 'function') {
+    return requestWebCoverLocks(lockNames, 0, operation);
+  }
+  return requestInWorkerCoverLocks(lockNames, 0, operation);
+}
+
+async function requestWebCoverLocks(lockNames, index, operation) {
+  if (index === lockNames.length) return operation();
+  return navigator.locks.request(lockNames[index], () =>
+    requestWebCoverLocks(lockNames, index + 1, operation),
+  );
+}
+
+async function requestInWorkerCoverLocks(lockNames, index, operation) {
+  if (index === lockNames.length) return operation();
+  const lockName = lockNames[index];
+  const previous = inWorkerCoverOperations.get(lockName) || Promise.resolve();
+  const current = previous
+    .catch(() => {})
+    .then(() => requestInWorkerCoverLocks(lockNames, index + 1, operation));
+  inWorkerCoverOperations.set(lockName, current);
   try {
     return await current;
   } finally {
-    if (coverOperations.get(key) === current) {
-      coverOperations.delete(key);
+    if (inWorkerCoverOperations.get(lockName) === current) {
+      inWorkerCoverOperations.delete(lockName);
     }
   }
 }

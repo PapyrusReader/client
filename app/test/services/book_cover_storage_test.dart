@@ -141,6 +141,18 @@ void main() {
     );
   });
 
+  test('native replacement uses direct rename without moving the existing cache aside', () {
+    final source = File('lib/services/book_import_service_stub.dart').readAsStringSync();
+    final writer = source.substring(
+      source.indexOf('Future<void> _writeCoverFile'),
+      source.indexOf('Future<void> _removeCoverFile'),
+    );
+
+    expect(writer, contains('await tempFile.rename(file.path);'));
+    expect(writer, isNot(contains('backupFile')));
+    expect(writer, isNot(contains("await file.rename")));
+  });
+
   test('pending store queued during promotion preserves the newer generation', () async {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     await service.storePendingCoverFile(scope, 'book-1', Uint8List.fromList([1]));
@@ -194,7 +206,49 @@ void main() {
     expect(source, contains("new Set(['cached', 'pending', 'books'])"));
     expect(source, contains("validateCoverBucket(bucket)"));
     expect(source, contains("getDirectoryHandle(bucket, { create })"));
-    expect(source, contains('withCoverLock('));
+    expect(source, contains('withCoverLocks('));
+    expect(source, contains('navigator.locks.request'));
+    expect(source, contains('coverLockName('));
+  });
+
+  test('book worker derives shared Web Lock names from cover keys', () async {
+    final result = await Process.run('node', const [
+      '-e',
+      r'''
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync('web/book_worker.js', 'utf8');
+const requested = [];
+const context = {
+  self: {},
+  postMessage() {},
+  navigator: {
+    locks: {
+      async request(name, callback) {
+        requested.push(name);
+        return callback();
+      },
+    },
+  },
+};
+vm.createContext(context);
+vm.runInContext(source, context);
+(async () => {
+  const first = vm.runInContext("coverLockName('scope', 'pending', 'book-1')", context);
+  const second = vm.runInContext("coverLockName('scope', 'pending', 'book-1')", context);
+  const cached = vm.runInContext("coverLockName('scope', 'cached', 'asset-1')", context);
+  await vm.runInContext(
+    "withCoverLocks([['scope', 'pending', 'book-1'], ['scope', 'cached', 'asset-1']], async () => {})",
+    context,
+  );
+  if (first !== second || first === cached) process.exit(1);
+  if (requested.length !== 2 || requested[0] > requested[1]) process.exit(2);
+  if (!requested.includes(first) || !requested.includes(cached)) process.exit(3);
+})().catch(() => process.exit(4));
+''',
+    ]);
+
+    expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
   });
 
   test('book worker rethrows cover storage failures other than not found', () async {
