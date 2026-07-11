@@ -25,7 +25,11 @@ Future<MediaAsset> uploadAndPersistCover({
   try {
     await promotePendingCover(scope, bookId: payload.bookId, mediaId: asset.assetId);
   } catch (error, stackTrace) {
-    onPromotionError(error, stackTrace);
+    try {
+      onPromotionError(error, stackTrace);
+    } catch (_) {
+      // Reporting must not turn an accepted server upload into a retry.
+    }
   }
   return asset;
 }

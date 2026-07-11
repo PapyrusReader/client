@@ -66,6 +66,20 @@ void main() {
     expect(reported, isA<StateError>());
   });
 
+  test('a throwing diagnostic reporter cannot turn upload success into a retry', () async {
+    final result = await uploadAndPersistCover(
+      scope: scope,
+      payload: _payload(MediaKind.coverImage),
+      uploadMedia: (_) async => _asset(MediaKind.coverImage),
+      promotePendingCover: (_, {required bookId, required mediaId}) async {
+        throw StateError('cache unavailable');
+      },
+      onPromotionError: (_, _) => throw StateError('reporter unavailable'),
+    );
+
+    expect(result.assetId, 'asset-1');
+  });
+
   test('upload failure propagates without promotion', () async {
     var promotions = 0;
 
