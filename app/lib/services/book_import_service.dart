@@ -3,6 +3,7 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
 import 'package:flutter/foundation.dart';
+import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/services/book_import_result.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web/web.dart' as web;
@@ -65,7 +66,15 @@ class BookImportService {
           final message = _jsToNullableString(obj['message']) ?? 'Unknown error';
           final error = Exception(message);
           final action = _jsToNullableString(obj['action']);
+          final requestId = _jsToNullableString(obj['requestId']);
           final bookId = _jsToNullableString(obj['bookId']);
+          if (requestId != null) {
+            final c = _pending.remove(requestId);
+            if (c != null && !c.isCompleted) {
+              c.completeError(error);
+              return;
+            }
+          }
           if (action != null && bookId != null) {
             final key = '$action:$bookId';
             final c = _pending.remove(key);
@@ -83,16 +92,17 @@ class BookImportService {
 
         if (type == 'success') {
           final action = _jsToNullableString(obj['action']);
+          final requestId = _jsToNullableString(obj['requestId']);
           final bookId = _jsToNullableString(obj['bookId']);
-          if (action == null || bookId == null) {
+          final key = requestId ?? (action != null && bookId != null ? '$action:$bookId' : null);
+          if (key == null) {
             debugPrint(
               'BookImportService: success message with null '
-              'action=$action bookId=$bookId — ignoring',
+              'action=$action bookId=$bookId requestId=$requestId — ignoring',
             );
             return;
           }
 
-          final key = '$action:$bookId';
           final c = _pending.remove(key);
           if (c != null && !c.isCompleted) {
             c.complete(obj);
@@ -251,6 +261,27 @@ class BookImportService {
     );
   }
 
+  Future<Uint8List?> getCoverFile(MediaStorageScope scope, String mediaId) async {
+    final obj = await _sendCoverRequest(type: 'getCover', scope: scope, mediaId: mediaId);
+    final fileDataJs = obj['fileData'];
+    if (fileDataJs == null || fileDataJs.isNull || fileDataJs.isUndefined) {
+      return null;
+    }
+    return (fileDataJs as JSArrayBuffer).toDart.asUint8List();
+  }
+
+  Future<void> storeCoverFile(MediaStorageScope scope, String mediaId, Uint8List bytes) async {
+    await _sendCoverRequest(type: 'storeCover', scope: scope, mediaId: mediaId, bytes: bytes);
+  }
+
+  Future<void> deleteCoverFile(MediaStorageScope scope, String mediaId) async {
+    await _sendCoverRequest(type: 'deleteCover', scope: scope, mediaId: mediaId);
+  }
+
+  Future<void> clearCoverFiles(MediaStorageScope scope) async {
+    await _sendCoverRequest(type: 'clearCovers', scope: scope);
+  }
+
   /// Terminates the Web Worker and releases resources.
   void dispose() {
     _worker?.terminate();
@@ -265,6 +296,43 @@ class BookImportService {
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
+
+  Future<JSObject> _sendCoverRequest({
+    required String type,
+    required MediaStorageScope scope,
+    String? mediaId,
+    Uint8List? bytes,
+  }) async {
+    final requestId = const Uuid().v4();
+    final completer = Completer<JSObject>();
+    final worker = _getWorker();
+    _pending[requestId] = completer;
+
+    final message = JSObject();
+    message['type'] = type.toJS;
+    message['requestId'] = requestId.toJS;
+    message['scopeKey'] = scope.persistenceKey.toJS;
+    if (mediaId != null) message['mediaId'] = mediaId.toJS;
+
+    if (bytes == null) {
+      worker.postMessage(message);
+    } else {
+      final actualBytes = bytes.offsetInBytes == 0 && bytes.lengthInBytes == bytes.buffer.lengthInBytes
+          ? bytes
+          : Uint8List.fromList(bytes);
+      final jsBuffer = actualBytes.buffer.toJS;
+      message['fileData'] = jsBuffer;
+      worker.postMessage(message, [jsBuffer].toJS);
+    }
+
+    return completer.future.timeout(
+      _timeout,
+      onTimeout: () {
+        _pending.remove(requestId);
+        throw TimeoutException('$type timed out after ${_timeout.inSeconds}s', _timeout);
+      },
+    );
+  }
 
   BookImportResult _parseImportResult(JSObject data, String bookId, String fileExtension) {
     final metadataRaw = data['metadata'];
