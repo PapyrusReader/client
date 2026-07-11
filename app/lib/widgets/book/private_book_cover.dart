@@ -180,6 +180,10 @@ class _PrivateBookCoverState extends State<PrivateBookCover> {
 
   @override
   Widget build(BuildContext context) {
+    if (!_hasInjectedLoaderForCurrentSource) {
+      _configureProviderLoader(subscribe: true);
+    }
+
     if (_hasInlineDataUri) {
       try {
         final data = Uri.parse(widget.imageUrl!).data;

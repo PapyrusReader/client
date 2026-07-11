@@ -330,6 +330,48 @@ void main() {
     expect(identical((tester.widget<Image>(find.byType(Image)).image as MemoryImage).bytes, customBytes), isTrue);
   });
 
+  testWidgets('injected to provider transition subscribes to later profile changes', (tester) async {
+    final harness = await _buildProviderHarness();
+    final injectedBytes = Uint8List.fromList(pngBytes);
+    final officialBytes = Uint8List.fromList(pngBytes);
+    final customBytes = Uint8List.fromList(pngBytes);
+    final scopes = <MediaStorageScope>[];
+
+    Future<Uint8List?> localLoader(String _) async => injectedBytes;
+    Future<Uint8List?> pendingLoader(MediaStorageScope scope, String _) async {
+      scopes.add(scope);
+      return scope.profileKey == SyncSettingsProvider.officialServerId ? officialBytes : customBytes;
+    }
+
+    Widget build({required bool injected}) {
+      return harness.wrap(
+        PrivateBookCover(
+          bookId: 'book-1',
+          loadLocalBookCover: injected ? localLoader : null,
+          loadPendingBookCover: pendingLoader,
+          loadGuestBookCover: (_) async => null,
+          placeholder: const SizedBox(key: Key('placeholder')),
+        ),
+      );
+    }
+
+    await tester.pumpWidget(build(injected: true));
+    await tester.pumpAndSettle();
+    expect(scopes, isEmpty);
+    expect(identical((tester.widget<Image>(find.byType(Image)).image as MemoryImage).bytes, injectedBytes), isTrue);
+
+    await tester.pumpWidget(build(injected: false));
+    await tester.pumpAndSettle();
+    expect(scopes.map((scope) => scope.profileKey), [SyncSettingsProvider.officialServerId]);
+    expect(identical((tester.widget<Image>(find.byType(Image)).image as MemoryImage).bytes, officialBytes), isTrue);
+
+    harness.syncSettings.setCustomServerUrls(apiUrl: 'https://custom.test', powerSyncUrl: 'https://sync.custom.test');
+    await tester.pumpAndSettle();
+
+    expect(scopes.map((scope) => scope.profileKey), [SyncSettingsProvider.officialServerId, startsWith('custom-')]);
+    expect(identical((tester.widget<Image>(find.byType(Image)).image as MemoryImage).bytes, customBytes), isTrue);
+  });
+
   testWidgets('local cover falls back to placeholder when there are no bytes', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
