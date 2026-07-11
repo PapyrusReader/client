@@ -236,18 +236,18 @@ class MediaUploadQueue extends ChangeNotifier {
         final version = _taskVersions[task.id] ?? 0;
         processedVersions.add('${task.id}:$version');
 
-        final bytes = await _bytesForTask(task, scope, readBookFile, readPendingCover);
-        if (bytes == null) {
-          await _replaceTaskIfCurrent(
-            scope,
-            task,
-            version,
-            task.copyWith(status: MediaUploadTaskStatus.pending, errorMessage: 'Local file not found'),
-          );
-          continue;
-        }
-
         try {
+          final bytes = await _bytesForTask(task, scope, readBookFile, readPendingCover);
+          if (bytes == null) {
+            await _replaceTaskIfCurrent(
+              scope,
+              task,
+              version,
+              task.copyWith(status: MediaUploadTaskStatus.pending, errorMessage: 'Local file not found'),
+            );
+            continue;
+          }
+
           final asset = await uploadMedia(
             MediaUploadPayload(
               bookId: task.bookId,

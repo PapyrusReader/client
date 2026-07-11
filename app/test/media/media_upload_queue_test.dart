@@ -177,6 +177,33 @@ void main() {
     expect(queue.pendingTasks.single.errorMessage, 'Local file not found');
   });
 
+  test('pending cover read failure does not block later uploads', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final dataStore = DataStore();
+    final coverBook = _book(id: '11111111-1111-1111-1111-111111111111', filePath: 'cover-book');
+    final fileBook = _book(id: '22222222-2222-2222-2222-222222222222', filePath: 'file-book');
+    final queue = await _activeQueue(prefs);
+    await queue.enqueueCover(book: coverBook, filename: 'cover.jpg', contentType: 'image/jpeg');
+    await queue.enqueueBookFile(book: fileBook, filename: 'book.epub', contentType: 'application/epub+zip');
+    final uploadedBookIds = <String>[];
+
+    await queue.processPending(
+      dataStore: dataStore,
+      readBookFile: (_) async => Uint8List.fromList([1, 2, 3]),
+      readPendingCover: (_, _) async => throw StateError('pending cover read failed'),
+      uploadMedia: (payload) async {
+        uploadedBookIds.add(payload.bookId);
+        return _asset(assetId: 'file-asset', bookId: payload.bookId, kind: payload.kind);
+      },
+    );
+
+    expect(uploadedBookIds, [fileBook.id]);
+    expect(queue.pendingTasks, hasLength(1));
+    expect(queue.pendingTasks.single.bookId, coverBook.id);
+    expect(queue.pendingTasks.single.status, MediaUploadTaskStatus.pending);
+    expect(queue.pendingTasks.single.errorMessage, contains('pending cover read failed'));
+  });
+
   test('legacy embedded cover bytes survive failure and are drained on retry', () async {
     final prefs = await SharedPreferences.getInstance();
     final repository = InMemoryBookRepository();
