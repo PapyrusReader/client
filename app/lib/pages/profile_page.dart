@@ -11,6 +11,8 @@ import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
 import 'package:papyrus/powersync/sync_state.dart';
+import 'package:papyrus/services/book_import_service_stub.dart'
+    if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
 import 'package:papyrus/widgets/settings/settings_section.dart';
@@ -1445,7 +1447,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await context.read<PapyrusPowerSyncService>().clearAuthenticatedCache();
+      final scope = context.read<MediaUploadQueue>().activeScope;
+      final powerSyncService = context.read<PapyrusPowerSyncService>();
+      final importService = context.read<BookImportService>();
+      await powerSyncService.clearAuthenticatedCache();
+      if (scope != null) {
+        await importService.clearCoverFiles(scope);
+      }
       messenger.showSnackBar(const SnackBar(content: Text('Local copy cleared.')));
     } catch (error) {
       messenger.showSnackBar(SnackBar(content: Text('Could not clear local copy: $error')));

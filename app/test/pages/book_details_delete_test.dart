@@ -7,6 +7,7 @@ import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
 import 'package:papyrus/media/media_cache_service.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
+import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/pages/book_details_page.dart';
 import 'package:papyrus/services/book_download_service.dart';
@@ -25,6 +26,7 @@ void main() {
     final repository = InMemoryBookRepository();
     final dataStore = DataStore(bookRepository: repository);
     final mediaUploadQueue = MediaUploadQueue(prefs);
+    await mediaUploadQueue.activateScope(MediaStorageScope(profileKey: 'official', userId: 'user-1'));
     final importService = _RecordingBookImportService();
     final book = Book(id: 'book-1', title: 'Delete Me', author: 'Author', addedAt: DateTime.utc(2026));
 

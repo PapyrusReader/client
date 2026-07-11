@@ -610,14 +610,17 @@ class _BookDetailsPageState extends State<BookDetailsPage> with SingleTickerProv
 
     final dataStore = context.read<DataStore>();
     final mediaUploadQueue = context.read<MediaUploadQueue>();
-    final deleteBookFile = context.read<BookImportService>().deleteBookFile;
+    final importService = context.read<BookImportService>();
+    final mediaScope = mediaUploadQueue.activeScope;
     final messenger = ScaffoldMessenger.of(context);
 
     await deleteBookWithMediaCleanup(
       dataStore: dataStore,
       mediaUploadQueue: mediaUploadQueue,
       bookId: book.id,
-      deleteBookFile: deleteBookFile,
+      coverMediaId: book.coverMediaId,
+      deleteBookFile: importService.deleteBookFile,
+      deleteCoverFile: mediaScope == null ? null : (mediaId) => importService.deleteCoverFile(mediaScope, mediaId),
     );
 
     if (!mounted) return;

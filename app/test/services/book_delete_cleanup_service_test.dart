@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
+import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/services/book_delete_cleanup_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -16,8 +17,16 @@ void main() {
     final repository = InMemoryBookRepository();
     final dataStore = DataStore(bookRepository: repository);
     final queue = MediaUploadQueue(prefs);
-    final book = Book(id: 'book-1', title: 'Book', author: 'Author', addedAt: DateTime.utc(2026));
+    await queue.activateScope(MediaStorageScope(profileKey: 'official', userId: 'user-1'));
+    final book = Book(
+      id: 'book-1',
+      title: 'Book',
+      author: 'Author',
+      coverMediaId: 'cover-1',
+      addedAt: DateTime.utc(2026),
+    );
     final deletedLocalFiles = <String>[];
+    final deletedCovers = <String>[];
 
     await repository.upsert(book);
     await pumpEventQueue();
@@ -27,12 +36,15 @@ void main() {
       dataStore: dataStore,
       mediaUploadQueue: queue,
       bookId: book.id,
+      coverMediaId: book.coverMediaId,
       deleteBookFile: (bookId) async => deletedLocalFiles.add(bookId),
+      deleteCoverFile: (mediaId) async => deletedCovers.add(mediaId),
     );
     await pumpEventQueue();
 
     expect(queue.pendingTasks, isEmpty);
     expect(deletedLocalFiles, [book.id]);
+    expect(deletedCovers, ['cover-1']);
     expect(dataStore.getBook(book.id), isNull);
     expect(await repository.getById(book.id), isNull);
   });

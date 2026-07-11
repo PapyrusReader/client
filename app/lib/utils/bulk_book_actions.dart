@@ -147,13 +147,21 @@ void handleBulkDelete(BuildContext context, LibraryProvider libraryProvider) {
         FilledButton(
           onPressed: () async {
             final selectedBookIds = libraryProvider.selectedBookIds.toSet();
+            final mediaUploadQueue = context.read<MediaUploadQueue>();
+            final importService = context.read<BookImportService>();
+            final mediaScope = mediaUploadQueue.activeScope;
             Navigator.pop(context);
             for (final bookId in selectedBookIds) {
+              final book = dataStore.getBook(bookId);
               await deleteBookWithMediaCleanup(
                 dataStore: dataStore,
-                mediaUploadQueue: context.read<MediaUploadQueue>(),
+                mediaUploadQueue: mediaUploadQueue,
                 bookId: bookId,
-                deleteBookFile: context.read<BookImportService>().deleteBookFile,
+                coverMediaId: book?.coverMediaId,
+                deleteBookFile: importService.deleteBookFile,
+                deleteCoverFile: mediaScope == null
+                    ? null
+                    : (mediaId) => importService.deleteCoverFile(mediaScope, mediaId),
               );
             }
             libraryProvider.exitSelectionMode();

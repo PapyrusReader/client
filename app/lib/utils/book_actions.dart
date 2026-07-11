@@ -56,12 +56,17 @@ void showBookContextMenu({required BuildContext context, required Book book, Off
       unawaited(_downloadBookFile(context, book));
     },
     onDelete: () {
+      final mediaUploadQueue = context.read<MediaUploadQueue>();
+      final importService = context.read<BookImportService>();
+      final mediaScope = mediaUploadQueue.activeScope;
       unawaited(
         deleteBookWithMediaCleanup(
           dataStore: context.read<DataStore>(),
-          mediaUploadQueue: context.read<MediaUploadQueue>(),
+          mediaUploadQueue: mediaUploadQueue,
           bookId: book.id,
-          deleteBookFile: context.read<BookImportService>().deleteBookFile,
+          coverMediaId: book.coverMediaId,
+          deleteBookFile: importService.deleteBookFile,
+          deleteCoverFile: mediaScope == null ? null : (mediaId) => importService.deleteCoverFile(mediaScope, mediaId),
         ),
       );
     },
