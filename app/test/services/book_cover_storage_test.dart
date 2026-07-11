@@ -204,10 +204,10 @@ void main() {
 
       await tester.runAsync(() => _storeCover(service, deletion.scope, deletion.bucket, deletion.id));
       await _pumpCover(tester, deletion.scope, deletion.bucket, deletion.id, loadBytes);
-      await tester.pumpWidget(const SizedBox());
-      await tester.pump();
 
       await tester.runAsync(() => _deleteCover(service, deletion.scope, deletion.bucket, deletion.id));
+      await tester.pumpWidget(const SizedBox());
+      await tester.pump();
       await _pumpCover(tester, deletion.scope, deletion.bucket, deletion.id, loadBytes);
 
       expect(loads, 2);
@@ -223,20 +223,41 @@ void main() {
       await service.storePendingCoverFile(scope, 'book-1', _pngBytes);
       await service.storeCoverFile(scope, 'asset-1', _pngBytes);
     });
-    await _pumpCover(tester, scope, CoverStorageBucket.pending, 'book-1', () async {
-      pendingLoads++;
-      return _pngBytes;
-    });
-    await tester.pumpWidget(const SizedBox());
-    await tester.pump();
-    await _pumpCover(tester, scope, CoverStorageBucket.cached, 'asset-1', () async {
-      cachedLoads++;
-      return _pngBytes;
-    });
-    await tester.pumpWidget(const SizedBox());
-    await tester.pump();
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Row(
+          children: [
+            Image(
+              image: LocalCoverImageProvider(
+                scopeKey: scope.persistenceKey,
+                bucket: CoverStorageBucket.pending,
+                fileId: 'book-1',
+                loadBytes: () async {
+                  pendingLoads++;
+                  return _pngBytes;
+                },
+              ),
+            ),
+            Image(
+              image: LocalCoverImageProvider(
+                scopeKey: scope.persistenceKey,
+                bucket: CoverStorageBucket.cached,
+                fileId: 'asset-1',
+                loadBytes: () async {
+                  cachedLoads++;
+                  return _pngBytes;
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
 
     await tester.runAsync(() => service.promotePendingCoverFile(scope, bookId: 'book-1', mediaId: 'asset-1'));
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
     await _pumpCover(tester, scope, CoverStorageBucket.pending, 'book-1', () async {
       pendingLoads++;
       return _pngBytes;
@@ -403,6 +424,45 @@ vm.runInContext(source, context);
     expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
   });
 
+  test('book worker reports whether pending cover promotion occurred', () async {
+    final result = await Process.run('node', const [
+      '-e',
+      r'''
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync('web/book_worker.js', 'utf8');
+const messages = [];
+const calls = [];
+const context = {
+  self: {},
+  postMessage(message) { messages.push(message); },
+  navigator: { locks: { async request(_, callback) { return callback(); } } },
+};
+vm.createContext(context);
+vm.runInContext(source, context);
+(async () => {
+  context.opfsReadCover = async () => null;
+  context.opfsWriteCover = async () => calls.push('write');
+  context.opfsDeleteCover = async () => calls.push('delete');
+  await context.handlePromoteCover({
+    requestId: 'missing', scopeKey: 'scope', bucket: 'pending', mediaId: 'book-1', targetMediaId: 'asset-1',
+  });
+  if (messages.at(-1).promoted !== false) process.exit(1);
+  if (calls.length !== 0) process.exit(2);
+
+  context.opfsReadCover = async () => new Uint8Array([1]);
+  await context.handlePromoteCover({
+    requestId: 'present', scopeKey: 'scope', bucket: 'pending', mediaId: 'book-1', targetMediaId: 'asset-1',
+  });
+  if (messages.at(-1).promoted !== true) process.exit(3);
+  if (calls.join(',') !== 'write,delete') process.exit(4);
+})().catch(() => process.exit(5));
+''',
+    ]);
+
+    expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+  });
+
   test('web cover writes transfer a copy so caller bytes remain renderable', () {
     final source = File('lib/services/book_import_service.dart').readAsStringSync();
     final helper = source.substring(
@@ -440,8 +500,11 @@ vm.runInContext(source, context);
     expect(deleteHelper, contains('fileId: id'));
     expect(
       promotion.indexOf("await _sendCoverRequest(\n      type: 'promoteCover'"),
-      lessThan(promotion.indexOf('LocalCoverImageProvider.evictKey(')),
+      lessThan(promotion.indexOf("obj['promoted']")),
     );
+    expect(promotion.indexOf("obj['promoted']"), lessThan(promotion.indexOf('LocalCoverImageProvider.evictKey(')));
+    expect(promotion, contains('!(promoted as JSBoolean).toDart'));
+    expect(promotion.indexOf('return;'), lessThan(promotion.indexOf('LocalCoverImageProvider.evictKey(')));
     expect(promotion, contains('bucket: CoverStorageBucket.pending'));
     expect(promotion, contains('fileId: bookId'));
     expect(promotion, isNot(contains('fileId: mediaId')));

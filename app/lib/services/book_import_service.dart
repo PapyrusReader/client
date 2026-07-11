@@ -304,13 +304,17 @@ class BookImportService {
     required String bookId,
     required String mediaId,
   }) async {
-    await _sendCoverRequest(
+    final obj = await _sendCoverRequest(
       type: 'promoteCover',
       scope: scope,
       bucket: CoverStorageBucket.pending,
       mediaId: bookId,
       targetMediaId: mediaId,
     );
+    final promoted = obj['promoted'];
+    if (promoted == null || promoted.isNull || promoted.isUndefined || !(promoted as JSBoolean).toDart) {
+      return;
+    }
     LocalCoverImageProvider.evictKey(
       scopeKey: scope.persistenceKey,
       bucket: CoverStorageBucket.pending,

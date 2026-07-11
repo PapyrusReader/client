@@ -20,6 +20,7 @@
  *     { type: 'success', action: 'delete',  bookId }
  *     { type: 'success', action: 'getFile', bookId, fileData }
  *     { type: 'success', action: 'storeFile', bookId }
+ *     { type: 'success', action: 'promoteCover', requestId, promoted }
  *     { type: 'error',   message }
  */
 
@@ -161,19 +162,20 @@ async function handlePromoteCover(msg) {
     throw new Error('promoteCover requires the pending bucket');
   }
   validateFilePart(targetMediaId, 'targetMediaId');
-  await withCoverLocks(
+  const promoted = await withCoverLocks(
     [
       [scopeKey, bucket, mediaId],
       [scopeKey, 'cached', targetMediaId],
     ],
     async () => {
       const bytes = await opfsReadCover(scopeKey, bucket, mediaId);
-      if (!bytes) return;
+      if (!bytes) return false;
       await opfsWriteCover(scopeKey, 'cached', targetMediaId, bytes);
       await opfsDeleteCover(scopeKey, bucket, mediaId);
+      return true;
     },
   );
-  postMessage({ type: 'success', action: 'promoteCover', requestId });
+  postMessage({ type: 'success', action: 'promoteCover', requestId, promoted });
 }
 
 async function handleClearCovers(msg) {
