@@ -12,6 +12,8 @@ import 'package:provider/provider.dart';
 
 typedef PrivateCoverLoader = Future<Uint8List?> Function(String mediaId);
 typedef LocalBookCoverLoader = Future<Uint8List?> Function(String bookId);
+typedef PendingBookCoverLoader = Future<Uint8List?> Function(MediaStorageScope scope, String bookId);
+typedef GuestBookCoverLoader = Future<Uint8List?> Function(String bookId);
 
 /// Renders a public cover URL or a lazily persisted authenticated cover.
 class PrivateBookCover extends StatefulWidget {
@@ -24,6 +26,8 @@ class PrivateBookCover extends StatefulWidget {
     required this.placeholder,
     this.loadPrivateCover,
     this.loadLocalBookCover,
+    this.loadPendingBookCover,
+    this.loadGuestBookCover,
   });
 
   final String? bookId;
@@ -33,6 +37,8 @@ class PrivateBookCover extends StatefulWidget {
   final Widget placeholder;
   final PrivateCoverLoader? loadPrivateCover;
   final LocalBookCoverLoader? loadLocalBookCover;
+  final PendingBookCoverLoader? loadPendingBookCover;
+  final GuestBookCoverLoader? loadGuestBookCover;
 
   @override
   State<PrivateBookCover> createState() => _PrivateBookCoverState();
@@ -52,7 +58,7 @@ class _PrivateBookCoverState extends State<PrivateBookCover> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     if (!_hasInjectedLoaderForCurrentSource) {
-      _configureProviderLoader();
+      _configureProviderLoader(subscribe: true);
     }
   }
 
@@ -62,8 +68,10 @@ class _PrivateBookCoverState extends State<PrivateBookCover> {
     if (oldWidget.imageUrl != widget.imageUrl ||
         oldWidget.mediaId != widget.mediaId ||
         oldWidget.bookId != widget.bookId ||
-        (oldWidget.loadPrivateCover == null) != (widget.loadPrivateCover == null) ||
-        (oldWidget.loadLocalBookCover == null) != (widget.loadLocalBookCover == null)) {
+        !identical(oldWidget.loadPrivateCover, widget.loadPrivateCover) ||
+        !identical(oldWidget.loadLocalBookCover, widget.loadLocalBookCover) ||
+        !identical(oldWidget.loadPendingBookCover, widget.loadPendingBookCover) ||
+        !identical(oldWidget.loadGuestBookCover, widget.loadGuestBookCover)) {
       _coverFuture = null;
       _loadKey = null;
       _configureInjectedLoader();
@@ -96,24 +104,30 @@ class _PrivateBookCoverState extends State<PrivateBookCover> {
     _coverFuture = loader(bookId);
   }
 
-  void _configureProviderLoader() {
+  void _configureProviderLoader({bool subscribe = false}) {
     try {
-      _configureProviderLoaderFromContext();
+      final authProvider = subscribe ? context.watch<AuthProvider>() : context.read<AuthProvider>();
+      final user = authProvider.user;
+      final needsAccountScope =
+          user != null && !authProvider.isOfflineMode && (_usableMediaId == null || authProvider.isSignedIn);
+      final syncSettings = needsAccountScope
+          ? (subscribe ? context.watch<SyncSettingsProvider>() : context.read<SyncSettingsProvider>())
+          : null;
+      _configureProviderLoaderFromContext(authProvider, syncSettings);
     } on ProviderNotFoundException {
       // Standalone cover surfaces can still render their placeholder.
     }
   }
 
-  void _configureProviderLoaderFromContext() {
+  void _configureProviderLoaderFromContext(AuthProvider authProvider, SyncSettingsProvider? syncSettings) {
     if (_hasPublicUrl) return;
 
     final mediaId = _usableMediaId;
-    final authProvider = context.read<AuthProvider>();
     final user = authProvider.user;
     if (mediaId != null) {
       if (!authProvider.isSignedIn || authProvider.isOfflineMode || user == null) return;
 
-      final syncSettings = context.read<SyncSettingsProvider>();
+      if (syncSettings == null) return;
       final scope = MediaStorageScope(profileKey: syncSettings.activeProfileKey, userId: user.userId);
       final key = '${scope.persistenceKey}:$mediaId';
       if (_loadKey == key) return;
@@ -134,21 +148,22 @@ class _PrivateBookCoverState extends State<PrivateBookCover> {
     final bookId = _usableBookId;
     if (bookId == null) return;
 
-    final importService = context.read<BookImportService>();
-    if (authProvider.isSignedIn && !authProvider.isOfflineMode && user != null) {
-      final syncSettings = context.read<SyncSettingsProvider>();
+    if (!authProvider.isOfflineMode && user != null) {
+      if (syncSettings == null) return;
       final scope = MediaStorageScope(profileKey: syncSettings.activeProfileKey, userId: user.userId);
       final key = 'local:$bookId:account:${scope.persistenceKey}';
       if (_loadKey == key) return;
       _loadKey = key;
-      _coverFuture = importService.getPendingCoverFile(scope, bookId);
+      final loader = widget.loadPendingBookCover ?? context.read<BookImportService>().getPendingCoverFile;
+      _coverFuture = loader(scope, bookId);
       return;
     }
 
     final key = 'local:$bookId:guest:no-scope';
     if (_loadKey == key) return;
     _loadKey = key;
-    _coverFuture = importService.getGuestCoverFile(bookId);
+    final loader = widget.loadGuestBookCover ?? context.read<BookImportService>().getGuestCoverFile;
+    _coverFuture = loader(bookId);
   }
 
   bool get _hasPublicUrl => widget.imageUrl != null && widget.imageUrl!.isNotEmpty;

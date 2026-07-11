@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/models/book.dart';
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/library/book_card.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -118,6 +119,12 @@ void main() {
     testWidgets('shows placeholder when no cover URL', (tester) async {
       await tester.pumpWidget(buildCard());
       expect(find.byIcon(Icons.menu_book), findsOneWidget);
+    });
+
+    testWidgets('forwards the book id to the cover renderer', (tester) async {
+      await tester.pumpWidget(buildCard());
+
+      expect(tester.widget<PrivateBookCover>(find.byType(PrivateBookCover)).bookId, testBook.id);
     });
 
     testWidgets('renders Card widget', (tester) async {
