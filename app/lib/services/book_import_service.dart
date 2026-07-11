@@ -303,10 +303,13 @@ class BookImportService {
     required String bookId,
     required String mediaId,
   }) async {
-    final bytes = await _getCoverFile(scope, CoverStorageBucket.pending, bookId);
-    if (bytes == null) return;
-    await _storeCoverFile(scope, CoverStorageBucket.cached, mediaId, bytes);
-    await _deleteCoverFile(scope, CoverStorageBucket.pending, bookId);
+    await _sendCoverRequest(
+      type: 'promoteCover',
+      scope: scope,
+      bucket: CoverStorageBucket.pending,
+      mediaId: bookId,
+      targetMediaId: mediaId,
+    );
   }
 
   Future<Uint8List?> _getCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
@@ -350,6 +353,7 @@ class BookImportService {
     required MediaStorageScope scope,
     required CoverStorageBucket bucket,
     String? mediaId,
+    String? targetMediaId,
     Uint8List? bytes,
   }) async {
     final requestId = const Uuid().v4();
@@ -363,6 +367,7 @@ class BookImportService {
     message['scopeKey'] = scope.persistenceKey.toJS;
     message['bucket'] = bucket.pathComponent.toJS;
     if (mediaId != null) message['mediaId'] = mediaId.toJS;
+    if (targetMediaId != null) message['targetMediaId'] = targetMediaId.toJS;
 
     if (bytes == null) {
       worker.postMessage(message);

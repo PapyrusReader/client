@@ -119,6 +119,40 @@ void main() {
     expect(root.listSync(recursive: true).whereType<File>().where((file) => file.path.endsWith('.tmp')), isEmpty);
   });
 
+  test('concurrent same-key stores leave one complete value and no temporary files', () async {
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    final secondService = BookImportService();
+    final candidates = List.generate(12, (index) => Uint8List.fromList(List.filled(4096, index)));
+
+    await Future.wait(
+      candidates.indexed.map(
+        (candidate) => (candidate.$1.isEven ? service : secondService).storeCoverFile(scope, 'asset-1', candidate.$2),
+      ),
+    );
+
+    final stored = await service.getCoverFile(scope, 'asset-1');
+    expect(candidates.any((bytes) => _bytesEqual(bytes, stored)), isTrue);
+    expect(
+      root
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((file) => file.path.endsWith('.tmp') || file.path.endsWith('.bak')),
+      isEmpty,
+    );
+  });
+
+  test('pending store queued during promotion preserves the newer generation', () async {
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    await service.storePendingCoverFile(scope, 'book-1', Uint8List.fromList([1]));
+
+    final promotion = service.promotePendingCoverFile(scope, bookId: 'book-1', mediaId: 'asset-1');
+    final newerStore = service.storePendingCoverFile(scope, 'book-1', Uint8List.fromList([2]));
+    await Future.wait([promotion, newerStore]);
+
+    expect(await service.getCoverFile(scope, 'asset-1'), Uint8List.fromList([1]));
+    expect(await service.getPendingCoverFile(scope, 'book-1'), Uint8List.fromList([2]));
+  });
+
   test('deleting a cover is idempotent', () async {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     await service.storeCoverFile(scope, 'asset-1', Uint8List.fromList([1]));
@@ -154,12 +188,49 @@ void main() {
   test('book worker declares scoped bucket cover actions and validates buckets', () {
     final source = File('web/book_worker.js').readAsStringSync();
 
-    for (final action in ['getCover', 'storeCover', 'deleteCover', 'clearCovers']) {
+    for (final action in ['getCover', 'storeCover', 'deleteCover', 'promoteCover', 'clearCovers']) {
       expect(source, contains("case '$action':"));
     }
     expect(source, contains("new Set(['cached', 'pending', 'books'])"));
     expect(source, contains("validateCoverBucket(bucket)"));
     expect(source, contains("getDirectoryHandle(bucket, { create })"));
+    expect(source, contains('withCoverLock('));
+  });
+
+  test('book worker rethrows cover storage failures other than not found', () async {
+    final result = await Process.run('node', const [
+      '-e',
+      r'''
+const fs = require('fs');
+const vm = require('vm');
+const source = fs.readFileSync('web/book_worker.js', 'utf8');
+const failure = new Error('storage denied');
+failure.name = 'NotAllowedError';
+const context = {
+  self: {},
+  postMessage() {},
+  navigator: {
+    storage: {
+      async getDirectory() {
+        return { async getDirectoryHandle() { throw failure; } };
+      },
+    },
+  },
+};
+vm.createContext(context);
+vm.runInContext(source, context);
+(async () => {
+  const results = await Promise.allSettled([
+    vm.runInContext("opfsReadCover('scope', 'cached', 'id')", context),
+    vm.runInContext("opfsDeleteCover('scope', 'cached', 'id')", context),
+    vm.runInContext("opfsClearCovers('scope')", context),
+  ]);
+  if (results.some((result) => result.status !== 'rejected')) process.exit(1);
+})().catch(() => process.exit(2));
+''',
+    ]);
+
+    expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
   });
 
   test('web cover writes transfer a copy so caller bytes remain renderable', () {
@@ -173,4 +244,12 @@ void main() {
     expect(helper, contains("message['bucket'] = bucket.pathComponent.toJS;"));
     expect(helper, isNot(contains('bytes.offsetInBytes == 0 && bytes.lengthInBytes == bytes.buffer.lengthInBytes')));
   });
+}
+
+bool _bytesEqual(Uint8List first, Uint8List? second) {
+  if (second == null || first.length != second.length) return false;
+  for (var index = 0; index < first.length; index++) {
+    if (first[index] != second[index]) return false;
+  }
+  return true;
 }

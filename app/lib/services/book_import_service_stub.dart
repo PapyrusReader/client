@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -20,6 +21,7 @@ class BookImportService {
   static final RegExp _safeFilePart = RegExp(r'^[a-zA-Z0-9_.-]+$');
 
   final _metadataService = FileMetadataService();
+  static final Map<String, Future<void>> _coverOperations = {};
 
   /// Imports a book file: extracts metadata and stores the file locally.
   ///
@@ -107,41 +109,86 @@ class BookImportService {
 
   /// Returns a persistently cached private cover for [scope], when present.
   Future<Uint8List?> getCoverFile(MediaStorageScope scope, String mediaId) async {
-    return _getCoverFile(scope, CoverStorageBucket.cached, mediaId);
+    return _withCoverLock(
+      scope,
+      CoverStorageBucket.cached,
+      mediaId,
+      () => _readCoverFile(scope, CoverStorageBucket.cached, mediaId),
+    );
   }
 
   /// Atomically stores private cover bytes in the selected account scope.
   Future<void> storeCoverFile(MediaStorageScope scope, String mediaId, Uint8List bytes) async {
-    await _storeCoverFile(scope, CoverStorageBucket.cached, mediaId, bytes);
+    await _withCoverLock(
+      scope,
+      CoverStorageBucket.cached,
+      mediaId,
+      () => _writeCoverFile(scope, CoverStorageBucket.cached, mediaId, bytes),
+    );
   }
 
   /// Deletes one cached private cover without affecting other scopes.
   Future<void> deleteCoverFile(MediaStorageScope scope, String mediaId) async {
-    await _deleteCoverFile(scope, CoverStorageBucket.cached, mediaId);
+    await _withCoverLock(
+      scope,
+      CoverStorageBucket.cached,
+      mediaId,
+      () => _removeCoverFile(scope, CoverStorageBucket.cached, mediaId),
+    );
   }
 
   Future<Uint8List?> getPendingCoverFile(MediaStorageScope scope, String bookId) async {
-    return _getCoverFile(scope, CoverStorageBucket.pending, bookId);
+    return _withCoverLock(
+      scope,
+      CoverStorageBucket.pending,
+      bookId,
+      () => _readCoverFile(scope, CoverStorageBucket.pending, bookId),
+    );
   }
 
   Future<void> storePendingCoverFile(MediaStorageScope scope, String bookId, Uint8List bytes) async {
-    await _storeCoverFile(scope, CoverStorageBucket.pending, bookId, bytes);
+    await _withCoverLock(
+      scope,
+      CoverStorageBucket.pending,
+      bookId,
+      () => _writeCoverFile(scope, CoverStorageBucket.pending, bookId, bytes),
+    );
   }
 
   Future<void> deletePendingCoverFile(MediaStorageScope scope, String bookId) async {
-    await _deleteCoverFile(scope, CoverStorageBucket.pending, bookId);
+    await _withCoverLock(
+      scope,
+      CoverStorageBucket.pending,
+      bookId,
+      () => _removeCoverFile(scope, CoverStorageBucket.pending, bookId),
+    );
   }
 
   Future<Uint8List?> getGuestCoverFile(String bookId) async {
-    return _getCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId);
+    return _withCoverLock(
+      MediaStorageScope.localGuest,
+      CoverStorageBucket.guestBooks,
+      bookId,
+      () => _readCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId),
+    );
   }
 
   Future<void> storeGuestCoverFile(String bookId, Uint8List bytes) async {
-    await _storeCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId, bytes);
+    await _withCoverLock(
+      MediaStorageScope.localGuest,
+      CoverStorageBucket.guestBooks,
+      bookId,
+      () => _writeCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId, bytes),
+    );
   }
 
   Future<void> deleteGuestCoverFile(String bookId) async {
-    await _deleteCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId);
+    await _withCoverLock(
+      MediaStorageScope.localGuest,
+      CoverStorageBucket.guestBooks,
+      bookId,
+      () => _removeCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId),
+    );
   }
 
   Future<void> promotePendingCoverFile(
@@ -149,10 +196,17 @@ class BookImportService {
     required String bookId,
     required String mediaId,
   }) async {
-    final bytes = await _getCoverFile(scope, CoverStorageBucket.pending, bookId);
-    if (bytes == null) return;
-    await _storeCoverFile(scope, CoverStorageBucket.cached, mediaId, bytes);
-    await _deleteCoverFile(scope, CoverStorageBucket.pending, bookId);
+    await _withCoverLock(scope, CoverStorageBucket.pending, bookId, () async {
+      final bytes = await _readCoverFile(scope, CoverStorageBucket.pending, bookId);
+      if (bytes == null) return;
+      await _withCoverLock(
+        scope,
+        CoverStorageBucket.cached,
+        mediaId,
+        () => _writeCoverFile(scope, CoverStorageBucket.cached, mediaId, bytes),
+      );
+      await _removeCoverFile(scope, CoverStorageBucket.pending, bookId);
+    });
   }
 
   /// Deletes all cached private covers for one server/account scope.
@@ -176,27 +230,72 @@ class BookImportService {
     return booksDir;
   }
 
-  Future<Uint8List?> _getCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
+  Future<T> _withCoverLock<T>(
+    MediaStorageScope scope,
+    CoverStorageBucket bucket,
+    String id,
+    Future<T> Function() operation,
+  ) {
+    final key = '${scope.persistenceKey}|${bucket.pathComponent}|$id';
+    final previous = _coverOperations[key] ?? Future<void>.value();
+    final completer = Completer<T>();
+    late final Future<void> current;
+    current = previous.then((_) async {
+      try {
+        completer.complete(await operation());
+      } catch (error, stackTrace) {
+        completer.completeError(error, stackTrace);
+      }
+    });
+    _coverOperations[key] = current;
+    unawaited(
+      current.whenComplete(() {
+        if (identical(_coverOperations[key], current)) {
+          _coverOperations.remove(key);
+        }
+      }),
+    );
+    return completer.future;
+  }
+
+  Future<Uint8List?> _readCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
     final file = await _coverFile(scope, bucket, id);
     if (!await file.exists()) return null;
     return file.readAsBytes();
   }
 
-  Future<void> _storeCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id, Uint8List bytes) async {
+  Future<void> _writeCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id, Uint8List bytes) async {
     final file = await _coverFile(scope, bucket, id);
-    final tempFile = File('${file.path}.tmp');
-    await tempFile.writeAsBytes(bytes, flush: true);
+    final operationId = const Uuid().v4();
+    final tempFile = File('${file.path}.$operationId.tmp');
+    final backupFile = File('${file.path}.$operationId.bak');
+    var priorMoved = false;
+    var replacementInstalled = false;
     try {
-      await tempFile.rename(file.path);
-    } on FileSystemException {
+      await tempFile.writeAsBytes(bytes, flush: true);
       if (await file.exists()) {
-        await file.delete();
+        await file.rename(backupFile.path);
+        priorMoved = true;
       }
       await tempFile.rename(file.path);
+      replacementInstalled = true;
+    } catch (_) {
+      if (priorMoved && await backupFile.exists()) {
+        await backupFile.rename(file.path);
+        priorMoved = false;
+      }
+      rethrow;
+    } finally {
+      if (await tempFile.exists()) {
+        await tempFile.delete();
+      }
+      if (replacementInstalled && await backupFile.exists()) {
+        await backupFile.delete();
+      }
     }
   }
 
-  Future<void> _deleteCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
+  Future<void> _removeCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
     final file = await _coverFile(scope, bucket, id);
     if (await file.exists()) {
       await file.delete();
