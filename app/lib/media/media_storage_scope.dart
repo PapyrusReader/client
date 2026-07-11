@@ -8,6 +8,10 @@ class MediaStorageScope {
 
   static final RegExp _safePart = RegExp(r'^[a-zA-Z0-9_.-]+$');
 
+  static const localGuest = MediaStorageScope._('local', 'guest');
+
+  const MediaStorageScope._(this.profileKey, this.userId);
+
   final String profileKey;
   final String userId;
 

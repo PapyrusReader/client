@@ -2,6 +2,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:papyrus/media/cover_storage_bucket.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/services/book_import_result.dart';
 import 'package:papyrus/services/file_metadata_service.dart';
@@ -106,32 +107,52 @@ class BookImportService {
 
   /// Returns a persistently cached private cover for [scope], when present.
   Future<Uint8List?> getCoverFile(MediaStorageScope scope, String mediaId) async {
-    final file = await _coverFile(scope, mediaId);
-    if (!await file.exists()) return null;
-    return file.readAsBytes();
+    return _getCoverFile(scope, CoverStorageBucket.cached, mediaId);
   }
 
   /// Atomically stores private cover bytes in the selected account scope.
   Future<void> storeCoverFile(MediaStorageScope scope, String mediaId, Uint8List bytes) async {
-    final file = await _coverFile(scope, mediaId);
-    final tempFile = File('${file.path}.tmp');
-    await tempFile.writeAsBytes(bytes, flush: true);
-    try {
-      await tempFile.rename(file.path);
-    } on FileSystemException {
-      if (await file.exists()) {
-        await file.delete();
-      }
-      await tempFile.rename(file.path);
-    }
+    await _storeCoverFile(scope, CoverStorageBucket.cached, mediaId, bytes);
   }
 
   /// Deletes one cached private cover without affecting other scopes.
   Future<void> deleteCoverFile(MediaStorageScope scope, String mediaId) async {
-    final file = await _coverFile(scope, mediaId);
-    if (await file.exists()) {
-      await file.delete();
-    }
+    await _deleteCoverFile(scope, CoverStorageBucket.cached, mediaId);
+  }
+
+  Future<Uint8List?> getPendingCoverFile(MediaStorageScope scope, String bookId) async {
+    return _getCoverFile(scope, CoverStorageBucket.pending, bookId);
+  }
+
+  Future<void> storePendingCoverFile(MediaStorageScope scope, String bookId, Uint8List bytes) async {
+    await _storeCoverFile(scope, CoverStorageBucket.pending, bookId, bytes);
+  }
+
+  Future<void> deletePendingCoverFile(MediaStorageScope scope, String bookId) async {
+    await _deleteCoverFile(scope, CoverStorageBucket.pending, bookId);
+  }
+
+  Future<Uint8List?> getGuestCoverFile(String bookId) async {
+    return _getCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId);
+  }
+
+  Future<void> storeGuestCoverFile(String bookId, Uint8List bytes) async {
+    await _storeCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId, bytes);
+  }
+
+  Future<void> deleteGuestCoverFile(String bookId) async {
+    await _deleteCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId);
+  }
+
+  Future<void> promotePendingCoverFile(
+    MediaStorageScope scope, {
+    required String bookId,
+    required String mediaId,
+  }) async {
+    final bytes = await _getCoverFile(scope, CoverStorageBucket.pending, bookId);
+    if (bytes == null) return;
+    await _storeCoverFile(scope, CoverStorageBucket.cached, mediaId, bytes);
+    await _deleteCoverFile(scope, CoverStorageBucket.pending, bookId);
   }
 
   /// Deletes all cached private covers for one server/account scope.
@@ -155,15 +176,63 @@ class BookImportService {
     return booksDir;
   }
 
-  Future<File> _coverFile(MediaStorageScope scope, String mediaId) async {
-    if (!_safeFilePart.hasMatch(mediaId)) {
-      throw ArgumentError.value(mediaId, 'mediaId', 'Media id contains unsafe characters');
+  Future<Uint8List?> _getCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
+    final file = await _coverFile(scope, bucket, id);
+    if (!await file.exists()) return null;
+    return file.readAsBytes();
+  }
+
+  Future<void> _storeCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id, Uint8List bytes) async {
+    final file = await _coverFile(scope, bucket, id);
+    final tempFile = File('${file.path}.tmp');
+    await tempFile.writeAsBytes(bytes, flush: true);
+    try {
+      await tempFile.rename(file.path);
+    } on FileSystemException {
+      if (await file.exists()) {
+        await file.delete();
+      }
+      await tempFile.rename(file.path);
     }
-    final directory = await _coverDirectory(scope, create: true);
-    return File(p.join(directory!.path, '$mediaId.bin'));
+  }
+
+  Future<void> _deleteCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
+    final file = await _coverFile(scope, bucket, id);
+    if (await file.exists()) {
+      await file.delete();
+    }
+  }
+
+  Future<File> _coverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
+    _validateFilePart(scope.persistenceKey, 'scope');
+    _validateFilePart(bucket.pathComponent, 'bucket');
+    _validateFilePart(id, 'id');
+    final directory = await _coverBucketDirectory(scope, bucket, create: true);
+    return File(p.join(directory!.path, '$id.bin'));
+  }
+
+  void _validateFilePart(String value, String name) {
+    if (!_safeFilePart.hasMatch(value)) {
+      throw ArgumentError.value(value, name, '$name contains unsafe characters');
+    }
+  }
+
+  Future<Directory?> _coverBucketDirectory(
+    MediaStorageScope scope,
+    CoverStorageBucket bucket, {
+    required bool create,
+  }) async {
+    final scopeDirectory = await _coverDirectory(scope, create: create);
+    if (scopeDirectory == null) return null;
+    final directory = Directory(p.join(scopeDirectory.path, bucket.pathComponent));
+    if (create && !await directory.exists()) {
+      await directory.create(recursive: true);
+    }
+    return directory;
   }
 
   Future<Directory?> _coverDirectory(MediaStorageScope scope, {required bool create}) async {
+    _validateFilePart(scope.persistenceKey, 'scope');
     final appDir = await getApplicationSupportDirectory();
     final directory = Directory(p.join(appDir.path, 'media-covers', scope.persistenceKey));
     if (create && !await directory.exists()) {

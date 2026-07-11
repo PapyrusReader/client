@@ -3,6 +3,7 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
 import 'package:flutter/foundation.dart';
+import 'package:papyrus/media/cover_storage_bucket.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/services/book_import_result.dart';
 import 'package:uuid/uuid.dart';
@@ -262,7 +263,54 @@ class BookImportService {
   }
 
   Future<Uint8List?> getCoverFile(MediaStorageScope scope, String mediaId) async {
-    final obj = await _sendCoverRequest(type: 'getCover', scope: scope, mediaId: mediaId);
+    return _getCoverFile(scope, CoverStorageBucket.cached, mediaId);
+  }
+
+  Future<void> storeCoverFile(MediaStorageScope scope, String mediaId, Uint8List bytes) async {
+    await _storeCoverFile(scope, CoverStorageBucket.cached, mediaId, bytes);
+  }
+
+  Future<void> deleteCoverFile(MediaStorageScope scope, String mediaId) async {
+    await _deleteCoverFile(scope, CoverStorageBucket.cached, mediaId);
+  }
+
+  Future<Uint8List?> getPendingCoverFile(MediaStorageScope scope, String bookId) async {
+    return _getCoverFile(scope, CoverStorageBucket.pending, bookId);
+  }
+
+  Future<void> storePendingCoverFile(MediaStorageScope scope, String bookId, Uint8List bytes) async {
+    await _storeCoverFile(scope, CoverStorageBucket.pending, bookId, bytes);
+  }
+
+  Future<void> deletePendingCoverFile(MediaStorageScope scope, String bookId) async {
+    await _deleteCoverFile(scope, CoverStorageBucket.pending, bookId);
+  }
+
+  Future<Uint8List?> getGuestCoverFile(String bookId) async {
+    return _getCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId);
+  }
+
+  Future<void> storeGuestCoverFile(String bookId, Uint8List bytes) async {
+    await _storeCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId, bytes);
+  }
+
+  Future<void> deleteGuestCoverFile(String bookId) async {
+    await _deleteCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId);
+  }
+
+  Future<void> promotePendingCoverFile(
+    MediaStorageScope scope, {
+    required String bookId,
+    required String mediaId,
+  }) async {
+    final bytes = await _getCoverFile(scope, CoverStorageBucket.pending, bookId);
+    if (bytes == null) return;
+    await _storeCoverFile(scope, CoverStorageBucket.cached, mediaId, bytes);
+    await _deleteCoverFile(scope, CoverStorageBucket.pending, bookId);
+  }
+
+  Future<Uint8List?> _getCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
+    final obj = await _sendCoverRequest(type: 'getCover', scope: scope, bucket: bucket, mediaId: id);
     final fileDataJs = obj['fileData'];
     if (fileDataJs == null || fileDataJs.isNull || fileDataJs.isUndefined) {
       return null;
@@ -270,16 +318,16 @@ class BookImportService {
     return (fileDataJs as JSArrayBuffer).toDart.asUint8List();
   }
 
-  Future<void> storeCoverFile(MediaStorageScope scope, String mediaId, Uint8List bytes) async {
-    await _sendCoverRequest(type: 'storeCover', scope: scope, mediaId: mediaId, bytes: bytes);
+  Future<void> _storeCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id, Uint8List bytes) async {
+    await _sendCoverRequest(type: 'storeCover', scope: scope, bucket: bucket, mediaId: id, bytes: bytes);
   }
 
-  Future<void> deleteCoverFile(MediaStorageScope scope, String mediaId) async {
-    await _sendCoverRequest(type: 'deleteCover', scope: scope, mediaId: mediaId);
+  Future<void> _deleteCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
+    await _sendCoverRequest(type: 'deleteCover', scope: scope, bucket: bucket, mediaId: id);
   }
 
   Future<void> clearCoverFiles(MediaStorageScope scope) async {
-    await _sendCoverRequest(type: 'clearCovers', scope: scope);
+    await _sendCoverRequest(type: 'clearCovers', scope: scope, bucket: CoverStorageBucket.cached);
   }
 
   /// Terminates the Web Worker and releases resources.
@@ -300,6 +348,7 @@ class BookImportService {
   Future<JSObject> _sendCoverRequest({
     required String type,
     required MediaStorageScope scope,
+    required CoverStorageBucket bucket,
     String? mediaId,
     Uint8List? bytes,
   }) async {
@@ -312,6 +361,7 @@ class BookImportService {
     message['type'] = type.toJS;
     message['requestId'] = requestId.toJS;
     message['scopeKey'] = scope.persistenceKey.toJS;
+    message['bucket'] = bucket.pathComponent.toJS;
     if (mediaId != null) message['mediaId'] = mediaId.toJS;
 
     if (bytes == null) {

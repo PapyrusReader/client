@@ -9,10 +9,10 @@
  *     { type: 'delete',  bookId }
  *     { type: 'getFile', bookId }
  *     { type: 'storeFile', format, bookId, fileData: ArrayBuffer }
- *     { type: 'getCover', requestId, scopeKey, mediaId }
- *     { type: 'storeCover', requestId, scopeKey, mediaId, fileData: ArrayBuffer }
- *     { type: 'deleteCover', requestId, scopeKey, mediaId }
- *     { type: 'clearCovers', requestId, scopeKey }
+ *     { type: 'getCover', requestId, scopeKey, bucket, mediaId }
+ *     { type: 'storeCover', requestId, scopeKey, bucket, mediaId, fileData: ArrayBuffer }
+ *     { type: 'deleteCover', requestId, scopeKey, bucket, mediaId }
+ *     { type: 'clearCovers', requestId, scopeKey, bucket }
  *
  *   Outgoing:
  *     { type: 'success', action: 'process', bookId, metadata, coverData, coverMimeType, fileSize, fileHash }
@@ -126,8 +126,8 @@ async function handleStoreFile(msg) {
 }
 
 async function handleGetCover(msg) {
-  const { requestId, scopeKey, mediaId } = msg;
-  const bytes = await opfsReadCover(scopeKey, mediaId);
+  const { requestId, scopeKey, bucket, mediaId } = msg;
+  const bytes = await opfsReadCover(scopeKey, bucket, mediaId);
   const fileData = bytes ? bytes.buffer : null;
   postMessage(
     { type: 'success', action: 'getCover', requestId, fileData },
@@ -136,19 +136,20 @@ async function handleGetCover(msg) {
 }
 
 async function handleStoreCover(msg) {
-  const { requestId, scopeKey, mediaId, fileData } = msg;
-  await opfsWriteCover(scopeKey, mediaId, new Uint8Array(fileData));
+  const { requestId, scopeKey, bucket, mediaId, fileData } = msg;
+  await opfsWriteCover(scopeKey, bucket, mediaId, new Uint8Array(fileData));
   postMessage({ type: 'success', action: 'storeCover', requestId });
 }
 
 async function handleDeleteCover(msg) {
-  const { requestId, scopeKey, mediaId } = msg;
-  await opfsDeleteCover(scopeKey, mediaId);
+  const { requestId, scopeKey, bucket, mediaId } = msg;
+  await opfsDeleteCover(scopeKey, bucket, mediaId);
   postMessage({ type: 'success', action: 'deleteCover', requestId });
 }
 
 async function handleClearCovers(msg) {
-  const { requestId, scopeKey } = msg;
+  const { requestId, scopeKey, bucket } = msg;
+  validateCoverBucket(bucket);
   await opfsClearCovers(scopeKey);
   postMessage({ type: 'success', action: 'clearCovers', requestId });
 }
@@ -626,31 +627,41 @@ function validateFilePart(value, fieldName) {
   }
 }
 
-async function opfsCoverDirectory(scopeKey, create) {
+const COVER_BUCKETS = new Set(['cached', 'pending', 'books']);
+
+function validateCoverBucket(bucket) {
+  if (!COVER_BUCKETS.has(bucket)) {
+    throw new Error('bucket is not supported');
+  }
+}
+
+async function opfsCoverDirectory(scopeKey, bucket, create) {
   validateFilePart(scopeKey, 'scopeKey');
+  validateCoverBucket(bucket);
   const root = await navigator.storage.getDirectory();
   let coversRoot;
   try {
     coversRoot = await root.getDirectoryHandle('media-covers', { create });
-    return await coversRoot.getDirectoryHandle(scopeKey, { create });
+    const scopeDirectory = await coversRoot.getDirectoryHandle(scopeKey, { create });
+    return await scopeDirectory.getDirectoryHandle(bucket, { create });
   } catch (_) {
     if (!create) return null;
     throw _;
   }
 }
 
-async function opfsWriteCover(scopeKey, mediaId, uint8Array) {
+async function opfsWriteCover(scopeKey, bucket, mediaId, uint8Array) {
   validateFilePart(mediaId, 'mediaId');
-  const directory = await opfsCoverDirectory(scopeKey, true);
+  const directory = await opfsCoverDirectory(scopeKey, bucket, true);
   const fileHandle = await directory.getFileHandle(`${mediaId}.bin`, { create: true });
   const writable = await fileHandle.createWritable();
   await writable.write(uint8Array);
   await writable.close();
 }
 
-async function opfsReadCover(scopeKey, mediaId) {
+async function opfsReadCover(scopeKey, bucket, mediaId) {
   validateFilePart(mediaId, 'mediaId');
-  const directory = await opfsCoverDirectory(scopeKey, false);
+  const directory = await opfsCoverDirectory(scopeKey, bucket, false);
   if (!directory) return null;
   try {
     const fileHandle = await directory.getFileHandle(`${mediaId}.bin`, { create: false });
@@ -661,9 +672,9 @@ async function opfsReadCover(scopeKey, mediaId) {
   }
 }
 
-async function opfsDeleteCover(scopeKey, mediaId) {
+async function opfsDeleteCover(scopeKey, bucket, mediaId) {
   validateFilePart(mediaId, 'mediaId');
-  const directory = await opfsCoverDirectory(scopeKey, false);
+  const directory = await opfsCoverDirectory(scopeKey, bucket, false);
   if (!directory) return;
   try {
     await directory.removeEntry(`${mediaId}.bin`);
