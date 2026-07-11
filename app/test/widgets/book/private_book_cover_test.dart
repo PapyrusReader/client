@@ -82,24 +82,7 @@ void main() {
     }
 
     await tester.pumpWidget(harness.wrap(Align(child: cover())));
-    final firstPageImage = tester.widget<Image>(find.byType(Image));
-    await tester.runAsync(() async {
-      final firstFrame = Completer<void>();
-      final stream = firstPageImage.image.resolve(ImageConfiguration.empty);
-      late ImageStreamListener listener;
-      listener = ImageStreamListener(
-        (_, _) {
-          if (!firstFrame.isCompleted) firstFrame.complete();
-        },
-        onError: (Object error, StackTrace? stackTrace) {
-          if (!firstFrame.isCompleted) firstFrame.completeError(error, stackTrace);
-        },
-      );
-      stream.addListener(listener);
-      await firstFrame.future;
-      stream.removeListener(listener);
-    });
-    await tester.pump();
+    await _waitForDecodedCover(tester);
     expect(importService.cachedCoverReads, 1);
 
     await tester.pumpWidget(const SizedBox());
@@ -108,6 +91,66 @@ void main() {
     await tester.pump();
 
     expect(importService.cachedCoverReads, 1);
+    expect(find.byKey(const Key('placeholder')), findsNothing);
+    expect(find.byType(Image), findsOneWidget);
+  });
+
+  testWidgets('provider-backed pending cover reuses its decoded image across pages', (tester) async {
+    final harness = await _buildProviderHarness();
+    var pendingReads = 0;
+    Future<Uint8List?> loadPending(MediaStorageScope scope, String bookId) async {
+      pendingReads++;
+      return Uint8List.fromList(pngBytes);
+    }
+
+    PrivateBookCover cover() {
+      return PrivateBookCover(
+        bookId: 'book-1',
+        loadPendingBookCover: loadPending,
+        placeholder: const SizedBox(key: Key('placeholder')),
+      );
+    }
+
+    await tester.pumpWidget(harness.wrap(Align(child: cover())));
+    await _waitForDecodedCover(tester);
+    expect(pendingReads, 1);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await tester.pumpWidget(harness.wrap(Center(child: cover())));
+    await tester.pump();
+
+    expect(pendingReads, 1);
+    expect(find.byKey(const Key('placeholder')), findsNothing);
+    expect(find.byType(Image), findsOneWidget);
+  });
+
+  testWidgets('provider-backed guest cover reuses its decoded image across pages', (tester) async {
+    final harness = await _buildProviderHarness(offline: true);
+    var guestReads = 0;
+    Future<Uint8List?> loadGuest(String bookId) async {
+      guestReads++;
+      return Uint8List.fromList(pngBytes);
+    }
+
+    PrivateBookCover cover() {
+      return PrivateBookCover(
+        bookId: 'book-1',
+        loadGuestBookCover: loadGuest,
+        placeholder: const SizedBox(key: Key('placeholder')),
+      );
+    }
+
+    await tester.pumpWidget(harness.wrap(Align(child: cover())));
+    await _waitForDecodedCover(tester);
+    expect(guestReads, 1);
+
+    await tester.pumpWidget(const SizedBox());
+    await tester.pump();
+    await tester.pumpWidget(harness.wrap(Center(child: cover())));
+    await tester.pump();
+
+    expect(guestReads, 1);
     expect(find.byKey(const Key('placeholder')), findsNothing);
     expect(find.byType(Image), findsOneWidget);
   });
@@ -576,6 +619,27 @@ void main() {
     expect(find.byKey(const Key('placeholder')), findsOneWidget);
     expect(find.byType(Image), findsNothing);
   });
+}
+
+Future<void> _waitForDecodedCover(WidgetTester tester) async {
+  final image = tester.widget<Image>(find.byType(Image));
+  await tester.runAsync(() async {
+    final firstFrame = Completer<void>();
+    final stream = image.image.resolve(ImageConfiguration.empty);
+    late ImageStreamListener listener;
+    listener = ImageStreamListener(
+      (_, _) {
+        if (!firstFrame.isCompleted) firstFrame.complete();
+      },
+      onError: (Object error, StackTrace? stackTrace) {
+        if (!firstFrame.isCompleted) firstFrame.completeError(error, stackTrace);
+      },
+    );
+    stream.addListener(listener);
+    await firstFrame.future;
+    stream.removeListener(listener);
+  });
+  await tester.pump();
 }
 
 void _expectLocalCoverKey(
