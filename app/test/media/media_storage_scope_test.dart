@@ -21,13 +21,7 @@ void main() {
   });
 
   test('scope rejects path separators', () {
-    expect(
-      () => MediaStorageScope(profileKey: '../official', userId: 'user-1'),
-      throwsArgumentError,
-    );
-    expect(
-      () => MediaStorageScope(profileKey: 'official', userId: r'user\1'),
-      throwsArgumentError,
-    );
+    expect(() => MediaStorageScope(profileKey: '../official', userId: 'user-1'), throwsArgumentError);
+    expect(() => MediaStorageScope(profileKey: 'official', userId: r'user\1'), throwsArgumentError);
   });
 }
