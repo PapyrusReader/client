@@ -28,7 +28,13 @@ void main() {
     final mediaUploadQueue = MediaUploadQueue(prefs);
     await mediaUploadQueue.activateScope(MediaStorageScope(profileKey: 'official', userId: 'user-1'));
     final importService = _RecordingBookImportService();
-    final book = Book(id: 'book-1', title: 'Delete Me', author: 'Author', addedAt: DateTime.utc(2026));
+    final book = Book(
+      id: 'book-1',
+      title: 'Delete Me',
+      author: 'Author',
+      coverMediaId: 'cover-1',
+      addedAt: DateTime.utc(2026),
+    );
 
     await repository.upsert(book);
     await tester.pump();
@@ -72,9 +78,63 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(importService.deletedBookIds, [book.id]);
+    expect(importService.deletedPendingCovers, ['official--user-1:${book.id}']);
+    expect(importService.deletedGuestCovers, isEmpty);
+    expect(importService.deletedCachedCovers, ['official--user-1:cover-1']);
     expect(mediaUploadQueue.pendingTasks, isEmpty);
     expect(await repository.getById(book.id), isNull);
     expect(find.text('Library books'), findsOneWidget);
+  });
+
+  testWidgets('guest deletion removes only the permanent guest cover', (tester) async {
+    final prefs = await SharedPreferences.getInstance();
+    final repository = InMemoryBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final mediaUploadQueue = MediaUploadQueue(prefs);
+    final importService = _RecordingBookImportService();
+    final book = Book(id: 'book-1', title: 'Delete Guest', author: 'Author', addedAt: DateTime.utc(2026));
+
+    await repository.upsert(book);
+    await tester.pump();
+
+    final router = GoRouter(
+      initialLocation: '/library/books/${book.id}',
+      routes: [
+        GoRoute(
+          path: '/library/books',
+          builder: (context, state) => const Scaffold(body: Text('Library books')),
+        ),
+        GoRoute(
+          path: '/library/books/:bookId',
+          builder: (context, state) => BookDetailsPage(id: state.pathParameters['bookId']),
+        ),
+      ],
+    );
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<DataStore>.value(value: dataStore),
+          ChangeNotifierProvider<MediaUploadQueue>.value(value: mediaUploadQueue),
+          Provider<BookImportService>.value(value: importService),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+
+    expect(importService.deletedGuestCovers, [book.id]);
+    expect(importService.deletedPendingCovers, isEmpty);
+    expect(importService.deletedCachedCovers, isEmpty);
+    expect(await repository.getById(book.id), isNull);
   });
 
   testWidgets('details overflow menu shows download before delete', (tester) async {
@@ -188,11 +248,29 @@ void main() {
 
 class _RecordingBookImportService extends BookImportService {
   final List<String> deletedBookIds = [];
+  final List<String> deletedPendingCovers = [];
+  final List<String> deletedGuestCovers = [];
+  final List<String> deletedCachedCovers = [];
   final Map<String, Uint8List> bookFiles = {};
 
   @override
   Future<void> deleteBookFile(String bookId) async {
     deletedBookIds.add(bookId);
+  }
+
+  @override
+  Future<void> deletePendingCoverFile(MediaStorageScope scope, String bookId) async {
+    deletedPendingCovers.add('${scope.persistenceKey}:$bookId');
+  }
+
+  @override
+  Future<void> deleteGuestCoverFile(String bookId) async {
+    deletedGuestCovers.add(bookId);
+  }
+
+  @override
+  Future<void> deleteCoverFile(MediaStorageScope scope, String mediaId) async {
+    deletedCachedCovers.add('${scope.persistenceKey}:$mediaId');
   }
 
   @override

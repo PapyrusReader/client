@@ -12,7 +12,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('deleteBookWithMediaCleanup removes queued uploads and cached file before deleting book', () async {
+  test('deleteBookWithMediaCleanup removes every local cover representation before deleting book', () async {
     final prefs = await SharedPreferences.getInstance();
     final repository = InMemoryBookRepository();
     final dataStore = DataStore(bookRepository: repository);
@@ -38,13 +38,15 @@ void main() {
       bookId: book.id,
       coverMediaId: book.coverMediaId,
       deleteBookFile: (bookId) async => deletedLocalFiles.add(bookId),
-      deleteCoverFile: (mediaId) async => deletedCovers.add(mediaId),
+      deletePendingCover: (bookId) async => deletedCovers.add('pending:$bookId'),
+      deleteGuestCover: (bookId) async => deletedCovers.add('guest:$bookId'),
+      deleteCoverFile: (mediaId) async => deletedCovers.add('cached:$mediaId'),
     );
     await pumpEventQueue();
 
     expect(queue.pendingTasks, isEmpty);
     expect(deletedLocalFiles, [book.id]);
-    expect(deletedCovers, ['cover-1']);
+    expect(deletedCovers, ['pending:${book.id}', 'guest:${book.id}', 'cached:cover-1']);
     expect(dataStore.getBook(book.id), isNull);
     expect(await repository.getById(book.id), isNull);
   });

@@ -620,6 +620,10 @@ class _BookDetailsPageState extends State<BookDetailsPage> with SingleTickerProv
       bookId: book.id,
       coverMediaId: book.coverMediaId,
       deleteBookFile: importService.deleteBookFile,
+      deletePendingCover: mediaScope == null
+          ? null
+          : (bookId) => importService.deletePendingCoverFile(mediaScope, bookId),
+      deleteGuestCover: mediaScope == null ? importService.deleteGuestCoverFile : null,
       deleteCoverFile: mediaScope == null ? null : (mediaId) => importService.deleteCoverFile(mediaScope, mediaId),
     );
 
