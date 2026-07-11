@@ -35,11 +35,11 @@ void main() {
     await tester.tap(find.text('Open menu'));
     await tester.pumpAndSettle();
 
-    final downloadTop = tester.getTopLeft(find.text('Download book')).dy;
-    final deleteTop = tester.getTopLeft(find.text('Delete book')).dy;
+    final downloadTop = tester.getTopLeft(find.text('Download')).dy;
+    final deleteTop = tester.getTopLeft(find.text('Delete')).dy;
     expect(downloadTop, lessThan(deleteTop));
 
-    await tester.tap(find.text('Download book'));
+    await tester.tap(find.text('Download'));
     await tester.pumpAndSettle();
 
     expect(downloaded, isTrue);
