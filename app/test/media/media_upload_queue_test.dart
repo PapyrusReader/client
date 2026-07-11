@@ -1,9 +1,11 @@
+import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
 import 'package:papyrus/media/media_models.dart';
+import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -20,7 +22,7 @@ void main() {
     final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
     await repository.upsert(book);
     await pumpEventQueue();
-    final queue = MediaUploadQueue(prefs);
+    final queue = await _activeQueue(prefs);
     await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
 
     await queue.processPending(
@@ -45,7 +47,7 @@ void main() {
     final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
     await repository.upsert(book);
     await pumpEventQueue();
-    final queue = MediaUploadQueue(prefs);
+    final queue = await _activeQueue(prefs);
     await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
 
     await queue.processPending(
@@ -68,7 +70,7 @@ void main() {
     final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
     await repository.upsert(book);
     await pumpEventQueue();
-    final queue = MediaUploadQueue(prefs);
+    final queue = await _activeQueue(prefs);
     await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
 
     await queue.processPending(
@@ -85,7 +87,7 @@ void main() {
 
   test('removeTasksForBook removes queued book file and cover uploads', () async {
     final prefs = await SharedPreferences.getInstance();
-    final queue = MediaUploadQueue(prefs);
+    final queue = await _activeQueue(prefs);
     final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
 
     await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
@@ -99,7 +101,73 @@ void main() {
     await queue.removeTasksForBook(book.id);
 
     expect(queue.pendingTasks, isEmpty);
-    expect(prefs.getString('media_upload_queue'), '[]');
+    expect(prefs.getString('media_upload_queue:official--user-1'), '[]');
+  });
+
+  test('pending uploads are isolated and restored per media scope', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final queue = MediaUploadQueue(prefs);
+    final first = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    final second = MediaStorageScope(profileKey: 'custom-a', userId: 'user-2');
+    final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
+
+    await queue.activateScope(first);
+    await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
+    await queue.activateScope(second);
+    expect(queue.pendingTasks, isEmpty);
+
+    await queue.activateScope(first);
+    expect(queue.pendingTasks, hasLength(1));
+    expect(queue.pendingTasks.single.bookId, book.id);
+  });
+
+  test('signed out queue exposes no authenticated tasks', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final queue = MediaUploadQueue(prefs);
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
+    await queue.activateScope(scope);
+    await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
+
+    await queue.activateScope(null);
+
+    expect(queue.activeScope, isNull);
+    expect(queue.pendingTasks, isEmpty);
+  });
+
+  test('overlapping processPending calls share one upload operation', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final repository = InMemoryBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
+    await repository.upsert(book);
+    await pumpEventQueue();
+    final queue = MediaUploadQueue(prefs);
+    await queue.activateScope(MediaStorageScope(profileKey: 'official', userId: 'user-1'));
+    await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
+    final gate = Completer<MediaAsset>();
+    var uploads = 0;
+
+    Future<void> process() {
+      return queue.processPending(
+        dataStore: dataStore,
+        readBookFile: (_) async => Uint8List.fromList([1, 2, 3]),
+        uploadMedia: (_) {
+          uploads++;
+          return gate.future;
+        },
+      );
+    }
+
+    final first = process();
+    final second = process();
+    expect(identical(first, second), isTrue);
+    await Future<void>.delayed(Duration.zero);
+    expect(uploads, 1);
+
+    gate.complete(_asset(assetId: 'file-asset', bookId: book.id, kind: MediaKind.bookFile));
+    await Future.wait([first, second]);
+    expect(uploads, 1);
   });
 }
 
@@ -129,4 +197,10 @@ MediaAsset _asset({required String assetId, required String bookId, required Med
     sha256: 'hash',
     storagePath: 'path',
   );
+}
+
+Future<MediaUploadQueue> _activeQueue(SharedPreferences prefs) async {
+  final queue = MediaUploadQueue(prefs);
+  await queue.activateScope(MediaStorageScope(profileKey: 'official', userId: 'user-1'));
+  return queue;
 }

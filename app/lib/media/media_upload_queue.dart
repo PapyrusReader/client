@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/media/media_models.dart';
+import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -73,18 +74,30 @@ class MediaUploadTask {
 }
 
 class MediaUploadQueue extends ChangeNotifier {
-  MediaUploadQueue(this._prefs) {
-    _tasks = _loadTasks();
-  }
+  MediaUploadQueue(this._prefs);
 
-  static const _storageKey = 'media_upload_queue';
+  static const _storageKeyPrefix = 'media_upload_queue:';
 
   final SharedPreferences _prefs;
-  late List<MediaUploadTask> _tasks;
+  List<MediaUploadTask> _tasks = [];
+  MediaStorageScope? _activeScope;
   MediaStorageUsage? _storageUsage;
+  Future<void>? _processing;
 
   List<MediaUploadTask> get pendingTasks => List.unmodifiable(_tasks);
+  MediaStorageScope? get activeScope => _activeScope;
   MediaStorageUsage? get storageUsage => _storageUsage;
+
+  Future<void> activateScope(MediaStorageScope? scope) async {
+    if (_activeScope == scope) return;
+    await waitUntilIdle();
+    _activeScope = scope;
+    _tasks = scope == null ? [] : _loadTasks(scope);
+    _storageUsage = null;
+    notifyListeners();
+  }
+
+  Future<void> waitUntilIdle() => _processing ?? Future<void>.value();
 
   Future<void> refreshUsage(Future<MediaStorageUsage> Function() fetchUsage) async {
     _storageUsage = await fetchUsage();
@@ -124,6 +137,7 @@ class MediaUploadQueue extends ChangeNotifier {
   }
 
   Future<void> retryFailed({String? bookId}) async {
+    final scope = _requireActiveScope();
     _tasks = _tasks
         .map((task) {
           final matchesBook = bookId == null || task.bookId == bookId;
@@ -133,17 +147,44 @@ class MediaUploadQueue extends ChangeNotifier {
           return task.copyWith(status: MediaUploadTaskStatus.pending);
         })
         .toList(growable: false);
-    await _save();
+    await _save(scope);
     notifyListeners();
   }
 
   Future<void> removeTasksForBook(String bookId) async {
+    final scope = _activeScope;
+    if (scope == null) return;
     _tasks = _tasks.where((task) => task.bookId != bookId).toList(growable: false);
-    await _save();
+    await _save(scope);
     notifyListeners();
   }
 
   Future<void> processPending({
+    required DataStore dataStore,
+    required BookFileReader readBookFile,
+    required MediaUploader uploadMedia,
+  }) {
+    final inFlight = _processing;
+    if (inFlight != null) return inFlight;
+    final scope = _activeScope;
+    if (scope == null) return Future<void>.value();
+
+    final operation = _processPending(
+      scope: scope,
+      dataStore: dataStore,
+      readBookFile: readBookFile,
+      uploadMedia: uploadMedia,
+    );
+    _processing = operation;
+    operation.then(
+      (_) => _clearProcessing(operation),
+      onError: (Object error, StackTrace stackTrace) => _clearProcessing(operation),
+    );
+    return operation;
+  }
+
+  Future<void> _processPending({
+    required MediaStorageScope scope,
     required DataStore dataStore,
     required BookFileReader readBookFile,
     required MediaUploader uploadMedia,
@@ -184,13 +225,14 @@ class MediaUploadQueue extends ChangeNotifier {
       }
     }
     _tasks = nextTasks;
-    await _save();
+    await _save(scope);
     notifyListeners();
   }
 
   Future<void> _enqueue(MediaUploadTask task) async {
+    final scope = _requireActiveScope();
     _tasks = [..._tasks.where((existing) => existing.id != task.id), task];
-    await _save();
+    await _save(scope);
     notifyListeners();
   }
 
@@ -213,14 +255,42 @@ class MediaUploadQueue extends ChangeNotifier {
     dataStore.updateBook(book.copyWith(coverMediaId: asset.assetId, clearCoverUrl: true));
   }
 
-  List<MediaUploadTask> _loadTasks() {
-    final raw = _prefs.getString(_storageKey);
+  List<MediaUploadTask> _loadTasks(MediaStorageScope scope) {
+    final raw = _prefs.getString(_storageKey(scope));
     if (raw == null || raw.isEmpty) return [];
-    final decoded = jsonDecode(raw) as List<dynamic>;
-    return decoded.map((item) => MediaUploadTask.fromJson(item as Map<String, dynamic>)).toList(growable: false);
+    try {
+      final decoded = jsonDecode(raw) as List<dynamic>;
+      return decoded.map((item) => MediaUploadTask.fromJson(item as Map<String, dynamic>)).toList(growable: false);
+    } catch (error, stackTrace) {
+      FlutterError.reportError(
+        FlutterErrorDetails(
+          exception: error,
+          stack: stackTrace,
+          library: 'papyrus media upload queue',
+          context: ErrorDescription('while loading persisted media uploads'),
+        ),
+      );
+      return [];
+    }
   }
 
-  Future<void> _save() {
-    return _prefs.setString(_storageKey, jsonEncode(_tasks.map((task) => task.toJson()).toList()));
+  Future<void> _save(MediaStorageScope scope) {
+    return _prefs.setString(_storageKey(scope), jsonEncode(_tasks.map((task) => task.toJson()).toList()));
+  }
+
+  String _storageKey(MediaStorageScope scope) => '$_storageKeyPrefix${scope.persistenceKey}';
+
+  MediaStorageScope _requireActiveScope() {
+    final scope = _activeScope;
+    if (scope == null) {
+      throw StateError('Authenticated media upload scope is not active');
+    }
+    return scope;
+  }
+
+  void _clearProcessing(Future<void> operation) {
+    if (identical(_processing, operation)) {
+      _processing = null;
+    }
   }
 }
