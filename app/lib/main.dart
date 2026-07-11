@@ -9,6 +9,7 @@ import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/media/media_cache_service.dart';
 import 'package:papyrus/media/media_models.dart';
+import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/papyrus_powersync_connector.dart';
@@ -56,6 +57,8 @@ class _PapyrusState extends State<Papyrus> {
   late String _activeProfileKey;
   late final AppRouter _appRouter;
   bool _switchingSyncProfile = false;
+  Future<void>? _authStateOperation;
+  bool _authStateUpdateQueued = false;
 
   @override
   void initState() {
@@ -67,7 +70,7 @@ class _PapyrusState extends State<Papyrus> {
     _authRepository = _buildAuthRepository(_syncSettingsProvider.activeApiConfig, _activeProfileKey);
 
     _dataStore = DataStore();
-    _mediaUploadQueue = MediaUploadQueue(widget.prefs);
+    _mediaUploadQueue = MediaUploadQueue(widget.prefs, onWorkAvailable: _processMediaUploads);
     _bookImportService = BookImportService();
     _authProvider = AuthProvider(widget.prefs, repository: _authRepository);
     _powerSyncService = PapyrusPowerSyncService(
@@ -109,22 +112,60 @@ class _PapyrusState extends State<Papyrus> {
   }
 
   void _syncPowerSyncAuthState() {
+    if (_authStateOperation != null) {
+      _authStateUpdateQueued = true;
+      return;
+    }
+
+    final operation = _drainAuthStateUpdates();
+    _authStateOperation = operation;
+    operation.then(
+      (_) => _clearAuthStateOperation(operation),
+      onError: (Object error, StackTrace stackTrace) {
+        _clearAuthStateOperation(operation);
+        FlutterError.reportError(
+          FlutterErrorDetails(exception: error, stack: stackTrace, library: 'papyrus media/auth lifecycle'),
+        );
+      },
+    );
+  }
+
+  Future<void> _drainAuthStateUpdates() async {
+    do {
+      _authStateUpdateQueued = false;
+      await _applyPowerSyncAuthState();
+    } while (_authStateUpdateQueued);
+  }
+
+  Future<void> _applyPowerSyncAuthState() async {
     final user = _authProvider.user;
     if (user != null && !_authProvider.isOfflineMode) {
       final userId = user.userId;
-      unawaited(_powerSyncService.activateAuthenticated(userId, profileKey: _activeProfileKey));
-      unawaited(_refreshMediaUsage());
-      unawaited(_processMediaUploads());
+      await _mediaUploadQueue.activateScope(MediaStorageScope(profileKey: _activeProfileKey, userId: userId));
+      await _powerSyncService.activateAuthenticated(userId, profileKey: _activeProfileKey);
+      await _refreshMediaUsage();
+      await _processMediaUploads();
       return;
     }
 
     if (_authProvider.isOfflineMode) {
-      unawaited(_powerSyncService.activateGuest());
+      await _mediaUploadQueue.activateScope(null);
+      await _powerSyncService.activateGuest();
       return;
     }
 
+    await _mediaUploadQueue.activateScope(null);
     if (!_authProvider.isBootstrapping && _powerSyncService.mode != null) {
-      unawaited(_powerSyncService.deactivate(clearAuthenticated: !_switchingSyncProfile));
+      await _powerSyncService.deactivate(clearAuthenticated: !_switchingSyncProfile);
+    }
+  }
+
+  void _clearAuthStateOperation(Future<void> operation) {
+    if (identical(_authStateOperation, operation)) {
+      _authStateOperation = null;
+    }
+    if (_authStateUpdateQueued) {
+      _syncPowerSyncAuthState();
     }
   }
 
@@ -141,6 +182,8 @@ class _PapyrusState extends State<Papyrus> {
   Future<void> _switchActiveSyncProfile() async {
     _switchingSyncProfile = true;
     try {
+      await _mediaUploadQueue.waitUntilIdle();
+      await _mediaUploadQueue.activateScope(null);
       await _powerSyncService.deactivate(clearAuthenticated: false);
       _authRepository = _buildAuthRepository(_syncSettingsProvider.activeApiConfig, _activeProfileKey);
       await _authProvider.replaceRepository(_authRepository, bootstrapNewRepository: !_authProvider.isOfflineMode);
@@ -153,8 +196,9 @@ class _PapyrusState extends State<Papyrus> {
 
   Future<void> _refreshMediaUsage() async {
     if (!_authProvider.isSignedIn || _authProvider.isOfflineMode) return;
+    final repository = _authRepository;
     try {
-      await _mediaUploadQueue.refreshUsage(_authRepository.fetchMediaUsage);
+      await _mediaUploadQueue.refreshUsage(repository.fetchMediaUsage);
     } catch (_) {
       // Usage is informational; failed refresh must not block data sync.
     }
@@ -162,12 +206,19 @@ class _PapyrusState extends State<Papyrus> {
 
   Future<void> _processMediaUploads() async {
     if (!_authProvider.isSignedIn || _authProvider.isOfflineMode) return;
+    final user = _authProvider.user;
+    if (user == null) return;
+    final scope = MediaStorageScope(profileKey: _activeProfileKey, userId: user.userId);
+    if (_mediaUploadQueue.activeScope != scope) {
+      await _mediaUploadQueue.activateScope(scope);
+    }
+    final repository = _authRepository;
     await _mediaUploadQueue.processPending(
       dataStore: _dataStore,
       readBookFile: _bookImportService.getBookFile,
       uploadMedia: (payload) async {
         try {
-          return await _authRepository.uploadMedia(payload);
+          return await repository.uploadMedia(payload);
         } on AuthApiException catch (error) {
           if (error.statusCode == 409) {
             throw const MediaUploadException.storageFull();
@@ -176,7 +227,9 @@ class _PapyrusState extends State<Papyrus> {
         }
       },
     );
-    await _refreshMediaUsage();
+    if (identical(repository, _authRepository) && _mediaUploadQueue.activeScope == scope) {
+      await _refreshMediaUsage();
+    }
   }
 
   @override

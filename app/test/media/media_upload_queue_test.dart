@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -168,6 +169,52 @@ void main() {
     gate.complete(_asset(assetId: 'file-asset', bookId: book.id, kind: MediaKind.bookFile));
     await Future.wait([first, second]);
     expect(uploads, 1);
+  });
+
+  test('enqueue invokes work callback after scoped tasks are persisted', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    String? storedAtCallback;
+    final queue = MediaUploadQueue(
+      prefs,
+      onWorkAvailable: () async {
+        storedAtCallback = prefs.getString('media_upload_queue:${scope.persistenceKey}');
+      },
+    );
+    await queue.activateScope(scope);
+
+    await queue.enqueueBookFile(
+      book: _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash'),
+      filename: 'book.epub',
+      contentType: 'application/epub+zip',
+    );
+
+    expect(storedAtCallback, isNotNull);
+    expect(jsonDecode(storedAtCallback!) as List<dynamic>, hasLength(1));
+  });
+
+  test('retry invokes work callback only when failed tasks become pending', () async {
+    final prefs = await SharedPreferences.getInstance();
+    var callbacks = 0;
+    final queue = MediaUploadQueue(prefs, onWorkAvailable: () async => callbacks++);
+    await queue.activateScope(MediaStorageScope(profileKey: 'official', userId: 'user-1'));
+    final repository = InMemoryBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
+    await repository.upsert(book);
+    await pumpEventQueue();
+    await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
+    callbacks = 0;
+    await queue.processPending(
+      dataStore: dataStore,
+      readBookFile: (_) async => Uint8List.fromList([1]),
+      uploadMedia: (_) async => throw const MediaUploadException.storageFull(),
+    );
+
+    await queue.retryFailed();
+    await queue.retryFailed();
+
+    expect(callbacks, 1);
   });
 }
 

@@ -9,6 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 typedef BookFileReader = Future<Uint8List?> Function(String bookId);
 typedef MediaUploader = Future<MediaAsset> Function(MediaUploadPayload payload);
+typedef MediaWorkAvailableCallback = Future<void> Function();
 
 enum MediaUploadTaskStatus { pending, failed }
 
@@ -74,11 +75,12 @@ class MediaUploadTask {
 }
 
 class MediaUploadQueue extends ChangeNotifier {
-  MediaUploadQueue(this._prefs);
+  MediaUploadQueue(this._prefs, {this.onWorkAvailable});
 
   static const _storageKeyPrefix = 'media_upload_queue:';
 
   final SharedPreferences _prefs;
+  final MediaWorkAvailableCallback? onWorkAvailable;
   List<MediaUploadTask> _tasks = [];
   MediaStorageScope? _activeScope;
   MediaStorageUsage? _storageUsage;
@@ -138,17 +140,22 @@ class MediaUploadQueue extends ChangeNotifier {
 
   Future<void> retryFailed({String? bookId}) async {
     final scope = _requireActiveScope();
+    var retriedAny = false;
     _tasks = _tasks
         .map((task) {
           final matchesBook = bookId == null || task.bookId == bookId;
           if (!matchesBook || task.status != MediaUploadTaskStatus.failed) {
             return task;
           }
+          retriedAny = true;
           return task.copyWith(status: MediaUploadTaskStatus.pending);
         })
         .toList(growable: false);
     await _save(scope);
     notifyListeners();
+    if (retriedAny) {
+      await onWorkAvailable?.call();
+    }
   }
 
   Future<void> removeTasksForBook(String bookId) async {
@@ -234,6 +241,7 @@ class MediaUploadQueue extends ChangeNotifier {
     _tasks = [..._tasks.where((existing) => existing.id != task.id), task];
     await _save(scope);
     notifyListeners();
+    await onWorkAvailable?.call();
   }
 
   Future<Uint8List?> _bytesForTask(MediaUploadTask task, BookFileReader readBookFile) async {
