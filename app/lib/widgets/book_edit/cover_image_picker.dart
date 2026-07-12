@@ -2,9 +2,12 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 
 /// Widget for picking book cover images from file or URL.
 class CoverImagePicker extends StatefulWidget {
+  final String? bookId;
+  final String? mediaId;
   final String? initialUrl;
   final Uint8List? initialBytes;
   final void Function(String? url) onUrlChanged;
@@ -17,6 +20,8 @@ class CoverImagePicker extends StatefulWidget {
 
   const CoverImagePicker({
     super.key,
+    this.bookId,
+    this.mediaId,
     this.initialUrl,
     this.initialBytes,
     required this.onUrlChanged,
@@ -222,6 +227,15 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
           ),
           Positioned(top: 8, right: 8, child: _buildRemoveButton(context)),
         ],
+      );
+    }
+
+    if (widget.bookId?.isNotEmpty == true || widget.mediaId?.isNotEmpty == true) {
+      return PrivateBookCover(
+        bookId: widget.bookId,
+        mediaId: widget.mediaId,
+        fit: BoxFit.cover,
+        placeholder: _buildPlaceholder(context),
       );
     }
 

@@ -505,6 +505,8 @@ class _BookEditPageState extends State<BookEditPage> {
 
   Widget _buildCoverSection(BuildContext context, BookEditProvider provider, {required bool isDesktop}) {
     return CoverImagePicker(
+      bookId: provider.editedBook?.id,
+      mediaId: provider.editedBook?.coverMediaId,
       initialUrl: provider.editedBook?.coverUrl,
       initialBytes: provider.coverImageBytes,
       isDesktop: isDesktop,

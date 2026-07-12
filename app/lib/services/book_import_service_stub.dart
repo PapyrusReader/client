@@ -206,7 +206,10 @@ class BookImportService {
         mediaId,
         () => _writeCoverFile(scope, CoverStorageBucket.cached, mediaId, bytes),
       );
-      await _removeCoverFile(scope, CoverStorageBucket.pending, bookId);
+      final pendingFile = await _coverFile(scope, CoverStorageBucket.pending, bookId);
+      if (await pendingFile.exists()) {
+        await pendingFile.delete();
+      }
     });
   }
 

@@ -214,7 +214,7 @@ void main() {
     });
   }
 
-  testWidgets('promotion evicts pending decoded image but preserves cached target', (tester) async {
+  testWidgets('promotion preserves decoded pending and cached covers', (tester) async {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     var pendingLoads = 0;
     var cachedLoads = 0;
@@ -269,7 +269,7 @@ void main() {
       return _pngBytes;
     });
 
-    expect(pendingLoads, 2);
+    expect(pendingLoads, 1);
     expect(cachedLoads, 1);
   });
 
@@ -498,16 +498,8 @@ vm.runInContext(source, context);
     expect(deleteHelper, contains('scopeKey: scope.persistenceKey'));
     expect(deleteHelper, contains('bucket: bucket'));
     expect(deleteHelper, contains('fileId: id'));
-    expect(
-      promotion.indexOf("await _sendCoverRequest(\n      type: 'promoteCover'"),
-      lessThan(promotion.indexOf("obj['promoted']")),
-    );
-    expect(promotion.indexOf("obj['promoted']"), lessThan(promotion.indexOf('LocalCoverImageProvider.evictKey(')));
-    expect(promotion, contains('!(promoted as JSBoolean).toDart'));
-    expect(promotion.indexOf('return;'), lessThan(promotion.indexOf('LocalCoverImageProvider.evictKey(')));
-    expect(promotion, contains('bucket: CoverStorageBucket.pending'));
-    expect(promotion, contains('fileId: bookId'));
-    expect(promotion, isNot(contains('fileId: mediaId')));
+    expect(promotion, contains("await _sendCoverRequest(\n      type: 'promoteCover'"));
+    expect(promotion, isNot(contains('LocalCoverImageProvider.evictKey(')));
     expect(storeHelper, isNot(contains('LocalCoverImageProvider.evictKey(')));
   });
 }
