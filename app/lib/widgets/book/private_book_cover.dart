@@ -139,6 +139,35 @@ class _PrivateBookCoverState extends State<CoverImage> {
         return;
       }
       final scope = MediaStorageScope(profileKey: syncSettings.activeProfileKey, userId: user.userId);
+      final bookId = _usableBookId;
+      if (bookId != null) {
+        final key = '${scope.persistenceKey}:${CoverStorageBucket.pending.name}:$bookId';
+        if (_loadKey == key) return;
+
+        final importService = context.read<BookImportService>();
+        final cacheService = context.read<MediaCacheService>();
+        final pendingLoader = widget.loadPendingBookCover ?? importService.getPendingCoverFile;
+        _loadKey = key;
+        _coverFuture = null;
+        _localCoverProvider = LocalCoverImageProvider(
+          scopeKey: scope.persistenceKey,
+          bucket: CoverStorageBucket.pending,
+          fileId: bookId,
+          loadBytes: () async {
+            final pending = await pendingLoader(scope, bookId);
+            if (pending != null && pending.isNotEmpty) return pending;
+            return cacheService.ensureCoverCached(
+              scope: scope,
+              mediaId: mediaId,
+              readLocalCover: importService.getCoverFile,
+              writeLocalCover: importService.storeCoverFile,
+              downloadMedia: authProvider.downloadMedia,
+            );
+          },
+        );
+        return;
+      }
+
       final key = '${scope.persistenceKey}:${CoverStorageBucket.cached.name}:$mediaId';
       if (_loadKey == key) return;
 

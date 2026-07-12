@@ -2,7 +2,6 @@ import 'package:flutter/foundation.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/services/metadata_service.dart';
-import 'package:papyrus/utils/image_utils.dart';
 
 /// State for metadata fetch operations.
 enum MetadataFetchState { idle, loading, success, error }
@@ -106,17 +105,10 @@ class BookEditProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // If we have local cover image bytes, convert to data URI
-      var bookToSave = _editedBook!;
-      if (_coverImageBytes != null) {
-        final dataUri = bytesToDataUri(_coverImageBytes!);
-        bookToSave = bookToSave.copyWith(coverUrl: dataUri);
-        _editedBook = bookToSave;
-      }
-
-      _dataStore!.updateBook(bookToSave);
+      final bookToSave = _editedBook!;
+      await _dataStore!.updateBookAndWait(bookToSave);
       _originalBook = bookToSave;
-      _coverImageBytes = null; // Clear bytes since they're now in the URL
+      _coverImageBytes = null;
       _isSaving = false;
       notifyListeners();
       return true;

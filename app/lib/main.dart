@@ -12,6 +12,7 @@ import 'package:papyrus/media/media_cache_service.dart';
 import 'package:papyrus/media/media_models.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
+import 'package:papyrus/platform/hot_restart_cleanup.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/papyrus_powersync_connector.dart';
 import 'package:papyrus/powersync/sync_profile_switch_queue.dart';
@@ -31,6 +32,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'config/app_router.dart';
 
 Future main() async {
+  await runPreviousHotRestartCleanup();
   WidgetsFlutterBinding.ensureInitialized();
   usePathUrlStrategy();
 
@@ -91,6 +93,7 @@ class _PapyrusState extends State<Papyrus> {
         onUploadComplete: _processMediaUploads,
       ),
     );
+    registerHotRestartCleanup(_disposeDataServices);
     unawaited(_dataStore.attachBookRepository(_powerSyncService));
     _appRouter = AppRouter(authProvider: _authProvider);
     _authProvider.addListener(_syncPowerSyncAuthState);

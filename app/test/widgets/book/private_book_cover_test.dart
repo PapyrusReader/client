@@ -95,6 +95,29 @@ void main() {
     expect(find.byType(Image), findsOneWidget);
   });
 
+  testWidgets('provider-backed pending replacement takes priority over the old media cover', (tester) async {
+    final importService = _RecordingBookImportService(
+      Uint8List.fromList(pngBytes),
+      pendingCoverBytes: Uint8List.fromList(pngBytes),
+    );
+    final harness = await _buildProviderHarness(importService: importService);
+
+    await tester.pumpWidget(
+      harness.wrap(
+        const CoverImage(
+          bookId: 'book-1',
+          mediaId: 'old-asset',
+          placeholder: SizedBox(key: Key('placeholder')),
+        ),
+      ),
+    );
+    await _waitForDecodedCover(tester);
+
+    expect(importService.pendingCoverReads, 1);
+    expect(importService.cachedCoverReads, 0);
+    expect(find.byType(Image), findsOneWidget);
+  });
+
   testWidgets('provider-backed pending cover reuses its decoded image across pages', (tester) async {
     final harness = await _buildProviderHarness();
     var pendingReads = 0;
@@ -725,14 +748,22 @@ Future<_ProviderHarness> _buildProviderHarness({
 }
 
 class _RecordingBookImportService extends BookImportService {
-  _RecordingBookImportService(this.coverBytes);
+  _RecordingBookImportService(this.coverBytes, {this.pendingCoverBytes});
 
   final Uint8List coverBytes;
+  final Uint8List? pendingCoverBytes;
   int cachedCoverReads = 0;
+  int pendingCoverReads = 0;
 
   @override
   Future<Uint8List?> getCoverFile(MediaStorageScope scope, String mediaId) async {
     cachedCoverReads++;
     return coverBytes;
+  }
+
+  @override
+  Future<Uint8List?> getPendingCoverFile(MediaStorageScope scope, String bookId) async {
+    pendingCoverReads++;
+    return pendingCoverBytes;
   }
 }

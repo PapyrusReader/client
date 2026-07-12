@@ -135,6 +135,11 @@ class DataStore extends ChangeNotifier {
     unawaited(repository.upsert(book));
   }
 
+  Future<void> updateBookAndWait(Book book) async {
+    final repository = requireBookRepository();
+    await addBookToRepositoryAndWait(repository, book);
+  }
+
   void deleteBook(String id) {
     final repository = _bookRepository;
     if (repository == null) {
