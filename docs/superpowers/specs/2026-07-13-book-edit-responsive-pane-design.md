@@ -15,6 +15,17 @@ The desktop edit body uses the width allocated by its parent, excluding the appl
 
 The breakpoint is derived from these minimum pane dimensions and evaluated with `LayoutBuilder`, rather than from the full browser width.
 
+## Metadata Lookup
+
+Metadata lookup belongs to the form rather than the cover pane because it updates multiple book fields, not only the cover.
+
+- Place `Fetch metadata` as the first form section on desktop.
+- Give the search field the full section width so it is the primary control.
+- Place a compact, always-visible source selector below the search field, preceded by the label `Source`.
+- Keep the existing Open Library and Google Books selection behavior.
+- Do not introduce a dropdown or combine the source selector into the search input.
+- Keep error messages and search results below these controls.
+
 ## Form Rows
 
 Rows containing two optional fields respond to the width of the form pane itself:
@@ -38,6 +49,7 @@ Widget tests cover three states:
 
 1. Wide desktop: cover and form panes are side by side.
 2. Intermediate desktop: panes remain side by side while paired form fields stack as necessary, with no render overflow.
-3. Constrained desktop: cover pane stacks above the form and the cover preview stays compact.
+3. Constrained desktop: the centered cover pane stacks above the form and the cover preview stays compact.
+4. Desktop metadata lookup: the full-width search field precedes the compact source selector within the form pane.
 
 Static analysis must report no issues in the changed files.
