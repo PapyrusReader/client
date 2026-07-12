@@ -388,7 +388,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with SingleTickerProv
 
   void _onEdit() {
     if (_provider.book != null) {
-      context.pushNamed('BOOK_EDIT', pathParameters: {'bookId': _provider.book!.id});
+      context.goNamed('BOOK_EDIT', pathParameters: {'bookId': _provider.book!.id});
     }
   }
 

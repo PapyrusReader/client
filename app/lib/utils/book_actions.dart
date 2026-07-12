@@ -38,7 +38,7 @@ void showBookContextMenu({required BuildContext context, required Book book, Off
       libraryProvider.toggleFavorite(book.id, isFavorite);
     },
     onEdit: () {
-      context.pushNamed('BOOK_EDIT', pathParameters: {'bookId': book.id});
+      context.goNamed('BOOK_EDIT', pathParameters: {'bookId': book.id});
     },
     onMoveToShelf: () {
       _showMoveToShelfSheet(context, book);

@@ -62,6 +62,69 @@ void main() {
     expect(provider.coverImageBytes, isNull);
   });
 
+  test('saving cleared optional form fields removes their previous values', () async {
+    final dataStore = DataStore();
+    final original = Book(
+      id: 'book-1',
+      title: 'Book',
+      subtitle: 'Subtitle',
+      author: 'Author',
+      coAuthors: const ['Co-author'],
+      isbn: 'ISBN',
+      isbn13: 'ISBN-13',
+      publicationDate: DateTime.utc(2020),
+      publisher: 'Publisher',
+      language: 'en',
+      pageCount: 100,
+      description: 'Description',
+      isPhysical: true,
+      physicalLocation: 'Shelf',
+      lentTo: 'Reader',
+      lentAt: DateTime.utc(2025),
+      rating: 4,
+      seriesName: 'Series',
+      seriesNumber: 2,
+      addedAt: DateTime.utc(2026),
+    );
+    dataStore.addBook(original);
+
+    final provider = BookEditProvider()..setDataStore(dataStore);
+    await provider.loadBook(original.id);
+    provider.updateSubtitle('');
+    provider.updateCoAuthors(const []);
+    provider.updateIsbn('');
+    provider.updateIsbn13('');
+    provider.updatePublicationDate(null);
+    provider.updatePublisher('');
+    provider.updateLanguage('');
+    provider.updatePageCount(null);
+    provider.updateDescription('');
+    provider.updatePhysicalLocation('');
+    provider.updateLentTo('');
+    provider.updateLentAt(null);
+    provider.updateRating(null);
+    provider.updateSeriesName('');
+    provider.updateSeriesNumber(null);
+
+    expect(await provider.save(), isTrue);
+    final saved = dataStore.getBook(original.id)!;
+    expect(saved.subtitle, isNull);
+    expect(saved.coAuthors, isEmpty);
+    expect(saved.isbn, isNull);
+    expect(saved.isbn13, isNull);
+    expect(saved.publicationDate, isNull);
+    expect(saved.publisher, isNull);
+    expect(saved.language, isNull);
+    expect(saved.pageCount, isNull);
+    expect(saved.description, isNull);
+    expect(saved.physicalLocation, isNull);
+    expect(saved.lentTo, isNull);
+    expect(saved.lentAt, isNull);
+    expect(saved.rating, isNull);
+    expect(saved.seriesName, isNull);
+    expect(saved.seriesNumber, isNull);
+  });
+
   test('save waits for synced metadata persistence before completing', () async {
     final repository = _GatedBookRepository();
     final dataStore = DataStore(bookRepository: repository);

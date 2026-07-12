@@ -146,7 +146,8 @@ class BookEditProvider extends ChangeNotifier {
 
   void updateSubtitle(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(subtitle: value?.isEmpty == true ? null : value);
+    final shouldClear = value == null || value.isEmpty;
+    _editedBook = _editedBook!.copyWith(subtitle: shouldClear ? null : value, clearSubtitle: shouldClear);
     notifyListeners();
   }
 
@@ -164,37 +165,42 @@ class BookEditProvider extends ChangeNotifier {
 
   void updatePublisher(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(publisher: value?.isEmpty == true ? null : value);
+    final shouldClear = value == null || value.isEmpty;
+    _editedBook = _editedBook!.copyWith(publisher: shouldClear ? null : value, clearPublisher: shouldClear);
     notifyListeners();
   }
 
   void updateLanguage(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(language: value?.isEmpty == true ? null : value);
+    final shouldClear = value == null || value.isEmpty;
+    _editedBook = _editedBook!.copyWith(language: shouldClear ? null : value, clearLanguage: shouldClear);
     notifyListeners();
   }
 
   void updatePageCount(int? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(pageCount: value);
+    _editedBook = _editedBook!.copyWith(pageCount: value, clearPageCount: value == null);
     notifyListeners();
   }
 
   void updateIsbn(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(isbn: value?.isEmpty == true ? null : value);
+    final shouldClear = value == null || value.isEmpty;
+    _editedBook = _editedBook!.copyWith(isbn: shouldClear ? null : value, clearIsbn: shouldClear);
     notifyListeners();
   }
 
   void updateIsbn13(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(isbn13: value?.isEmpty == true ? null : value);
+    final shouldClear = value == null || value.isEmpty;
+    _editedBook = _editedBook!.copyWith(isbn13: shouldClear ? null : value, clearIsbn13: shouldClear);
     notifyListeners();
   }
 
   void updateDescription(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(description: value?.isEmpty == true ? null : value);
+    final shouldClear = value == null || value.isEmpty;
+    _editedBook = _editedBook!.copyWith(description: shouldClear ? null : value, clearDescription: shouldClear);
     notifyListeners();
   }
 
@@ -221,25 +227,26 @@ class BookEditProvider extends ChangeNotifier {
 
   void updatePublicationDate(DateTime? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(publicationDate: value);
+    _editedBook = _editedBook!.copyWith(publicationDate: value, clearPublicationDate: value == null);
     notifyListeners();
   }
 
   void updateRating(int? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(rating: value);
+    _editedBook = _editedBook!.copyWith(rating: value, clearRating: value == null);
     notifyListeners();
   }
 
   void updateSeriesName(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(seriesName: value?.isEmpty == true ? null : value);
+    final shouldClear = value == null || value.isEmpty;
+    _editedBook = _editedBook!.copyWith(seriesName: shouldClear ? null : value, clearSeriesName: shouldClear);
     notifyListeners();
   }
 
   void updateSeriesNumber(double? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(seriesNumber: value);
+    _editedBook = _editedBook!.copyWith(seriesNumber: value, clearSeriesNumber: value == null);
     notifyListeners();
   }
 
@@ -251,19 +258,24 @@ class BookEditProvider extends ChangeNotifier {
 
   void updatePhysicalLocation(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(physicalLocation: value?.isEmpty == true ? null : value);
+    final shouldClear = value == null || value.isEmpty;
+    _editedBook = _editedBook!.copyWith(
+      physicalLocation: shouldClear ? null : value,
+      clearPhysicalLocation: shouldClear,
+    );
     notifyListeners();
   }
 
   void updateLentTo(String? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(lentTo: value?.isEmpty == true ? null : value);
+    final shouldClear = value == null || value.isEmpty;
+    _editedBook = _editedBook!.copyWith(lentTo: shouldClear ? null : value, clearLentTo: shouldClear);
     notifyListeners();
   }
 
   void updateLentAt(DateTime? value) {
     if (_editedBook == null) return;
-    _editedBook = _editedBook!.copyWith(lentAt: value);
+    _editedBook = _editedBook!.copyWith(lentAt: value, clearLentAt: value == null);
     notifyListeners();
   }
 
