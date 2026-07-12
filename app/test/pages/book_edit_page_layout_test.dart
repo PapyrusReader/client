@@ -9,7 +9,7 @@ import '../helpers/test_helpers.dart';
 
 void main() {
   group('BookEditPage layout', () {
-    Future<void> pumpPage(WidgetTester tester, {required Size size}) async {
+    Future<void> pumpPage(WidgetTester tester, {required Size size, double? contentWidth}) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = size;
       addTearDown(tester.view.reset);
@@ -20,12 +20,20 @@ void main() {
         author: 'Mary Shelley',
       );
 
+      Widget page = Theme(
+        data: AppTheme.dark,
+        child: const BookEditPage(id: 'book-1'),
+      );
+      if (contentWidth != null) {
+        page = Align(
+          alignment: Alignment.topLeft,
+          child: SizedBox(width: contentWidth, height: size.height, child: page),
+        );
+      }
+
       await tester.pumpWidget(
         createTestPage(
-          page: Theme(
-            data: AppTheme.dark,
-            child: const BookEditPage(id: 'book-1'),
-          ),
+          page: page,
           dataStore: createTestDataStore(books: [book]),
           screenSize: size,
         ),
@@ -61,6 +69,31 @@ void main() {
 
       expect(formHeading.dx, greaterThan(coverHeading.dx));
       expect((formHeading.dy - coverHeading.dy).abs(), lessThan(4));
+    });
+
+    testWidgets('intermediate desktop keeps panes side by side while paired fields stack', (tester) async {
+      await pumpPage(tester, size: const Size(1000, 1200), contentWidth: 800);
+
+      final coverHeading = tester.getTopLeft(find.text('Cover'));
+      final formHeading = tester.getTopLeft(find.text('Basic information'));
+      final publisher = tester.getTopLeft(find.text('Publisher'));
+      final language = tester.getTopLeft(find.text('Language'));
+
+      expect(formHeading.dx, greaterThan(coverHeading.dx));
+      expect((formHeading.dy - coverHeading.dy).abs(), lessThan(4));
+      expect(language.dy, greaterThan(publisher.dy));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('constrained desktop stacks panes and keeps the cover compact', (tester) async {
+      await pumpPage(tester, size: const Size(1000, 1200), contentWidth: 760);
+
+      final coverHeading = tester.getTopLeft(find.text('Cover'));
+      final formHeading = tester.getTopLeft(find.text('Basic information'));
+
+      expect(formHeading.dy, greaterThan(coverHeading.dy));
+      expect(tester.getSize(find.byType(AspectRatio).first).width, 240);
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('narrow layouts stack the cover above the form without overflow', (tester) async {

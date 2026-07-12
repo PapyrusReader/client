@@ -11,22 +11,28 @@ class ResponsiveFormRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (!isDesktop || children.length == 1) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: children.expand((w) sync* {
-          yield w;
-          yield const SizedBox(height: Spacing.md);
-        }).toList()..removeLast(),
-      );
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showAsRow = isDesktop && children.length > 1 && constraints.maxWidth >= Breakpoints.tablet;
 
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: children.expand((w) sync* {
-        yield Expanded(child: w);
-        yield const SizedBox(width: Spacing.md);
-      }).toList()..removeLast(),
+        if (!showAsRow) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: children.expand((widget) sync* {
+              yield widget;
+              yield const SizedBox(height: Spacing.md);
+            }).toList()..removeLast(),
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: children.expand((widget) sync* {
+            yield Expanded(child: widget);
+            yield const SizedBox(width: Spacing.md);
+          }).toList()..removeLast(),
+        );
+      },
     );
   }
 }
