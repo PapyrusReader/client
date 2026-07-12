@@ -69,6 +69,53 @@ void main() {
     cache.clearLiveImages();
   });
 
+  testWidgets('shows a visible loading state while local cover bytes load', (tester) async {
+    final coverBytes = Completer<Uint8List?>();
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 200,
+          height: 300,
+          child: CoverImage(
+            bookId: 'book-1',
+            loadLocalBookCover: (_) => coverBytes.future,
+            placeholder: const SizedBox(key: Key('fallback-placeholder')),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('cover-image-loading')), findsOneWidget);
+    expect(find.byIcon(Icons.auto_stories_rounded), findsOneWidget);
+    expect(find.text('Loading…'), findsOneWidget);
+    expect(find.byKey(const Key('fallback-placeholder')), findsNothing);
+
+    coverBytes.complete(Uint8List.fromList(pngBytes));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('cover-image-loading')), findsNothing);
+    expect(find.byType(Image), findsOneWidget);
+  });
+
+  testWidgets('public covers use the visible loading state', (tester) async {
+    await tester.pumpWidget(
+      const MaterialApp(
+        home: SizedBox(
+          width: 200,
+          height: 300,
+          child: CoverImage(
+            imageUrl: 'https://example.invalid/cover.jpg',
+            placeholder: SizedBox(key: Key('fallback-placeholder')),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.byKey(const Key('cover-image-loading')), findsOneWidget);
+    expect(find.text('Loading…'), findsOneWidget);
+  });
+
   testWidgets('provider-backed media cover reuses its decoded image across pages', (tester) async {
     final importService = _RecordingBookImportService(Uint8List.fromList(pngBytes));
     final harness = await _buildProviderHarness(importService: importService);
