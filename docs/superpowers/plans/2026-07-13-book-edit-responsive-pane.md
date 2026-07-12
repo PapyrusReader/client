@@ -170,3 +170,70 @@ Expected: `No issues found!`
 git add app/lib/pages/book_edit_page.dart app/lib/widgets/book_form/responsive_form_row.dart app/test/pages/book_edit_page_layout_test.dart docs/superpowers/plans/2026-07-13-book-edit-responsive-pane.md
 git commit -m "fix: improve responsive book edit layout"
 ```
+
+### Task 4: Give metadata search a clear visual hierarchy
+
+**Files:**
+- Modify: `app/lib/pages/book_edit_page.dart`
+- Test: `app/test/pages/book_edit_page_layout_test.dart`
+
+- [ ] **Step 1: Write the failing metadata control-order test**
+
+At a 640 px desktop content allocation, assert that the search field is full width, the compact source selector is below it, and the `Source` label precedes the selector.
+
+```dart
+testWidgets('metadata search precedes a compact visible source selector', (tester) async {
+  await pumpPage(tester, size: const Size(1000, 1200), contentWidth: 640);
+
+  final metadataCard = find.ancestor(of: find.text('Fetch metadata'), matching: find.byType(Card)).first;
+  final searchField = find.ancestor(of: find.text('Search'), matching: find.byType(TextFormField)).first;
+  final selector = find.byWidgetPredicate((widget) => widget is SegmentedButton);
+  final sourceLabel = find.text('Source');
+
+  expect(tester.getSize(searchField).width, closeTo(tester.getSize(metadataCard).width - (Spacing.md * 2), 1));
+  expect(tester.getTopLeft(sourceLabel).dy, greaterThan(tester.getBottomLeft(searchField).dy));
+  expect((tester.getCenter(selector).dy - tester.getCenter(sourceLabel).dy).abs(), lessThan(1));
+});
+```
+
+- [ ] **Step 2: Run the focused test and verify it fails**
+
+Run:
+
+```bash
+cd app
+flutter test test/pages/book_edit_page_layout_test.dart --plain-name "metadata search precedes a compact visible source selector"
+```
+
+Expected: FAIL because the current source selector is beside the search field and there is no `Source` label.
+
+- [ ] **Step 3: Replace the inline metadata row with search-first controls**
+
+Keep metadata inside the desktop form pane. In `_buildMetadataSection`, render the search field first, followed by a compact source row:
+
+```dart
+searchField,
+const SizedBox(height: Spacing.md),
+Row(
+  children: [
+    Text('Source', style: Theme.of(context).textTheme.bodySmall),
+    const SizedBox(width: Spacing.md),
+    Flexible(child: sourceSelector),
+  ],
+),
+```
+
+Remove `inlineControls`, `_metadataControlsRowBreakpoint`, and their `LayoutBuilder`; both desktop and mobile metadata sections use this same search-first hierarchy.
+
+- [ ] **Step 4: Format and verify**
+
+Run:
+
+```bash
+dart format app/lib/pages/book_edit_page.dart app/test/pages/book_edit_page_layout_test.dart
+cd app
+flutter test test/pages/book_edit_page_layout_test.dart
+flutter analyze lib/pages/book_edit_page.dart lib/widgets/book_form/responsive_form_row.dart test/pages/book_edit_page_layout_test.dart
+```
+
+Expected: all layout tests pass and analysis reports `No issues found!`.

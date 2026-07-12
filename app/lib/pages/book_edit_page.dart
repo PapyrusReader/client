@@ -292,9 +292,9 @@ class _BookEditPageState extends State<BookEditPage> {
                       ],
                     )
                   : Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        _buildDesktopCoverPane(context, provider),
+                        Center(child: _buildDesktopCoverPane(context, provider)),
                         const SizedBox(height: Spacing.xl),
                         _buildDesktopFormPane(context, provider),
                       ],
@@ -307,21 +307,20 @@ class _BookEditPageState extends State<BookEditPage> {
   }
 
   Widget _buildDesktopCoverPane(BuildContext context, BookEditProvider provider) {
-    return SizedBox(
-      width: _desktopCoverPaneWidth,
-      child: Column(
-        children: [
-          _buildSectionCard(title: 'Cover', children: [_buildCoverSection(context, provider, isDesktop: true)]),
-          _buildSectionCard(title: 'Fetch metadata', children: [_buildMetadataSection(context, provider)]),
-        ],
-      ),
-    );
+    return SizedBox(width: _desktopCoverPaneWidth, child: _buildDesktopCoverCard(context, provider));
+  }
+
+  Widget _buildDesktopCoverCard(BuildContext context, BookEditProvider provider) {
+    return _buildSectionCard(title: 'Cover', children: [_buildCoverSection(context, provider, isDesktop: true)]);
   }
 
   Widget _buildDesktopFormPane(BuildContext context, BookEditProvider provider) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: _buildFormSections(context, provider, skipMetadata: true),
+      children: [
+        _buildSectionCard(title: 'Fetch metadata', children: [_buildMetadataSection(context, provider)]),
+        ..._buildFormSections(context, provider, skipMetadata: true),
+      ],
     );
   }
 
@@ -579,44 +578,50 @@ class _BookEditPageState extends State<BookEditPage> {
 
   Widget _buildMetadataSection(BuildContext context, BookEditProvider provider) {
     final colorScheme = Theme.of(context).colorScheme;
+    final sourceSelector = SegmentedButton<MetadataSource>(
+      segments: const [
+        ButtonSegment(value: MetadataSource.openLibrary, label: Text('Open Library')),
+        ButtonSegment(value: MetadataSource.googleBooks, label: Text('Google Books')),
+      ],
+      selected: {provider.selectedSource},
+      showSelectedIcon: false,
+      onSelectionChanged: (selection) {
+        provider.setMetadataSource(selection.first);
+      },
+      style: const ButtonStyle(visualDensity: VisualDensity.compact, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+    );
+    final searchField = TextFormField(
+      controller: _metadataSearchController,
+      decoration: InputDecoration(
+        labelText: 'Search',
+        hintText: 'Title, author, or ISBN',
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+        prefixIcon: const Icon(Icons.search),
+        suffixIcon: IconButton(
+          icon: provider.isFetching
+              ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
+              : const Icon(Icons.arrow_forward),
+          onPressed: provider.isFetching ? null : () => _searchMetadata(provider),
+        ),
+      ),
+      onFieldSubmitted: (_) => _searchMetadata(provider),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        // Source selector
-        SegmentedButton<MetadataSource>(
-          segments: const [
-            ButtonSegment(value: MetadataSource.openLibrary, label: Text('Open Library')),
-            ButtonSegment(value: MetadataSource.googleBooks, label: Text('Google Books')),
+        Wrap(
+          spacing: Spacing.md,
+          runSpacing: Spacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            Text('Source', style: Theme.of(context).textTheme.bodySmall),
+            sourceSelector,
           ],
-          selected: {provider.selectedSource},
-          onSelectionChanged: (selection) {
-            provider.setMetadataSource(selection.first);
-          },
-          style: const ButtonStyle(
-            visualDensity: VisualDensity.compact,
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
         ),
-        const SizedBox(height: Spacing.md),
 
-        // Search field
-        TextFormField(
-          controller: _metadataSearchController,
-          decoration: InputDecoration(
-            labelText: 'Search',
-            hintText: 'Title, author, or ISBN',
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-            prefixIcon: const Icon(Icons.search),
-            suffixIcon: IconButton(
-              icon: provider.isFetching
-                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2))
-                  : const Icon(Icons.arrow_forward),
-              onPressed: provider.isFetching ? null : () => _searchMetadata(provider),
-            ),
-          ),
-          onFieldSubmitted: (_) => _searchMetadata(provider),
-        ),
+        const SizedBox(height: Spacing.md),
+        searchField,
 
         // Error message
         if (provider.fetchState == MetadataFetchState.error) ...[
