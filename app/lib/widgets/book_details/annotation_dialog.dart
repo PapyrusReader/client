@@ -82,142 +82,139 @@ class _AnnotationDialogState extends State<AnnotationDialog> {
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, 0),
-                  child: Column(
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
+        child: Container(
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, 0),
+                child: Column(
+                  children: [
+                    const BottomSheetHandle(),
+                    const SizedBox(height: Spacing.md),
+                    BottomSheetHeader(
+                      title: _isEditing ? 'Edit annotation' : 'New annotation',
+                      onCancel: () => Navigator.of(context).pop(),
+                      onSave: _save,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: Spacing.md),
+              const Divider(height: 1),
+
+              // Form
+              Flexible(
+                fit: FlexFit.loose,
+                child: Form(
+                  key: _formKey,
+                  child: ListView(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.all(Spacing.md),
                     children: [
-                      const BottomSheetHandle(),
+                      // Highlighted text
+                      TextFormField(
+                        controller: _textController,
+                        decoration: const InputDecoration(
+                          labelText: 'Highlighted text',
+                          hintText: 'Enter the passage you highlighted...',
+                          border: OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                        textCapitalization: TextCapitalization.sentences,
+                        maxLines: 4,
+                        autofocus: !_isEditing,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter the highlighted text';
+                          }
+                          return null;
+                        },
+                      ),
                       const SizedBox(height: Spacing.md),
-                      BottomSheetHeader(
-                        title: _isEditing ? 'Edit annotation' : 'New annotation',
-                        onCancel: () => Navigator.of(context).pop(),
-                        onSave: _save,
+
+                      // Page number
+                      TextFormField(
+                        controller: _pageController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                        decoration: const InputDecoration(labelText: 'Page number', border: OutlineInputBorder()),
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter a page number';
+                          }
+                          final page = int.tryParse(value);
+                          if (page == null || page < 1) {
+                            return 'Enter a valid page number';
+                          }
+                          return null;
+                        },
+                      ),
+                      const SizedBox(height: Spacing.md),
+
+                      // Chapter title (optional)
+                      TextFormField(
+                        controller: _chapterController,
+                        decoration: const InputDecoration(
+                          labelText: 'Chapter title (optional)',
+                          border: OutlineInputBorder(),
+                        ),
+                        textCapitalization: TextCapitalization.sentences,
+                      ),
+                      const SizedBox(height: Spacing.md),
+
+                      // Note (optional)
+                      TextFormField(
+                        controller: _noteController,
+                        decoration: const InputDecoration(
+                          labelText: 'Note (optional)',
+                          hintText: 'Add your thoughts about this passage...',
+                          border: OutlineInputBorder(),
+                          alignLabelWithHint: true,
+                        ),
+                        textCapitalization: TextCapitalization.sentences,
+                        maxLines: 3,
+                      ),
+
+                      const SizedBox(height: Spacing.md),
+
+                      // Highlight color
+                      Text('Highlight color', style: Theme.of(context).textTheme.titleSmall),
+                      const SizedBox(height: Spacing.sm),
+                      Wrap(
+                        spacing: Spacing.sm,
+                        children: HighlightColor.values.map((color) {
+                          final isSelected = color == _selectedColor;
+                          return GestureDetector(
+                            onTap: () => setState(() => _selectedColor = color),
+                            child: Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: color.color,
+                                shape: BoxShape.circle,
+                                border: isSelected ? Border.all(color: color.accentColor, width: 2) : null,
+                              ),
+                              child: isSelected
+                                  ? Icon(Icons.check, color: color.accentColor, size: IconSizes.small)
+                                  : null,
+                            ),
+                          );
+                        }).toList(),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: Spacing.md),
-                const Divider(height: 1),
-
-                // Form
-                Expanded(
-                  child: Form(
-                    key: _formKey,
-                    child: ListView(
-                      controller: scrollController,
-                      padding: const EdgeInsets.all(Spacing.md),
-                      children: [
-                        // Highlighted text
-                        TextFormField(
-                          controller: _textController,
-                          decoration: const InputDecoration(
-                            labelText: 'Highlighted text',
-                            hintText: 'Enter the passage you highlighted...',
-                            border: OutlineInputBorder(),
-                            alignLabelWithHint: true,
-                          ),
-                          textCapitalization: TextCapitalization.sentences,
-                          maxLines: 4,
-                          autofocus: !_isEditing,
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter the highlighted text';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: Spacing.md),
-
-                        // Page number
-                        TextFormField(
-                          controller: _pageController,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          decoration: const InputDecoration(labelText: 'Page number', border: OutlineInputBorder()),
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter a page number';
-                            }
-                            final page = int.tryParse(value);
-                            if (page == null || page < 1) {
-                              return 'Enter a valid page number';
-                            }
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: Spacing.md),
-
-                        // Chapter title (optional)
-                        TextFormField(
-                          controller: _chapterController,
-                          decoration: const InputDecoration(
-                            labelText: 'Chapter title (optional)',
-                            border: OutlineInputBorder(),
-                          ),
-                          textCapitalization: TextCapitalization.sentences,
-                        ),
-                        const SizedBox(height: Spacing.md),
-
-                        // Note (optional)
-                        TextFormField(
-                          controller: _noteController,
-                          decoration: const InputDecoration(
-                            labelText: 'Note (optional)',
-                            hintText: 'Add your thoughts about this passage...',
-                            border: OutlineInputBorder(),
-                            alignLabelWithHint: true,
-                          ),
-                          textCapitalization: TextCapitalization.sentences,
-                          maxLines: 3,
-                        ),
-
-                        const SizedBox(height: Spacing.md),
-
-                        // Highlight color
-                        Text('Highlight color', style: Theme.of(context).textTheme.titleSmall),
-                        const SizedBox(height: Spacing.sm),
-                        Wrap(
-                          spacing: Spacing.sm,
-                          children: HighlightColor.values.map((color) {
-                            final isSelected = color == _selectedColor;
-                            return GestureDetector(
-                              onTap: () => setState(() => _selectedColor = color),
-                              child: Container(
-                                width: 36,
-                                height: 36,
-                                decoration: BoxDecoration(
-                                  color: color.color,
-                                  shape: BoxShape.circle,
-                                  border: isSelected ? Border.all(color: color.accentColor, width: 2) : null,
-                                ),
-                                child: isSelected
-                                    ? Icon(Icons.check, color: color.accentColor, size: IconSizes.small)
-                                    : null,
-                              ),
-                            );
-                          }).toList(),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }
