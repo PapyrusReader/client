@@ -21,6 +21,27 @@ void main() {
     expect(provider.error, isNull);
   });
 
+  test('waits for the first repository snapshot before reporting a missing book', () async {
+    final storedBook = buildTestBook(id: 'delayed-book', title: 'Delayed Book');
+    final repository = _DelayedSnapshotBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final provider = BookEditProvider()..setDataStore(dataStore);
+
+    final load = provider.loadBook(storedBook.id);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(provider.isLoading, isTrue);
+    expect(provider.error, isNull);
+
+    repository.controller.add([storedBook]);
+    await load;
+
+    expect(provider.editedBook, storedBook);
+    expect(provider.error, isNull);
+    await dataStore.disposeBookRepository();
+    await repository.controller.close();
+  });
+
   test('saving a picked cover keeps image bytes out of synced book metadata', () async {
     final dataStore = DataStore();
     final original = buildTestBook(
@@ -74,6 +95,22 @@ class _LookupBookRepository implements BookRepository {
 
   @override
   Future<Book?> getById(String id) async => id == book.id ? book : null;
+
+  @override
+  Future<void> upsert(Book book) async {}
+
+  @override
+  Future<void> delete(String id) async {}
+}
+
+class _DelayedSnapshotBookRepository implements BookRepository {
+  final controller = StreamController<List<Book>>.broadcast();
+
+  @override
+  Stream<List<Book>> watchAll() => controller.stream;
+
+  @override
+  Future<Book?> getById(String id) async => null;
 
   @override
   Future<void> upsert(Book book) async {}

@@ -86,6 +86,24 @@ void main() {
     await repository.controller.close();
   });
 
+  test('waitUntilLoaded completes only after the first repository snapshot', () async {
+    final repository = FakeBookRepository();
+    final store = DataStore(bookRepository: repository);
+    var completed = false;
+
+    final loaded = store.waitUntilLoaded().then((_) => completed = true);
+    await pumpEventQueue();
+    expect(completed, isFalse);
+
+    repository.controller.add([_book('one', 'First')]);
+    await loaded;
+
+    expect(store.isLoaded, isTrue);
+    expect(store.getBook('one')?.title, 'First');
+    await store.disposeBookRepository();
+    await repository.controller.close();
+  });
+
   test('stale sync snapshots do not clear an uploaded cover media id', () async {
     final repository = FakeBookRepository();
     final store = DataStore(bookRepository: repository);

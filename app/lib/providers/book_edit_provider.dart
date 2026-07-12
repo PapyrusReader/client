@@ -81,7 +81,13 @@ class BookEditProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final book = _dataStore!.getBook(bookId) ?? await _dataStore!.requireBookRepository().getById(bookId);
+      final dataStore = _dataStore!;
+      final repository = dataStore.requireBookRepository();
+      var book = dataStore.getBook(bookId) ?? await repository.getById(bookId);
+      if (book == null && !dataStore.isLoaded) {
+        await dataStore.waitUntilLoaded();
+        book = dataStore.getBook(bookId) ?? await repository.getById(bookId);
+      }
       if (book == null) {
         _error = 'Book not found';
       } else {

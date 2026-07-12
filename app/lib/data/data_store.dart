@@ -48,6 +48,29 @@ class DataStore extends ChangeNotifier {
 
   bool get isLoaded => _isLoaded;
 
+  /// Completes when the active book repository has emitted its first snapshot.
+  ///
+  /// A direct repository lookup may temporarily return null while persistent
+  /// storage is still opening. Callers should wait for this before treating a
+  /// missing ID as authoritative.
+  Future<void> waitUntilLoaded() {
+    if (_isLoaded) return Future<void>.value();
+
+    final completer = Completer<void>();
+    late VoidCallback listener;
+    listener = () {
+      if (!_isLoaded || completer.isCompleted) return;
+      removeListener(listener);
+      completer.complete();
+    };
+
+    addListener(listener);
+    // Close the gap if loading completed between the initial check and listener
+    // registration.
+    listener();
+    return completer.future;
+  }
+
   List<Book> get books => _books.values.toList();
 
   /// Get all shelves with computed bookCount and coverPreviews.

@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
@@ -87,6 +89,28 @@ void main() {
 
         expect(startupProvider.book, storedBook);
         expect(startupProvider.error, isNull);
+      });
+
+      test('waits for the first repository snapshot before reporting a missing book', () async {
+        final storedBook = buildTestBook(id: 'delayed-book', title: 'Delayed Book');
+        final repository = _DelayedSnapshotBookRepository();
+        final startupStore = DataStore(bookRepository: repository);
+        final startupProvider = BookDetailsProvider()..setDataStore(startupStore);
+        addTearDown(startupProvider.dispose);
+
+        final load = startupProvider.loadBook(storedBook.id);
+        await Future<void>.delayed(Duration.zero);
+
+        expect(startupProvider.isLoading, isTrue);
+        expect(startupProvider.error, isNull);
+
+        repository.controller.add([storedBook]);
+        await load;
+
+        expect(startupProvider.book, storedBook);
+        expect(startupProvider.error, isNull);
+        await startupStore.disposeBookRepository();
+        await repository.controller.close();
       });
 
       test('loads a book from DataStore', () async {
@@ -550,6 +574,22 @@ class _LookupBookRepository implements BookRepository {
 
   @override
   Future<Book?> getById(String id) async => id == book.id ? book : null;
+
+  @override
+  Future<void> upsert(Book book) async {}
+
+  @override
+  Future<void> delete(String id) async {}
+}
+
+class _DelayedSnapshotBookRepository implements BookRepository {
+  final controller = StreamController<List<Book>>.broadcast();
+
+  @override
+  Stream<List<Book>> watchAll() => controller.stream;
+
+  @override
+  Future<Book?> getById(String id) async => null;
 
   @override
   Future<void> upsert(Book book) async {}
