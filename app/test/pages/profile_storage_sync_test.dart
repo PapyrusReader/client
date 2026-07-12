@@ -157,7 +157,7 @@ void main() {
 
     await tester.pumpWidget(await buildPage(authProvider: auth, powerSyncService: service));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage & sync'), 400);
+    await tester.scrollUntilVisible(find.text('Storage'), 400);
     await tester.pumpAndSettle();
 
     expect(find.text('Stored on this device'), findsOneWidget);
@@ -191,7 +191,7 @@ void main() {
       await buildPage(authProvider: auth, powerSyncService: service, screenSize: const Size(1200, 900)),
     );
     await tester.pump();
-    await tester.tap(find.text('Storage & sync').first);
+    await tester.tap(find.text('Storage').first);
     await tester.pump();
 
     expect(find.text('Library storage'), findsOneWidget);
@@ -232,7 +232,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Storage & sync').first);
+    await tester.tap(find.text('Storage').first);
     await tester.pumpAndSettle();
 
     expect(find.text('Data sync'), findsOneWidget);
@@ -285,7 +285,7 @@ void main() {
       await buildPage(authProvider: auth, powerSyncService: service, syncSettingsProvider: syncSettings),
     );
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage & sync'), 400);
+    await tester.scrollUntilVisible(find.text('Storage'), 400);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Manage servers'));
     await tester.pumpAndSettle();
@@ -307,7 +307,7 @@ void main() {
       await buildPage(authProvider: auth, powerSyncService: service, screenSize: const Size(1200, 900)),
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Storage & sync').first);
+    await tester.tap(find.text('Storage').first);
     await tester.pumpAndSettle();
 
     expect(find.text('Error'), findsWidgets);

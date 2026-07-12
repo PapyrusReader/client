@@ -37,7 +37,7 @@ class PreferencesProvider extends ChangeNotifier {
   static const _keyStreakAlerts = 'streak_alerts';
   static const _keySyncStatusNotifications = 'sync_status_notifications';
 
-  // Storage & sync
+  // Storage
   static const _keyStorageBackend = 'storage_backend';
   static const _keySyncEnabled = 'sync_enabled';
   static const _keyServerUrl = 'server_url';
@@ -198,7 +198,7 @@ class PreferencesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // -- Storage & sync -------------------------------------------------------
+  // -- Storage -------------------------------------------------------
 
   String get storageBackend => _prefs.getString(_keyStorageBackend) ?? 'Local';
 
