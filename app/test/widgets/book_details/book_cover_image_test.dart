@@ -7,11 +7,11 @@ void main() {
   testWidgets('book cover image forwards the book id to its renderer', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: BookCoverImage(bookId: 'book-1', imageUrl: 'https://example.test/cover.jpg', bookTitle: 'Book'),
+        home: CoverImagePreview(bookId: 'book-1', imageUrl: 'https://example.test/cover.jpg', bookTitle: 'Book'),
       ),
     );
 
-    final cover = tester.widget<PrivateBookCover>(find.byType(PrivateBookCover));
+    final cover = tester.widget<CoverImage>(find.byType(CoverImage));
     expect(cover.bookId, 'book-1');
   });
 }

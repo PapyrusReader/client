@@ -43,6 +43,7 @@ Server files to modify:
 ### Task 1: Restore the intended context-menu contract
 
 **Files:**
+
 - Modify: `app/test/widgets/context_menu/book_context_menu_test.dart:11-45`
 - Verify: `app/lib/widgets/context_menu/book_context_menu.dart:421-442`
 
@@ -72,6 +73,7 @@ git commit -m "test: align book menu labels"
 ### Task 2: Define authenticated media scope
 
 **Files:**
+
 - Create: `app/lib/media/media_storage_scope.dart`
 - Create: `app/test/media/media_storage_scope_test.dart`
 
@@ -142,6 +144,7 @@ git commit -m "feat: define scoped media identity"
 ### Task 3: Add filesystem and OPFS cover-file operations
 
 **Files:**
+
 - Modify: `app/lib/services/book_import_service_stub.dart`
 - Modify: `app/lib/services/book_import_service.dart`
 - Modify: `app/web/book_worker.js`
@@ -245,6 +248,7 @@ git commit -m "feat: persist scoped covers in local files"
 ### Task 4: Add lazy persistent cover loading and shared rendering
 
 **Files:**
+
 - Modify: `app/lib/media/media_cache_service.dart`
 - Modify: `app/test/media/media_cache_service_test.dart`
 - Create: `app/lib/widgets/book/private_book_cover.dart`
@@ -336,7 +340,7 @@ testWidgets('private cover loads from scoped local cache', (tester) async {
   var loads = 0;
   await tester.pumpWidget(
     MaterialApp(
-      home: PrivateBookCover(
+      home: CoverImage(
         mediaId: 'asset-1',
         loadPrivateCover: (_) async {
           loads++;
@@ -354,7 +358,7 @@ testWidgets('private cover loads from scoped local cache', (tester) async {
 testWidgets('private cover falls back to placeholder when signed out', (tester) async {
   await tester.pumpWidget(
     const MaterialApp(
-      home: PrivateBookCover(
+      home: CoverImage(
         mediaId: 'asset-1',
         placeholder: Icon(Icons.menu_book, key: Key('placeholder')),
       ),
@@ -369,15 +373,15 @@ testWidgets('private cover falls back to placeholder when signed out', (tester) 
 
 Run: `cd app && flutter test test/widgets/book/private_book_cover_test.dart`
 
-Expected: `PrivateBookCover` does not exist.
+Expected: `CoverImage` does not exist.
 
-- [ ] **Step 7: Implement `PrivateBookCover` and integrate `BookCoverImage`**
+- [ ] **Step 7: Implement `CoverImage` and integrate `CoverImagePreview`**
 
 The stateful widget accepts `imageUrl`, `mediaId`, `fit`, and a placeholder builder. It caches its future until `mediaId` or scope changes, uses the active `MediaStorageScope`, reads/writes through `BookImportService`, downloads through `AuthProvider`, and delegates lazy caching to `MediaCacheService`.
 
 - [ ] **Step 8: Replace private-cover-blind surfaces**
 
-Use `PrivateBookCover` in library cards/list rows, recently-added and continue-reading dashboard cards, move-to-shelf and manage-topics sheets, and `BookContextMenu`. Pass both `book.coverURL` and `book.coverMediaId`; preserve each surface's existing dimensions, fit, and placeholder styling.
+Use `CoverImage` in library cards/list rows, recently-added and continue-reading dashboard cards, move-to-shelf and manage-topics sheets, and `BookContextMenu`. Pass both `book.coverURL` and `book.coverMediaId`; preserve each surface's existing dimensions, fit, and placeholder styling.
 
 - [ ] **Step 9: Run focused cover widget tests and analyzer**
 
@@ -397,6 +401,7 @@ git commit -m "feat: render private covers from persistent cache"
 ### Task 5: Scope upload tasks and make processing single-flight
 
 **Files:**
+
 - Modify: `app/lib/media/media_upload_queue.dart`
 - Modify: `app/test/media/media_upload_queue_test.dart`
 
@@ -483,6 +488,7 @@ git commit -m "fix: scope and serialize media uploads"
 ### Task 6: Trigger uploads after durable enqueue and coordinate profile changes
 
 **Files:**
+
 - Modify: `app/lib/media/media_upload_queue.dart`
 - Modify: `app/lib/main.dart`
 - Modify: `app/lib/widgets/add_book/import_book_sheet.dart`
@@ -562,6 +568,7 @@ git commit -m "fix: process media immediately after enqueue"
 ### Task 7: Clean cached covers with book/account cache deletion
 
 **Files:**
+
 - Modify: `app/lib/services/book_delete_cleanup_service.dart`
 - Modify callers in `app/lib/pages/book_details_page.dart`, `app/lib/utils/book_actions.dart`, and `app/lib/utils/bulk_book_actions.dart`
 - Modify: `app/test/services/book_delete_cleanup_service_test.dart`
@@ -612,6 +619,7 @@ git commit -m "fix: clean scoped cover files"
 ### Task 8: Enforce one server asset per book kind and serialize quota checks
 
 **Files:**
+
 - Modify: `../server/papyrus/models/media.py`
 - Modify: `../server/alembic/versions/c3f8b2a9d1e4_add_media_assets.py`
 - Modify: `../server/papyrus/services/media.py`
@@ -717,6 +725,7 @@ git commit -m "fix: serialize media storage updates"
 ### Task 9: Full verification and PR readiness
 
 **Files:**
+
 - Review all files changed by Tasks 1-8.
 
 - [ ] **Step 1: Run client formatting and diff checks**
@@ -754,7 +763,7 @@ Check that:
 - guest activation uses no `MediaStorageScope`;
 - sign-out does not delete another account's queue/cache;
 - server switch waits for queue idle and captures the old repository;
-- every book-cover surface found by `rg -n "coverURL|coverUrl" app/lib/widgets app/lib/pages` either uses `PrivateBookCover` or intentionally renders a public-only decorative URL;
+- every book-cover surface found by `rg -n "coverURL|coverUrl" app/lib/widgets app/lib/pages` either uses `CoverImage` or intentionally renders a public-only decorative URL;
 - no cover bytes are stored in SQL or SharedPreferences.
 
 - [ ] **Step 5: Inspect GitHub checks without changing remote state**

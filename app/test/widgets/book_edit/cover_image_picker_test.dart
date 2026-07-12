@@ -17,7 +17,7 @@ void main() {
       ),
     );
 
-    final cover = tester.widget<PrivateBookCover>(find.byType(PrivateBookCover));
+    final cover = tester.widget<CoverImage>(find.byType(CoverImage));
     expect(cover.bookId, 'book-1');
     expect(cover.mediaId, 'cover-1');
   });

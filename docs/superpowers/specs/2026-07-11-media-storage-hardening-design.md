@@ -63,7 +63,7 @@ Downloads are coalesced by `(scope, mediaId)` so multiple widgets requesting the
 
 ### UI integration
 
-A single reusable private-cover content widget owns the public-URL/private-media/placeholder decision. The existing sized `BookCoverImage` composes it, and library cards, list rows, dashboard cards, shelf/topic sheets, context menus, and other book-cover surfaces use the same content widget. This prevents successful upload from clearing `coverUrl` and making covers disappear outside the details page.
+A single reusable private-cover content widget owns the public-URL/private-media/placeholder decision. The existing sized `CoverImagePreview` composes it, and library cards, list rows, dashboard cards, shelf/topic sheets, context menus, and other book-cover surfaces use the same content widget. This prevents successful upload from clearing `coverUrl` and making covers disappear outside the details page.
 
 Book deletion removes pending, guest, and cached cover files for that book on a best-effort basis after pending upload tasks are removed. Clearing the active authenticated cache removes the whole scoped cover directory. Clearing authenticated data never removes guest book-file or cover storage.
 

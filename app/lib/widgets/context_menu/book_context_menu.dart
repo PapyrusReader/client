@@ -455,12 +455,7 @@ class _BookContextBottomSheet extends StatelessWidget {
       color: colorScheme.surfaceContainerHighest,
       child: Icon(Icons.menu_book, color: colorScheme.onSurfaceVariant),
     );
-    return PrivateBookCover(
-      bookId: book.id,
-      imageUrl: book.coverURL,
-      mediaId: book.coverMediaId,
-      placeholder: placeholder,
-    );
+    return CoverImage(bookId: book.id, imageUrl: book.coverURL, mediaId: book.coverMediaId, placeholder: placeholder);
   }
 }
 

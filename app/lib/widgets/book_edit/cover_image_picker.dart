@@ -231,7 +231,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
     }
 
     if (widget.bookId?.isNotEmpty == true || widget.mediaId?.isNotEmpty == true) {
-      return PrivateBookCover(
+      return CoverImage(
         bookId: widget.bookId,
         mediaId: widget.mediaId,
         fit: BoxFit.cover,

@@ -89,7 +89,7 @@ void main() {
     testWidgets('forwards the book id to the cover renderer', (tester) async {
       await tester.pumpWidget(buildListItem());
 
-      expect(tester.widget<PrivateBookCover>(find.byType(PrivateBookCover)).bookId, testBook.id);
+      expect(tester.widget<CoverImage>(find.byType(CoverImage)).bookId, testBook.id);
     });
 
     testWidgets('displays physical format label', (tester) async {

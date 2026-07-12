@@ -173,7 +173,7 @@ class _BookListItemState extends State<BookListItem> {
   }
 
   Widget _buildCover(BuildContext context) {
-    return PrivateBookCover(
+    return CoverImage(
       bookId: widget.book.id,
       imageUrl: widget.book.coverURL,
       mediaId: widget.book.coverMediaId,

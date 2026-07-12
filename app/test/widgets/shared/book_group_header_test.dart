@@ -21,6 +21,6 @@ void main() {
       ),
     );
 
-    expect(tester.widget<PrivateBookCover>(find.byType(PrivateBookCover)).bookId, 'book-1');
+    expect(tester.widget<CoverImage>(find.byType(CoverImage)).bookId, 'book-1');
   });
 }

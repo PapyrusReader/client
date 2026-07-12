@@ -63,7 +63,7 @@ class BookGroupHeader extends StatelessWidget {
                 child: SizedBox(
                   width: 32,
                   height: 48,
-                  child: PrivateBookCover(
+                  child: CoverImage(
                     bookId: bookId,
                     imageUrl: coverUrl,
                     mediaId: coverMediaId,

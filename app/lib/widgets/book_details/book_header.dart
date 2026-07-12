@@ -40,7 +40,7 @@ class BookHeader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Cover image
-        BookCoverImage(
+        CoverImagePreview(
           bookId: book.id,
           imageUrl: book.coverURL,
           mediaId: book.coverMediaId,
@@ -117,7 +117,7 @@ class BookHeader extends StatelessWidget {
           const SizedBox(height: Spacing.lg),
 
           // Cover image (centered)
-          BookCoverImage(
+          CoverImagePreview(
             bookId: book.id,
             imageUrl: book.coverURL,
             mediaId: book.coverMediaId,

@@ -202,12 +202,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
       child: Icon(Icons.menu_book, color: colorScheme.onSurfaceVariant, size: 20),
     );
     if (book == null) return placeholder;
-    return PrivateBookCover(
-      bookId: book.id,
-      imageUrl: book.coverURL,
-      mediaId: book.coverMediaId,
-      placeholder: placeholder,
-    );
+    return CoverImage(bookId: book.id, imageUrl: book.coverURL, mediaId: book.coverMediaId, placeholder: placeholder);
   }
 
   Widget _buildEmptyState(BuildContext context) {

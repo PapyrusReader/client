@@ -4,7 +4,7 @@
 
 **Goal:** Eliminate cover flashes between Papyrus pages by giving filesystem-backed covers stable Flutter image-cache identities.
 
-**Architecture:** Add a `LocalCoverImageProvider` whose immutable key contains storage scope, bucket, and file ID. `PrivateBookCover` will resolve local account, pending, and guest covers through that provider so Flutter's bounded global `ImageCache` reuses decoded frames across widget instances; OPFS/native files remain authoritative and existing authenticated lazy download remains the cached-media loader.
+**Architecture:** Add a `LocalCoverImageProvider` whose immutable key contains storage scope, bucket, and file ID. `CoverImage` will resolve local account, pending, and guest covers through that provider so Flutter's bounded global `ImageCache` reuses decoded frames across widget instances; OPFS/native files remain authoritative and existing authenticated lazy download remains the cached-media loader.
 
 **Tech Stack:** Flutter/Dart, `ImageProvider`, `MultiFrameImageStreamCompleter`, Flutter `ImageCache`, native filesystem, browser OPFS, widget/unit tests.
 
@@ -23,6 +23,7 @@
 ### Task 1: Add a stable filesystem-backed cover image provider
 
 **Files:**
+
 - Create: `app/lib/media/local_cover_image_provider.dart`
 - Create: `app/test/media/local_cover_image_provider_test.dart`
 
@@ -166,6 +167,7 @@ git commit -m "feat: add stable local cover image provider"
 ### Task 2: Render production local covers through Flutter's image cache
 
 **Files:**
+
 - Modify: `app/lib/widgets/book/private_book_cover.dart`
 - Modify: `app/test/widgets/book/private_book_cover_test.dart`
 
@@ -179,7 +181,7 @@ testWidgets('new page reuses decoded private cover without reading storage again
   final importService = _RecordingCoverImportService(pngBytes);
 
   Widget page(Key key) => harness.wrapWithCoverServices(
-    PrivateBookCover(
+    CoverImage(
       key: key,
       bookId: 'book-1',
       mediaId: 'asset-1',
@@ -276,6 +278,7 @@ git commit -m "fix: reuse decoded covers across page transitions"
 ### Task 3: Invalidate decoded covers when local files are removed
 
 **Files:**
+
 - Modify: `app/lib/services/book_import_service.dart`
 - Modify: `app/lib/services/book_import_service_stub.dart`
 - Modify: `app/test/services/book_cover_storage_test.dart`
@@ -332,6 +335,7 @@ git commit -m "fix: evict decoded covers after local mutation"
 ### Task 4: Final verification and browser smoke test
 
 **Files:**
+
 - No production files expected beyond Tasks 1-3.
 
 - [ ] **Step 1: Run complete automated verification**

@@ -6,7 +6,7 @@
 
 ## Overview
 
-Papyrus persists private cover bytes in filesystem storage or browser OPFS. A newly mounted `PrivateBookCover` currently reads those bytes asynchronously and renders its placeholder until the read completes. Navigating between the library, book details, shelves, and list layouts therefore produces a visible cover flash even when the cover was already displayed moments earlier.
+Papyrus persists private cover bytes in filesystem storage or browser OPFS. A newly mounted `CoverImage` currently reads those bytes asynchronously and renders its placeholder until the read completes. Navigating between the library, book details, shelves, and list layouts therefore produces a visible cover flash even when the cover was already displayed moments earlier.
 
 This design gives each local cover a stable Flutter image-provider identity. Flutter's bounded least-recently-used `ImageCache` can then reuse the decoded image across widget instances and page transitions, while filesystem storage remains authoritative across app restarts.
 
@@ -50,7 +50,7 @@ Public HTTP covers continue using `CachedNetworkImage`; inline legacy data URIs 
 
 ### Rendering
 
-`PrivateBookCover` chooses one provider in the existing priority order:
+`CoverImage` chooses one provider in the existing priority order:
 
 1. public or legacy inline cover;
 2. authenticated cached cover by media ID;
@@ -88,7 +88,7 @@ Papyrus does not add a second raw-byte LRU. Flutter's `ImageCache` remains the s
 
 ## Rollout and rollback
 
-The change is client-only and requires no data migration. Rollout consists of the provider implementation, `PrivateBookCover` integration, focused widget tests, and a browser navigation smoke test. Rollback restores the existing `FutureBuilder<Uint8List?>` renderer; persisted cover files and synchronized metadata remain compatible.
+The change is client-only and requires no data migration. Rollout consists of the provider implementation, `CoverImage` integration, focused widget tests, and a browser navigation smoke test. Rollback restores the existing `FutureBuilder<Uint8List?>` renderer; persisted cover files and synchronized metadata remain compatible.
 
 ## Open questions
 

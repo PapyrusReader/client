@@ -73,8 +73,8 @@ void main() {
     final importService = _RecordingBookImportService(Uint8List.fromList(pngBytes));
     final harness = await _buildProviderHarness(importService: importService);
 
-    PrivateBookCover cover() {
-      return const PrivateBookCover(
+    CoverImage cover() {
+      return const CoverImage(
         bookId: 'book-1',
         mediaId: 'asset-1',
         placeholder: SizedBox(key: Key('placeholder')),
@@ -103,8 +103,8 @@ void main() {
       return Uint8List.fromList(pngBytes);
     }
 
-    PrivateBookCover cover() {
-      return PrivateBookCover(
+    CoverImage cover() {
+      return CoverImage(
         bookId: 'book-1',
         loadPendingBookCover: loadPending,
         placeholder: const SizedBox(key: Key('placeholder')),
@@ -133,8 +133,8 @@ void main() {
       return Uint8List.fromList(pngBytes);
     }
 
-    PrivateBookCover cover() {
-      return PrivateBookCover(
+    CoverImage cover() {
+      return CoverImage(
         bookId: 'book-1',
         loadGuestBookCover: loadGuest,
         placeholder: const SizedBox(key: Key('placeholder')),
@@ -159,7 +159,7 @@ void main() {
     var loads = 0;
     await tester.pumpWidget(
       MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           mediaId: 'asset-1',
           loadPrivateCover: (_) async {
             loads++;
@@ -181,7 +181,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           bookId: 'book-1',
           loadLocalBookCover: (bookId) async {
             loadedBookIds.add(bookId);
@@ -204,7 +204,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           bookId: 'book-1',
           mediaId: 'asset-1',
           loadPrivateCover: (_) async {
@@ -234,7 +234,7 @@ void main() {
 
     Widget build(String bookId) {
       return MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           bookId: bookId,
           loadLocalBookCover: loader,
           placeholder: const SizedBox(key: Key('placeholder')),
@@ -259,7 +259,7 @@ void main() {
 
     Widget build(String bookId) {
       return MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           bookId: bookId,
           loadLocalBookCover: loader,
           placeholder: const SizedBox(key: Key('placeholder')),
@@ -283,7 +283,7 @@ void main() {
 
     Widget build(LocalBookCoverLoader loader) {
       return MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           bookId: 'book-1',
           loadLocalBookCover: loader,
           placeholder: const SizedBox(key: Key('placeholder')),
@@ -308,7 +308,7 @@ void main() {
 
     Widget build(PrivateCoverLoader loader) {
       return MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           mediaId: 'asset-1',
           loadPrivateCover: loader,
           placeholder: const SizedBox(key: Key('placeholder')),
@@ -338,7 +338,7 @@ void main() {
 
     await tester.pumpWidget(
       harness.wrap(
-        PrivateBookCover(
+        CoverImage(
           bookId: 'book-1',
           loadPendingBookCover: (_, _) async {
             pendingLoads++;
@@ -369,7 +369,7 @@ void main() {
 
     await tester.pumpWidget(
       harness.wrap(
-        PrivateBookCover(
+        CoverImage(
           bookId: 'book-1',
           loadPendingBookCover: (_, _) async {
             pendingLoads++;
@@ -425,7 +425,7 @@ void main() {
 
     await tester.pumpWidget(
       harness.wrap(
-        PrivateBookCover(
+        CoverImage(
           bookId: 'book-1',
           loadPendingBookCover: (scope, _) async {
             scopes.add(scope);
@@ -466,7 +466,7 @@ void main() {
 
     Widget build({required bool injected}) {
       return harness.wrap(
-        PrivateBookCover(
+        CoverImage(
           bookId: 'book-1',
           loadLocalBookCover: injected ? localLoader : null,
           loadPendingBookCover: pendingLoader,
@@ -506,7 +506,7 @@ void main() {
   testWidgets('local cover falls back to placeholder when there are no bytes', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           bookId: 'book-1',
           loadLocalBookCover: (_) async => null,
           placeholder: const SizedBox(key: Key('placeholder')),
@@ -522,7 +522,7 @@ void main() {
   testWidgets('book id without providers keeps the standalone placeholder', (tester) async {
     await tester.pumpWidget(
       const MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           bookId: 'book-1',
           placeholder: SizedBox(key: Key('placeholder')),
         ),
@@ -537,7 +537,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           imageUrl: dataUri,
           placeholder: const SizedBox(key: Key('placeholder')),
         ),
@@ -552,7 +552,7 @@ void main() {
   testWidgets('malformed inline imported cover renders the placeholder', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           imageUrl: 'data:not-valid',
           placeholder: const SizedBox(key: Key('placeholder')),
         ),
@@ -572,7 +572,7 @@ void main() {
 
     Widget build() {
       return MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           mediaId: 'asset-1',
           loadPrivateCover: loader,
           placeholder: const SizedBox(key: Key('placeholder')),
@@ -591,7 +591,7 @@ void main() {
   testWidgets('private cover falls back to placeholder when the loader has no bytes', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           mediaId: 'asset-1',
           loadPrivateCover: (_) async => null,
           placeholder: const SizedBox(key: Key('placeholder')),
@@ -607,7 +607,7 @@ void main() {
   testWidgets('private cover falls back to placeholder after a load error', (tester) async {
     await tester.pumpWidget(
       MaterialApp(
-        home: PrivateBookCover(
+        home: CoverImage(
           mediaId: 'asset-1',
           loadPrivateCover: (_) async => throw StateError('offline'),
           placeholder: const SizedBox(key: Key('placeholder')),

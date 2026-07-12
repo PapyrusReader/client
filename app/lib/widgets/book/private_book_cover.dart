@@ -18,8 +18,8 @@ typedef PendingBookCoverLoader = Future<Uint8List?> Function(MediaStorageScope s
 typedef GuestBookCoverLoader = Future<Uint8List?> Function(String bookId);
 
 /// Renders a public cover URL or a lazily persisted authenticated cover.
-class PrivateBookCover extends StatefulWidget {
-  const PrivateBookCover({
+class CoverImage extends StatefulWidget {
+  const CoverImage({
     super.key,
     this.bookId,
     this.imageUrl,
@@ -43,10 +43,10 @@ class PrivateBookCover extends StatefulWidget {
   final GuestBookCoverLoader? loadGuestBookCover;
 
   @override
-  State<PrivateBookCover> createState() => _PrivateBookCoverState();
+  State<CoverImage> createState() => _PrivateBookCoverState();
 }
 
-class _PrivateBookCoverState extends State<PrivateBookCover> {
+class _PrivateBookCoverState extends State<CoverImage> {
   Future<Uint8List?>? _coverFuture;
   LocalCoverImageProvider? _localCoverProvider;
   String? _loadKey;
@@ -66,7 +66,7 @@ class _PrivateBookCoverState extends State<PrivateBookCover> {
   }
 
   @override
-  void didUpdateWidget(covariant PrivateBookCover oldWidget) {
+  void didUpdateWidget(covariant CoverImage oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.imageUrl != widget.imageUrl ||
         oldWidget.mediaId != widget.mediaId ||

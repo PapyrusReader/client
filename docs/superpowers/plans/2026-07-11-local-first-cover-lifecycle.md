@@ -29,6 +29,7 @@
 ### Task 1: Add explicit filesystem cover buckets
 
 **Files:**
+
 - Create: `app/lib/media/cover_storage_bucket.dart`
 - Modify: `app/lib/media/media_storage_scope.dart`
 - Modify: `app/lib/services/book_import_service_stub.dart`
@@ -139,6 +140,7 @@ git commit -m "feat: add pending and guest cover storage"
 ### Task 2: Make queued cover uploads reference pending files
 
 **Files:**
+
 - Modify: `app/lib/media/media_upload_queue.dart`
 - Modify: `app/test/media/media_upload_queue_test.dart`
 
@@ -233,6 +235,7 @@ git commit -m "fix: queue cover file references instead of bytes"
 ### Task 3: Persist imported covers before saving book metadata
 
 **Files:**
+
 - Create: `app/lib/services/book_import_commit_service.dart`
 - Create: `app/test/services/book_import_commit_service_test.dart`
 - Modify: `app/lib/widgets/add_book/import_book_sheet.dart`
@@ -348,11 +351,12 @@ git commit -m "feat: persist imported covers outside metadata"
 ### Task 4: Render pending and guest covers by book ID
 
 **Files:**
+
 - Modify: `app/lib/widgets/book/private_book_cover.dart`
 - Modify: `app/lib/widgets/book_details/book_cover_image.dart`
 - Modify: `app/lib/data/data_store.dart`
 - Modify: `app/lib/models/shelf.dart`
-- Modify: all ten production `PrivateBookCover`/`BookCoverImage` callers found by `rg -n "PrivateBookCover\\(|BookCoverImage\\(" app/lib`
+- Modify: all ten production `CoverImage`/`CoverImagePreview` callers found by `rg -n "CoverImage\\(|CoverImagePreview\\(" app/lib`
 - Test: `app/test/widgets/book/private_book_cover_test.dart`
 
 - [ ] **Step 1: Write failing fallback-order widget tests**
@@ -362,7 +366,7 @@ Add injected local loading to keep tests independent of providers:
 ```dart
 testWidgets('book without media id renders pending local cover', (tester) async {
   await tester.pumpWidget(MaterialApp(
-    home: PrivateBookCover(
+    home: CoverImage(
       bookId: 'book-1',
       loadLocalBookCover: (_) async => Uint8List.fromList(pngBytes),
       placeholder: const SizedBox(key: Key('placeholder')),
@@ -376,7 +380,7 @@ testWidgets('media id takes priority over pending local cover', (tester) async {
   var localLoads = 0;
   var mediaLoads = 0;
   await tester.pumpWidget(MaterialApp(
-    home: PrivateBookCover(
+    home: CoverImage(
       bookId: 'book-1',
       mediaId: 'asset-1',
       loadPrivateCover: (_) async {
@@ -411,7 +415,7 @@ Expected: FAIL because `bookId` and `loadLocalBookCover` are not accepted.
 
 - [ ] **Step 3: Implement local fallback loading and propagate book IDs**
 
-Use this order in `PrivateBookCover`: public/legacy URL, `mediaId` cache/download, then local book cover. Provider loading chooses pending account storage when signed into an account library and guest storage otherwise:
+Use this order in `CoverImage`: public/legacy URL, `mediaId` cache/download, then local book cover. Provider loading chooses pending account storage when signed into an account library and guest storage otherwise:
 
 ```dart
 if (mediaId == null && bookId != null) {
@@ -421,7 +425,7 @@ if (mediaId == null && bookId != null) {
 }
 ```
 
-Add `bookId` to `BookCoverImage` and `CoverPreview`. Pass `book.id` from book-backed call sites and `cover.bookId` from shelf mosaics/group previews. Include book ID in `_loadKey` so recycled widgets cannot show another book's pending cover.
+Add `bookId` to `CoverImagePreview` and `CoverPreview`. Pass `book.id` from book-backed call sites and `cover.bookId` from shelf mosaics/group previews. Include book ID in `_loadKey` so recycled widgets cannot show another book's pending cover.
 
 - [ ] **Step 4: Run widget and representative surface tests**
 
@@ -444,6 +448,7 @@ git commit -m "feat: render local covers by book id"
 ### Task 5: Promote source-device covers after upload
 
 **Files:**
+
 - Create: `app/lib/media/cover_upload_persistence.dart`
 - Create: `app/test/media/cover_upload_persistence_test.dart`
 - Modify: `app/lib/main.dart`
@@ -505,6 +510,7 @@ git commit -m "feat: promote uploaded covers into local cache"
 ### Task 6: Delete every local cover representation
 
 **Files:**
+
 - Modify: `app/lib/services/book_delete_cleanup_service.dart`
 - Modify: `app/lib/pages/book_details_page.dart`
 - Modify: `app/test/services/book_delete_cleanup_service_test.dart`
@@ -560,6 +566,7 @@ git commit -m "fix: clean pending and guest covers on delete"
 ### Task 7: Verify metadata safety, cross-device behavior, and the web runtime
 
 **Files:**
+
 - Test: `app/test/powersync/powersync_book_mapper_test.dart`
 - Test: `app/test/services/book_import_commit_service_test.dart`
 
