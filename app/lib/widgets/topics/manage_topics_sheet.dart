@@ -7,6 +7,7 @@ import 'package:papyrus/utils/text_utils.dart';
 import 'package:papyrus/widgets/input/search_field.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/widgets/topics/add_topic_sheet.dart';
 import 'package:provider/provider.dart';
 
@@ -206,18 +207,9 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Icon(Icons.label_outline, size: IconSizes.display, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
-        const SizedBox(height: Spacing.md),
-        Text('No topics yet', style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-        const SizedBox(height: Spacing.sm),
-        Text('Tap + to create a topic', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-      ],
+    return const SizedBox(
+      width: double.infinity,
+      child: EmptyState(icon: Icons.label_outline, title: 'No topics yet', subtitle: 'Tap + to create a topic'),
     );
   }
 
