@@ -114,157 +114,154 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> {
 
     return Padding(
       padding: EdgeInsets.only(bottom: bottomInset),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.7,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) {
-          return Container(
-            decoration: BoxDecoration(
-              color: colorScheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-            ),
-            child: Column(
-              children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, 0),
-                  child: Column(
-                    children: [
-                      const BottomSheetHandle(),
-                      const SizedBox(height: Spacing.md),
-                      BottomSheetHeader(
-                        title: isEditing ? 'Edit note' : 'New note',
-                        onCancel: () => Navigator.of(context).pop(),
-                        onSave: _save,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
+        child: Container(
+          key: const Key('note-bottom-sheet'),
+          decoration: BoxDecoration(
+            color: colorScheme.surface,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, 0),
+                child: Column(
+                  children: [
+                    const BottomSheetHandle(),
+                    const SizedBox(height: Spacing.md),
+                    BottomSheetHeader(
+                      title: isEditing ? 'Edit note' : 'New note',
+                      onCancel: () => Navigator.of(context).pop(),
+                      onSave: _save,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: Spacing.md),
+              const Divider(height: 1),
+
+              // Form
+              Flexible(
+                fit: FlexFit.loose,
+                child: Form(
+                  key: _formKey,
+                  child: CustomScrollView(
+                    key: const Key('note-form-scroll'),
+                    scrollBehavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                    shrinkWrap: true,
+                    slivers: [
+                      SliverPadding(
+                        padding: const EdgeInsets.all(Spacing.md),
+                        sliver: SliverToBoxAdapter(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Title field
+                              TextFormField(
+                                controller: _titleController,
+                                focusNode: _titleFocusNode,
+                                decoration: const InputDecoration(
+                                  labelText: 'Title',
+                                  hintText: 'Enter note title',
+                                  border: OutlineInputBorder(),
+                                ),
+                                textCapitalization: TextCapitalization.sentences,
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Please enter a title';
+                                  }
+                                  return null;
+                                },
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+
+                      SliverPadding(
+                        padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
+                        sliver: SliverToBoxAdapter(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              TextFormField(
+                                key: const Key('note-content-field'),
+                                controller: _contentController,
+                                decoration: const InputDecoration(
+                                  labelText: 'Content',
+                                  hintText: 'Write your note...',
+                                  border: OutlineInputBorder(),
+                                  alignLabelWithHint: true,
+                                ),
+                                textCapitalization: TextCapitalization.sentences,
+                                minLines: 8,
+                                maxLines: 12,
+                                textAlignVertical: TextAlignVertical.top,
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Please enter some content';
+                                  }
+                                  return null;
+                                },
+                              ),
+                              const SizedBox(height: Spacing.md),
+
+                              // Tag input
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: TextField(
+                                      controller: _tagController,
+                                      decoration: const InputDecoration(
+                                        labelText: 'Tags',
+                                        hintText: 'Add a tag...',
+                                        border: OutlineInputBorder(),
+                                        isDense: true,
+                                      ),
+                                      textInputAction: TextInputAction.done,
+                                      onSubmitted: (_) => _addTag(),
+                                    ),
+                                  ),
+                                  const SizedBox(width: Spacing.sm),
+                                  IconButton.filled(onPressed: _addTag, icon: const Icon(Icons.add)),
+                                ],
+                              ),
+
+                              // Tags display
+                              const SizedBox(height: Spacing.sm),
+                              if (_tags.isNotEmpty)
+                                Wrap(
+                                  spacing: Spacing.xs,
+                                  runSpacing: Spacing.xs,
+                                  children: _tags.map((tag) {
+                                    return Chip(
+                                      label: Text(tag),
+                                      deleteIcon: const Icon(Icons.close, size: 18),
+                                      onDeleted: () => _removeTag(tag),
+                                      visualDensity: VisualDensity.compact,
+                                    );
+                                  }).toList(),
+                                )
+                              else
+                                Text(
+                                  'Tags will appear here',
+                                  style: Theme.of(
+                                    context,
+                                  ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                                ),
+                            ],
+                          ),
+                        ),
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(height: Spacing.md),
-                const Divider(height: 1),
-
-                // Form
-                Expanded(
-                  child: Form(
-                    key: _formKey,
-                    child: CustomScrollView(
-                      controller: scrollController,
-                      slivers: [
-                        SliverPadding(
-                          padding: const EdgeInsets.all(Spacing.md),
-                          sliver: SliverToBoxAdapter(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                // Title field
-                                TextFormField(
-                                  controller: _titleController,
-                                  focusNode: _titleFocusNode,
-                                  decoration: const InputDecoration(
-                                    labelText: 'Title',
-                                    hintText: 'Enter note title',
-                                    border: OutlineInputBorder(),
-                                  ),
-                                  textCapitalization: TextCapitalization.sentences,
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return 'Please enter a title';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-
-                        // Content field — fills remaining space
-                        SliverFillRemaining(
-                          hasScrollBody: false,
-                          child: Padding(
-                            padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Expanded(
-                                  child: TextFormField(
-                                    controller: _contentController,
-                                    decoration: const InputDecoration(
-                                      labelText: 'Content',
-                                      hintText: 'Write your note...',
-                                      border: OutlineInputBorder(),
-                                      alignLabelWithHint: true,
-                                    ),
-                                    textCapitalization: TextCapitalization.sentences,
-                                    maxLines: null,
-                                    expands: true,
-                                    textAlignVertical: TextAlignVertical.top,
-                                    validator: (value) {
-                                      if (value == null || value.trim().isEmpty) {
-                                        return 'Please enter some content';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ),
-                                const SizedBox(height: Spacing.md),
-
-                                // Tag input
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: TextField(
-                                        controller: _tagController,
-                                        decoration: const InputDecoration(
-                                          labelText: 'Tags',
-                                          hintText: 'Add a tag...',
-                                          border: OutlineInputBorder(),
-                                          isDense: true,
-                                        ),
-                                        textInputAction: TextInputAction.done,
-                                        onSubmitted: (_) => _addTag(),
-                                      ),
-                                    ),
-                                    const SizedBox(width: Spacing.sm),
-                                    IconButton.filled(onPressed: _addTag, icon: const Icon(Icons.add)),
-                                  ],
-                                ),
-
-                                // Tags display
-                                const SizedBox(height: Spacing.sm),
-                                if (_tags.isNotEmpty)
-                                  Wrap(
-                                    spacing: Spacing.xs,
-                                    runSpacing: Spacing.xs,
-                                    children: _tags.map((tag) {
-                                      return Chip(
-                                        label: Text(tag),
-                                        deleteIcon: const Icon(Icons.close, size: 18),
-                                        onDeleted: () => _removeTag(tag),
-                                        visualDensity: VisualDensity.compact,
-                                      );
-                                    }).toList(),
-                                  )
-                                else
-                                  Text(
-                                    'Tags will appear here',
-                                    style: Theme.of(
-                                      context,
-                                    ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                                  ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

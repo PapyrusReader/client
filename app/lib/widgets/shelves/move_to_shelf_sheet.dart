@@ -7,6 +7,7 @@ import 'package:papyrus/utils/text_utils.dart';
 import 'package:papyrus/widgets/input/search_field.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/widgets/shelves/add_shelf_sheet.dart';
 import 'package:provider/provider.dart';
 
@@ -152,32 +153,35 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
 
             // Shelf list
             Expanded(
-              child: Builder(
-                builder: (context) {
-                  final filteredShelves = _searchQuery.isEmpty
-                      ? shelves
-                      : shelves
-                            .where(
-                              (searchString) => searchString.name.toLowerCase().contains(_searchQuery.toLowerCase()),
-                            )
-                            .toList();
+              child: shelves.isEmpty
+                  ? _buildEmptyState()
+                  : Builder(
+                      builder: (context) {
+                        final filteredShelves = _searchQuery.isEmpty
+                            ? shelves
+                            : shelves
+                                  .where(
+                                    (searchString) =>
+                                        searchString.name.toLowerCase().contains(_searchQuery.toLowerCase()),
+                                  )
+                                  .toList();
 
-                  if (filteredShelves.isEmpty && _searchQuery.isNotEmpty) {
-                    return Center(
-                      child: Text(
-                        'No shelves found',
-                        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                      ),
-                    );
-                  }
+                        if (filteredShelves.isEmpty && _searchQuery.isNotEmpty) {
+                          return Center(
+                            child: Text(
+                              'No shelves found',
+                              style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                            ),
+                          );
+                        }
 
-                  return ListView.builder(
-                    controller: scrollController,
-                    itemCount: filteredShelves.length,
-                    itemBuilder: (context, index) => _buildShelfTile(context, filteredShelves[index]),
-                  );
-                },
-              ),
+                        return ListView.builder(
+                          controller: scrollController,
+                          itemCount: filteredShelves.length,
+                          itemBuilder: (context, index) => _buildShelfTile(context, filteredShelves[index]),
+                        );
+                      },
+                    ),
             ),
 
             // Action buttons
@@ -207,6 +211,13 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
     );
     if (book == null) return placeholder;
     return CoverImage(bookId: book.id, imageUrl: book.coverURL, mediaId: book.coverMediaId, placeholder: placeholder);
+  }
+
+  Widget _buildEmptyState() {
+    return const SizedBox(
+      width: double.infinity,
+      child: EmptyState(icon: Icons.shelves, title: 'No shelves yet', subtitle: 'Tap + to create a shelf'),
+    );
   }
 
   Widget _buildShelfTile(BuildContext context, Shelf shelf) {

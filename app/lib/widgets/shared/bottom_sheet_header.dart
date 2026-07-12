@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 class BottomSheetHeader extends StatelessWidget {
   final String title;
   final VoidCallback onCancel;
-  final VoidCallback onSave;
+  final VoidCallback? onSave;
   final String saveLabel;
   final bool canSave;
 
@@ -15,7 +15,7 @@ class BottomSheetHeader extends StatelessWidget {
     super.key,
     required this.title,
     required this.onCancel,
-    required this.onSave,
+    this.onSave,
     this.saveLabel = 'Save',
     this.canSave = true,
   });
@@ -24,11 +24,21 @@ class BottomSheetHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        TextButton(onPressed: onCancel, child: const Text('Cancel')),
-        const Spacer(),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(onPressed: onCancel, child: const Text('Cancel')),
+          ),
+        ),
         Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
-        const Spacer(),
-        FilledButton(onPressed: canSave ? onSave : null, child: Text(saveLabel)),
+        Expanded(
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: onSave == null
+                ? const SizedBox.shrink()
+                : FilledButton(onPressed: canSave ? onSave : null, child: Text(saveLabel)),
+          ),
+        ),
       ],
     );
   }

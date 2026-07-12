@@ -14,53 +14,27 @@ import 'package:papyrus/services/book_import_service_stub.dart'
     if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
+import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 import 'package:provider/provider.dart';
 
 enum _ImportState { idle, processing, success, error }
 
-/// Sheet for importing a digital book file (EPUB).
+/// Sheet for importing a digital book file.
 ///
 /// Opens a file picker, processes the file in a Web Worker,
 /// previews the extracted metadata, and adds the book to the library.
 class ImportBookSheet extends StatelessWidget {
   const ImportBookSheet({super.key});
 
-  /// Show the import sheet (bottom sheet on mobile, dialog on desktop).
+  /// Show the import sheet as a scrollable, content-sized bottom sheet.
   static Future<void> show(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= Breakpoints.desktopSmall;
-
-    if (isDesktop) {
-      return showDialog(
-        context: context,
-        builder: (_) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.dialog)),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 520),
-            child: const Padding(padding: EdgeInsets.all(Spacing.lg), child: _ImportContent()),
-          ),
-        ),
-      );
-    }
-
     return showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       useRootNavigator: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        minChildSize: 0.4,
-        maxChildSize: 0.9,
-        expand: false,
-        builder: (context, scrollController) => SingleChildScrollView(
-          controller: scrollController,
-          child: const Padding(
-            padding: EdgeInsets.only(left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.lg),
-            child: _ImportContent(),
-          ),
-        ),
-      ),
+      builder: (_) => const SingleChildScrollView(child: _ImportContent()),
     );
   }
 
@@ -76,6 +50,8 @@ class _ImportContent extends StatefulWidget {
 }
 
 class _ImportContentState extends State<_ImportContent> {
+  static const double _pendingContentHeight = 232;
+
   final _importService = BookImportService();
   _ImportState _state = _ImportState.idle;
   String? _filename;
@@ -225,28 +201,30 @@ class _ImportContentState extends State<_ImportContent> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-    final isDesktop = MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
-
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!isDesktop) const BottomSheetHandle(),
-        if (!isDesktop) const SizedBox(height: Spacing.lg),
-        Row(
-          children: [
-            Expanded(child: Text('Import book', style: textTheme.headlineSmall)),
-            IconButton(onPressed: () => Navigator.of(context).pop(), icon: const Icon(Icons.close)),
-          ],
+        Padding(
+          padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, 0),
+          child: Column(
+            children: [
+              const BottomSheetHandle(),
+              const SizedBox(height: Spacing.md),
+              BottomSheetHeader(title: 'Import book', onCancel: () => Navigator.of(context).pop()),
+            ],
+          ),
         ),
-        const SizedBox(height: Spacing.lg),
-        switch (_state) {
-          _ImportState.idle => _buildIdleState(context),
-          _ImportState.processing => _buildProcessingState(context),
-          _ImportState.success => _buildSuccessState(context),
-          _ImportState.error => _buildErrorState(context),
-        },
+        const SizedBox(height: Spacing.md),
+        const Divider(height: 1),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
+          child: switch (_state) {
+            _ImportState.idle => _buildIdleState(context),
+            _ImportState.processing => _buildProcessingState(context),
+            _ImportState.success => _buildSuccessState(context),
+            _ImportState.error => _buildErrorState(context),
+          },
+        ),
       ],
     );
   }
@@ -255,35 +233,26 @@ class _ImportContentState extends State<_ImportContent> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Column(
-      children: [
-        Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: Spacing.xl),
-          decoration: BoxDecoration(
-            border: Border.all(color: colorScheme.outlineVariant),
-            borderRadius: BorderRadius.circular(AppRadius.lg),
+    return _buildPendingContent(
+      Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.upload_file, size: 48, color: colorScheme.primary),
+          const SizedBox(height: Spacing.md),
+          Text('Select a digital book file', style: textTheme.titleMedium),
+          const SizedBox(height: Spacing.xs),
+          Text(
+            'EPUB, PDF, AZW3, MOBI, CBZ/CBR',
+            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
           ),
-          child: Column(
-            children: [
-              Icon(Icons.upload_file, size: 48, color: colorScheme.primary),
-              const SizedBox(height: Spacing.md),
-              Text(kIsWeb ? 'Select an EPUB file' : 'Select a book file', style: textTheme.titleMedium),
-              const SizedBox(height: Spacing.xs),
-              Text(
-                'The file will be stored offline on this device',
-                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: Spacing.lg),
-              FilledButton.icon(
-                onPressed: _committing ? null : _pickAndProcess,
-                icon: const Icon(Icons.folder_open),
-                label: const Text('Browse files'),
-              ),
-            ],
+          const SizedBox(height: Spacing.lg),
+          FilledButton.icon(
+            onPressed: _committing ? null : _pickAndProcess,
+            icon: const Icon(Icons.folder_open),
+            label: const Text('Browse files'),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -291,14 +260,9 @@ class _ImportContentState extends State<_ImportContent> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.symmetric(vertical: Spacing.xl),
-      decoration: BoxDecoration(
-        border: Border.all(color: colorScheme.outlineVariant),
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-      ),
-      child: Column(
+    return _buildPendingContent(
+      Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           const SizedBox(width: 48, height: 48, child: CircularProgressIndicator()),
           const SizedBox(height: Spacing.lg),
@@ -309,6 +273,15 @@ class _ImportContentState extends State<_ImportContent> {
           ],
         ],
       ),
+    );
+  }
+
+  Widget _buildPendingContent(Widget child) {
+    return SizedBox(
+      key: const Key('import-pending-content'),
+      width: double.infinity,
+      height: _pendingContentHeight,
+      child: Center(child: child),
     );
   }
 

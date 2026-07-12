@@ -74,8 +74,8 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildMobileStorageSyncSection(context),
             _buildMobilePrivacyDataSection(context),
             _buildMobileAccessibilitySection(context),
-            _buildMobileAboutSection(context),
             if (kDebugMode) _buildMobileDeveloperSection(context),
+            _buildMobileAboutSection(context),
             const Divider(height: 1),
             _buildMenuItem(
               context,
@@ -210,7 +210,7 @@ class _ProfilePageState extends State<ProfilePage> {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SettingsSectionHeader(title: 'Storage & sync'),
+          const SettingsSectionHeader(title: 'Storage'),
           const SettingsRow(label: 'Library', value: 'Stored on this device'),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
@@ -234,7 +234,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SettingsSectionHeader(title: 'Storage & sync'),
+        const SettingsSectionHeader(title: 'Storage'),
         SettingsRow(
           label: 'Data sync',
           value: controller.dataSyncLabel,
@@ -391,13 +391,13 @@ class _ProfilePageState extends State<ProfilePage> {
                   _buildNavItem(
                     context,
                     icon: Icons.cloud_outlined,
-                    label: 'Storage & sync',
+                    label: 'Storage',
                     section: _ProfileSection.storageSync,
                   ),
                   _buildNavItem(
                     context,
                     icon: Icons.shield_outlined,
-                    label: 'Privacy & data',
+                    label: 'Privacy',
                     section: _ProfileSection.privacyData,
                   ),
                   _buildNavItem(
@@ -406,7 +406,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     label: 'Accessibility',
                     section: _ProfileSection.accessibility,
                   ),
-                  _buildNavItem(context, icon: Icons.info_outline, label: 'About', section: _ProfileSection.about),
                   if (kDebugMode)
                     _buildNavItem(
                       context,
@@ -414,8 +413,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       label: 'Developer options',
                       section: _ProfileSection.developerOptions,
                     ),
-                  const SizedBox(height: Spacing.md),
+                  _buildNavItem(context, icon: Icons.info_outline, label: 'About', section: _ProfileSection.about),
+                  const SizedBox(height: Spacing.sm),
                   Divider(height: 1, color: colorScheme.outlineVariant),
+                  const SizedBox(height: Spacing.sm),
                   _buildNavItem(
                     context,
                     icon: Icons.logout,
@@ -533,15 +534,15 @@ class _ProfilePageState extends State<ProfilePage> {
       case _ProfileSection.notifications:
         return 'Notifications';
       case _ProfileSection.storageSync:
-        return 'Storage & sync';
+        return 'Storage';
       case _ProfileSection.privacyData:
-        return 'Privacy & data';
+        return 'Privacy';
       case _ProfileSection.accessibility:
         return 'Accessibility';
-      case _ProfileSection.about:
-        return 'About';
       case _ProfileSection.developerOptions:
         return 'Developer options';
+      case _ProfileSection.about:
+        return 'About';
     }
   }
 
@@ -923,7 +924,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  // -- Storage & sync ---------------------------------------------------------
+  // -- Storage ---------------------------------------------------------
 
   Widget _buildStorageSyncContent(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;

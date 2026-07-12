@@ -1,4 +1,3 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/add_book/add_physical_book_sheet.dart';
@@ -15,29 +14,12 @@ class AddBookChoiceSheet extends StatelessWidget {
   /// dialog/bottom-sheet's own context becomes invalid after popping.
   final BuildContext callerContext;
 
-  /// Show the choice sheet (bottom sheet on mobile, dialog on desktop).
+  /// Show the choice sheet as a modal bottom sheet.
   static Future<void> show(BuildContext context) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth >= Breakpoints.desktopSmall;
-
-    if (isDesktop) {
-      return showDialog(
-        context: context,
-        builder: (_) => Dialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.dialog)),
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 480),
-            child: Padding(
-              padding: const EdgeInsets.all(Spacing.lg),
-              child: AddBookChoiceSheet(callerContext: context),
-            ),
-          ),
-        ),
-      );
-    }
-
     return showModalBottomSheet(
       context: context,
+      useRootNavigator: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (_) => Padding(
         padding: const EdgeInsets.only(left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.lg),
@@ -49,19 +31,19 @@ class AddBookChoiceSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final isDesktop = MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (!isDesktop) ...[const BottomSheetHandle(), const SizedBox(height: Spacing.lg)],
+        const BottomSheetHandle(),
+        const SizedBox(height: Spacing.lg),
         Text('Add book', style: textTheme.headlineSmall),
         const SizedBox(height: Spacing.lg),
         _ChoiceOption(
           icon: Icons.upload_file,
           title: 'Import digital books',
-          subtitle: kIsWeb ? 'EPUB' : 'EPUB, PDF, MOBI & more',
+          subtitle: 'EPUB, PDF, AZW3, MOBI, CBZ/CBR',
           onTap: () {
             Navigator.of(context).pop();
             ImportBookSheet.show(callerContext);
