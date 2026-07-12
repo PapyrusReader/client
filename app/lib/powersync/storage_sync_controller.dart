@@ -2,6 +2,7 @@ import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/sync_state.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
+import 'package:papyrus/media/media_models.dart';
 
 class StorageSyncController {
   StorageSyncController({
@@ -10,6 +11,8 @@ class StorageSyncController {
     required this.syncSettings,
     required this.syncState,
     required this.fileStorageUsedBytes,
+    this.failedMediaUploadCount = 0,
+    this.mediaStorageUsage,
   });
 
   final AuthProvider authProvider;
@@ -17,6 +20,8 @@ class StorageSyncController {
   final SyncSettingsProvider syncSettings;
   final SyncState syncState;
   final int fileStorageUsedBytes;
+  final int failedMediaUploadCount;
+  final MediaStorageUsage? mediaStorageUsage;
 
   LibraryDatabaseMode? get databaseMode => powerSyncService.mode;
 
@@ -54,7 +59,13 @@ class StorageSyncController {
 
   bool get shouldShowServerSettings => !isGuest;
 
-  String get fileStorageLabel => syncSettings.fileStorageLabel(usedBytes: fileStorageUsedBytes);
+  String get fileStorageLabel {
+    final usage = mediaStorageUsage;
+    if (isAuthenticated && usage != null) {
+      return syncSettings.fileStorageLabel(usedBytes: usage.usedBytes, quotaBytesOverride: usage.quotaBytes);
+    }
+    return syncSettings.fileStorageLabel(usedBytes: fileStorageUsedBytes);
+  }
 
   String get statusLabel {
     if (isGuest) return 'Guest local';
@@ -80,6 +91,12 @@ class StorageSyncController {
   bool get canReconnect => isAuthenticated;
   bool get canClearGuestLibrary => databaseMode == LibraryDatabaseMode.guest;
   bool get canClearAuthenticatedCache => databaseMode == LibraryDatabaseMode.authenticated;
+  bool get hasFailedMediaUploads => failedMediaUploadCount > 0;
+
+  String get failedMediaUploadLabel {
+    if (failedMediaUploadCount == 1) return '1 failed';
+    return '$failedMediaUploadCount failed';
+  }
 
   Future<void> reconnect() => powerSyncService.reconnect();
   Future<void> clearGuestLibrary() => powerSyncService.clearGuestLibrary();

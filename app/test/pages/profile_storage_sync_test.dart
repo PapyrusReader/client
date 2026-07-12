@@ -7,6 +7,7 @@ import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
+import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/pages/profile_page.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
@@ -121,6 +122,7 @@ void main() {
     Size screenSize = const Size(400, 900),
     SyncSettingsProvider? syncSettingsProvider,
     DataStore? dataStore,
+    MediaUploadQueue? mediaUploadQueue,
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final config = PapyrusApiConfig(
@@ -131,6 +133,7 @@ void main() {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider<DataStore>.value(value: dataStore ?? DataStore()),
+        ChangeNotifierProvider<MediaUploadQueue>.value(value: mediaUploadQueue ?? MediaUploadQueue(prefs)),
         ChangeNotifierProvider<SyncSettingsProvider>.value(
           value: syncSettingsProvider ?? SyncSettingsProvider(prefs, officialConfig: config),
         ),
@@ -187,9 +190,9 @@ void main() {
     await tester.pumpWidget(
       await buildPage(authProvider: auth, powerSyncService: service, screenSize: const Size(1200, 900)),
     );
-    await tester.pumpAndSettle();
+    await tester.pump();
     await tester.tap(find.text('Storage & sync').first);
-    await tester.pumpAndSettle();
+    await tester.pump();
 
     expect(find.text('Library storage'), findsOneWidget);
     expect(find.text('Your library is stored on this device.'), findsOneWidget);

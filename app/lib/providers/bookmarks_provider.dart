@@ -86,6 +86,10 @@ class BookmarksProvider extends ChangeNotifier {
     return _dataStore?.getBook(bookId)?.coverUrl;
   }
 
+  String? getBookCoverMediaId(String bookId) {
+    return _dataStore?.getBook(bookId)?.coverMediaId;
+  }
+
   // ============================================================================
   // SORTING & FILTERING
   // ============================================================================

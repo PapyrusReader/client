@@ -48,6 +48,29 @@ class DataStore extends ChangeNotifier {
 
   bool get isLoaded => _isLoaded;
 
+  /// Completes when the active book repository has emitted its first snapshot.
+  ///
+  /// A direct repository lookup may temporarily return null while persistent
+  /// storage is still opening. Callers should wait for this before treating a
+  /// missing ID as authoritative.
+  Future<void> waitUntilLoaded() {
+    if (_isLoaded) return Future<void>.value();
+
+    final completer = Completer<void>();
+    late VoidCallback listener;
+    listener = () {
+      if (!_isLoaded || completer.isCompleted) return;
+      removeListener(listener);
+      completer.complete();
+    };
+
+    addListener(listener);
+    // Close the gap if loading completed between the initial check and listener
+    // registration.
+    listener();
+    return completer.future;
+  }
+
   List<Book> get books => _books.values.toList();
 
   /// Get all shelves with computed bookCount and coverPreviews.
@@ -74,6 +97,9 @@ class DataStore extends ChangeNotifier {
   Book? getBook(String id) => _books[id];
 
   Future<void> attachBookRepository(BookRepository repository) async {
+    final wasLoaded = _isLoaded;
+    _isLoaded = false;
+    if (wasLoaded) notifyListeners();
     await _bookSubscription?.cancel();
     _bookRepository = repository;
     _bookSubscription = repository.watchAll().listen(
@@ -92,12 +118,37 @@ class DataStore extends ChangeNotifier {
     _bookRepository = null;
   }
 
+  BookRepository requireBookRepository() {
+    final repository = _bookRepository;
+    if (repository == null) {
+      throw StateError('Book repository is not initialized');
+    }
+    return repository;
+  }
+
+  bool isBookRepositoryCurrent(BookRepository repository) => identical(_bookRepository, repository);
+
   void addBook(Book book) {
     final repository = _bookRepository;
     if (repository == null) {
       throw StateError('Book repository is not initialized');
     }
+    _books[book.id] = book;
+    notifyListeners();
     unawaited(repository.upsert(book));
+  }
+
+  Future<void> addBookAndWait(Book book) async {
+    final repository = requireBookRepository();
+    await addBookToRepositoryAndWait(repository, book);
+  }
+
+  Future<void> addBookToRepositoryAndWait(BookRepository repository, Book book) async {
+    await repository.upsert(book);
+    if (isBookRepositoryCurrent(repository) && !identical(_books[book.id], book)) {
+      _books[book.id] = book;
+      notifyListeners();
+    }
   }
 
   void updateBook(Book book) {
@@ -105,7 +156,14 @@ class DataStore extends ChangeNotifier {
     if (repository == null) {
       throw StateError('Book repository is not initialized');
     }
+    _books[book.id] = book;
+    notifyListeners();
     unawaited(repository.upsert(book));
+  }
+
+  Future<void> updateBookAndWait(Book book) async {
+    final repository = requireBookRepository();
+    await addBookToRepositoryAndWait(repository, book);
   }
 
   void deleteBook(String id) {
@@ -116,11 +174,35 @@ class DataStore extends ChangeNotifier {
     unawaited(repository.delete(id));
   }
 
+  Future<void> deleteBookAndWait(String id) async {
+    final repository = requireBookRepository();
+    await deleteBookFromRepositoryAndWait(repository, id);
+  }
+
+  Future<void> deleteBookFromRepositoryAndWait(BookRepository repository, String id) async {
+    await repository.delete(id);
+    if (isBookRepositoryCurrent(repository) && _books.remove(id) != null) {
+      notifyListeners();
+    }
+  }
+
   void replaceBooksFromSync(List<Book> books) {
-    final syncedIds = books.map((book) => book.id).toSet();
+    final mergedBooks = books
+        .map((book) {
+          final localBook = _books[book.id];
+          if (book.coverMediaId == null && localBook?.coverMediaId != null) {
+            // PowerSync can briefly emit the downloaded server row before its
+            // pending local media-reference update is acknowledged. Keep the
+            // established local reference through that transient null snapshot.
+            return book.copyWith(coverMediaId: localBook!.coverMediaId);
+          }
+          return book;
+        })
+        .toList(growable: false);
+    final syncedIds = mergedBooks.map((book) => book.id).toSet();
     _books
       ..clear()
-      ..addEntries(books.map((book) => MapEntry(book.id, book)));
+      ..addEntries(mergedBooks.map((book) => MapEntry(book.id, book)));
     _bookShelfRelations.removeWhere((relation) => !syncedIds.contains(relation.bookId));
     _bookTagRelations.removeWhere((relation) => !syncedIds.contains(relation.bookId));
     _annotations.removeWhere((key, annotation) => !syncedIds.contains(annotation.bookId));
@@ -185,7 +267,10 @@ class DataStore extends ChangeNotifier {
   /// Get cover previews for a shelf (up to 4 books).
   List<CoverPreview> getCoverPreviewsForShelf(String shelfId, {int limit = 4}) {
     final books = getBooksInShelf(shelfId);
-    return books.take(limit).map((b) => CoverPreview(url: b.coverUrl, title: b.title)).toList();
+    return books
+        .take(limit)
+        .map((b) => CoverPreview(bookId: b.id, url: b.coverUrl, mediaId: b.coverMediaId, title: b.title))
+        .toList();
   }
 
   // ============================================================

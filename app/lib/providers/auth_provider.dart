@@ -181,6 +181,10 @@ class AuthProvider extends ChangeNotifier {
     return _runMessageAction(() => _repository.resendVerification(email));
   }
 
+  Future<Uint8List> downloadMedia(String assetId) {
+    return _repository.downloadMedia(assetId);
+  }
+
   void setOfflineMode(bool value) {
     _isOfflineMode = value;
     _prefs.setBool(_keyOfflineMode, value);

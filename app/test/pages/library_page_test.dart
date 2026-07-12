@@ -1,6 +1,9 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/data/repositories/book_repository.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/pages/library_page.dart';
 import 'package:papyrus/providers/library_provider.dart';
@@ -36,6 +39,24 @@ void main() {
     // ========================================================================
 
     group('mobile layout', () {
+      testWidgets('shows loading until the first repository snapshot arrives', (tester) async {
+        final repository = _ControlledBookRepository();
+        final loadingStore = DataStore(bookRepository: repository);
+
+        await tester.pumpWidget(buildPage(store: loadingStore));
+
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.text('No books found'), findsNothing);
+
+        repository.controller.add(const []);
+        await tester.pump();
+
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.text('No books found'), findsOneWidget);
+
+        await repository.controller.close();
+      });
+
       testWidgets('renders search bar', (tester) async {
         await tester.pumpWidget(buildPage());
         await tester.pumpAndSettle();
@@ -462,4 +483,20 @@ void main() {
       });
     });
   });
+}
+
+class _ControlledBookRepository implements BookRepository {
+  final StreamController<List<Book>> controller = StreamController<List<Book>>.broadcast();
+
+  @override
+  Stream<List<Book>> watchAll() => controller.stream;
+
+  @override
+  Future<Book?> getById(String id) async => null;
+
+  @override
+  Future<void> upsert(Book book) async {}
+
+  @override
+  Future<void> delete(String id) async {}
 }

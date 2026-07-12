@@ -1,8 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/book_actions.dart';
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 
 /// List row for displaying a book with cover thumbnail, title, author,
 /// progress, format badge, and favorite indicator.
@@ -173,16 +173,12 @@ class _BookListItemState extends State<BookListItem> {
   }
 
   Widget _buildCover(BuildContext context) {
-    if (widget.book.coverURL != null && widget.book.coverURL!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: widget.book.coverURL!,
-        fit: BoxFit.cover,
-        errorWidget: (context, url, error) => _buildPlaceholder(context),
-        placeholder: (context, url) => _buildPlaceholder(context),
-      );
-    }
-
-    return _buildPlaceholder(context);
+    return CoverImage(
+      bookId: widget.book.id,
+      imageUrl: widget.book.coverURL,
+      mediaId: widget.book.coverMediaId,
+      placeholder: _buildPlaceholder(context),
+    );
   }
 
   Widget _buildPlaceholder(BuildContext context) {

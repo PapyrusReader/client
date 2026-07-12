@@ -276,8 +276,10 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
       final isCollapsed = _collapsedGroups.contains(entry.key);
       items.add(
         BookGroupHeader(
+          bookId: entry.key,
           bookTitle: provider.getBookTitle(entry.key),
           coverUrl: provider.getBookCoverUrl(entry.key),
+          coverMediaId: provider.getBookCoverMediaId(entry.key),
           count: entry.value.length,
           itemLabel: 'annotation',
           isCollapsed: isCollapsed,

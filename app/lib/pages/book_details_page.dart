@@ -1,10 +1,20 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/media/media_cache_service.dart';
+import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/models/annotation.dart';
+import 'package:papyrus/models/book.dart';
 import 'package:papyrus/models/bookmark.dart';
 import 'package:papyrus/models/note.dart';
+import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/book_details_provider.dart';
+import 'package:papyrus/services/book_delete_cleanup_service.dart';
+import 'package:papyrus/services/book_download_service.dart';
+import 'package:papyrus/services/book_import_service_stub.dart'
+    if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book/book_annotations.dart';
 import 'package:papyrus/widgets/book/book_bookmarks.dart';
@@ -216,7 +226,10 @@ class _BookDetailsPageState extends State<BookDetailsPage> with SingleTickerProv
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert),
             onSelected: _onMenuAction,
-            itemBuilder: (context) => [const PopupMenuItem(value: 'delete', child: Text('Delete'))],
+            itemBuilder: (context) => [
+              if (!provider.book!.isPhysical) const PopupMenuItem(value: 'download', child: Text('Download')),
+              const PopupMenuItem(value: 'delete', child: Text('Delete')),
+            ],
           ),
         ],
       ),
@@ -345,15 +358,84 @@ class _BookDetailsPageState extends State<BookDetailsPage> with SingleTickerProv
     );
   }
 
-  void _onContinueReading() {
+  Future<void> _onContinueReading() async {
+    final book = _provider.book;
+    if (book == null) return;
+
+    if (book.fileMediaId != null) {
+      final messenger = ScaffoldMessenger.of(context);
+      messenger.showSnackBar(const SnackBar(content: Text('Preparing book file...')));
+
+      try {
+        final importService = context.read<BookImportService>();
+        await context.read<MediaCacheService>().ensureBookFileCached(
+          book,
+          readLocalBookFile: importService.getBookFile,
+          writeLocalBookFile: importService.storeBookFile,
+          downloadMedia: context.read<AuthProvider>().downloadMedia,
+        );
+      } catch (_) {
+        if (!mounted) return;
+        messenger.showSnackBar(const SnackBar(content: Text('Could not download this book file.')));
+        return;
+      }
+    }
+
+    if (!mounted) return;
     // TODO: Navigate to reader
     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Opening book reader...')));
   }
 
   void _onEdit() {
     if (_provider.book != null) {
-      context.pushNamed('BOOK_EDIT', pathParameters: {'bookId': _provider.book!.id});
+      context.goNamed('BOOK_EDIT', pathParameters: {'bookId': _provider.book!.id});
     }
+  }
+
+  Future<void> _onDownloadBookFile() async {
+    final book = _provider.book;
+    if (book == null) return;
+
+    final messenger = ScaffoldMessenger.of(context);
+    final importService = context.read<BookImportService>();
+    final mediaCacheService = context.read<MediaCacheService>();
+    final downloadService = context.read<BookDownloadService>();
+
+    messenger.showSnackBar(const SnackBar(content: Text('Preparing download...')));
+
+    try {
+      final cached = await mediaCacheService.getValidCachedBookFile(book, readLocalBookFile: importService.getBookFile);
+      if (!mounted) return;
+
+      final bytes = cached ?? await _downloadAndCacheBookFile(book, importService, mediaCacheService);
+      final result = await downloadService.saveBookFile(book: book, bytes: bytes);
+
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+      if (result.saved) {
+        messenger.showSnackBar(SnackBar(content: Text('Downloaded "${book.title}"')));
+      } else {
+        messenger.showSnackBar(const SnackBar(content: Text('Download canceled')));
+      }
+    } catch (_) {
+      if (!mounted) return;
+      messenger.hideCurrentSnackBar();
+      messenger.showSnackBar(const SnackBar(content: Text('Could not download this book file.')));
+    }
+  }
+
+  Future<Uint8List> _downloadAndCacheBookFile(
+    Book book,
+    BookImportService importService,
+    MediaCacheService mediaCacheService,
+  ) {
+    final authProvider = context.read<AuthProvider>();
+    return mediaCacheService.ensureBookFileCached(
+      book,
+      readLocalBookFile: importService.getBookFile,
+      writeLocalBookFile: importService.storeBookFile,
+      downloadMedia: authProvider.downloadMedia,
+    );
   }
 
   void _onAddNote() async {
@@ -501,11 +583,61 @@ class _BookDetailsPageState extends State<BookDetailsPage> with SingleTickerProv
     }
   }
 
-  void _onMenuAction(String action) {
+  Future<void> _confirmDeleteBook() async {
+    final book = _provider.book;
+    if (book == null) return;
+
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete book?'),
+        content: Text('Delete "${book.title}" from your library? This action cannot be undone.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.of(context).pop(false), child: const Text('Cancel')),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            style: FilledButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.error,
+              foregroundColor: Theme.of(context).colorScheme.onError,
+            ),
+            child: const Text('Delete'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed != true || !mounted) return;
+
+    final dataStore = context.read<DataStore>();
+    final mediaUploadQueue = context.read<MediaUploadQueue>();
+    final importService = context.read<BookImportService>();
+    final mediaScope = mediaUploadQueue.activeScope;
+    final messenger = ScaffoldMessenger.of(context);
+
+    await deleteBookWithMediaCleanup(
+      dataStore: dataStore,
+      mediaUploadQueue: mediaUploadQueue,
+      bookId: book.id,
+      coverMediaId: book.coverMediaId,
+      deleteBookFile: importService.deleteBookFile,
+      deletePendingCover: mediaScope == null
+          ? null
+          : (bookId) => importService.deletePendingCoverFile(mediaScope, bookId),
+      deleteGuestCover: mediaScope == null ? importService.deleteGuestCoverFile : null,
+      deleteCoverFile: mediaScope == null ? null : (mediaId) => importService.deleteCoverFile(mediaScope, mediaId),
+    );
+
+    if (!mounted) return;
+    context.go('/library/books');
+    messenger.showSnackBar(SnackBar(content: Text('Deleted "${book.title}"')));
+  }
+
+  void _onMenuAction(String action) async {
     switch (action) {
+      case 'download':
+        await _onDownloadBookFile();
       case 'delete':
-        // TODO: Confirm and delete
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Delete functionality coming soon')));
+        await _confirmDeleteBook();
     }
   }
 }

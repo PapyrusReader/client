@@ -1,8 +1,8 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/book_actions.dart';
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 
 /// Responsive book card for grid display.
 /// - Mobile: 171×256 with 8px gap
@@ -178,21 +178,12 @@ class _BookCardState extends State<BookCard> {
   }
 
   Widget _buildCover(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    if (widget.book.coverURL != null && widget.book.coverURL!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: widget.book.coverURL!,
-        fit: BoxFit.cover,
-        errorWidget: (context, url, error) => _buildPlaceholder(context),
-        placeholder: (context, url) => Container(
-          color: colorScheme.surfaceContainerHighest,
-          child: const Center(child: CircularProgressIndicator(strokeWidth: 2)),
-        ),
-      );
-    }
-
-    return _buildPlaceholder(context);
+    return CoverImage(
+      bookId: widget.book.id,
+      imageUrl: widget.book.coverURL,
+      mediaId: widget.book.coverMediaId,
+      placeholder: _buildPlaceholder(context),
+    );
   }
 
   Widget _buildPlaceholder(BuildContext context) {

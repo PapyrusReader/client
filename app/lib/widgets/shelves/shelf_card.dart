@@ -1,7 +1,7 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/shelf.dart' show CoverPreview, ShelfData;
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 
 /// Card widget for displaying a shelf in grid or list view.
 ///
@@ -216,21 +216,12 @@ class _ShelfCardState extends State<ShelfCard> {
   }
 
   Widget _buildCoverImage(CoverPreview cover, ColorScheme colorScheme) {
-    if (cover.url != null && cover.url!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: cover.url!,
-        fit: BoxFit.cover,
-        imageBuilder: (context, imageProvider) => Container(
-          decoration: BoxDecoration(
-            image: DecorationImage(image: imageProvider, fit: BoxFit.cover),
-          ),
-        ),
-        errorWidget: (context, url, error) => _buildCoverPlaceholder(colorScheme, cover.title),
-        placeholder: (context, url) => Container(color: colorScheme.surfaceContainerHighest),
-      );
-    }
-
-    return _buildCoverPlaceholder(colorScheme, cover.title);
+    return CoverImage(
+      bookId: cover.bookId,
+      imageUrl: cover.url,
+      mediaId: cover.mediaId,
+      placeholder: _buildCoverPlaceholder(colorScheme, cover.title),
+    );
   }
 
   Widget _buildCoverPlaceholder(ColorScheme colorScheme, String title) {

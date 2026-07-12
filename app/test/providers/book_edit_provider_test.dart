@@ -1,0 +1,203 @@
+import 'dart:async';
+import 'dart:typed_data';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/data/repositories/book_repository.dart';
+import 'package:papyrus/models/book.dart';
+import 'package:papyrus/providers/book_edit_provider.dart';
+
+import '../helpers/test_helpers.dart';
+
+void main() {
+  test('loads from repository before the in-memory cache hydrates', () async {
+    final storedBook = buildTestBook(id: 'repository-book', title: 'Stored Book');
+    final dataStore = DataStore(bookRepository: _LookupBookRepository(storedBook));
+    final provider = BookEditProvider()..setDataStore(dataStore);
+
+    await provider.loadBook(storedBook.id);
+
+    expect(provider.editedBook, storedBook);
+    expect(provider.error, isNull);
+  });
+
+  test('waits for the first repository snapshot before reporting a missing book', () async {
+    final storedBook = buildTestBook(id: 'delayed-book', title: 'Delayed Book');
+    final repository = _DelayedSnapshotBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final provider = BookEditProvider()..setDataStore(dataStore);
+
+    final load = provider.loadBook(storedBook.id);
+    await Future<void>.delayed(Duration.zero);
+
+    expect(provider.isLoading, isTrue);
+    expect(provider.error, isNull);
+
+    repository.controller.add([storedBook]);
+    await load;
+
+    expect(provider.editedBook, storedBook);
+    expect(provider.error, isNull);
+    await dataStore.disposeBookRepository();
+    await repository.controller.close();
+  });
+
+  test('saving a picked cover keeps image bytes out of synced book metadata', () async {
+    final dataStore = DataStore();
+    final original = buildTestBook(
+      id: 'book-1',
+      coverUrl: 'https://example.com/original.jpg',
+    ).copyWith(coverMediaId: 'original-cover');
+    dataStore.addBook(original);
+
+    final provider = BookEditProvider()..setDataStore(dataStore);
+    await provider.loadBook(original.id);
+    provider.updateCoverFromFile(Uint8List.fromList([1, 2, 3]));
+
+    expect(await provider.save(), isTrue);
+
+    final saved = dataStore.getBook(original.id)!;
+    expect(saved.coverUrl, isNull);
+    expect(saved.coverMediaId, 'original-cover');
+    expect(provider.coverImageBytes, isNull);
+  });
+
+  test('saving cleared optional form fields removes their previous values', () async {
+    final dataStore = DataStore();
+    final original = Book(
+      id: 'book-1',
+      title: 'Book',
+      subtitle: 'Subtitle',
+      author: 'Author',
+      coAuthors: const ['Co-author'],
+      isbn: 'ISBN',
+      isbn13: 'ISBN-13',
+      publicationDate: DateTime.utc(2020),
+      publisher: 'Publisher',
+      language: 'en',
+      pageCount: 100,
+      description: 'Description',
+      isPhysical: true,
+      physicalLocation: 'Shelf',
+      lentTo: 'Reader',
+      lentAt: DateTime.utc(2025),
+      rating: 4,
+      seriesName: 'Series',
+      seriesNumber: 2,
+      addedAt: DateTime.utc(2026),
+    );
+    dataStore.addBook(original);
+
+    final provider = BookEditProvider()..setDataStore(dataStore);
+    await provider.loadBook(original.id);
+    provider.updateSubtitle('');
+    provider.updateCoAuthors(const []);
+    provider.updateIsbn('');
+    provider.updateIsbn13('');
+    provider.updatePublicationDate(null);
+    provider.updatePublisher('');
+    provider.updateLanguage('');
+    provider.updatePageCount(null);
+    provider.updateDescription('');
+    provider.updatePhysicalLocation('');
+    provider.updateLentTo('');
+    provider.updateLentAt(null);
+    provider.updateRating(null);
+    provider.updateSeriesName('');
+    provider.updateSeriesNumber(null);
+
+    expect(await provider.save(), isTrue);
+    final saved = dataStore.getBook(original.id)!;
+    expect(saved.subtitle, isNull);
+    expect(saved.coAuthors, isEmpty);
+    expect(saved.isbn, isNull);
+    expect(saved.isbn13, isNull);
+    expect(saved.publicationDate, isNull);
+    expect(saved.publisher, isNull);
+    expect(saved.language, isNull);
+    expect(saved.pageCount, isNull);
+    expect(saved.description, isNull);
+    expect(saved.physicalLocation, isNull);
+    expect(saved.lentTo, isNull);
+    expect(saved.lentAt, isNull);
+    expect(saved.rating, isNull);
+    expect(saved.seriesName, isNull);
+    expect(saved.seriesNumber, isNull);
+  });
+
+  test('save waits for synced metadata persistence before completing', () async {
+    final repository = _GatedBookRepository();
+    final dataStore = DataStore(bookRepository: repository);
+    final original = buildTestBook(id: 'book-1');
+    dataStore.replaceBooksFromSync([original]);
+    final provider = BookEditProvider()..setDataStore(dataStore);
+    await provider.loadBook(original.id);
+    provider.updateTitle('Updated title');
+
+    var completed = false;
+    final save = provider.save().then((result) {
+      completed = true;
+      return result;
+    });
+    await repository.upsertStarted.future;
+    await Future<void>.delayed(Duration.zero);
+
+    expect(completed, isFalse);
+    repository.allowUpsert.complete();
+    expect(await save, isTrue);
+  });
+}
+
+class _LookupBookRepository implements BookRepository {
+  _LookupBookRepository(this.book);
+
+  final Book book;
+
+  @override
+  Stream<List<Book>> watchAll() => const Stream.empty();
+
+  @override
+  Future<Book?> getById(String id) async => id == book.id ? book : null;
+
+  @override
+  Future<void> upsert(Book book) async {}
+
+  @override
+  Future<void> delete(String id) async {}
+}
+
+class _DelayedSnapshotBookRepository implements BookRepository {
+  final controller = StreamController<List<Book>>.broadcast();
+
+  @override
+  Stream<List<Book>> watchAll() => controller.stream;
+
+  @override
+  Future<Book?> getById(String id) async => null;
+
+  @override
+  Future<void> upsert(Book book) async {}
+
+  @override
+  Future<void> delete(String id) async {}
+}
+
+class _GatedBookRepository implements BookRepository {
+  final upsertStarted = Completer<void>();
+  final allowUpsert = Completer<void>();
+
+  @override
+  Stream<List<Book>> watchAll() => const Stream.empty();
+
+  @override
+  Future<Book?> getById(String id) async => null;
+
+  @override
+  Future<void> upsert(Book book) async {
+    upsertStarted.complete();
+    await allowUpsert.future;
+  }
+
+  @override
+  Future<void> delete(String id) async {}
+}

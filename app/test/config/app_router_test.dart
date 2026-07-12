@@ -83,6 +83,14 @@ void main() {
 
     expect(appRouter.redirectForPath('/library/books'), isNull);
   });
+
+  test('book edit has a stable reloadable URL', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final provider = AuthProvider(prefs, repository: FakeAuthRepository(), bootstrapOnCreate: false);
+    final appRouter = AppRouter(authProvider: provider);
+
+    expect(appRouter.router.namedLocation('BOOK_EDIT', pathParameters: {'bookId': 'book-1'}), '/library/edit/book-1');
+  });
 }
 
 AuthTokens _tokens() {

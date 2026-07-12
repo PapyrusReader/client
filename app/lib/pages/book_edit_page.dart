@@ -2,9 +2,19 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/media/cover_storage_bucket.dart';
+import 'package:papyrus/media/local_cover_image_provider.dart';
+import 'package:papyrus/media/media_storage_scope.dart';
+import 'package:papyrus/media/media_upload_queue.dart';
+import 'package:papyrus/powersync/powersync_service.dart';
+import 'package:papyrus/powersync/sync_state.dart';
+import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/book_edit_provider.dart';
+import 'package:papyrus/services/book_import_service_stub.dart'
+    if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/services/metadata_service.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/utils/image_utils.dart';
 import 'package:papyrus/widgets/book_edit/cover_image_picker.dart';
 import 'package:papyrus/widgets/book_form/book_date_field.dart';
 import 'package:papyrus/widgets/book_form/book_text_field.dart';
@@ -169,11 +179,18 @@ class _BookEditPageState extends State<BookEditPage> {
                 : Scaffold(
                     appBar: AppBar(
                       title: const Text('Edit book'),
-                      leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => _handleCancel(context)),
+                      leading: IconButton(
+                        tooltip: 'Back to book details',
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => _handleCancel(context),
+                      ),
                       actions: [
-                        TextButton(
-                          onPressed: provider.canSave ? () => _handleSave(context) : null,
-                          child: const Text('Save'),
+                        Padding(
+                          padding: const EdgeInsets.only(right: Spacing.sm),
+                          child: FilledButton(
+                            onPressed: provider.canSave ? () => _handleSave(context) : null,
+                            child: const Text('Save'),
+                          ),
                         ),
                       ],
                     ),
@@ -190,7 +207,47 @@ class _BookEditPageState extends State<BookEditPage> {
   // ============================================================================
 
   Widget _buildDesktopScaffold(BuildContext context, BookEditProvider provider) {
-    return Form(key: _formKey, child: _buildDesktopLayout(context, provider));
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDesktopPageHeader(context, provider),
+          const Divider(height: 1),
+          Expanded(child: _buildDesktopLayout(context, provider)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopPageHeader(BuildContext context, BookEditProvider provider) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return SizedBox(
+      key: const Key('book-edit-desktop-header'),
+      height: ComponentSizes.appBarHeight,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1120),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'Back to book details',
+                onPressed: () => _handleCancel(context),
+                icon: const Icon(Icons.arrow_back),
+              ),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: Text('Edit book', style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(width: Spacing.lg),
+              FilledButton(onPressed: provider.canSave ? () => _handleSave(context) : null, child: const Text('Save')),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildMobileLayout(BuildContext context, BookEditProvider provider) {
@@ -210,55 +267,34 @@ class _BookEditPageState extends State<BookEditPage> {
   }
 
   Widget _buildDesktopLayout(BuildContext context, BookEditProvider provider) {
-    return Center(
+    return Align(
+      alignment: Alignment.topLeft,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1100),
+        constraints: const BoxConstraints(maxWidth: 1120),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(Spacing.xl),
-          child: Column(
+          padding: const EdgeInsets.all(Spacing.lg),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left pane - Cover + Metadata
-                  SizedBox(
-                    width: 360,
-                    child: Column(
-                      children: [
-                        _buildSectionCard(
-                          title: 'Cover',
-                          children: [_buildCoverSection(context, provider, isDesktop: true)],
-                        ),
-                        _buildSectionCard(
-                          title: 'Fetch metadata',
-                          children: [_buildMetadataSection(context, provider)],
-                        ),
-                      ],
+              // Left pane - Cover + Metadata
+              SizedBox(
+                width: 280,
+                child: Column(
+                  children: [
+                    _buildSectionCard(
+                      title: 'Cover',
+                      children: [_buildCoverSection(context, provider, isDesktop: true)],
                     ),
-                  ),
-                  const SizedBox(width: Spacing.xl),
-                  // Right pane - Form fields
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: _buildFormSections(context, provider, skipMetadata: true),
-                    ),
-                  ),
-                ],
+                    _buildSectionCard(title: 'Fetch metadata', children: [_buildMetadataSection(context, provider)]),
+                  ],
+                ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-                child: const Divider(),
-              ),
-              const SizedBox(height: Spacing.sm),
-              Padding(
-                padding: const EdgeInsets.only(right: Spacing.md),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton(
-                    onPressed: provider.canSave ? () => _handleSave(context) : null,
-                    child: const Text('Save'),
-                  ),
+              const SizedBox(width: Spacing.xl),
+              // Right pane - Form fields
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _buildFormSections(context, provider, skipMetadata: true),
                 ),
               ),
             ],
@@ -505,9 +541,12 @@ class _BookEditPageState extends State<BookEditPage> {
 
   Widget _buildCoverSection(BuildContext context, BookEditProvider provider, {required bool isDesktop}) {
     return CoverImagePicker(
+      bookId: provider.editedBook?.id,
+      mediaId: provider.editedBook?.coverMediaId,
       initialUrl: provider.editedBook?.coverUrl,
       initialBytes: provider.coverImageBytes,
       isDesktop: isDesktop,
+      coverWidth: isDesktop ? 240 : null,
       onUrlChanged: (url) => _provider.updateCoverUrl(url),
       onFileChanged: (bytes) => _provider.updateCoverFromFile(bytes),
     );
@@ -760,22 +799,77 @@ class _BookEditPageState extends State<BookEditPage> {
       return;
     }
 
-    final success = await _provider.save();
+    final coverBytes = _provider.coverImageBytes;
+    final queue = context.read<MediaUploadQueue>();
+    final authProvider = context.read<AuthProvider>();
+    final powerSyncService = context.read<PapyrusPowerSyncService>();
+    final isOnlineAccount = authProvider.isSignedIn && powerSyncService.mode == LibraryDatabaseMode.authenticated;
+    final scope = isOnlineAccount ? queue.activeScope : null;
+
+    if (isOnlineAccount && scope == null) {
+      _showSaveError(context, 'Cannot upload the cover without an active media storage scope');
+      return;
+    }
+
+    try {
+      if (coverBytes != null) {
+        final book = _provider.editedBook!;
+        final importService = context.read<BookImportService>();
+        if (scope == null) {
+          await importService.storeGuestCoverFile(book.id, coverBytes);
+          LocalCoverImageProvider.evictKey(
+            scopeKey: MediaStorageScope.localGuest.persistenceKey,
+            bucket: CoverStorageBucket.guestBooks,
+            fileId: book.id,
+          );
+        } else {
+          await importService.storePendingCoverFile(scope, book.id, coverBytes);
+          LocalCoverImageProvider.evictKey(
+            scopeKey: scope.persistenceKey,
+            bucket: CoverStorageBucket.pending,
+            fileId: book.id,
+          );
+        }
+      }
+
+      final success = await _provider.save();
+      if (!success) {
+        if (mounted && context.mounted) {
+          _showSaveError(context, _provider.error ?? 'Failed to save');
+        }
+        return;
+      }
+
+      if (coverBytes != null && scope != null) {
+        final book = _provider.editedBook!;
+        await queue.enqueueCover(
+          book: book,
+          filename: '${book.id}-cover.${imageFileExtension(coverBytes)}',
+          contentType: imageMimeType(coverBytes),
+        );
+      }
+    } catch (error) {
+      if (mounted && context.mounted) {
+        _showSaveError(context, 'Failed to save cover: $error');
+      }
+      return;
+    }
+
     if (!mounted || !context.mounted) return;
 
-    if (success) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text('Book updated'), behavior: SnackBarBehavior.floating));
-      _navigateToBookDetails(context);
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(_provider.error ?? 'Failed to save'),
-          behavior: SnackBarBehavior.floating,
-          backgroundColor: Theme.of(context).colorScheme.error,
-        ),
-      );
-    }
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Book updated'), behavior: SnackBarBehavior.floating));
+    _navigateToBookDetails(context);
+  }
+
+  void _showSaveError(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        behavior: SnackBarBehavior.floating,
+        backgroundColor: Theme.of(context).colorScheme.error,
+      ),
+    );
   }
 }

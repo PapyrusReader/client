@@ -8,11 +8,19 @@
  *     { type: 'process', format: 'epub', bookId, fileData: ArrayBuffer }
  *     { type: 'delete',  bookId }
  *     { type: 'getFile', bookId }
+ *     { type: 'storeFile', format, bookId, fileData: ArrayBuffer }
+ *     { type: 'getCover', requestId, scopeKey, bucket, mediaId }
+ *     { type: 'storeCover', requestId, scopeKey, bucket, mediaId, fileData: ArrayBuffer }
+ *     { type: 'deleteCover', requestId, scopeKey, bucket, mediaId }
+ *     { type: 'promoteCover', requestId, scopeKey, bucket, mediaId, targetMediaId }
+ *     { type: 'clearCovers', requestId, scopeKey, bucket }
  *
  *   Outgoing:
  *     { type: 'success', action: 'process', bookId, metadata, coverData, coverMimeType, fileSize, fileHash }
  *     { type: 'success', action: 'delete',  bookId }
  *     { type: 'success', action: 'getFile', bookId, fileData }
+ *     { type: 'success', action: 'storeFile', bookId }
+ *     { type: 'success', action: 'promoteCover', requestId, promoted }
  *     { type: 'error',   message }
  */
 
@@ -35,6 +43,24 @@ self.onmessage = async (event) => {
       case 'getFile':
         await handleGetFile(msg);
         break;
+      case 'storeFile':
+        await handleStoreFile(msg);
+        break;
+      case 'getCover':
+        await handleGetCover(msg);
+        break;
+      case 'storeCover':
+        await handleStoreCover(msg);
+        break;
+      case 'deleteCover':
+        await handleDeleteCover(msg);
+        break;
+      case 'promoteCover':
+        await handlePromoteCover(msg);
+        break;
+      case 'clearCovers':
+        await handleClearCovers(msg);
+        break;
       default:
         postMessage({ type: 'error', message: `Unknown message type: ${msg.type}` });
     }
@@ -43,6 +69,7 @@ self.onmessage = async (event) => {
       type: 'error',
       action: msg.type,
       bookId: msg.bookId,
+      requestId: msg.requestId,
       message: err.message || String(err),
     });
   }
@@ -90,6 +117,72 @@ async function handleGetFile(msg) {
     { type: 'success', action: 'getFile', bookId, fileData },
     fileData ? [fileData] : [],
   );
+}
+
+// ---------------------------------------------------------------------------
+// StoreFile handler
+// ---------------------------------------------------------------------------
+
+async function handleStoreFile(msg) {
+  const { bookId, format, fileData } = msg;
+  await opfsDelete(bookId);
+  await opfsWrite(bookId, format, new Uint8Array(fileData));
+  postMessage({ type: 'success', action: 'storeFile', bookId });
+}
+
+async function handleGetCover(msg) {
+  const { requestId, scopeKey, bucket, mediaId } = msg;
+  const bytes = await opfsReadCover(scopeKey, bucket, mediaId);
+  const fileData = bytes ? bytes.buffer : null;
+  postMessage(
+    { type: 'success', action: 'getCover', requestId, fileData },
+    fileData ? [fileData] : [],
+  );
+}
+
+async function handleStoreCover(msg) {
+  const { requestId, scopeKey, bucket, mediaId, fileData } = msg;
+  await withCoverLocks([[scopeKey, bucket, mediaId]], () =>
+    opfsWriteCover(scopeKey, bucket, mediaId, new Uint8Array(fileData)),
+  );
+  postMessage({ type: 'success', action: 'storeCover', requestId });
+}
+
+async function handleDeleteCover(msg) {
+  const { requestId, scopeKey, bucket, mediaId } = msg;
+  await withCoverLocks([[scopeKey, bucket, mediaId]], () =>
+    opfsDeleteCover(scopeKey, bucket, mediaId),
+  );
+  postMessage({ type: 'success', action: 'deleteCover', requestId });
+}
+
+async function handlePromoteCover(msg) {
+  const { requestId, scopeKey, bucket, mediaId, targetMediaId } = msg;
+  if (bucket !== 'pending') {
+    throw new Error('promoteCover requires the pending bucket');
+  }
+  validateFilePart(targetMediaId, 'targetMediaId');
+  const promoted = await withCoverLocks(
+    [
+      [scopeKey, bucket, mediaId],
+      [scopeKey, 'cached', targetMediaId],
+    ],
+    async () => {
+      const bytes = await opfsReadCover(scopeKey, bucket, mediaId);
+      if (!bytes) return false;
+      await opfsWriteCover(scopeKey, 'cached', targetMediaId, bytes);
+      await opfsDeleteCover(scopeKey, bucket, mediaId);
+      return true;
+    },
+  );
+  postMessage({ type: 'success', action: 'promoteCover', requestId, promoted });
+}
+
+async function handleClearCovers(msg) {
+  const { requestId, scopeKey, bucket } = msg;
+  validateCoverBucket(bucket);
+  await opfsClearCovers(scopeKey);
+  postMessage({ type: 'success', action: 'clearCovers', requestId });
 }
 
 // ---------------------------------------------------------------------------
@@ -556,6 +649,130 @@ async function opfsDelete(bookId) {
     } catch (_) {
       // File not found with this extension — continue
     }
+  }
+}
+
+function validateFilePart(value, fieldName) {
+  if (typeof value !== 'string' || !/^[a-zA-Z0-9_.-]+$/.test(value)) {
+    throw new Error(`${fieldName} contains unsafe characters`);
+  }
+}
+
+const COVER_BUCKETS = new Set(['cached', 'pending', 'books']);
+const inWorkerCoverOperations = new Map();
+
+function validateCoverBucket(bucket) {
+  if (!COVER_BUCKETS.has(bucket)) {
+    throw new Error('bucket is not supported');
+  }
+}
+
+function coverLockName(scopeKey, bucket, mediaId) {
+  validateFilePart(scopeKey, 'scopeKey');
+  validateCoverBucket(bucket);
+  validateFilePart(mediaId, 'mediaId');
+  return `papyrus:cover:${scopeKey}:${bucket}:${mediaId}`;
+}
+
+async function withCoverLocks(coverKeys, operation) {
+  const lockNames = [...new Set(coverKeys.map((key) => coverLockName(...key)))].sort();
+  if (navigator.locks && typeof navigator.locks.request === 'function') {
+    return requestWebCoverLocks(lockNames, 0, operation);
+  }
+  return requestInWorkerCoverLocks(lockNames, 0, operation);
+}
+
+async function requestWebCoverLocks(lockNames, index, operation) {
+  if (index === lockNames.length) return operation();
+  return navigator.locks.request(lockNames[index], () =>
+    requestWebCoverLocks(lockNames, index + 1, operation),
+  );
+}
+
+async function requestInWorkerCoverLocks(lockNames, index, operation) {
+  if (index === lockNames.length) return operation();
+  const lockName = lockNames[index];
+  const previous = inWorkerCoverOperations.get(lockName) || Promise.resolve();
+  const current = previous
+    .catch(() => {})
+    .then(() => requestInWorkerCoverLocks(lockNames, index + 1, operation));
+  inWorkerCoverOperations.set(lockName, current);
+  try {
+    return await current;
+  } finally {
+    if (inWorkerCoverOperations.get(lockName) === current) {
+      inWorkerCoverOperations.delete(lockName);
+    }
+  }
+}
+
+function isNotFoundError(error) {
+  return error != null && error.name === 'NotFoundError';
+}
+
+async function opfsCoverDirectory(scopeKey, bucket, create) {
+  validateFilePart(scopeKey, 'scopeKey');
+  validateCoverBucket(bucket);
+  const root = await navigator.storage.getDirectory();
+  let coversRoot;
+  try {
+    coversRoot = await root.getDirectoryHandle('media-covers', { create });
+    const scopeDirectory = await coversRoot.getDirectoryHandle(scopeKey, { create });
+    return await scopeDirectory.getDirectoryHandle(bucket, { create });
+  } catch (error) {
+    if (!create && isNotFoundError(error)) return null;
+    throw error;
+  }
+}
+
+async function opfsWriteCover(scopeKey, bucket, mediaId, uint8Array) {
+  validateFilePart(mediaId, 'mediaId');
+  const directory = await opfsCoverDirectory(scopeKey, bucket, true);
+  const fileHandle = await directory.getFileHandle(`${mediaId}.bin`, { create: true });
+  const writable = await fileHandle.createWritable();
+  await writable.write(uint8Array);
+  await writable.close();
+}
+
+async function opfsReadCover(scopeKey, bucket, mediaId) {
+  validateFilePart(mediaId, 'mediaId');
+  const directory = await opfsCoverDirectory(scopeKey, bucket, false);
+  if (!directory) return null;
+  try {
+    const fileHandle = await directory.getFileHandle(`${mediaId}.bin`, { create: false });
+    const file = await fileHandle.getFile();
+    return new Uint8Array(await file.arrayBuffer());
+  } catch (error) {
+    if (isNotFoundError(error)) return null;
+    throw error;
+  }
+}
+
+async function opfsDeleteCover(scopeKey, bucket, mediaId) {
+  validateFilePart(mediaId, 'mediaId');
+  const directory = await opfsCoverDirectory(scopeKey, bucket, false);
+  if (!directory) return;
+  try {
+    await directory.removeEntry(`${mediaId}.bin`);
+  } catch (error) {
+    if (!isNotFoundError(error)) throw error;
+  }
+}
+
+async function opfsClearCovers(scopeKey) {
+  validateFilePart(scopeKey, 'scopeKey');
+  const root = await navigator.storage.getDirectory();
+  let coversRoot;
+  try {
+    coversRoot = await root.getDirectoryHandle('media-covers', { create: false });
+  } catch (error) {
+    if (isNotFoundError(error)) return;
+    throw error;
+  }
+  try {
+    await coversRoot.removeEntry(scopeKey, { recursive: true });
+  } catch (error) {
+    if (!isNotFoundError(error)) throw error;
   }
 }
 

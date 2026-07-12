@@ -3,6 +3,9 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
 import 'package:flutter/foundation.dart';
+import 'package:papyrus/media/cover_storage_bucket.dart';
+import 'package:papyrus/media/local_cover_image_provider.dart';
+import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/services/book_import_result.dart';
 import 'package:uuid/uuid.dart';
 import 'package:web/web.dart' as web;
@@ -65,7 +68,15 @@ class BookImportService {
           final message = _jsToNullableString(obj['message']) ?? 'Unknown error';
           final error = Exception(message);
           final action = _jsToNullableString(obj['action']);
+          final requestId = _jsToNullableString(obj['requestId']);
           final bookId = _jsToNullableString(obj['bookId']);
+          if (requestId != null) {
+            final c = _pending.remove(requestId);
+            if (c != null && !c.isCompleted) {
+              c.completeError(error);
+              return;
+            }
+          }
           if (action != null && bookId != null) {
             final key = '$action:$bookId';
             final c = _pending.remove(key);
@@ -83,16 +94,17 @@ class BookImportService {
 
         if (type == 'success') {
           final action = _jsToNullableString(obj['action']);
+          final requestId = _jsToNullableString(obj['requestId']);
           final bookId = _jsToNullableString(obj['bookId']);
-          if (action == null || bookId == null) {
+          final key = requestId ?? (action != null && bookId != null ? '$action:$bookId' : null);
+          if (key == null) {
             debugPrint(
               'BookImportService: success message with null '
-              'action=$action bookId=$bookId — ignoring',
+              'action=$action bookId=$bookId requestId=$requestId — ignoring',
             );
             return;
           }
 
-          final key = '$action:$bookId';
           final c = _pending.remove(key);
           if (c != null && !c.isCompleted) {
             c.complete(obj);
@@ -212,6 +224,117 @@ class BookImportService {
     return (fileDataJs as JSArrayBuffer).toDart.asUint8List();
   }
 
+  /// Stores raw book bytes in OPFS for [bookId].
+  ///
+  /// Throws [UnsupportedError] when called on non-web platforms.
+  Future<void> storeBookFile(String bookId, String extension, Uint8List bytes) async {
+    if (!kIsWeb) {
+      throw UnsupportedError('BookImportService is only supported on web.');
+    }
+
+    final normalizedExtension = extension.toLowerCase().replaceFirst('.', '');
+    if (normalizedExtension.isEmpty) {
+      throw ArgumentError('Book file extension cannot be empty.');
+    }
+
+    final completer = Completer<JSObject>();
+    final worker = _getWorker();
+
+    _pending['storeFile:$bookId'] = completer;
+
+    final actualBytes = bytes.offsetInBytes == 0 && bytes.lengthInBytes == bytes.buffer.lengthInBytes
+        ? bytes
+        : Uint8List.fromList(bytes);
+    final jsBuffer = actualBytes.buffer.toJS;
+    final message = JSObject();
+    message['type'] = 'storeFile'.toJS;
+    message['format'] = normalizedExtension.toJS;
+    message['bookId'] = bookId.toJS;
+    message['fileData'] = jsBuffer;
+
+    worker.postMessage(message, [jsBuffer].toJS);
+
+    await completer.future.timeout(
+      _timeout,
+      onTimeout: () {
+        _pending.remove('storeFile:$bookId');
+        throw TimeoutException('Store file timed out after ${_timeout.inSeconds}s', _timeout);
+      },
+    );
+  }
+
+  Future<Uint8List?> getCoverFile(MediaStorageScope scope, String mediaId) async {
+    return _getCoverFile(scope, CoverStorageBucket.cached, mediaId);
+  }
+
+  Future<void> storeCoverFile(MediaStorageScope scope, String mediaId, Uint8List bytes) async {
+    await _storeCoverFile(scope, CoverStorageBucket.cached, mediaId, bytes);
+  }
+
+  Future<void> deleteCoverFile(MediaStorageScope scope, String mediaId) async {
+    await _deleteCoverFile(scope, CoverStorageBucket.cached, mediaId);
+  }
+
+  Future<Uint8List?> getPendingCoverFile(MediaStorageScope scope, String bookId) async {
+    return _getCoverFile(scope, CoverStorageBucket.pending, bookId);
+  }
+
+  Future<void> storePendingCoverFile(MediaStorageScope scope, String bookId, Uint8List bytes) async {
+    await _storeCoverFile(scope, CoverStorageBucket.pending, bookId, bytes);
+  }
+
+  Future<void> deletePendingCoverFile(MediaStorageScope scope, String bookId) async {
+    await _deleteCoverFile(scope, CoverStorageBucket.pending, bookId);
+  }
+
+  Future<Uint8List?> getGuestCoverFile(String bookId) async {
+    return _getCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId);
+  }
+
+  Future<void> storeGuestCoverFile(String bookId, Uint8List bytes) async {
+    await _storeCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId, bytes);
+  }
+
+  Future<void> deleteGuestCoverFile(String bookId) async {
+    await _deleteCoverFile(MediaStorageScope.localGuest, CoverStorageBucket.guestBooks, bookId);
+  }
+
+  Future<void> promotePendingCoverFile(
+    MediaStorageScope scope, {
+    required String bookId,
+    required String mediaId,
+  }) async {
+    await _sendCoverRequest(
+      type: 'promoteCover',
+      scope: scope,
+      bucket: CoverStorageBucket.pending,
+      mediaId: bookId,
+      targetMediaId: mediaId,
+    );
+  }
+
+  Future<Uint8List?> _getCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
+    final obj = await _sendCoverRequest(type: 'getCover', scope: scope, bucket: bucket, mediaId: id);
+    final fileDataJs = obj['fileData'];
+    if (fileDataJs == null || fileDataJs.isNull || fileDataJs.isUndefined) {
+      return null;
+    }
+    return (fileDataJs as JSArrayBuffer).toDart.asUint8List();
+  }
+
+  Future<void> _storeCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id, Uint8List bytes) async {
+    await _sendCoverRequest(type: 'storeCover', scope: scope, bucket: bucket, mediaId: id, bytes: bytes);
+  }
+
+  Future<void> _deleteCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
+    await _sendCoverRequest(type: 'deleteCover', scope: scope, bucket: bucket, mediaId: id);
+    LocalCoverImageProvider.evictKey(scopeKey: scope.persistenceKey, bucket: bucket, fileId: id);
+  }
+
+  Future<void> clearCoverFiles(MediaStorageScope scope) async {
+    await _sendCoverRequest(type: 'clearCovers', scope: scope, bucket: CoverStorageBucket.cached);
+  }
+
   /// Terminates the Web Worker and releases resources.
   void dispose() {
     _worker?.terminate();
@@ -226,6 +349,47 @@ class BookImportService {
   // ---------------------------------------------------------------------------
   // Private helpers
   // ---------------------------------------------------------------------------
+
+  Future<JSObject> _sendCoverRequest({
+    required String type,
+    required MediaStorageScope scope,
+    required CoverStorageBucket bucket,
+    String? mediaId,
+    String? targetMediaId,
+    Uint8List? bytes,
+  }) async {
+    final requestId = const Uuid().v4();
+    final completer = Completer<JSObject>();
+    final worker = _getWorker();
+    _pending[requestId] = completer;
+
+    final message = JSObject();
+    message['type'] = type.toJS;
+    message['requestId'] = requestId.toJS;
+    message['scopeKey'] = scope.persistenceKey.toJS;
+    message['bucket'] = bucket.pathComponent.toJS;
+    if (mediaId != null) message['mediaId'] = mediaId.toJS;
+    if (targetMediaId != null) message['targetMediaId'] = targetMediaId.toJS;
+
+    if (bytes == null) {
+      worker.postMessage(message);
+    } else {
+      // Cover bytes are also returned to Image.memory on a cache miss. Transfer
+      // a copy so postMessage does not detach the caller's backing buffer.
+      final actualBytes = Uint8List.fromList(bytes);
+      final jsBuffer = actualBytes.buffer.toJS;
+      message['fileData'] = jsBuffer;
+      worker.postMessage(message, [jsBuffer].toJS);
+    }
+
+    return completer.future.timeout(
+      _timeout,
+      onTimeout: () {
+        _pending.remove(requestId);
+        throw TimeoutException('$type timed out after ${_timeout.inSeconds}s', _timeout);
+      },
+    );
+  }
 
   BookImportResult _parseImportResult(JSObject data, String bookId, String fileExtension) {
     final metadataRaw = data['metadata'];

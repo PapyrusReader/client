@@ -4,11 +4,15 @@ import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/models/book.dart';
+import 'package:papyrus/powersync/powersync_service.dart';
+import 'package:papyrus/powersync/sync_state.dart';
+import 'package:papyrus/providers/auth_provider.dart';
+import 'package:papyrus/services/book_import_commit_service.dart';
 import 'package:papyrus/services/book_import_service_stub.dart'
     if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/utils/image_utils.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:provider/provider.dart';
 
@@ -102,9 +106,10 @@ class _ImportContentState extends State<_ImportContent> {
   }
 
   bool _picking = false;
+  bool _committing = false;
 
   Future<void> _pickAndProcess() async {
-    if (_picking) return;
+    if (_picking || _committing) return;
     _picking = true;
 
     try {
@@ -153,47 +158,69 @@ class _ImportContentState extends State<_ImportContent> {
     }
   }
 
-  void _addToLibrary() {
+  Future<void> _addToLibrary() async {
+    if (_committing) return;
     final result = _result;
     if (result == null) return;
+    setState(() => _committing = true);
 
-    final dataStore = context.read<DataStore>();
-    final now = DateTime.now();
+    Book? committedBook;
+    try {
+      final dataStore = context.read<DataStore>();
+      final bookRepository = dataStore.requireBookRepository();
+      final queue = context.read<MediaUploadQueue>();
+      final importService = context.read<BookImportService>();
+      final authProvider = context.read<AuthProvider>();
+      final powerSyncService = context.read<PapyrusPowerSyncService>();
+      final isOnlineAccount = authProvider.isSignedIn && powerSyncService.mode == LibraryDatabaseMode.authenticated;
+      final accountScope = isOnlineAccount ? queue.activeScope : null;
+      if (isOnlineAccount && accountScope == null) {
+        throw StateError('Cannot import account media without an active media storage scope');
+      }
 
-    String? coverUrl;
-    if (result.coverImage != null) {
-      coverUrl = bytesToDataUri(result.coverImage!);
+      final ext = result.fileExtension;
+      final filePath = kIsWeb
+          ? 'opfs://books/${result.bookId}.$ext'
+          : result.bookId; // Native resolves via BookImportService.getBookFile
+      final commitService = BookImportCommitService(
+        storePendingCover: importService.storePendingCoverFile,
+        storeGuestCover: importService.storeGuestCoverFile,
+        deletePendingCover: importService.deletePendingCoverFile,
+        deleteGuestCover: importService.deleteGuestCoverFile,
+        addBook: (book) => dataStore.addBookToRepositoryAndWait(bookRepository, book),
+        deleteBook: (bookId) => dataStore.deleteBookFromRepositoryAndWait(bookRepository, bookId),
+        enqueueImportedBookMedia: queue.enqueueImportedBookMedia,
+        isLibraryContextCurrent: () {
+          final currentIsOnlineAccount =
+              authProvider.isSignedIn && powerSyncService.mode == LibraryDatabaseMode.authenticated;
+          return dataStore.isBookRepositoryCurrent(bookRepository) &&
+              currentIsOnlineAccount == isOnlineAccount &&
+              queue.activeScope == accountScope;
+        },
+      );
+      committedBook = await commitService.commit(
+        result: result,
+        sourceFilename: _filename ?? '${result.bookId}.$ext',
+        addedAt: DateTime.now(),
+        localFilePath: filePath,
+        accountScope: accountScope,
+      );
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _state = _ImportState.error;
+        _errorMessage = error.toString();
+      });
+    } finally {
+      if (mounted) {
+        setState(() => _committing = false);
+      }
     }
 
-    final ext = result.fileExtension;
-    final filePath = kIsWeb
-        ? 'opfs://books/${result.bookId}.$ext'
-        : result.bookId; // Native resolves via BookImportService.getBookFile
-
-    final book = Book(
-      id: result.bookId,
-      title: result.title,
-      subtitle: result.subtitle,
-      author: result.author,
-      coAuthors: result.coAuthors,
-      publisher: result.publisher,
-      description: result.description,
-      language: result.language,
-      isbn: result.isbn,
-      pageCount: result.pageCount,
-      coverUrl: coverUrl,
-      filePath: filePath,
-      fileFormat: BookFormat.values.where((f) => f.name == ext).firstOrNull,
-      fileSize: result.fileSize,
-      fileHash: result.fileHash,
-      addedAt: now,
-    );
-
-    dataStore.addBook(book);
-
+    if (!mounted || committedBook == null) return;
     final messenger = ScaffoldMessenger.of(context);
     Navigator.of(context).pop();
-    messenger.showSnackBar(SnackBar(content: Text('Added "${book.title}" to library')));
+    messenger.showSnackBar(SnackBar(content: Text('Added "${committedBook.title}" to library')));
   }
 
   @override
@@ -249,7 +276,7 @@ class _ImportContentState extends State<_ImportContent> {
               ),
               const SizedBox(height: Spacing.lg),
               FilledButton.icon(
-                onPressed: _pickAndProcess,
+                onPressed: _committing ? null : _pickAndProcess,
                 icon: const Icon(Icons.folder_open),
                 label: const Text('Browse files'),
               ),
@@ -334,19 +361,21 @@ class _ImportContentState extends State<_ImportContent> {
           children: [
             Expanded(
               child: OutlinedButton(
-                onPressed: () {
-                  setState(() {
-                    _state = _ImportState.idle;
-                    _result = null;
-                    _filename = null;
-                  });
-                },
+                onPressed: _committing
+                    ? null
+                    : () {
+                        setState(() {
+                          _state = _ImportState.idle;
+                          _result = null;
+                          _filename = null;
+                        });
+                      },
                 child: const Text('Pick different file'),
               ),
             ),
             const SizedBox(width: Spacing.md),
             Expanded(
-              child: FilledButton(onPressed: _addToLibrary, child: const Text('Add to library')),
+              child: FilledButton(onPressed: _committing ? null : _addToLibrary, child: const Text('Add to library')),
             ),
           ],
         ),
@@ -375,7 +404,7 @@ class _ImportContentState extends State<_ImportContent> {
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: Spacing.lg),
-          FilledButton(onPressed: _pickAndProcess, child: const Text('Try again')),
+          FilledButton(onPressed: _committing ? null : _pickAndProcess, child: const Text('Try again')),
         ],
       ),
     );

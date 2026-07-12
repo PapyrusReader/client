@@ -5,6 +5,7 @@ import 'package:papyrus/models/shelf.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/text_utils.dart';
 import 'package:papyrus/widgets/input/search_field.dart';
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/widgets/shelves/add_shelf_sheet.dart';
 import 'package:provider/provider.dart';
@@ -200,22 +201,12 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> {
   Widget _buildCover(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final book = widget.book;
-
-    if (book != null && book.coverURL != null && book.coverURL!.isNotEmpty) {
-      return Image.network(
-        book.coverURL!,
-        fit: BoxFit.cover,
-        errorBuilder: (context, error, stackTrace) => Container(
-          color: colorScheme.surfaceContainerHighest,
-          child: Icon(Icons.menu_book, color: colorScheme.onSurfaceVariant, size: 20),
-        ),
-      );
-    }
-
-    return Container(
+    final placeholder = Container(
       color: colorScheme.surfaceContainerHighest,
       child: Icon(Icons.menu_book, color: colorScheme.onSurfaceVariant, size: 20),
     );
+    if (book == null) return placeholder;
+    return CoverImage(bookId: book.id, imageUrl: book.coverURL, mediaId: book.coverMediaId, placeholder: placeholder);
   }
 
   Widget _buildShelfTile(BuildContext context, Shelf shelf) {

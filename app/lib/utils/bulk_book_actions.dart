@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/providers/library_provider.dart';
+import 'package:papyrus/services/book_delete_cleanup_service.dart';
+import 'package:papyrus/services/book_import_service_stub.dart'
+    if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/library/bulk_action_bar.dart';
 import 'package:papyrus/widgets/library/bulk_status_sheet.dart';
@@ -141,9 +145,25 @@ void handleBulkDelete(BuildContext context, LibraryProvider libraryProvider) {
       actions: [
         TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
         FilledButton(
-          onPressed: () {
+          onPressed: () async {
+            final selectedBookIds = libraryProvider.selectedBookIds.toSet();
+            final mediaUploadQueue = context.read<MediaUploadQueue>();
+            final importService = context.read<BookImportService>();
+            final mediaScope = mediaUploadQueue.activeScope;
             Navigator.pop(context);
-            bulkDelete(dataStore, libraryProvider.selectedBookIds);
+            for (final bookId in selectedBookIds) {
+              final book = dataStore.getBook(bookId);
+              await deleteBookWithMediaCleanup(
+                dataStore: dataStore,
+                mediaUploadQueue: mediaUploadQueue,
+                bookId: bookId,
+                coverMediaId: book?.coverMediaId,
+                deleteBookFile: importService.deleteBookFile,
+                deleteCoverFile: mediaScope == null
+                    ? null
+                    : (mediaId) => importService.deleteCoverFile(mediaScope, mediaId),
+              );
+            }
             libraryProvider.exitSelectionMode();
           },
           style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),

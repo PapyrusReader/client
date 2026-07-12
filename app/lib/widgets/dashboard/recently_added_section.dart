@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 
 /// Section displaying recently added books in a horizontal scroll.
 class RecentlyAddedSection extends StatelessWidget {
@@ -86,13 +87,12 @@ class RecentlyAddedSection extends StatelessWidget {
             ],
           ),
           clipBehavior: Clip.antiAlias,
-          child: book.coverURL != null && book.coverURL!.isNotEmpty
-              ? Image.network(
-                  book.coverURL!,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => _buildCoverPlaceholder(context, book),
-                )
-              : _buildCoverPlaceholder(context, book),
+          child: CoverImage(
+            bookId: book.id,
+            imageUrl: book.coverURL,
+            mediaId: book.coverMediaId,
+            placeholder: _buildCoverPlaceholder(context, book),
+          ),
         ),
       ),
     );

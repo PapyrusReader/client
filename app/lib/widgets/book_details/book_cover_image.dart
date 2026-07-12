@@ -1,6 +1,6 @@
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 
 /// Cover image size variants.
 enum BookCoverSize {
@@ -18,12 +18,21 @@ enum BookCoverSize {
 }
 
 /// Book cover image widget with size variants and placeholder.
-class BookCoverImage extends StatelessWidget {
+class CoverImagePreview extends StatelessWidget {
+  final String? bookId;
   final String? imageUrl;
+  final String? mediaId;
   final String? bookTitle;
   final BookCoverSize size;
 
-  const BookCoverImage({super.key, this.imageUrl, this.bookTitle, this.size = BookCoverSize.medium});
+  const CoverImagePreview({
+    super.key,
+    this.bookId,
+    this.imageUrl,
+    this.mediaId,
+    this.bookTitle,
+    this.size = BookCoverSize.medium,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -44,15 +53,12 @@ class BookCoverImage extends StatelessWidget {
   }
 
   Widget _buildImage(BuildContext context, ColorScheme colorScheme) {
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
-      return CachedNetworkImage(
-        imageUrl: imageUrl!,
-        fit: BoxFit.cover,
-        errorWidget: (context, url, error) => _buildPlaceholder(context, colorScheme),
-        progressIndicatorBuilder: (context, url, progress) => _buildLoadingIndicator(context, colorScheme, progress),
-      );
-    }
-    return _buildPlaceholder(context, colorScheme);
+    return CoverImage(
+      bookId: bookId,
+      imageUrl: imageUrl,
+      mediaId: mediaId,
+      placeholder: _buildPlaceholder(context, colorScheme),
+    );
   }
 
   Widget _buildPlaceholder(BuildContext context, ColorScheme colorScheme) {
@@ -86,13 +92,6 @@ class BookCoverImage extends StatelessWidget {
           ],
         ],
       ),
-    );
-  }
-
-  Widget _buildLoadingIndicator(BuildContext context, ColorScheme colorScheme, DownloadProgress progress) {
-    return Container(
-      color: colorScheme.surfaceContainerHighest,
-      child: Center(child: CircularProgressIndicator(value: progress.progress, strokeWidth: 2)),
     );
   }
 

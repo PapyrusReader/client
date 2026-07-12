@@ -4,12 +4,15 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/storage_sync_controller.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
 import 'package:papyrus/powersync/sync_state.dart';
+import 'package:papyrus/services/book_import_service_stub.dart'
+    if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
 import 'package:papyrus/widgets/settings/settings_section.dart';
@@ -239,6 +242,12 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
         SettingsRow(label: 'Current status', value: controller.statusLabel),
         SettingsRow(label: 'File storage', value: controller.fileStorageLabel),
+        if (controller.hasFailedMediaUploads)
+          SettingsRow(
+            label: 'Media uploads',
+            value: controller.failedMediaUploadLabel,
+            onTap: () => _retryFailedMediaUploads(context),
+          ),
         SettingsRow(label: 'Manage servers', onTap: () => _showManageSyncServersSheet(context)),
         if (controller.canReconnect) SettingsRow(label: 'Reconnect', onTap: () => _handleReconnectSync(context)),
         if (controller.canClearGuestLibrary)
@@ -929,6 +938,8 @@ class _ProfilePageState extends State<ProfilePage> {
         _buildInfoRow(context, label: 'Active server', value: controller.dataSyncLabel),
         _buildInfoRow(context, label: 'Status', value: controller.statusLabel),
         _buildInfoRow(context, label: 'File storage', value: controller.fileStorageLabel),
+        if (controller.hasFailedMediaUploads)
+          _buildInfoRow(context, label: 'Media uploads', value: controller.failedMediaUploadLabel),
         const SizedBox(height: Spacing.sm),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
@@ -951,6 +962,12 @@ class _ProfilePageState extends State<ProfilePage> {
               icon: const Icon(Icons.dns_outlined, size: IconSizes.small),
               label: const Text('Manage servers'),
             ),
+            if (controller.hasFailedMediaUploads)
+              OutlinedButton.icon(
+                onPressed: () => _retryFailedMediaUploads(context),
+                icon: const Icon(Icons.refresh, size: IconSizes.small),
+                label: const Text('Retry uploads'),
+              ),
             if (controller.canClearAuthenticatedCache)
               OutlinedButton.icon(
                 onPressed: () => _confirmClearAuthenticatedCache(context),
@@ -1017,11 +1034,17 @@ class _ProfilePageState extends State<ProfilePage> {
       syncSettings: context.watch<SyncSettingsProvider>(),
       syncState: context.watch<SyncState>(),
       fileStorageUsedBytes: _fileStorageUsedBytes(context.watch<DataStore>()),
+      mediaStorageUsage: context.watch<MediaUploadQueue>().storageUsage,
+      failedMediaUploadCount: _failedMediaUploadCount(context.watch<MediaUploadQueue>()),
     );
   }
 
   int _fileStorageUsedBytes(DataStore dataStore) {
     return dataStore.books.fold<int>(0, (total, book) => total + (book.fileSize ?? 0));
+  }
+
+  int _failedMediaUploadCount(MediaUploadQueue queue) {
+    return queue.pendingTasks.where((task) => task.status == MediaUploadTaskStatus.failed).length;
   }
 
   Widget _buildInfoRow(BuildContext context, {required String label, required String value}) {
@@ -1352,6 +1375,12 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
+  Future<void> _retryFailedMediaUploads(BuildContext context) async {
+    final messenger = ScaffoldMessenger.of(context);
+    await context.read<MediaUploadQueue>().retryFailed();
+    messenger.showSnackBar(const SnackBar(content: Text('Media uploads will retry on the next sync.')));
+  }
+
   void _showOfflineBackupActions(BuildContext context) {
     showModalBottomSheet(
       context: context,
@@ -1418,7 +1447,13 @@ class _ProfilePageState extends State<ProfilePage> {
 
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await context.read<PapyrusPowerSyncService>().clearAuthenticatedCache();
+      final scope = context.read<MediaUploadQueue>().activeScope;
+      final powerSyncService = context.read<PapyrusPowerSyncService>();
+      final importService = context.read<BookImportService>();
+      await powerSyncService.clearAuthenticatedCache();
+      if (scope != null) {
+        await importService.clearCoverFiles(scope);
+      }
       messenger.showSnackBar(const SnackBar(content: Text('Local copy cleared.')));
     } catch (error) {
       messenger.showSnackBar(SnackBar(content: Text('Could not clear local copy: $error')));

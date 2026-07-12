@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book_details/book_progress_bar.dart';
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 
 /// Card displaying the currently reading book with progress and continue button.
 class ContinueReadingCard extends StatelessWidget {
@@ -180,13 +181,12 @@ class ContinueReadingCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(AppRadius.md),
       ),
       clipBehavior: Clip.antiAlias,
-      child: book?.coverURL != null && book!.coverURL!.isNotEmpty
-          ? Image.network(
-              book!.coverURL!,
-              fit: BoxFit.cover,
-              errorBuilder: (_, _, _) => _buildCoverPlaceholder(context),
-            )
-          : _buildCoverPlaceholder(context),
+      child: CoverImage(
+        bookId: book?.id,
+        imageUrl: book?.coverURL,
+        mediaId: book?.coverMediaId,
+        placeholder: _buildCoverPlaceholder(context),
+      ),
     );
   }
 
