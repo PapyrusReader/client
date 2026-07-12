@@ -74,6 +74,9 @@ class DataStore extends ChangeNotifier {
   Book? getBook(String id) => _books[id];
 
   Future<void> attachBookRepository(BookRepository repository) async {
+    final wasLoaded = _isLoaded;
+    _isLoaded = false;
+    if (wasLoaded) notifyListeners();
     await _bookSubscription?.cancel();
     _bookRepository = repository;
     _bookSubscription = repository.watchAll().listen(

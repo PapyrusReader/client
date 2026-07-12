@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/data/repositories/book_repository.dart';
 import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/providers/book_details_provider.dart';
@@ -75,6 +76,19 @@ void main() {
     });
 
     group('loadBook', () {
+      test('loads from repository before the in-memory cache hydrates', () async {
+        final storedBook = buildTestBook(id: 'repository-book', title: 'Stored Book');
+        final repository = _LookupBookRepository(storedBook);
+        final startupStore = DataStore(bookRepository: repository);
+        final startupProvider = BookDetailsProvider()..setDataStore(startupStore);
+        addTearDown(startupProvider.dispose);
+
+        await startupProvider.loadBook(storedBook.id);
+
+        expect(startupProvider.book, storedBook);
+        expect(startupProvider.error, isNull);
+      });
+
       test('loads a book from DataStore', () async {
         await provider.loadBook('book-1');
 
@@ -524,4 +538,22 @@ void main() {
       });
     });
   });
+}
+
+class _LookupBookRepository implements BookRepository {
+  _LookupBookRepository(this.book);
+
+  final Book book;
+
+  @override
+  Stream<List<Book>> watchAll() => const Stream.empty();
+
+  @override
+  Future<Book?> getById(String id) async => id == book.id ? book : null;
+
+  @override
+  Future<void> upsert(Book book) async {}
+
+  @override
+  Future<void> delete(String id) async {}
 }

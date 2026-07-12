@@ -114,7 +114,7 @@ class BookDetailsProvider extends ChangeNotifier {
       // Find book from DataStore (or sample data as fallback)
       Book? foundBook;
       if (_dataStore != null) {
-        foundBook = _dataStore!.getBook(bookId);
+        foundBook = _dataStore!.getBook(bookId) ?? await _dataStore!.requireBookRepository().getById(bookId);
       }
 
       // Fallback to sample data if not found in DataStore

@@ -43,12 +43,13 @@ class _LibraryPageState extends State<LibraryPage> {
 
     // Get filtered books from DataStore (single source of truth)
     final books = _getFilteredBooks(libraryProvider, dataStore);
+    final isLoading = !dataStore.isLoaded;
 
     if (isDesktop) {
-      return _buildDesktopLayout(context, books, libraryProvider);
+      return _buildDesktopLayout(context, books, libraryProvider, isLoading);
     }
 
-    return _buildMobileLayout(context, books, libraryProvider);
+    return _buildMobileLayout(context, books, libraryProvider, isLoading);
   }
 
   List<Book> _getFilteredBooks(LibraryProvider provider, DataStore dataStore) {
@@ -95,7 +96,7 @@ class _LibraryPageState extends State<LibraryPage> {
   // MOBILE LAYOUT
   // ============================================================================
 
-  Widget _buildMobileLayout(BuildContext context, List<Book> books, LibraryProvider libraryProvider) {
+  Widget _buildMobileLayout(BuildContext context, List<Book> books, LibraryProvider libraryProvider, bool isLoading) {
     final isSelectionMode = libraryProvider.isSelectionMode;
 
     return Scaffold(
@@ -145,7 +146,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
                     Text(
-                      '${books.length} ${books.length == 1 ? 'book' : 'books'}',
+                      isLoading ? 'Loading books…' : '${books.length} ${books.length == 1 ? 'book' : 'books'}',
                       style: Theme.of(
                         context,
                       ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
@@ -156,13 +157,7 @@ class _LibraryPageState extends State<LibraryPage> {
               ),
 
             // Book grid or list
-            Expanded(
-              child: books.isEmpty
-                  ? _buildEmptyState()
-                  : libraryProvider.isListView
-                  ? _buildBookList(context, books)
-                  : BookGrid(books: books, onBookTap: (book) => _navigateToBookDetails(context, book)),
-            ),
+            Expanded(child: _buildBookContent(context, books, libraryProvider, isLoading)),
           ],
         ),
       ),
@@ -405,7 +400,7 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  Widget _buildDesktopLayout(BuildContext context, List<Book> books, LibraryProvider libraryProvider) {
+  Widget _buildDesktopLayout(BuildContext context, List<Book> books, LibraryProvider libraryProvider, bool isLoading) {
     const double controlHeight = 40.0;
     final isSelectionMode = libraryProvider.isSelectionMode;
 
@@ -480,18 +475,19 @@ class _LibraryPageState extends State<LibraryPage> {
               // Filter chips
               const LibraryFilterChips(horizontalPadding: Spacing.lg),
               // Book grid or list
-              Expanded(
-                child: books.isEmpty
-                    ? _buildEmptyState()
-                    : libraryProvider.isListView
-                    ? _buildBookList(context, books)
-                    : BookGrid(books: books, onBookTap: (book) => _navigateToBookDetails(context, book)),
-              ),
+              Expanded(child: _buildBookContent(context, books, libraryProvider, isLoading)),
             ],
           ),
         ),
       ),
     );
+  }
+
+  Widget _buildBookContent(BuildContext context, List<Book> books, LibraryProvider libraryProvider, bool isLoading) {
+    if (isLoading) return const Center(child: CircularProgressIndicator());
+    if (books.isEmpty) return _buildEmptyState();
+    if (libraryProvider.isListView) return _buildBookList(context, books);
+    return BookGrid(books: books, onBookTap: (book) => _navigateToBookDetails(context, book));
   }
 
   Widget _buildBookList(BuildContext context, List<Book> books) {

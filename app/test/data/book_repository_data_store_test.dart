@@ -70,6 +70,22 @@ void main() {
     await repository.controller.close();
   });
 
+  test('attaching a repository stays loading until its first snapshot', () async {
+    final repository = FakeBookRepository();
+    final store = DataStore()..loadData(books: [_book('old', 'Old book')]);
+    expect(store.isLoaded, isTrue);
+
+    await store.attachBookRepository(repository);
+
+    expect(store.isLoaded, isFalse);
+    repository.controller.add(const []);
+    await pumpEventQueue();
+    expect(store.isLoaded, isTrue);
+
+    await store.disposeBookRepository();
+    await repository.controller.close();
+  });
+
   test('stale sync snapshots do not clear an uploaded cover media id', () async {
     final repository = FakeBookRepository();
     final store = DataStore(bookRepository: repository);
@@ -223,7 +239,7 @@ void main() {
     await repository.controller.close();
   });
 
-  test('immediate queue upload sees repository-bound add before delayed watch stream', () async {
+  test('immediate queue upload does not rewrite a repository-bound add', () async {
     final repository = FakeBookRepository();
     final store = DataStore(bookRepository: repository);
     final captured = store.requireBookRepository();
@@ -252,9 +268,12 @@ void main() {
       ),
     );
 
-    expect(store.getBook(book.id)?.fileMediaId, 'file-media');
+    expect(queue.pendingTasks, isEmpty);
+    expect(store.getBook(book.id)?.fileMediaId, isNull);
+    expect(store.getBook(book.id)?.fileHash, 'hash');
     await pumpEventQueue();
-    expect(repository.upserts.last.fileMediaId, 'file-media');
+    expect(repository.upserts.last.fileMediaId, isNull);
+    expect(repository.upserts.last.fileHash, 'hash');
 
     await store.disposeBookRepository();
     await repository.controller.close();

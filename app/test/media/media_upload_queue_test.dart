@@ -16,7 +16,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  test('processPending uploads book file and stores returned media id on the book', () async {
+  test('processPending does not rewrite book metadata after server upload', () async {
     final prefs = await SharedPreferences.getInstance();
     final repository = InMemoryBookRepository();
     final dataStore = DataStore(bookRepository: repository);
@@ -25,8 +25,10 @@ void main() {
     await pumpEventQueue();
     final queue = await _activeQueue(prefs);
     await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
+    final uploadStarted = Completer<void>();
+    final uploadResult = Completer<MediaAsset>();
 
-    await queue.processPending(
+    final processing = queue.processPending(
       dataStore: dataStore,
       readBookFile: (bookId) async => Uint8List.fromList('epub bytes'.codeUnits),
       readPendingCover: (_, _) async => null,
@@ -34,12 +36,26 @@ void main() {
         expect(payload.bookId, book.id);
         expect(payload.kind, MediaKind.bookFile);
         expect(payload.bytes, Uint8List.fromList('epub bytes'.codeUnits));
-        return _asset(assetId: 'file-asset', bookId: book.id, kind: MediaKind.bookFile);
+        uploadStarted.complete();
+        return uploadResult.future;
       },
     );
+    await uploadStarted.future;
+
+    // A downloaded server snapshot can replace the in-memory copy while the
+    // media request is in flight. Upload completion must not write that
+    // transient copy back over the complete metadata already in PowerSync.
+    dataStore.replaceBooksFromSync([Book(id: book.id, title: book.title, author: book.author, addedAt: book.addedAt)]);
+    uploadResult.complete(_asset(assetId: 'file-asset', bookId: book.id, kind: MediaKind.bookFile));
+    await processing;
+    await pumpEventQueue();
 
     expect(queue.pendingTasks, isEmpty);
-    expect(dataStore.getBook(book.id)?.fileMediaId, 'file-asset');
+    final persisted = await repository.getById(book.id);
+    expect(persisted?.fileFormat, BookFormat.epub);
+    expect(persisted?.fileSize, 10);
+    expect(persisted?.fileHash, 'hash');
+    expect(persisted?.fileMediaId, isNull);
   });
 
   test('processPending keeps quota failures visible without dropping local media', () async {
@@ -116,7 +132,7 @@ void main() {
     expect(prefs.getString('media_upload_queue:official--user-1'), isNot(contains(base64Encode('cover'.codeUnits))));
   });
 
-  test('restored cover task reads scoped pending file and stores returned media id', () async {
+  test('restored cover task reads scoped pending file and drains the task', () async {
     final prefs = await SharedPreferences.getInstance();
     final repository = InMemoryBookRepository();
     final dataStore = DataStore(bookRepository: repository);
@@ -147,7 +163,6 @@ void main() {
     );
 
     expect(restoredQueue.pendingTasks, isEmpty);
-    expect(dataStore.getBook(book.id)?.coverMediaId, 'cover-asset');
   });
 
   test('missing pending cover file leaves task pending with a local file error', () async {
@@ -256,7 +271,6 @@ void main() {
 
     expect(attempts, 2);
     expect(queue.pendingTasks, isEmpty);
-    expect(dataStore.getBook(book.id)?.coverMediaId, 'cover-asset');
   });
 
   test('pending uploads are isolated and restored per media scope', () async {
@@ -362,7 +376,6 @@ void main() {
 
     expect(attempts, 2);
     expect(queue.pendingTasks, isEmpty);
-    expect(dataStore.getBook(book.id)?.fileMediaId, 'file-asset');
   });
 
   test('enqueue during an upload is persisted and drained before processing completes', () async {

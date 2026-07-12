@@ -117,6 +117,7 @@ class PapyrusPowerSyncService implements BookRepository {
 
   @override
   Future<Book?> getById(String id) async {
+    await _modeOperation;
     final database = _requireDatabase();
     final row = await database.getOptional('SELECT * FROM books WHERE id = ?', [id]);
     return row == null ? null : PowerSyncBookMapper.fromRow(Map<String, Object?>.from(row));
@@ -149,28 +150,24 @@ class PapyrusPowerSyncService implements BookRepository {
     await _syncStateController.close();
   }
 
-  Future<void> _switchMode(
-    LibraryDatabaseMode mode, {
-    String? authenticatedUserId,
-    String? authenticatedProfileKey,
-  }) async {
-    await _modeOperation;
-    if (_mode == mode &&
-        _database != null &&
-        (mode == LibraryDatabaseMode.guest ||
-            (_authenticatedUserId == authenticatedUserId && _authenticatedProfileKey == authenticatedProfileKey))) {
-      return;
-    }
-
-    final operation = _performModeSwitch(mode, authenticatedUserId, authenticatedProfileKey);
+  Future<void> _switchMode(LibraryDatabaseMode mode, {String? authenticatedUserId, String? authenticatedProfileKey}) {
+    final previousOperation = _modeOperation;
+    final operation = (() async {
+      await previousOperation;
+      if (_mode == mode &&
+          _database != null &&
+          (mode == LibraryDatabaseMode.guest ||
+              (_authenticatedUserId == authenticatedUserId && _authenticatedProfileKey == authenticatedProfileKey))) {
+        return;
+      }
+      await _performModeSwitch(mode, authenticatedUserId, authenticatedProfileKey);
+    })();
     _modeOperation = operation;
-    try {
-      await operation;
-    } finally {
+    return operation.whenComplete(() {
       if (identical(_modeOperation, operation)) {
         _modeOperation = null;
       }
-    }
+    });
   }
 
   Future<void> _performModeSwitch(
@@ -182,7 +179,6 @@ class PapyrusPowerSyncService implements BookRepository {
     _mode = mode;
     _authenticatedUserId = authenticatedUserId;
     _authenticatedProfileKey = authenticatedProfileKey;
-    _booksController.add(const []);
 
     final database = PowerSyncDatabase(
       schema: mode == LibraryDatabaseMode.guest ? papyrusGuestSchema : papyrusAccountSchema,

@@ -10,6 +10,17 @@ import 'package:papyrus/providers/book_edit_provider.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
+  test('loads from repository before the in-memory cache hydrates', () async {
+    final storedBook = buildTestBook(id: 'repository-book', title: 'Stored Book');
+    final dataStore = DataStore(bookRepository: _LookupBookRepository(storedBook));
+    final provider = BookEditProvider()..setDataStore(dataStore);
+
+    await provider.loadBook(storedBook.id);
+
+    expect(provider.editedBook, storedBook);
+    expect(provider.error, isNull);
+  });
+
   test('saving a picked cover keeps image bytes out of synced book metadata', () async {
     final dataStore = DataStore();
     final original = buildTestBook(
@@ -51,6 +62,24 @@ void main() {
     repository.allowUpsert.complete();
     expect(await save, isTrue);
   });
+}
+
+class _LookupBookRepository implements BookRepository {
+  _LookupBookRepository(this.book);
+
+  final Book book;
+
+  @override
+  Stream<List<Book>> watchAll() => const Stream.empty();
+
+  @override
+  Future<Book?> getById(String id) async => id == book.id ? book : null;
+
+  @override
+  Future<void> upsert(Book book) async {}
+
+  @override
+  Future<void> delete(String id) async {}
 }
 
 class _GatedBookRepository implements BookRepository {

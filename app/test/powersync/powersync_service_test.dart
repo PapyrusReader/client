@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -54,6 +55,53 @@ void main() {
 
     expect((await second.getById('guest-book'))?.title, 'Persistent guest book');
     await second.close();
+  });
+
+  test('getById waits for database activation', () async {
+    final allowPathResolution = Completer<void>();
+    final first = PapyrusPowerSyncService(
+      connectorFactory: OfflineConnector.new,
+      connectAuthenticated: false,
+      pathResolver: (mode, profileKey, userId) async {
+        await allowPathResolution.future;
+        return path.join(directory.path, 'delayed-guest.db');
+      },
+    );
+
+    final activation = first.activateGuest();
+    final lookup = first.getById('missing-book');
+    allowPathResolution.complete();
+
+    await activation;
+    expect(await lookup, isNull);
+    await first.close();
+  });
+
+  test('activation emits the database snapshot instead of a synthetic empty snapshot', () async {
+    final allowPathResolution = Completer<void>();
+    final firstSnapshot = Completer<List<Book>>();
+    final first = PapyrusPowerSyncService(
+      connectorFactory: OfflineConnector.new,
+      connectAuthenticated: false,
+      pathResolver: (mode, profileKey, userId) async {
+        await allowPathResolution.future;
+        return path.join(directory.path, 'snapshot-guest.db');
+      },
+    );
+    final subscription = first.watchAll().listen((books) {
+      if (!firstSnapshot.isCompleted) firstSnapshot.complete(books);
+    });
+
+    final activation = first.activateGuest();
+    await Future<void>.delayed(Duration.zero);
+
+    expect(firstSnapshot.isCompleted, isFalse);
+    allowPathResolution.complete();
+    await activation;
+    expect(await firstSnapshot.future, isEmpty);
+
+    await subscription.cancel();
+    await first.close();
   });
 
   test('authenticated books are cleared on deactivation', () async {

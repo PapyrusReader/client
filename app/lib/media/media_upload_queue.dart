@@ -296,7 +296,7 @@ class MediaUploadQueue extends ChangeNotifier {
             continue;
           }
 
-          final asset = await uploadMedia(
+          await uploadMedia(
             MediaUploadPayload(
               bookId: task.bookId,
               kind: task.kind,
@@ -305,7 +305,6 @@ class MediaUploadQueue extends ChangeNotifier {
               bytes: bytes,
             ),
           );
-          _applyUploadedAsset(dataStore, asset);
           await _removeTaskIfCurrent(scope, task, version);
         } on MediaUploadException catch (error) {
           await _replaceTaskIfCurrent(
@@ -425,17 +424,6 @@ class MediaUploadQueue extends ChangeNotifier {
       return readPendingCover(scope, task.bookId);
     }
     return readBookFile(task.bookId);
-  }
-
-  void _applyUploadedAsset(DataStore dataStore, MediaAsset asset) {
-    final book = dataStore.getBook(asset.bookId);
-    if (book == null) return;
-
-    if (asset.kind == MediaKind.bookFile) {
-      dataStore.updateBook(book.copyWith(fileMediaId: asset.assetId));
-      return;
-    }
-    dataStore.updateBook(book.copyWith(coverMediaId: asset.assetId, clearCoverUrl: true));
   }
 
   List<MediaUploadTask> _loadTasks(MediaStorageScope scope) {
