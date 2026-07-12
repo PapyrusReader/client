@@ -9,6 +9,7 @@ import 'package:papyrus/widgets/goals/completed_goal_chip.dart';
 import 'package:papyrus/widgets/goals/goal_card.dart';
 import 'package:papyrus/widgets/statistics/stat_card.dart';
 import 'package:provider/provider.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 
 /// Goals page displaying reading goals with progress tracking.
 ///
@@ -82,6 +83,7 @@ class _GoalsPageState extends State<GoalsPage> {
 
   Widget _buildMobileLayout(BuildContext context, GoalsProvider provider) {
     final textTheme = Theme.of(context).textTheme;
+    final hasGoals = provider.hasActiveGoals || provider.hasCompletedGoals;
 
     return Scaffold(
       floatingActionButton: FloatingActionButton(
@@ -89,54 +91,54 @@ class _GoalsPageState extends State<GoalsPage> {
         child: const Icon(Icons.add),
       ),
       body: SafeArea(
-        child: RefreshIndicator(
-          onRefresh: provider.refresh,
-          child: ListView(
-            padding: const EdgeInsets.all(Spacing.md),
-            children: [
-              // Stats summary row
-              if (provider.hasActiveGoals || provider.hasCompletedGoals) ...[
-                _buildStatsRow(provider, isDesktop: false),
-                const SizedBox(height: Spacing.lg),
-              ],
-              // Active goals section
-              if (provider.hasActiveGoals) ...[
-                Text('Active goals', style: textTheme.titleMedium),
-                const SizedBox(height: Spacing.sm),
-                ...provider.activeGoals.map(
-                  (goal) => Padding(
-                    padding: const EdgeInsets.only(bottom: Spacing.md),
-                    child: GoalCard(goal: goal, onTap: () => _showGoalDetails(context, goal)),
-                  ),
+        child: hasGoals
+            ? RefreshIndicator(
+                onRefresh: provider.refresh,
+                child: ListView(
+                  padding: const EdgeInsets.all(Spacing.md),
+                  children: [
+                    // Stats summary row
+                    if (provider.hasActiveGoals || provider.hasCompletedGoals) ...[
+                      _buildStatsRow(provider, isDesktop: false),
+                      const SizedBox(height: Spacing.lg),
+                    ],
+                    // Active goals section
+                    if (provider.hasActiveGoals) ...[
+                      Text('Active goals', style: textTheme.titleMedium),
+                      const SizedBox(height: Spacing.sm),
+                      ...provider.activeGoals.map(
+                        (goal) => Padding(
+                          padding: const EdgeInsets.only(bottom: Spacing.md),
+                          child: GoalCard(goal: goal, onTap: () => _showGoalDetails(context, goal)),
+                        ),
+                      ),
+                    ],
+                    // Completed goals section
+                    if (provider.hasCompletedGoals) ...[
+                      const SizedBox(height: Spacing.lg),
+                      _buildCompletedHeader(context, provider.completedGoals.length),
+                      const SizedBox(height: Spacing.sm),
+                      if (!_completedCollapsed) ...[
+                        Opacity(
+                          opacity: 0.6,
+                          child: Column(
+                            children: provider.completedGoals
+                                .map(
+                                  (goal) => Padding(
+                                    padding: const EdgeInsets.only(bottom: Spacing.md),
+                                    child: GoalCard(goal: goal, onTap: () => _showGoalDetails(context, goal)),
+                                  ),
+                                )
+                                .toList(),
+                          ),
+                        ),
+                      ],
+                    ],
+                    const SizedBox(height: Spacing.lg),
+                  ],
                 ),
-              ],
-              // Empty state
-              if (!provider.hasActiveGoals) _buildEmptyState(context),
-              // Completed goals section
-              if (provider.hasCompletedGoals) ...[
-                const SizedBox(height: Spacing.lg),
-                _buildCompletedHeader(context, provider.completedGoals.length),
-                const SizedBox(height: Spacing.sm),
-                if (!_completedCollapsed) ...[
-                  Opacity(
-                    opacity: 0.6,
-                    child: Column(
-                      children: provider.completedGoals
-                          .map(
-                            (goal) => Padding(
-                              padding: const EdgeInsets.only(bottom: Spacing.md),
-                              child: GoalCard(goal: goal, onTap: () => _showGoalDetails(context, goal)),
-                            ),
-                          )
-                          .toList(),
-                    ),
-                  ),
-                ],
-              ],
-              const SizedBox(height: Spacing.lg),
-            ],
-          ),
-        ),
+              )
+            : _buildEmptyState(context),
       ),
     );
   }
@@ -147,48 +149,49 @@ class _GoalsPageState extends State<GoalsPage> {
 
   Widget _buildDesktopLayout(BuildContext context, GoalsProvider provider) {
     final textTheme = Theme.of(context).textTheme;
+    final hasGoals = provider.hasActiveGoals || provider.hasCompletedGoals;
 
     return Scaffold(
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(Spacing.xl),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Stats summary row
-              if (provider.hasActiveGoals || provider.hasCompletedGoals) ...[
-                _buildStatsRow(provider, isDesktop: true),
-                const SizedBox(height: Spacing.lg),
-              ],
-              // Active goals section
-              if (provider.hasActiveGoals) ...[
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        child: hasGoals
+            ? SingleChildScrollView(
+                padding: const EdgeInsets.all(Spacing.xl),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Active goals', style: textTheme.titleMedium),
-                    FilledButton.icon(
-                      onPressed: () => _showAddGoalSheet(context),
-                      icon: const Icon(Icons.add),
-                      label: const Text('New goal'),
-                    ),
+                    // Stats summary row
+                    if (provider.hasActiveGoals || provider.hasCompletedGoals) ...[
+                      _buildStatsRow(provider, isDesktop: true),
+                      const SizedBox(height: Spacing.lg),
+                    ],
+                    // Active goals section
+                    if (provider.hasActiveGoals) ...[
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Active goals', style: textTheme.titleMedium),
+                          FilledButton.icon(
+                            onPressed: () => _showAddGoalSheet(context),
+                            icon: const Icon(Icons.add),
+                            label: const Text('New goal'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: Spacing.md),
+                      _buildGoalGrid(context, provider.activeGoals),
+                    ],
+                    // Completed goals section
+                    if (provider.hasCompletedGoals) ...[
+                      const SizedBox(height: Spacing.xl),
+                      _buildCompletedHeader(context, provider.completedGoals.length),
+                      const SizedBox(height: Spacing.md),
+                      if (!_completedCollapsed)
+                        Opacity(opacity: 0.6, child: _buildGoalGrid(context, provider.completedGoals)),
+                    ],
                   ],
                 ),
-                const SizedBox(height: Spacing.md),
-                _buildGoalGrid(context, provider.activeGoals),
-              ],
-              // Empty state
-              if (!provider.hasActiveGoals) _buildEmptyState(context),
-              // Completed goals section
-              if (provider.hasCompletedGoals) ...[
-                const SizedBox(height: Spacing.xl),
-                _buildCompletedHeader(context, provider.completedGoals.length),
-                const SizedBox(height: Spacing.md),
-                if (!_completedCollapsed)
-                  Opacity(opacity: 0.6, child: _buildGoalGrid(context, provider.completedGoals)),
-              ],
-            ],
-          ),
-        ),
+              )
+            : _buildEmptyState(context),
       ),
     );
   }
@@ -280,32 +283,15 @@ class _GoalsPageState extends State<GoalsPage> {
   // ============================================================================
   // EMPTY STATE
   // ============================================================================
-
   Widget _buildEmptyState(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(Spacing.xl),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.flag_outlined, size: 64, color: colorScheme.onSurfaceVariant),
-          const SizedBox(height: Spacing.lg),
-          Text('No goals yet', style: textTheme.headlineSmall, textAlign: TextAlign.center),
-          const SizedBox(height: Spacing.sm),
-          Text(
-            'Create your first reading goal to track your progress',
-            style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: Spacing.lg),
-          FilledButton.icon(
-            onPressed: () => _showAddGoalSheet(context),
-            icon: const Icon(Icons.add),
-            label: const Text('Create goal'),
-          ),
-        ],
+    return EmptyState(
+      icon: Icons.flag_outlined,
+      title: 'No goals yet',
+      subtitle: 'Create your first reading goal to track your progress',
+      action: FilledButton.icon(
+        onPressed: () => _showAddGoalSheet(context),
+        icon: const Icon(Icons.add),
+        label: const Text('Create goal'),
       ),
     );
   }
