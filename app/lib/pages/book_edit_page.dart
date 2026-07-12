@@ -179,11 +179,18 @@ class _BookEditPageState extends State<BookEditPage> {
                 : Scaffold(
                     appBar: AppBar(
                       title: const Text('Edit book'),
-                      leading: IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => _handleCancel(context)),
+                      leading: IconButton(
+                        tooltip: 'Back to book details',
+                        icon: const Icon(Icons.arrow_back),
+                        onPressed: () => _handleCancel(context),
+                      ),
                       actions: [
-                        TextButton(
-                          onPressed: provider.canSave ? () => _handleSave(context) : null,
-                          child: const Text('Save'),
+                        Padding(
+                          padding: const EdgeInsets.only(right: Spacing.sm),
+                          child: FilledButton(
+                            onPressed: provider.canSave ? () => _handleSave(context) : null,
+                            child: const Text('Save'),
+                          ),
                         ),
                       ],
                     ),
@@ -200,7 +207,47 @@ class _BookEditPageState extends State<BookEditPage> {
   // ============================================================================
 
   Widget _buildDesktopScaffold(BuildContext context, BookEditProvider provider) {
-    return Form(key: _formKey, child: _buildDesktopLayout(context, provider));
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildDesktopPageHeader(context, provider),
+          const Divider(height: 1),
+          Expanded(child: _buildDesktopLayout(context, provider)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDesktopPageHeader(BuildContext context, BookEditProvider provider) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return SizedBox(
+      key: const Key('book-edit-desktop-header'),
+      height: ComponentSizes.appBarHeight,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1120),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+          child: Row(
+            children: [
+              IconButton(
+                tooltip: 'Back to book details',
+                onPressed: () => _handleCancel(context),
+                icon: const Icon(Icons.arrow_back),
+              ),
+              const SizedBox(width: Spacing.sm),
+              Expanded(
+                child: Text('Edit book', style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
+              ),
+              const SizedBox(width: Spacing.lg),
+              FilledButton(onPressed: provider.canSave ? () => _handleSave(context) : null, child: const Text('Save')),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   Widget _buildMobileLayout(BuildContext context, BookEditProvider provider) {
@@ -220,55 +267,34 @@ class _BookEditPageState extends State<BookEditPage> {
   }
 
   Widget _buildDesktopLayout(BuildContext context, BookEditProvider provider) {
-    return Center(
+    return Align(
+      alignment: Alignment.topLeft,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1100),
+        constraints: const BoxConstraints(maxWidth: 1120),
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(Spacing.xl),
-          child: Column(
+          padding: const EdgeInsets.all(Spacing.lg),
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Left pane - Cover + Metadata
-                  SizedBox(
-                    width: 360,
-                    child: Column(
-                      children: [
-                        _buildSectionCard(
-                          title: 'Cover',
-                          children: [_buildCoverSection(context, provider, isDesktop: true)],
-                        ),
-                        _buildSectionCard(
-                          title: 'Fetch metadata',
-                          children: [_buildMetadataSection(context, provider)],
-                        ),
-                      ],
+              // Left pane - Cover + Metadata
+              SizedBox(
+                width: 280,
+                child: Column(
+                  children: [
+                    _buildSectionCard(
+                      title: 'Cover',
+                      children: [_buildCoverSection(context, provider, isDesktop: true)],
                     ),
-                  ),
-                  const SizedBox(width: Spacing.xl),
-                  // Right pane - Form fields
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: _buildFormSections(context, provider, skipMetadata: true),
-                    ),
-                  ),
-                ],
+                    _buildSectionCard(title: 'Fetch metadata', children: [_buildMetadataSection(context, provider)]),
+                  ],
+                ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-                child: const Divider(),
-              ),
-              const SizedBox(height: Spacing.sm),
-              Padding(
-                padding: const EdgeInsets.only(right: Spacing.md),
-                child: Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton(
-                    onPressed: provider.canSave ? () => _handleSave(context) : null,
-                    child: const Text('Save'),
-                  ),
+              const SizedBox(width: Spacing.xl),
+              // Right pane - Form fields
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: _buildFormSections(context, provider, skipMetadata: true),
                 ),
               ),
             ],
@@ -520,6 +546,7 @@ class _BookEditPageState extends State<BookEditPage> {
       initialUrl: provider.editedBook?.coverUrl,
       initialBytes: provider.coverImageBytes,
       isDesktop: isDesktop,
+      coverWidth: isDesktop ? 240 : null,
       onUrlChanged: (url) => _provider.updateCoverUrl(url),
       onFileChanged: (bytes) => _provider.updateCoverFromFile(bytes),
     );
