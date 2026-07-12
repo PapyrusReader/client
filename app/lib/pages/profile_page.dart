@@ -74,8 +74,8 @@ class _ProfilePageState extends State<ProfilePage> {
             _buildMobileStorageSyncSection(context),
             _buildMobilePrivacyDataSection(context),
             _buildMobileAccessibilitySection(context),
-            _buildMobileAboutSection(context),
             if (kDebugMode) _buildMobileDeveloperSection(context),
+            _buildMobileAboutSection(context),
             const Divider(height: 1),
             _buildMenuItem(
               context,
@@ -406,7 +406,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     label: 'Accessibility',
                     section: _ProfileSection.accessibility,
                   ),
-                  _buildNavItem(context, icon: Icons.info_outline, label: 'About', section: _ProfileSection.about),
                   if (kDebugMode)
                     _buildNavItem(
                       context,
@@ -414,8 +413,10 @@ class _ProfilePageState extends State<ProfilePage> {
                       label: 'Developer options',
                       section: _ProfileSection.developerOptions,
                     ),
-                  const SizedBox(height: Spacing.md),
+                  _buildNavItem(context, icon: Icons.info_outline, label: 'About', section: _ProfileSection.about),
+                  const SizedBox(height: Spacing.sm),
                   Divider(height: 1, color: colorScheme.outlineVariant),
+                  const SizedBox(height: Spacing.sm),
                   _buildNavItem(
                     context,
                     icon: Icons.logout,
@@ -538,10 +539,10 @@ class _ProfilePageState extends State<ProfilePage> {
         return 'Privacy';
       case _ProfileSection.accessibility:
         return 'Accessibility';
-      case _ProfileSection.about:
-        return 'About';
       case _ProfileSection.developerOptions:
         return 'Developer options';
+      case _ProfileSection.about:
+        return 'About';
     }
   }
 
