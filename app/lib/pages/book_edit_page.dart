@@ -610,6 +610,8 @@ class _BookEditPageState extends State<BookEditPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        searchField,
+        const SizedBox(height: Spacing.md),
         Wrap(
           spacing: Spacing.md,
           runSpacing: Spacing.sm,
@@ -619,9 +621,6 @@ class _BookEditPageState extends State<BookEditPage> {
             sourceSelector,
           ],
         ),
-
-        const SizedBox(height: Spacing.md),
-        searchField,
 
         // Error message
         if (provider.fetchState == MetadataFetchState.error) ...[

@@ -117,7 +117,7 @@ void main() {
 
       expect(sourceLabel, findsOneWidget);
       expect(tester.getSize(searchField).width, closeTo(tester.getSize(metadataCard).width - (Spacing.md * 2), 1));
-      expect(tester.getTopLeft(sourceLabel).dy, greaterThan(tester.getBottomLeft(searchField).dy));
+      expect(tester.getTopLeft(sourceLabel).dy, greaterThan(tester.getTopLeft(searchField).dy));
       expect((tester.getCenter(selector).dy - tester.getCenter(sourceLabel).dy).abs(), lessThan(1));
     });
 
