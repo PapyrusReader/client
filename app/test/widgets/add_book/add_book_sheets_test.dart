@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:papyrus/services/book_import_result.dart';
 import 'package:papyrus/widgets/add_book/add_book_choice_sheet.dart';
 import 'package:papyrus/widgets/add_book/import_book_sheet.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
@@ -14,6 +15,16 @@ class _CountingNavigatorObserver extends NavigatorObserver {
     super.didPush(route, previousRoute);
   }
 }
+
+const importedBook = BookImportResult(
+  bookId: 'book-1',
+  title: 'Frankenstein',
+  author: 'Mary Wollstonecraft Shelley',
+  pageCount: 239,
+  fileSize: 1024,
+  fileHash: 'hash',
+  fileExtension: 'epub',
+);
 
 void main() {
   Future<void> pumpLauncher(
@@ -109,5 +120,18 @@ void main() {
     expect(dimmingBarrier, findsOneWidget);
     expect(tester.element(dimmingBarrier), same(initialBarrier));
     expect(observer.pushCount, initialPushCount);
+  });
+
+  testWidgets('successful import actions can be rendered for widget verification', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: ImportBookSheet.withInitialResult(importedBook))));
+
+    expect(find.text('Pick different file'), findsOneWidget);
+    expect(find.text('Add to library'), findsOneWidget);
+
+    final pickButton = tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Pick different file'));
+    final addButton = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Add to library'));
+
+    expect(pickButton.style?.shape?.resolve({}), isA<StadiumBorder>());
+    expect(addButton.style?.shape?.resolve({}), isA<StadiumBorder>());
   });
 }

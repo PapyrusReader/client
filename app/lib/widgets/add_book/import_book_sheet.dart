@@ -24,7 +24,12 @@ enum _ImportState { idle, processing, success, error }
 /// Opens a file picker, processes the file in a Web Worker,
 /// previews the extracted metadata, and adds the book to the library.
 class ImportBookSheet extends StatelessWidget {
-  const ImportBookSheet({super.key});
+  const ImportBookSheet({super.key}) : initialResult = null;
+
+  @visibleForTesting
+  const ImportBookSheet.withInitialResult(this.initialResult, {super.key});
+
+  final BookImportResult? initialResult;
 
   /// Show the import sheet as a scrollable, content-sized bottom sheet.
   static Future<void> show(BuildContext context) {
@@ -40,12 +45,14 @@ class ImportBookSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const SingleChildScrollView(child: _ImportContent());
+    return SingleChildScrollView(child: _ImportContent(initialResult: initialResult));
   }
 }
 
 class _ImportContent extends StatefulWidget {
-  const _ImportContent();
+  const _ImportContent({this.initialResult});
+
+  final BookImportResult? initialResult;
 
   @override
   State<_ImportContent> createState() => _ImportContentState();
@@ -55,10 +62,17 @@ class _ImportContentState extends State<_ImportContent> {
   static const double _pendingContentHeight = 232;
 
   final _importService = BookImportService();
-  _ImportState _state = _ImportState.idle;
+  late _ImportState _state;
   String? _filename;
   String? _errorMessage;
   BookImportResult? _result;
+
+  @override
+  void initState() {
+    super.initState();
+    _result = widget.initialResult;
+    _state = _result == null ? _ImportState.idle : _ImportState.success;
+  }
 
   @override
   void dispose() {
@@ -345,12 +359,17 @@ class _ImportContentState extends State<_ImportContent> {
                           _filename = null;
                         });
                       },
+                style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
                 child: const Text('Pick different file'),
               ),
             ),
             const SizedBox(width: Spacing.md),
             Expanded(
-              child: FilledButton(onPressed: _committing ? null : _addToLibrary, child: const Text('Add to library')),
+              child: FilledButton(
+                onPressed: _committing ? null : _addToLibrary,
+                style: FilledButton.styleFrom(shape: const StadiumBorder()),
+                child: const Text('Add to library'),
+              ),
             ),
           ],
         ),
