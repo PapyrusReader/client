@@ -213,6 +213,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildMobileStorageSyncSection(BuildContext context) {
     final controller = _storageSyncController(context);
+    final prefs = context.watch<PreferencesProvider>();
 
     if (controller.isGuest) {
       return Column(
@@ -266,10 +267,16 @@ class _ProfilePageState extends State<ProfilePage> {
           label: 'Manage servers',
           onTap: () => _showManageSyncServersSheet(context),
         ),
-        SettingsRow(
-          label: 'Torrent & automation',
-          onTap: () => context.push('/acquisition'),
+        SettingsToggleRow(
+          label: 'Torrent acquisition',
+          value: prefs.acquisitionEnabled,
+          onChanged: (value) => prefs.acquisitionEnabled = value,
         ),
+        if (prefs.acquisitionEnabled)
+          SettingsRow(
+            label: 'Torrent & automation',
+            onTap: () => context.push('/acquisition'),
+          ),
         if (controller.canReconnect)
           SettingsRow(
             label: 'Reconnect',
@@ -1037,6 +1044,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final controller = _storageSyncController(context);
+    final prefs = context.watch<PreferencesProvider>();
 
     if (controller.isGuest) return _buildOfflineStorageSyncContent(context);
 
@@ -1074,6 +1082,12 @@ class _ProfilePageState extends State<ProfilePage> {
           ),
         ),
         const SizedBox(height: Spacing.sm),
+        SwitchListTile(
+          contentPadding: EdgeInsets.zero,
+          title: const Text('Torrent acquisition'),
+          value: prefs.acquisitionEnabled,
+          onChanged: (value) => prefs.acquisitionEnabled = value,
+        ),
         Wrap(
           spacing: Spacing.sm,
           runSpacing: Spacing.sm,
@@ -1090,14 +1104,15 @@ class _ProfilePageState extends State<ProfilePage> {
               icon: const Icon(Icons.dns_outlined, size: IconSizes.small),
               label: const Text('Manage servers'),
             ),
-            OutlinedButton.icon(
-              onPressed: () => context.push('/acquisition'),
-              icon: const Icon(
-                Icons.downloading_outlined,
-                size: IconSizes.small,
+            if (prefs.acquisitionEnabled)
+              OutlinedButton.icon(
+                onPressed: () => context.push('/acquisition'),
+                icon: const Icon(
+                  Icons.downloading_outlined,
+                  size: IconSizes.small,
+                ),
+                label: const Text('Torrent & automation'),
               ),
-              label: const Text('Torrent & automation'),
-            ),
             if (controller.hasFailedMediaUploads)
               OutlinedButton.icon(
                 onPressed: () => _retryFailedMediaUploads(context),

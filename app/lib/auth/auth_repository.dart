@@ -19,14 +19,13 @@ class AuthRepository {
 
   AuthRepository({required this.apiClient, required this.tokenStore});
 
-  String? get accessToken => tokenStore.accessToken;
-
   bool get _usesDesktopLoopbackOAuth {
     if (kIsWeb) {
       return false;
     }
 
-    return defaultTargetPlatform == TargetPlatform.linux || defaultTargetPlatform == TargetPlatform.windows;
+    return defaultTargetPlatform == TargetPlatform.linux ||
+        defaultTargetPlatform == TargetPlatform.windows;
   }
 
   Future<AuthTokens?> bootstrap() async {
@@ -85,7 +84,10 @@ class AuthRepository {
       final refreshToken = await tokenStore.readRefreshToken();
 
       if (refreshToken == null) {
-        throw const AuthApiException(statusCode: 401, message: 'No stored refresh token');
+        throw const AuthApiException(
+          statusCode: 401,
+          message: 'No stored refresh token',
+        );
       }
 
       final tokens = await apiClient.refresh(refreshToken);
@@ -99,7 +101,10 @@ class AuthRepository {
     }
   }
 
-  Future<AuthTokens?> signInWithGoogle({required String clientType, String? deviceLabel}) async {
+  Future<AuthTokens?> signInWithGoogle({
+    required String clientType,
+    String? deviceLabel,
+  }) async {
     await apiClient.ensureServerReachable();
 
     final redirectUri = kIsWeb
@@ -117,15 +122,25 @@ class AuthRepository {
 
     final callbackUrl = await FlutterWebAuth2.authenticate(
       url: startUri.toString(),
-      callbackUrlScheme: _usesDesktopLoopbackOAuth ? desktopOAuthRedirectUri : Uri.parse(nativeOAuthRedirectUri).scheme,
+      callbackUrlScheme: _usesDesktopLoopbackOAuth
+          ? desktopOAuthRedirectUri
+          : Uri.parse(nativeOAuthRedirectUri).scheme,
       options: const FlutterWebAuth2Options(useWebview: false),
     );
 
     final callbackUri = Uri.parse(callbackUrl);
-    return completeGoogleSignIn(callbackUri, clientType: clientType, deviceLabel: deviceLabel);
+    return completeGoogleSignIn(
+      callbackUri,
+      clientType: clientType,
+      deviceLabel: deviceLabel,
+    );
   }
 
-  Future<AuthTokens> completeGoogleSignIn(Uri callbackUri, {required String clientType, String? deviceLabel}) async {
+  Future<AuthTokens> completeGoogleSignIn(
+    Uri callbackUri, {
+    required String clientType,
+    String? deviceLabel,
+  }) async {
     final error = callbackUri.queryParameters['error'];
 
     if (error != null && error.isNotEmpty) {
@@ -135,10 +150,17 @@ class AuthRepository {
     final code = callbackUri.queryParameters['code'];
 
     if (code == null || code.isEmpty) {
-      throw const AuthApiException(statusCode: 400, message: 'OAuth callback did not include a code');
+      throw const AuthApiException(
+        statusCode: 400,
+        message: 'OAuth callback did not include a code',
+      );
     }
 
-    final tokens = await apiClient.exchangeCode(code: code, clientType: clientType, deviceLabel: deviceLabel);
+    final tokens = await apiClient.exchangeCode(
+      code: code,
+      clientType: clientType,
+      deviceLabel: deviceLabel,
+    );
 
     await _save(tokens);
     return tokens;
@@ -161,17 +183,27 @@ class AuthRepository {
     return apiClient.currentUser(accessToken);
   }
 
-  Future<PapyrusUser> updateCurrentUser({String? displayName, String? avatarUrl}) async {
+  Future<PapyrusUser> updateCurrentUser({
+    String? displayName,
+    String? avatarUrl,
+  }) async {
     final accessToken = await _requireAccessToken();
 
-    return apiClient.updateCurrentUser(accessToken: accessToken, displayName: displayName, avatarUrl: avatarUrl);
+    return apiClient.updateCurrentUser(
+      accessToken: accessToken,
+      displayName: displayName,
+      avatarUrl: avatarUrl,
+    );
   }
 
   Future<String> forgotPassword(String email) {
     return apiClient.forgotPassword(email);
   }
 
-  Future<String> resetPassword({required String token, required String password}) {
+  Future<String> resetPassword({
+    required String token,
+    required String password,
+  }) {
     return apiClient.resetPassword(token: token, password: password);
   }
 
@@ -223,6 +255,12 @@ class AuthRepository {
     return tokenStore.clear();
   }
 
+  Future<T> withFreshAccessToken<T>(
+    Future<T> Function(String accessToken) action,
+  ) {
+    return _withFreshAccessToken(action);
+  }
+
   Future<String> _requireAccessToken() async {
     final currentAccessToken = tokenStore.accessToken;
 
@@ -235,10 +273,15 @@ class AuthRepository {
   }
 
   Future<void> _save(AuthTokens tokens) {
-    return tokenStore.saveTokens(accessToken: tokens.accessToken, refreshToken: tokens.refreshToken);
+    return tokenStore.saveTokens(
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    );
   }
 
-  Future<T> _withFreshAccessToken<T>(Future<T> Function(String accessToken) action) async {
+  Future<T> _withFreshAccessToken<T>(
+    Future<T> Function(String accessToken) action,
+  ) async {
     try {
       return await action(await _requireAccessToken());
     } on AuthApiException catch (error) {

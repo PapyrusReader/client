@@ -39,7 +39,11 @@ class _MemoryRefreshTokenStorage implements RefreshTokenStorage {
 class _FakeAuthRepository extends AuthRepository {
   _FakeAuthRepository()
     : super(
-        apiClient: AuthApiClient(config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://api.test'))),
+        apiClient: AuthApiClient(
+          config: PapyrusApiConfig(
+            serverBaseUri: Uri.parse('https://api.test'),
+          ),
+        ),
         tokenStore: TokenStore(_MemoryRefreshTokenStorage()),
       );
 
@@ -63,8 +67,13 @@ class _OfflineConnector extends PowerSyncBackendConnector {
 }
 
 class _FakePowerSyncService extends PapyrusPowerSyncService {
-  _FakePowerSyncService({required this.currentMode, required this.currentSyncState})
-    : super(connectorFactory: _OfflineConnector.new, connectAuthenticated: false);
+  _FakePowerSyncService({
+    required this.currentMode,
+    required this.currentSyncState,
+  }) : super(
+         connectorFactory: _OfflineConnector.new,
+         connectAuthenticated: false,
+       );
 
   LibraryDatabaseMode? currentMode;
   SyncState currentSyncState;
@@ -102,13 +111,20 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  Future<AuthProvider> buildAuthProvider({bool guest = false, bool signedIn = false}) async {
+  Future<AuthProvider> buildAuthProvider({
+    bool guest = false,
+    bool signedIn = false,
+  }) async {
     final prefs = await SharedPreferences.getInstance();
     final repository = _FakeAuthRepository();
     if (signedIn) {
       repository.bootstrapResult = _tokens();
     }
-    final provider = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
+    final provider = AuthProvider(
+      prefs,
+      repository: repository,
+      bootstrapOnCreate: false,
+    );
     await provider.bootstrap();
     if (guest) {
       provider.setOfflineMode(true);
@@ -132,15 +148,26 @@ void main() {
 
     return MultiProvider(
       providers: [
-        ChangeNotifierProvider<DataStore>.value(value: dataStore ?? DataStore()),
-        ChangeNotifierProvider<MediaUploadQueue>.value(value: mediaUploadQueue ?? MediaUploadQueue(prefs)),
+        ChangeNotifierProvider<DataStore>.value(
+          value: dataStore ?? DataStore(),
+        ),
+        ChangeNotifierProvider<MediaUploadQueue>.value(
+          value: mediaUploadQueue ?? MediaUploadQueue(prefs),
+        ),
         ChangeNotifierProvider<SyncSettingsProvider>.value(
-          value: syncSettingsProvider ?? SyncSettingsProvider(prefs, officialConfig: config),
+          value:
+              syncSettingsProvider ??
+              SyncSettingsProvider(prefs, officialConfig: config),
         ),
         Provider<PapyrusPowerSyncService>.value(value: powerSyncService),
-        StreamProvider<SyncState>.value(value: powerSyncService.syncStates, initialData: powerSyncService.syncState),
+        StreamProvider<SyncState>.value(
+          value: powerSyncService.syncStates,
+          initialData: powerSyncService.syncState,
+        ),
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
-        ChangeNotifierProvider<PreferencesProvider>(create: (_) => PreferencesProvider(prefs)),
+        ChangeNotifierProvider<PreferencesProvider>(
+          create: (_) => PreferencesProvider(prefs),
+        ),
       ],
       child: MaterialApp(
         home: MediaQuery(
@@ -151,76 +178,220 @@ void main() {
     );
   }
 
-  testWidgets('offline storage sync UI is local-first and hides sync internals', (tester) async {
-    final auth = await buildAuthProvider(guest: true);
-    final service = _FakePowerSyncService(currentMode: LibraryDatabaseMode.guest, currentSyncState: const SyncState());
+  testWidgets(
+    'offline storage sync UI is local-first and hides sync internals',
+    (tester) async {
+      final auth = await buildAuthProvider(guest: true);
+      final service = _FakePowerSyncService(
+        currentMode: LibraryDatabaseMode.guest,
+        currentSyncState: const SyncState(),
+      );
 
-    await tester.pumpWidget(await buildPage(authProvider: auth, powerSyncService: service));
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage'), 400);
-    await tester.pumpAndSettle();
+      await tester.pumpWidget(
+        await buildPage(authProvider: auth, powerSyncService: service),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Storage'), 400);
+      await tester.pumpAndSettle();
 
-    expect(find.text('Stored on this device'), findsOneWidget);
-    expect(find.text('Export or import a backup'), findsOneWidget);
-    expect(find.text('Clear local library'), findsOneWidget);
-    expect(find.textContaining('Nothing is sent to Papyrus servers'), findsOneWidget);
-    expect(find.text('Guest local'), findsNothing);
-    expect(find.text('papyrus-guest.db'), findsNothing);
-    expect(find.text('Metadata sync off'), findsNothing);
-    expect(find.text('Clear guest library'), findsNothing);
-    expect(find.text('https://api.test'), findsNothing);
-    expect(find.text('https://data-sync.test'), findsNothing);
-    expect(find.text('Current mode'), findsNothing);
-    expect(find.text('Local database'), findsNothing);
-    expect(find.text('Metadata sync'), findsNothing);
-    expect(find.text('Media storage'), findsNothing);
-    expect(find.text('Storage backend'), findsNothing);
-    expect(find.text('Sync enabled'), findsNothing);
-    expect(find.text('Sync interval'), findsNothing);
-    expect(find.text('Conflict resolution'), findsNothing);
-    expect(find.text('Add storage backend'), findsNothing);
-    expect(find.text('Pending changes'), findsNothing);
-    expect(find.text('No pending local writes'), findsNothing);
-  });
+      expect(find.text('Stored on this device'), findsOneWidget);
+      expect(find.text('Export or import a backup'), findsOneWidget);
+      expect(find.text('Clear local library'), findsOneWidget);
+      expect(
+        find.textContaining('Nothing is sent to Papyrus servers'),
+        findsOneWidget,
+      );
+      expect(find.text('Guest local'), findsNothing);
+      expect(find.text('papyrus-guest.db'), findsNothing);
+      expect(find.text('Metadata sync off'), findsNothing);
+      expect(find.text('Clear guest library'), findsNothing);
+      expect(find.text('https://api.test'), findsNothing);
+      expect(find.text('https://data-sync.test'), findsNothing);
+      expect(find.text('Current mode'), findsNothing);
+      expect(find.text('Local database'), findsNothing);
+      expect(find.text('Metadata sync'), findsNothing);
+      expect(find.text('Media storage'), findsNothing);
+      expect(find.text('Storage backend'), findsNothing);
+      expect(find.text('Sync enabled'), findsNothing);
+      expect(find.text('Sync interval'), findsNothing);
+      expect(find.text('Conflict resolution'), findsNothing);
+      expect(find.text('Add storage backend'), findsNothing);
+      expect(find.text('Pending changes'), findsNothing);
+      expect(find.text('No pending local writes'), findsNothing);
+    },
+  );
 
-  testWidgets('offline desktop storage sync is local-first and hides sync internals', (tester) async {
-    final auth = await buildAuthProvider(guest: true);
-    final service = _FakePowerSyncService(currentMode: LibraryDatabaseMode.guest, currentSyncState: const SyncState());
+  testWidgets(
+    'offline desktop storage sync is local-first and hides sync internals',
+    (tester) async {
+      final auth = await buildAuthProvider(guest: true);
+      final service = _FakePowerSyncService(
+        currentMode: LibraryDatabaseMode.guest,
+        currentSyncState: const SyncState(),
+      );
 
-    await tester.pumpWidget(
-      await buildPage(authProvider: auth, powerSyncService: service, screenSize: const Size(1200, 900)),
-    );
-    await tester.pump();
-    await tester.tap(find.text('Storage').first);
-    await tester.pump();
+      await tester.pumpWidget(
+        await buildPage(
+          authProvider: auth,
+          powerSyncService: service,
+          screenSize: const Size(1200, 900),
+        ),
+      );
+      await tester.pump();
+      await tester.tap(find.text('Storage').first);
+      await tester.pump();
 
-    expect(find.text('Library storage'), findsOneWidget);
-    expect(find.text('Your library is stored on this device.'), findsOneWidget);
-    expect(find.textContaining('Nothing is sent to Papyrus servers'), findsOneWidget);
-    expect(find.text('Export backup'), findsOneWidget);
-    expect(find.text('Import backup'), findsOneWidget);
-    expect(find.text('Clear local library'), findsOneWidget);
-    expect(find.text('Guest local'), findsNothing);
-    expect(find.text('papyrus-guest.db'), findsNothing);
-    expect(find.text('Metadata sync off'), findsNothing);
-    expect(find.text('Clear guest library'), findsNothing);
-    expect(find.text('Current mode'), findsNothing);
-    expect(find.text('Local database'), findsNothing);
-    expect(find.text('Metadata sync'), findsNothing);
-    expect(find.text('Media storage'), findsNothing);
-    expect(find.text('Pending changes'), findsNothing);
-    expect(find.text('No pending local writes'), findsNothing);
-  });
+      expect(find.text('Library storage'), findsOneWidget);
+      expect(
+        find.text('Your library is stored on this device.'),
+        findsOneWidget,
+      );
+      expect(
+        find.textContaining('Nothing is sent to Papyrus servers'),
+        findsOneWidget,
+      );
+      expect(find.text('Export backup'), findsOneWidget);
+      expect(find.text('Import backup'), findsOneWidget);
+      expect(find.text('Clear local library'), findsOneWidget);
+      expect(find.text('Guest local'), findsNothing);
+      expect(find.text('papyrus-guest.db'), findsNothing);
+      expect(find.text('Metadata sync off'), findsNothing);
+      expect(find.text('Clear guest library'), findsNothing);
+      expect(find.text('Current mode'), findsNothing);
+      expect(find.text('Local database'), findsNothing);
+      expect(find.text('Metadata sync'), findsNothing);
+      expect(find.text('Media storage'), findsNothing);
+      expect(find.text('Pending changes'), findsNothing);
+      expect(find.text('No pending local writes'), findsNothing);
+    },
+  );
 
-  testWidgets('authenticated storage sync UI shows data sync and hides implementation details', (tester) async {
+  testWidgets(
+    'authenticated storage sync UI shows data sync and hides implementation details',
+    (tester) async {
+      final auth = await buildAuthProvider(signedIn: true);
+      final dataStore = dataStoreWithBooks([
+        testBook(
+          id: 'book-1',
+          title: 'Small book',
+          fileSize: 100 * 1024 * 1024,
+        ),
+        testBook(
+          id: 'book-2',
+          title: 'Large book',
+          fileSize: 250 * 1024 * 1024,
+        ),
+      ]);
+      final service = _FakePowerSyncService(
+        currentMode: LibraryDatabaseMode.authenticated,
+        currentSyncState: SyncState(
+          connected: true,
+          lastSyncedAt: DateTime.utc(2026, 6, 27, 10, 30),
+        ),
+      );
+
+      await tester.pumpWidget(
+        await buildPage(
+          authProvider: auth,
+          powerSyncService: service,
+          screenSize: const Size(1200, 900),
+          dataStore: dataStore,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Storage').first);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Data sync'), findsOneWidget);
+      expect(find.text('Official server'), findsWidgets);
+      expect(
+        find.text('350 MB used, 674 MB available of 1 GB'),
+        findsOneWidget,
+      );
+      expect(find.text('Connected'), findsWidgets);
+      expect(find.text('Reconnect'), findsOneWidget);
+      expect(find.text('Manage servers'), findsOneWidget);
+      expect(find.text('Torrent acquisition'), findsOneWidget);
+      expect(find.text('Torrent & automation'), findsNothing);
+      expect(find.text('Clear local copy'), findsOneWidget);
+      expect(find.text('Clear account local cache'), findsNothing);
+      expect(find.text('Pending changes'), findsNothing);
+      expect(find.text('Metadata sync'), findsNothing);
+      expect(find.text('PowerSync service'), findsNothing);
+      expect(find.textContaining('PowerSync'), findsNothing);
+      expect(find.text('Library storage'), findsNothing);
+      expect(find.text('Media storage'), findsNothing);
+      expect(find.text('Local database'), findsNothing);
+      expect(find.text('Server-scoped account cache'), findsNothing);
+
+      await tester.ensureVisible(find.text('Reconnect'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reconnect'));
+      await tester.pump();
+
+      expect(service.reconnectCalls, 1);
+
+      await tester.tap(find.text('Torrent acquisition'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Torrent & automation'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'manage servers lists official and custom servers for switching',
+    (tester) async {
+      final prefs = await SharedPreferences.getInstance();
+      final syncSettings = SyncSettingsProvider(
+        prefs,
+        officialConfig: PapyrusApiConfig(
+          serverBaseUri: Uri.parse('https://api.test'),
+          powerSyncServiceUri: Uri.parse('https://data-sync.test'),
+        ),
+        discoveryFetcher: (serverUrl) async => DataSyncDiscoverySettings(
+          dataSyncUri: Uri.parse('https://sync.${serverUrl.host}'),
+          fileStorageQuotaBytes: 1_073_741_824,
+        ),
+      );
+      await syncSettings.addCustomServer('https://reader.example');
+      syncSettings.selectServer(SyncSettingsProvider.officialServerId);
+      final auth = await buildAuthProvider(signedIn: true);
+      final service = _FakePowerSyncService(
+        currentMode: LibraryDatabaseMode.authenticated,
+        currentSyncState: const SyncState(connected: true),
+      );
+
+      await tester.pumpWidget(
+        await buildPage(
+          authProvider: auth,
+          powerSyncService: service,
+          syncSettingsProvider: syncSettings,
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Storage'), 400);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Manage servers'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Sync servers'), findsOneWidget);
+      expect(find.text('Official server'), findsWidgets);
+      expect(find.text('reader.example'), findsOneWidget);
+      expect(find.text('Add custom server'), findsOneWidget);
+    },
+  );
+
+  testWidgets('storage sync UI shows pending writes and sync errors', (
+    tester,
+  ) async {
     final auth = await buildAuthProvider(signedIn: true);
-    final dataStore = dataStoreWithBooks([
-      testBook(id: 'book-1', title: 'Small book', fileSize: 100 * 1024 * 1024),
-      testBook(id: 'book-2', title: 'Large book', fileSize: 250 * 1024 * 1024),
-    ]);
     final service = _FakePowerSyncService(
       currentMode: LibraryDatabaseMode.authenticated,
-      currentSyncState: SyncState(connected: true, lastSyncedAt: DateTime.utc(2026, 6, 27, 10, 30)),
+      currentSyncState: const SyncState(
+        connected: true,
+        hasPendingWrites: true,
+        uploadError: 'upload failed',
+      ),
     );
 
     await tester.pumpWidget(
@@ -228,83 +399,7 @@ void main() {
         authProvider: auth,
         powerSyncService: service,
         screenSize: const Size(1200, 900),
-        dataStore: dataStore,
       ),
-    );
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Storage').first);
-    await tester.pumpAndSettle();
-
-    expect(find.text('Data sync'), findsOneWidget);
-    expect(find.text('Official server'), findsWidgets);
-    expect(find.text('350 MB used, 674 MB available of 1 GB'), findsOneWidget);
-    expect(find.text('Connected'), findsWidgets);
-    expect(find.text('Reconnect'), findsOneWidget);
-    expect(find.text('Manage servers'), findsOneWidget);
-    expect(find.text('Clear local copy'), findsOneWidget);
-    expect(find.text('Clear account local cache'), findsNothing);
-    expect(find.text('Pending changes'), findsNothing);
-    expect(find.text('Metadata sync'), findsNothing);
-    expect(find.text('PowerSync service'), findsNothing);
-    expect(find.textContaining('PowerSync'), findsNothing);
-    expect(find.text('Library storage'), findsNothing);
-    expect(find.text('Media storage'), findsNothing);
-    expect(find.text('Local database'), findsNothing);
-    expect(find.text('Server-scoped account cache'), findsNothing);
-
-    await tester.ensureVisible(find.text('Reconnect'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Reconnect'));
-    await tester.pump();
-
-    expect(service.reconnectCalls, 1);
-  });
-
-  testWidgets('manage servers lists official and custom servers for switching', (tester) async {
-    final prefs = await SharedPreferences.getInstance();
-    final syncSettings = SyncSettingsProvider(
-      prefs,
-      officialConfig: PapyrusApiConfig(
-        serverBaseUri: Uri.parse('https://api.test'),
-        powerSyncServiceUri: Uri.parse('https://data-sync.test'),
-      ),
-      discoveryFetcher: (serverUrl) async => DataSyncDiscoverySettings(
-        dataSyncUri: Uri.parse('https://sync.${serverUrl.host}'),
-        fileStorageQuotaBytes: 1_073_741_824,
-      ),
-    );
-    await syncSettings.addCustomServer('https://reader.example');
-    syncSettings.selectServer(SyncSettingsProvider.officialServerId);
-    final auth = await buildAuthProvider(signedIn: true);
-    final service = _FakePowerSyncService(
-      currentMode: LibraryDatabaseMode.authenticated,
-      currentSyncState: const SyncState(connected: true),
-    );
-
-    await tester.pumpWidget(
-      await buildPage(authProvider: auth, powerSyncService: service, syncSettingsProvider: syncSettings),
-    );
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage'), 400);
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Manage servers'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('Sync servers'), findsOneWidget);
-    expect(find.text('Official server'), findsWidgets);
-    expect(find.text('reader.example'), findsOneWidget);
-    expect(find.text('Add custom server'), findsOneWidget);
-  });
-
-  testWidgets('storage sync UI shows pending writes and sync errors', (tester) async {
-    final auth = await buildAuthProvider(signedIn: true);
-    final service = _FakePowerSyncService(
-      currentMode: LibraryDatabaseMode.authenticated,
-      currentSyncState: const SyncState(connected: true, hasPendingWrites: true, uploadError: 'upload failed'),
-    );
-
-    await tester.pumpWidget(
-      await buildPage(authProvider: auth, powerSyncService: service, screenSize: const Size(1200, 900)),
     );
     await tester.pumpAndSettle();
     await tester.tap(find.text('Storage').first);
@@ -323,7 +418,13 @@ DataStore dataStoreWithBooks(List<Book> books) {
 }
 
 Book testBook({required String id, required String title, int? fileSize}) {
-  return Book(id: id, title: title, author: 'Author', fileSize: fileSize, addedAt: DateTime.utc(2026, 6, 27));
+  return Book(
+    id: id,
+    title: title,
+    author: 'Author',
+    fileSize: fileSize,
+    addedAt: DateTime.utc(2026, 6, 27),
+  );
 }
 
 AuthTokens _tokens() {

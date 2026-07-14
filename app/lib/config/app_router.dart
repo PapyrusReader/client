@@ -25,18 +25,20 @@ import 'package:papyrus/pages/acquisition_page.dart';
 import 'package:papyrus/pages/notes_page.dart';
 import 'package:papyrus/pages/welcome_page.dart';
 import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
 
 class AppRouter {
   final AuthProvider authProvider;
+  final PreferencesProvider preferencesProvider;
   final rootNavigatorKey = GlobalKey<NavigatorState>();
   final shellNavigatorKey = GlobalKey<NavigatorState>();
 
-  AppRouter({required this.authProvider});
+  AppRouter({required this.authProvider, required this.preferencesProvider});
 
   late final GoRouter router = GoRouter(
     debugLogDiagnostics: true,
     navigatorKey: rootNavigatorKey,
-    refreshListenable: authProvider,
+    refreshListenable: Listenable.merge([authProvider, preferencesProvider]),
     routes: [
       GoRoute(
         path: '/',
@@ -289,6 +291,10 @@ class AppRouter {
         location == '/register' ||
         location == '/reset-password') {
       return '/library/books';
+    }
+
+    if (location == '/acquisition' && !preferencesProvider.acquisitionEnabled) {
+      return '/profile';
     }
 
     return null;

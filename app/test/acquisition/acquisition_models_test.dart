@@ -14,4 +14,37 @@ void main() {
     expect(release.isMagnet, isTrue);
     expect(release.seeders, 12);
   });
+
+  test('parses torrent-only capabilities', () {
+    final capabilities = AcquisitionCapabilities.fromJson({
+      'endpoint_kinds': [
+        'qbittorrent',
+        'transmission',
+        'deluge',
+        'prowlarr',
+        'torznab',
+        'readarr',
+      ],
+      'indexer_kinds': ['prowlarr', 'torznab'],
+      'download_client_kinds': ['qbittorrent', 'transmission', 'deluge'],
+      'arr_kinds': ['readarr'],
+      'arr_commands': {
+        'readarr': ['AuthorSearch', 'BookSearch'],
+      },
+    });
+
+    expect(capabilities.indexerKinds, [
+      AcquisitionEndpointKind.prowlarr,
+      AcquisitionEndpointKind.torznab,
+    ]);
+    expect(capabilities.downloadClientKinds, [
+      AcquisitionEndpointKind.qbittorrent,
+      AcquisitionEndpointKind.transmission,
+      AcquisitionEndpointKind.deluge,
+    ]);
+    expect(capabilities.arrCommands[AcquisitionEndpointKind.readarr], [
+      'AuthorSearch',
+      'BookSearch',
+    ]);
+  });
 }

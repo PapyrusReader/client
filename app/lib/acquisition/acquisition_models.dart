@@ -4,7 +4,6 @@ enum AcquisitionEndpointKind {
   deluge,
   prowlarr,
   torznab,
-  newznab,
   readarr,
   sonarr,
   radarr,
@@ -12,6 +11,78 @@ enum AcquisitionEndpointKind {
   whisparr;
 
   String get apiValue => name;
+
+  String get label => switch (this) {
+    AcquisitionEndpointKind.qbittorrent => 'qBittorrent',
+    AcquisitionEndpointKind.transmission => 'Transmission',
+    AcquisitionEndpointKind.deluge => 'Deluge',
+    AcquisitionEndpointKind.prowlarr => 'Prowlarr',
+    AcquisitionEndpointKind.torznab => 'Torznab',
+    AcquisitionEndpointKind.readarr => 'Readarr',
+    AcquisitionEndpointKind.sonarr => 'Sonarr',
+    AcquisitionEndpointKind.radarr => 'Radarr',
+    AcquisitionEndpointKind.lidarr => 'Lidarr',
+    AcquisitionEndpointKind.whisparr => 'Whisparr',
+  };
+
+  bool get isDownloadClient => switch (this) {
+    AcquisitionEndpointKind.qbittorrent ||
+    AcquisitionEndpointKind.transmission ||
+    AcquisitionEndpointKind.deluge => true,
+    _ => false,
+  };
+
+  bool get isIndexer => switch (this) {
+    AcquisitionEndpointKind.prowlarr || AcquisitionEndpointKind.torznab => true,
+    _ => false,
+  };
+
+  bool get isArr => switch (this) {
+    AcquisitionEndpointKind.readarr ||
+    AcquisitionEndpointKind.sonarr ||
+    AcquisitionEndpointKind.radarr ||
+    AcquisitionEndpointKind.lidarr ||
+    AcquisitionEndpointKind.whisparr => true,
+    _ => false,
+  };
+}
+
+class AcquisitionCapabilities {
+  final List<AcquisitionEndpointKind> endpointKinds;
+  final List<AcquisitionEndpointKind> indexerKinds;
+  final List<AcquisitionEndpointKind> downloadClientKinds;
+  final List<AcquisitionEndpointKind> arrKinds;
+  final Map<AcquisitionEndpointKind, List<String>> arrCommands;
+
+  const AcquisitionCapabilities({
+    required this.endpointKinds,
+    required this.indexerKinds,
+    required this.downloadClientKinds,
+    required this.arrKinds,
+    required this.arrCommands,
+  });
+
+  factory AcquisitionCapabilities.fromJson(Map<String, dynamic> json) {
+    return AcquisitionCapabilities(
+      endpointKinds: _kinds(json['endpoint_kinds']),
+      indexerKinds: _kinds(json['indexer_kinds']),
+      downloadClientKinds: _kinds(json['download_client_kinds']),
+      arrKinds: _kinds(json['arr_kinds']),
+      arrCommands: ((json['arr_commands'] as Map<String, dynamic>?) ?? {}).map(
+        (key, value) => MapEntry(
+          AcquisitionEndpointKind.values.byName(key),
+          (value as List<dynamic>).cast<String>(),
+        ),
+      ),
+    );
+  }
+
+  static List<AcquisitionEndpointKind> _kinds(Object? value) {
+    return ((value as List<dynamic>?) ?? [])
+        .cast<String>()
+        .map(AcquisitionEndpointKind.values.byName)
+        .toList();
+  }
 }
 
 class AcquisitionEndpoint {

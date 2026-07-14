@@ -8,9 +8,25 @@ import 'package:papyrus/auth/papyrus_api_config.dart';
 class AcquisitionApiClient {
   final PapyrusApiConfig config;
   final http.Client _httpClient;
+  final bool _ownsHttpClient;
 
   AcquisitionApiClient({required this.config, http.Client? httpClient})
-    : _httpClient = httpClient ?? http.Client();
+    : _httpClient = httpClient ?? http.Client(),
+      _ownsHttpClient = httpClient == null;
+
+  void close() {
+    if (_ownsHttpClient) {
+      _httpClient.close();
+    }
+  }
+
+  Future<AcquisitionCapabilities> capabilities(String accessToken) async {
+    final response = await _httpClient.get(
+      config.endpoint('/acquisition/capabilities'),
+      headers: _headers(accessToken),
+    );
+    return AcquisitionCapabilities.fromJson(_decodeObject(response));
+  }
 
   Future<List<AcquisitionEndpoint>> listEndpoints(String accessToken) async {
     final response = await _httpClient.get(
@@ -42,6 +58,43 @@ class AcquisitionApiClient {
       }),
     );
     return AcquisitionEndpoint.fromJson(_decodeObject(response));
+  }
+
+  Future<AcquisitionEndpoint> updateEndpoint({
+    required String accessToken,
+    required String endpointId,
+    String? name,
+    Uri? baseUrl,
+    String? apiKey,
+    String? username,
+    String? password,
+    bool? enabled,
+  }) async {
+    final response = await _httpClient.patch(
+      config.endpoint('/acquisition/endpoints/$endpointId'),
+      headers: _headers(accessToken),
+      body: jsonEncode({
+        if (name != null) 'name': name,
+        if (baseUrl != null) 'base_url': baseUrl.toString(),
+        if (apiKey != null) 'api_key': apiKey,
+        if (username != null) 'username': username,
+        if (password != null) 'password': password,
+        if (enabled != null) 'enabled': enabled,
+      }),
+    );
+    return AcquisitionEndpoint.fromJson(_decodeObject(response));
+  }
+
+  Future<void> deleteEndpoint({
+    required String accessToken,
+    required String endpointId,
+  }) async {
+    final response = await _httpClient.delete(
+      config.endpoint('/acquisition/endpoints/$endpointId'),
+      headers: _headers(accessToken),
+    );
+    if (response.statusCode >= 200 && response.statusCode < 300) return;
+    _decodeObject(response);
   }
 
   Future<List<TorrentRelease>> search({

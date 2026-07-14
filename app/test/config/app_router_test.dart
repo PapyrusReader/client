@@ -6,6 +6,7 @@ import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/config/app_router.dart';
 import 'package:papyrus/providers/auth_provider.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class MemoryRefreshTokenStorage implements RefreshTokenStorage {
@@ -28,7 +29,11 @@ class MemoryRefreshTokenStorage implements RefreshTokenStorage {
 class FakeAuthRepository extends AuthRepository {
   FakeAuthRepository()
     : super(
-        apiClient: AuthApiClient(config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test'))),
+        apiClient: AuthApiClient(
+          config: PapyrusApiConfig(
+            serverBaseUri: Uri.parse('http://server.test'),
+          ),
+        ),
         tokenStore: TokenStore(MemoryRefreshTokenStorage()),
       );
 
@@ -47,11 +52,18 @@ void main() {
 
   test('redirects signed-out users away from protected routes', () async {
     final prefs = await SharedPreferences.getInstance();
-    final provider = AuthProvider(prefs, repository: FakeAuthRepository(), bootstrapOnCreate: false);
+    final provider = AuthProvider(
+      prefs,
+      repository: FakeAuthRepository(),
+      bootstrapOnCreate: false,
+    );
 
     await provider.bootstrap();
 
-    final appRouter = AppRouter(authProvider: provider);
+    final appRouter = AppRouter(
+      authProvider: provider,
+      preferencesProvider: PreferencesProvider(prefs),
+    );
 
     expect(appRouter.redirectForPath('/library/books'), '/');
     expect(appRouter.redirectForPath('/login'), isNull);
@@ -61,11 +73,18 @@ void main() {
   test('redirects signed-in users away from auth routes', () async {
     final prefs = await SharedPreferences.getInstance();
     final repository = FakeAuthRepository()..bootstrapResult = _tokens();
-    final provider = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
+    final provider = AuthProvider(
+      prefs,
+      repository: repository,
+      bootstrapOnCreate: false,
+    );
 
     await provider.bootstrap();
 
-    final appRouter = AppRouter(authProvider: provider);
+    final appRouter = AppRouter(
+      authProvider: provider,
+      preferencesProvider: PreferencesProvider(prefs),
+    );
 
     expect(appRouter.redirectForPath('/login'), '/library/books');
     expect(appRouter.redirectForPath('/reset-password'), '/library/books');
@@ -74,22 +93,66 @@ void main() {
 
   test('offline mode bypasses protected-route auth redirect', () async {
     final prefs = await SharedPreferences.getInstance();
-    final provider = AuthProvider(prefs, repository: FakeAuthRepository(), bootstrapOnCreate: false);
+    final provider = AuthProvider(
+      prefs,
+      repository: FakeAuthRepository(),
+      bootstrapOnCreate: false,
+    );
 
     await provider.bootstrap();
     provider.setOfflineMode(true);
 
-    final appRouter = AppRouter(authProvider: provider);
+    final appRouter = AppRouter(
+      authProvider: provider,
+      preferencesProvider: PreferencesProvider(prefs),
+    );
 
     expect(appRouter.redirectForPath('/library/books'), isNull);
   });
 
   test('book edit has a stable reloadable URL', () async {
     final prefs = await SharedPreferences.getInstance();
-    final provider = AuthProvider(prefs, repository: FakeAuthRepository(), bootstrapOnCreate: false);
-    final appRouter = AppRouter(authProvider: provider);
+    final provider = AuthProvider(
+      prefs,
+      repository: FakeAuthRepository(),
+      bootstrapOnCreate: false,
+    );
+    final appRouter = AppRouter(
+      authProvider: provider,
+      preferencesProvider: PreferencesProvider(prefs),
+    );
 
-    expect(appRouter.router.namedLocation('BOOK_EDIT', pathParameters: {'bookId': 'book-1'}), '/library/edit/book-1');
+    expect(
+      appRouter.router.namedLocation(
+        'BOOK_EDIT',
+        pathParameters: {'bookId': 'book-1'},
+      ),
+      '/library/edit/book-1',
+    );
+  });
+
+  test('acquisition route requires explicit opt-in', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final repository = FakeAuthRepository()..bootstrapResult = _tokens();
+    final provider = AuthProvider(
+      prefs,
+      repository: repository,
+      bootstrapOnCreate: false,
+    );
+    final preferences = PreferencesProvider(prefs);
+
+    await provider.bootstrap();
+
+    final appRouter = AppRouter(
+      authProvider: provider,
+      preferencesProvider: preferences,
+    );
+
+    expect(appRouter.redirectForPath('/acquisition'), '/profile');
+
+    preferences.acquisitionEnabled = true;
+
+    expect(appRouter.redirectForPath('/acquisition'), isNull);
   });
 }
 

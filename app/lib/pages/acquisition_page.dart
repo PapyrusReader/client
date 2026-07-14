@@ -1,8 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:papyrus/acquisition/acquisition_api_client.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
+import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/providers/auth_provider.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
+import 'package:papyrus/themes/design_tokens.dart';
 import 'package:provider/provider.dart';
 
 class AcquisitionPage extends StatefulWidget {
@@ -14,124 +18,383 @@ class AcquisitionPage extends StatefulWidget {
 
 class _AcquisitionPageState extends State<AcquisitionPage> {
   final _queryController = TextEditingController();
+  AcquisitionApiClient? _client;
+  Uri? _clientBaseUri;
+  AcquisitionCapabilities? _capabilities;
   List<AcquisitionEndpoint> _endpoints = [];
   List<TorrentRelease> _releases = [];
   bool _loading = true;
+  bool _searching = false;
+  bool _submitting = false;
   String? _error;
 
   @override
-  void initState() {
-    super.initState();
-    _loadEndpoints();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final config = context.read<SyncSettingsProvider>().activeApiConfig;
+    if (_clientBaseUri == config.serverBaseUri) return;
+    _client?.close();
+    _client = AcquisitionApiClient(config: config);
+    _clientBaseUri = config.serverBaseUri;
+    _load();
   }
 
   @override
   void dispose() {
+    _client?.close();
     _queryController.dispose();
     super.dispose();
   }
 
-  AcquisitionApiClient get _client => AcquisitionApiClient(
-    config: context.read<SyncSettingsProvider>().activeApiConfig,
-  );
+  AcquisitionApiClient get _apiClient => _client!;
 
-  String? get _token => context.read<AuthProvider>().accessToken;
+  Future<T> _authenticated<T>(Future<T> Function(String accessToken) action) {
+    return context.read<AuthProvider>().withFreshAccessToken(action);
+  }
 
-  Future<void> _loadEndpoints() async {
-    final token = _token;
-    if (token == null) {
-      setState(() {
-        _loading = false;
-        _error = 'Sign in to manage acquisition integrations.';
-      });
+  Future<void> _load() async {
+    if (!context.read<PreferencesProvider>().acquisitionEnabled) {
+      context.go('/profile');
       return;
     }
+
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+
     try {
-      final endpoints = await _client.listEndpoints(token);
-      if (mounted) setState(() => _endpoints = endpoints);
+      final capabilities = await _authenticated(_apiClient.capabilities);
+      final endpoints = await _authenticated(_apiClient.listEndpoints);
+      if (!mounted) return;
+      setState(() {
+        _capabilities = capabilities;
+        _endpoints = endpoints;
+      });
+    } on AuthApiException catch (error) {
+      if (!mounted) return;
+      setState(() => _error = _messageFor(error));
     } catch (_) {
-      if (mounted)
-        setState(() => _error = 'Could not load acquisition integrations.');
+      if (!mounted) return;
+      setState(() {
+        _error =
+            'This Papyrus server does not expose the torrent acquisition API.';
+      });
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
 
   Future<void> _search() async {
-    final token = _token;
     final query = _queryController.text.trim();
-    if (token == null || query.isEmpty) return;
-    setState(() => _loading = true);
+    if (query.isEmpty || _capabilities == null) return;
+
+    setState(() {
+      _searching = true;
+      _error = null;
+      _releases = [];
+    });
+
     try {
-      final releases = await _client.search(accessToken: token, query: query);
-      if (mounted) setState(() => _releases = releases);
-    } catch (_) {
-      if (mounted)
-        setState(
-          () => _error = 'Search failed. Check the configured indexers.',
+      final indexerIds = _endpoints
+          .where((endpoint) => endpoint.enabled && endpoint.kind.isIndexer)
+          .map((endpoint) => endpoint.id)
+          .toList();
+      final releases = await _authenticated((token) {
+        return _apiClient.search(
+          accessToken: token,
+          query: query,
+          endpointIds: indexerIds.isEmpty ? null : indexerIds,
         );
+      });
+      if (mounted) setState(() => _releases = releases);
+    } on AuthApiException catch (error) {
+      if (mounted) setState(() => _error = _messageFor(error));
+    } catch (_) {
+      if (mounted) {
+        setState(() => _error = 'Search failed. Check your torrent indexers.');
+      }
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _searching = false);
     }
   }
 
-  Future<void> _addEndpoint() async {
-    final name = TextEditingController();
-    final url = TextEditingController();
+  Future<void> _submitRelease(
+    TorrentRelease release,
+    AcquisitionEndpoint client,
+  ) async {
+    setState(() => _submitting = true);
+    try {
+      await _authenticated((token) {
+        return _apiClient.submitRelease(
+          accessToken: token,
+          endpointId: client.id,
+          release: release,
+        );
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Sent to ${client.name}.')));
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not submit this release.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<void> _runArrCommand(AcquisitionEndpoint endpoint) async {
+    final capabilities = _capabilities;
+    final commands = capabilities?.arrCommands[endpoint.kind] ?? const [];
+    if (commands.isEmpty) return;
+
+    final command = await _pickArrCommand(endpoint, commands);
+    if (command == null) return;
+
+    final ids = await _askForIds(command);
+    if (ids == null) return;
+
+    setState(() => _submitting = true);
+    try {
+      await _authenticated((token) {
+        return _apiClient.runArrCommand(
+          accessToken: token,
+          endpointId: endpoint.id,
+          command: command,
+          ids: ids,
+        );
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$command sent to ${endpoint.name}.')),
+        );
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not run this Arr action.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  Future<String?> _pickArrCommand(
+    AcquisitionEndpoint endpoint,
+    List<String> commands,
+  ) {
+    return showModalBottomSheet<String>(
+      context: context,
+      builder: (context) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ListTile(
+              title: Text(endpoint.name),
+              subtitle: Text(endpoint.kind.label),
+            ),
+            ...commands.map(
+              (command) => ListTile(
+                leading: const Icon(Icons.play_arrow_outlined),
+                title: Text(_arrCommandLabel(command)),
+                subtitle: Text(command),
+                onTap: () => Navigator.pop(context, command),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<List<int>?> _askForIds(String command) async {
+    final controller = TextEditingController();
+    try {
+      return showDialog<List<int>>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(_arrCommandLabel(command)),
+          content: TextField(
+            controller: controller,
+            decoration: const InputDecoration(
+              labelText: 'IDs',
+              helperText: 'Comma-separated IDs from the Arr application',
+            ),
+            keyboardType: TextInputType.text,
+            autofocus: true,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final ids = controller.text
+                    .split(',')
+                    .map((value) => int.tryParse(value.trim()))
+                    .whereType<int>()
+                    .toList();
+                Navigator.pop(context, ids);
+              },
+              child: const Text('Run'),
+            ),
+          ],
+        ),
+      );
+    } finally {
+      controller.dispose();
+    }
+  }
+
+  Future<void> _showEndpointDialog({AcquisitionEndpoint? endpoint}) async {
+    final capabilities = _capabilities;
+    if (capabilities == null) return;
+
+    final name = TextEditingController(text: endpoint?.name ?? '');
+    final url = TextEditingController(text: endpoint?.baseUrl.toString() ?? '');
     final apiKey = TextEditingController();
     final username = TextEditingController();
     final password = TextEditingController();
-    var kind = AcquisitionEndpointKind.qbittorrent;
-    final submitted = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Add integration'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              TextField(
-                controller: name,
-                decoration: const InputDecoration(labelText: 'Name'),
+    var kind = endpoint?.kind ?? capabilities.endpointKinds.first;
+    var enabled = endpoint?.enabled ?? true;
+
+    try {
+      final saved = await showDialog<bool>(
+        context: context,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setDialogState) => AlertDialog(
+            title: Text(
+              endpoint == null ? 'Add integration' : 'Edit integration',
+            ),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    controller: name,
+                    decoration: const InputDecoration(labelText: 'Name'),
+                  ),
+                  DropdownButtonFormField<AcquisitionEndpointKind>(
+                    initialValue: kind,
+                    items: capabilities.endpointKinds
+                        .map(
+                          (value) => DropdownMenuItem(
+                            value: value,
+                            child: Text(value.label),
+                          ),
+                        )
+                        .toList(),
+                    onChanged: endpoint == null
+                        ? (value) => setDialogState(() => kind = value ?? kind)
+                        : null,
+                    decoration: const InputDecoration(labelText: 'Type'),
+                  ),
+                  TextField(
+                    controller: url,
+                    decoration: const InputDecoration(labelText: 'Server URL'),
+                    keyboardType: TextInputType.url,
+                  ),
+                  TextField(
+                    controller: apiKey,
+                    decoration: const InputDecoration(labelText: 'API key'),
+                  ),
+                  TextField(
+                    controller: username,
+                    decoration: const InputDecoration(labelText: 'Username'),
+                  ),
+                  TextField(
+                    controller: password,
+                    obscureText: true,
+                    decoration: const InputDecoration(labelText: 'Password'),
+                  ),
+                  SwitchListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: const Text('Enabled'),
+                    value: enabled,
+                    onChanged: (value) => setDialogState(() => enabled = value),
+                  ),
+                ],
               ),
-              DropdownButtonFormField(
-                initialValue: kind,
-                items: AcquisitionEndpointKind.values
-                    .map(
-                      (value) => DropdownMenuItem(
-                        value: value,
-                        child: Text(value.name),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) => kind = value ?? kind,
-                decoration: const InputDecoration(labelText: 'Type'),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text('Cancel'),
               ),
-              TextField(
-                controller: url,
-                decoration: const InputDecoration(labelText: 'Server URL'),
-              ),
-              TextField(
-                controller: apiKey,
-                decoration: const InputDecoration(
-                  labelText: 'API key (if applicable)',
-                ),
-              ),
-              TextField(
-                controller: username,
-                decoration: const InputDecoration(
-                  labelText: 'Username (if applicable)',
-                ),
-              ),
-              TextField(
-                controller: password,
-                obscureText: true,
-                decoration: const InputDecoration(
-                  labelText: 'Password (if applicable)',
-                ),
+              FilledButton(
+                onPressed: () async {
+                  final baseUrl = Uri.tryParse(url.text.trim());
+                  if (name.text.trim().isEmpty ||
+                      baseUrl == null ||
+                      !baseUrl.hasScheme ||
+                      baseUrl.userInfo.isNotEmpty) {
+                    return;
+                  }
+                  try {
+                    await _authenticated((token) {
+                      if (endpoint == null) {
+                        return _apiClient.createEndpoint(
+                          accessToken: token,
+                          name: name.text.trim(),
+                          kind: kind,
+                          baseUrl: baseUrl,
+                          apiKey: _optional(apiKey.text),
+                          username: _optional(username.text),
+                          password: _optional(password.text),
+                        );
+                      }
+                      return _apiClient.updateEndpoint(
+                        accessToken: token,
+                        endpointId: endpoint.id,
+                        name: name.text.trim(),
+                        baseUrl: baseUrl,
+                        apiKey: _optional(apiKey.text),
+                        username: _optional(username.text),
+                        password: _optional(password.text),
+                        enabled: enabled,
+                      );
+                    });
+                    if (context.mounted) Navigator.pop(context, true);
+                  } catch (_) {
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('Could not save this integration.'),
+                        ),
+                      );
+                    }
+                  }
+                },
+                child: const Text('Save'),
               ),
             ],
           ),
+        ),
+      );
+      if (saved == true) await _load();
+    } finally {
+      name.dispose();
+      url.dispose();
+      apiKey.dispose();
+      username.dispose();
+      password.dispose();
+    }
+  }
+
+  Future<void> _deleteEndpoint(AcquisitionEndpoint endpoint) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Remove ${endpoint.name}?'),
+        content: const Text(
+          'Saved credentials for this integration will be removed.',
         ),
         actions: [
           TextButton(
@@ -139,156 +402,339 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
             child: const Text('Cancel'),
           ),
           FilledButton(
-            onPressed: () async {
-              final token = _token;
-              final baseUrl = Uri.tryParse(url.text.trim());
-              if (token == null ||
-                  name.text.trim().isEmpty ||
-                  baseUrl == null ||
-                  !baseUrl.hasScheme)
-                return;
-              try {
-                await _client.createEndpoint(
-                  accessToken: token,
-                  name: name.text.trim(),
-                  kind: kind,
-                  baseUrl: baseUrl,
-                  apiKey: apiKey.text.trim().isEmpty
-                      ? null
-                      : apiKey.text.trim(),
-                  username: username.text.trim().isEmpty
-                      ? null
-                      : username.text.trim(),
-                  password: password.text.isEmpty ? null : password.text,
-                );
-                if (context.mounted) Navigator.pop(context, true);
-              } catch (_) {
-                if (context.mounted)
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Could not save this integration.'),
-                    ),
-                  );
-              }
-            },
-            child: const Text('Save'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const Text('Remove'),
           ),
         ],
       ),
     );
-    name.dispose();
-    url.dispose();
-    apiKey.dispose();
-    username.dispose();
-    password.dispose();
-    if (submitted == true) _loadEndpoints();
+    if (confirmed != true) return;
+
+    try {
+      await _authenticated((token) {
+        return _apiClient.deleteEndpoint(
+          accessToken: token,
+          endpointId: endpoint.id,
+        );
+      });
+      await _load();
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Could not remove this integration.')),
+        );
+      }
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final downloadClients = _endpoints.where(
-      (endpoint) => const {
-        AcquisitionEndpointKind.qbittorrent,
-        AcquisitionEndpointKind.transmission,
-        AcquisitionEndpointKind.deluge,
-      }.contains(endpoint.kind),
-    );
+    final capabilities = _capabilities;
+    final clients = _endpoints
+        .where((endpoint) => endpoint.enabled && endpoint.kind.isDownloadClient)
+        .toList();
+    final indexers = _endpoints
+        .where((endpoint) => endpoint.kind.isIndexer)
+        .toList();
+    final arrApps = _endpoints
+        .where((endpoint) => endpoint.kind.isArr)
+        .toList();
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Acquisition')),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _addEndpoint,
-        icon: const Icon(Icons.add),
-        label: const Text('Integration'),
-      ),
+      appBar: AppBar(title: const Text('Torrent acquisition')),
+      floatingActionButton: capabilities == null
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _showEndpointDialog(),
+              icon: const Icon(Icons.add),
+              label: const Text('Integration'),
+            ),
       body: RefreshIndicator(
-        onRefresh: _loadEndpoints,
+        onRefresh: _load,
         child: ListView(
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(Spacing.md),
+          children: [
+            if (_loading) const LinearProgressIndicator(),
+            if (_submitting) const LinearProgressIndicator(),
+            if (_error != null) _ErrorBanner(message: _error!, onRetry: _load),
+            if (!_loading && _error == null) ...[
+              _SearchCard(
+                queryController: _queryController,
+                searching: _searching,
+                canSearch: indexers.any((endpoint) => endpoint.enabled),
+                onSearch: _search,
+              ),
+              const SizedBox(height: Spacing.md),
+              _EndpointSection(
+                title: 'Torrent indexers',
+                emptyLabel: 'No torrent indexers configured',
+                endpoints: indexers,
+                onEdit: (endpoint) => _showEndpointDialog(endpoint: endpoint),
+                onDelete: _deleteEndpoint,
+              ),
+              _EndpointSection(
+                title: 'Download clients',
+                emptyLabel: 'No download clients configured',
+                endpoints: _endpoints
+                    .where((endpoint) => endpoint.kind.isDownloadClient)
+                    .toList(),
+                onEdit: (endpoint) => _showEndpointDialog(endpoint: endpoint),
+                onDelete: _deleteEndpoint,
+              ),
+              _ArrSection(
+                endpoints: arrApps,
+                onRun: _runArrCommand,
+                onEdit: (endpoint) => _showEndpointDialog(endpoint: endpoint),
+                onDelete: _deleteEndpoint,
+              ),
+              if (_releases.isNotEmpty) ...[
+                const SizedBox(height: Spacing.md),
+                Text('Results', style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: Spacing.sm),
+                ..._releases.map(
+                  (release) => _ReleaseTile(
+                    release: release,
+                    clients: clients,
+                    onSubmit: _submitRelease,
+                  ),
+                ),
+              ] else if (!_searching && _queryController.text.trim().isNotEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(top: Spacing.md),
+                  child: Text('No releases found.'),
+                ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _messageFor(AuthApiException error) {
+    if (error.statusCode == 404) {
+      return 'This Papyrus server does not expose the torrent acquisition API.';
+    }
+    return error.message;
+  }
+
+  String? _optional(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+
+  String _arrCommandLabel(String command) => switch (command) {
+    'AuthorSearch' => 'Search authors',
+    'BookSearch' => 'Search books',
+    'SeriesSearch' => 'Search series',
+    'EpisodeSearch' => 'Search episodes',
+    'MissingEpisodeSearch' => 'Search missing episodes',
+    'MoviesSearch' => 'Search movies',
+    'MissingMoviesSearch' => 'Search missing movies',
+    'ArtistSearch' => 'Search artists',
+    'AlbumSearch' => 'Search albums',
+    'MissingAlbumSearch' => 'Search missing albums',
+    _ => command,
+  };
+}
+
+class _SearchCard extends StatelessWidget {
+  const _SearchCard({
+    required this.queryController,
+    required this.searching,
+    required this.canSearch,
+    required this.onSearch,
+  });
+
+  final TextEditingController queryController;
+  final bool searching;
+  final bool canSearch;
+  final VoidCallback onSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(Spacing.md),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Torrent & automation',
-              style: Theme.of(context).textTheme.headlineSmall,
+              'Search torrents',
+              style: Theme.of(context).textTheme.titleMedium,
             ),
-            const SizedBox(height: 8),
-            const Text(
-              'Configure indexers, download clients, and Readarr or other Arr applications.',
-            ),
-            const SizedBox(height: 16),
+            const SizedBox(height: Spacing.sm),
             TextField(
-              controller: _queryController,
-              onSubmitted: (_) => _search(),
+              controller: queryController,
+              enabled: canSearch && !searching,
+              onSubmitted: (_) => onSearch(),
               decoration: InputDecoration(
-                labelText: 'Search releases',
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.search),
-                  onPressed: _search,
-                ),
+                labelText: 'Title, author, movie, album, or series',
+                suffixIcon: searching
+                    ? const Padding(
+                        padding: EdgeInsets.all(12),
+                        child: SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                      )
+                    : IconButton(
+                        icon: const Icon(Icons.search),
+                        onPressed: canSearch ? onSearch : null,
+                      ),
               ),
             ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: 12),
+            if (!canSearch)
+              const Padding(
+                padding: EdgeInsets.only(top: Spacing.sm),
                 child: Text(
-                  _error!,
-                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                  'Add an enabled Prowlarr or Torznab indexer first.',
                 ),
               ),
-            if (_loading)
-              const Padding(
-                padding: EdgeInsets.all(24),
-                child: Center(child: CircularProgressIndicator()),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _EndpointSection extends StatelessWidget {
+  const _EndpointSection({
+    required this.title,
+    required this.emptyLabel,
+    required this.endpoints,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final String title;
+  final String emptyLabel;
+  final List<AcquisitionEndpoint> endpoints;
+  final ValueChanged<AcquisitionEndpoint> onEdit;
+  final ValueChanged<AcquisitionEndpoint> onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium),
+          const SizedBox(height: Spacing.sm),
+          if (endpoints.isEmpty)
+            Card(
+              child: ListTile(
+                leading: const Icon(Icons.info_outline),
+                title: Text(emptyLabel),
               ),
-            ..._endpoints.map(
-              (endpoint) => Card(
-                child: ListTile(
-                  leading: Icon(_iconFor(endpoint.kind)),
-                  title: Text(endpoint.name),
-                  subtitle: Text(
-                    '${endpoint.kind.name} • ${endpoint.baseUrl.host}',
-                  ),
-                  trailing: endpoint.enabled
-                      ? const Icon(Icons.check_circle_outline)
-                      : const Icon(Icons.pause_circle_outline),
+            )
+          else
+            ...endpoints.map(
+              (endpoint) => _EndpointTile(
+                endpoint: endpoint,
+                onEdit: onEdit,
+                onDelete: onDelete,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ArrSection extends StatelessWidget {
+  const _ArrSection({
+    required this.endpoints,
+    required this.onRun,
+    required this.onEdit,
+    required this.onDelete,
+  });
+
+  final List<AcquisitionEndpoint> endpoints;
+  final ValueChanged<AcquisitionEndpoint> onRun;
+  final ValueChanged<AcquisitionEndpoint> onEdit;
+  final ValueChanged<AcquisitionEndpoint> onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: Spacing.md),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Arr applications',
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          const SizedBox(height: Spacing.sm),
+          if (endpoints.isEmpty)
+            const Card(
+              child: ListTile(
+                leading: Icon(Icons.info_outline),
+                title: Text('No Arr applications configured'),
+              ),
+            )
+          else
+            ...endpoints.map(
+              (endpoint) => _EndpointTile(
+                endpoint: endpoint,
+                onEdit: onEdit,
+                onDelete: onDelete,
+                trailingAction: IconButton(
+                  tooltip: 'Run action',
+                  icon: const Icon(Icons.play_arrow_outlined),
+                  onPressed: endpoint.enabled ? () => onRun(endpoint) : null,
                 ),
               ),
             ),
-            if (_releases.isNotEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 20, bottom: 8),
-                child: Text('Results'),
-              ),
-            ..._releases.map(
-              (release) => Card(
-                child: ListTile(
-                  title: Text(release.title),
-                  subtitle: Text(
-                    '${release.indexer}${release.seeders == null ? '' : ' • ${release.seeders} seeders'}',
-                  ),
-                  trailing: PopupMenuButton<AcquisitionEndpoint>(
-                    itemBuilder: (_) => downloadClients
-                        .map(
-                          (client) => PopupMenuItem(
-                            value: client,
-                            child: Text('Send to ${client.name}'),
-                          ),
-                        )
-                        .toList(),
-                    onSelected: (client) async {
-                      final token = _token;
-                      if (token == null) return;
-                      await _client.submitRelease(
-                        accessToken: token,
-                        endpointId: client.id,
-                        release: release,
-                      );
-                      if (mounted)
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Release submitted.')),
-                        );
-                    },
-                  ),
-                ),
-              ),
+        ],
+      ),
+    );
+  }
+}
+
+class _EndpointTile extends StatelessWidget {
+  const _EndpointTile({
+    required this.endpoint,
+    required this.onEdit,
+    required this.onDelete,
+    this.trailingAction,
+  });
+
+  final AcquisitionEndpoint endpoint;
+  final ValueChanged<AcquisitionEndpoint> onEdit;
+  final ValueChanged<AcquisitionEndpoint> onDelete;
+  final Widget? trailingAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        leading: Icon(_iconFor(endpoint.kind)),
+        title: Text(endpoint.name),
+        subtitle: Text('${endpoint.kind.label} • ${endpoint.baseUrl.host}'),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (trailingAction != null) trailingAction!,
+            Icon(
+              endpoint.enabled
+                  ? Icons.check_circle_outline
+                  : Icons.pause_circle_outline,
+              color: endpoint.enabled
+                  ? Theme.of(context).colorScheme.primary
+                  : null,
+            ),
+            PopupMenuButton<String>(
+              onSelected: (value) {
+                if (value == 'edit') onEdit(endpoint);
+                if (value == 'delete') onDelete(endpoint);
+              },
+              itemBuilder: (context) => const [
+                PopupMenuItem(value: 'edit', child: Text('Edit')),
+                PopupMenuItem(value: 'delete', child: Text('Remove')),
+              ],
             ),
           ],
         ),
@@ -301,8 +747,80 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     AcquisitionEndpointKind.transmission ||
     AcquisitionEndpointKind.deluge => Icons.downloading_outlined,
     AcquisitionEndpointKind.prowlarr ||
-    AcquisitionEndpointKind.torznab ||
-    AcquisitionEndpointKind.newznab => Icons.travel_explore,
+    AcquisitionEndpointKind.torznab => Icons.travel_explore,
     _ => Icons.auto_awesome_motion_outlined,
   };
+}
+
+class _ReleaseTile extends StatelessWidget {
+  const _ReleaseTile({
+    required this.release,
+    required this.clients,
+    required this.onSubmit,
+  });
+
+  final TorrentRelease release;
+  final List<AcquisitionEndpoint> clients;
+  final void Function(TorrentRelease release, AcquisitionEndpoint client)
+  onSubmit;
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: ListTile(
+        title: Text(release.title),
+        subtitle: Text(
+          [
+            release.indexer,
+            if (release.seeders != null) '${release.seeders} seeders',
+            if (release.sizeBytes != null) _formatBytes(release.sizeBytes!),
+            if (release.isMagnet) 'magnet',
+          ].join(' • '),
+        ),
+        trailing: PopupMenuButton<AcquisitionEndpoint>(
+          enabled: clients.isNotEmpty,
+          icon: const Icon(Icons.send_outlined),
+          tooltip: 'Send to client',
+          itemBuilder: (context) => clients
+              .map(
+                (client) =>
+                    PopupMenuItem(value: client, child: Text(client.name)),
+              )
+              .toList(),
+          onSelected: (client) => onSubmit(release, client),
+        ),
+      ),
+    );
+  }
+
+  String _formatBytes(int bytes) {
+    if (bytes >= 1073741824)
+      return '${(bytes / 1073741824).toStringAsFixed(1)} GB';
+    if (bytes >= 1048576) return '${(bytes / 1048576).toStringAsFixed(1)} MB';
+    if (bytes >= 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    return '$bytes B';
+  }
+}
+
+class _ErrorBanner extends StatelessWidget {
+  const _ErrorBanner({required this.message, required this.onRetry});
+
+  final String message;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+    return Card(
+      color: colorScheme.errorContainer,
+      child: ListTile(
+        leading: Icon(Icons.error_outline, color: colorScheme.onErrorContainer),
+        title: Text(
+          message,
+          style: TextStyle(color: colorScheme.onErrorContainer),
+        ),
+        trailing: TextButton(onPressed: onRetry, child: const Text('Retry')),
+      ),
+    );
+  }
 }

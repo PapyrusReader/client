@@ -25,8 +25,6 @@ class AuthProvider extends ChangeNotifier {
 
   bool get isSignedIn => _user != null && _status == AuthStatus.signedIn;
 
-  String? get accessToken => _repository.accessToken;
-
   bool get isLoading {
     return _status == AuthStatus.bootstrapping ||
         _status == AuthStatus.authenticating ||
@@ -216,6 +214,21 @@ class AuthProvider extends ChangeNotifier {
 
   Future<Uint8List> downloadMedia(String assetId) {
     return _repository.downloadMedia(assetId);
+  }
+
+  Future<T> withFreshAccessToken<T>(
+    Future<T> Function(String accessToken) action,
+  ) async {
+    try {
+      return await _repository.withFreshAccessToken(action);
+    } catch (error) {
+      if (error is AuthApiException && error.statusCode == 401) {
+        _user = null;
+        _error = _messageFor(error);
+        _setStatus(AuthStatus.signedOut);
+      }
+      rethrow;
+    }
   }
 
   void setOfflineMode(bool value) {
