@@ -24,12 +24,13 @@ enum _ImportState { idle, processing, success, error }
 /// Opens a file picker, processes the file in a Web Worker,
 /// previews the extracted metadata, and adds the book to the library.
 class ImportBookSheet extends StatelessWidget {
-  const ImportBookSheet({super.key}) : initialResult = null;
+  const ImportBookSheet({super.key}) : initialResult = null, initialCommitting = false;
 
   @visibleForTesting
-  const ImportBookSheet.withInitialResult(this.initialResult, {super.key});
+  const ImportBookSheet.withInitialResult(this.initialResult, {this.initialCommitting = false, super.key});
 
   final BookImportResult? initialResult;
+  final bool initialCommitting;
 
   /// Show the import sheet as a scrollable, content-sized bottom sheet.
   static Future<void> show(BuildContext context) {
@@ -45,14 +46,17 @@ class ImportBookSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(child: _ImportContent(initialResult: initialResult));
+    return SingleChildScrollView(
+      child: _ImportContent(initialResult: initialResult, initialCommitting: initialCommitting),
+    );
   }
 }
 
 class _ImportContent extends StatefulWidget {
-  const _ImportContent({this.initialResult});
+  const _ImportContent({this.initialResult, this.initialCommitting = false});
 
   final BookImportResult? initialResult;
+  final bool initialCommitting;
 
   @override
   State<_ImportContent> createState() => _ImportContentState();
@@ -72,6 +76,7 @@ class _ImportContentState extends State<_ImportContent> {
     super.initState();
     _result = widget.initialResult;
     _state = _result == null ? _ImportState.idle : _ImportState.success;
+    _committing = widget.initialCommitting;
   }
 
   @override
@@ -98,7 +103,7 @@ class _ImportContentState extends State<_ImportContent> {
   }
 
   bool _picking = false;
-  bool _committing = false;
+  late bool _committing;
 
   Future<void> _pickAndProcess() async {
     if (_picking || _committing) return;
@@ -200,13 +205,10 @@ class _ImportContentState extends State<_ImportContent> {
     } catch (error) {
       if (!mounted) return;
       setState(() {
+        _committing = false;
         _state = _ImportState.error;
         _errorMessage = error.toString();
       });
-    } finally {
-      if (mounted) {
-        setState(() => _committing = false);
-      }
     }
 
     if (!mounted || committedBook == null) return;
@@ -359,7 +361,11 @@ class _ImportContentState extends State<_ImportContent> {
                           _filename = null;
                         });
                       },
-                style: OutlinedButton.styleFrom(shape: const StadiumBorder()),
+                style: OutlinedButton.styleFrom(
+                  shape: const StadiumBorder(),
+                  disabledForegroundColor: colorScheme.primary,
+                  side: BorderSide(color: colorScheme.outline, width: BorderWidths.thin),
+                ),
                 child: const Text('Pick different file'),
               ),
             ),
@@ -367,8 +373,24 @@ class _ImportContentState extends State<_ImportContent> {
             Expanded(
               child: FilledButton(
                 onPressed: _committing ? null : _addToLibrary,
-                style: FilledButton.styleFrom(shape: const StadiumBorder()),
-                child: const Text('Add to library'),
+                style: FilledButton.styleFrom(
+                  shape: const StadiumBorder(),
+                  disabledBackgroundColor: colorScheme.primary,
+                  disabledForegroundColor: colorScheme.onPrimary,
+                ),
+                child: _committing
+                    ? Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          SizedBox.square(
+                            dimension: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: colorScheme.onPrimary),
+                          ),
+                          const SizedBox(width: Spacing.sm),
+                          const Text('Adding...'),
+                        ],
+                      )
+                    : const Text('Add to library'),
               ),
             ),
           ],

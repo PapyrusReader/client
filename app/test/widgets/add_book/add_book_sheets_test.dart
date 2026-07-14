@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/services/book_import_result.dart';
+import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/add_book/add_book_choice_sheet.dart';
 import 'package:papyrus/widgets/add_book/import_book_sheet.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
@@ -133,5 +134,31 @@ void main() {
 
     expect(pickButton.style?.shape?.resolve({}), isA<StadiumBorder>());
     expect(addButton.style?.shape?.resolve({}), isA<StadiumBorder>());
+  });
+
+  testWidgets('committing import actions stay visually stable and show progress', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: const Scaffold(body: ImportBookSheet.withInitialResult(importedBook, initialCommitting: true)),
+      ),
+    );
+
+    final pickButton = tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Pick different file'));
+    final addButton = tester.widget<FilledButton>(find.byType(FilledButton));
+
+    expect(pickButton.onPressed, isNull);
+    expect(addButton.onPressed, isNull);
+    expect(find.text('Adding...'), findsOneWidget);
+    expect(find.text('Add to library'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    final colorScheme = Theme.of(tester.element(find.text('Adding...'))).colorScheme;
+    const disabled = <WidgetState>{WidgetState.disabled};
+
+    expect(pickButton.style?.foregroundColor?.resolve(disabled), colorScheme.primary);
+    expect(pickButton.style?.side?.resolve(disabled)?.color, colorScheme.outline);
+    expect(addButton.style?.backgroundColor?.resolve(disabled), colorScheme.primary);
+    expect(addButton.style?.foregroundColor?.resolve(disabled), colorScheme.onPrimary);
   });
 }
