@@ -1,18 +1,45 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:papyrus/services/book_import_result.dart';
+import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/add_book/add_book_choice_sheet.dart';
 import 'package:papyrus/widgets/add_book/import_book_sheet.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 
+class _CountingNavigatorObserver extends NavigatorObserver {
+  int pushCount = 0;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    pushCount += 1;
+    super.didPush(route, previousRoute);
+  }
+}
+
+const importedBook = BookImportResult(
+  bookId: 'book-1',
+  title: 'Frankenstein',
+  author: 'Mary Wollstonecraft Shelley',
+  pageCount: 239,
+  fileSize: 1024,
+  fileHash: 'hash',
+  fileExtension: 'epub',
+);
+
 void main() {
-  Future<void> pumpLauncher(WidgetTester tester, VoidCallback Function(BuildContext) action) async {
+  Future<void> pumpLauncher(
+    WidgetTester tester,
+    VoidCallback Function(BuildContext) action, {
+    List<NavigatorObserver> navigatorObservers = const [],
+  }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1400, 1000);
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
       MaterialApp(
+        navigatorObservers: navigatorObservers,
         home: Builder(
           builder: (context) => Scaffold(
             body: FilledButton(onPressed: action(context), child: const Text('Open')),
@@ -70,5 +97,68 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  testWidgets('digital import transition preserves the modal backdrop', (tester) async {
+    final observer = _CountingNavigatorObserver();
+    await pumpLauncher(
+      tester,
+      (context) =>
+          () => AddBookChoiceSheet.show(context),
+      navigatorObservers: [observer],
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    final dimmingBarrier = find.byWidgetPredicate((widget) => widget is ModalBarrier && widget.color != null);
+    final initialPushCount = observer.pushCount;
+    final initialBarrier = tester.element(dimmingBarrier);
+
+    await tester.tap(find.text('Import digital books'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Import book'), findsOneWidget);
+    expect(dimmingBarrier, findsOneWidget);
+    expect(tester.element(dimmingBarrier), same(initialBarrier));
+    expect(observer.pushCount, initialPushCount);
+  });
+
+  testWidgets('successful import actions can be rendered for widget verification', (tester) async {
+    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: ImportBookSheet.withInitialResult(importedBook))));
+
+    expect(find.text('Pick different file'), findsOneWidget);
+    expect(find.text('Add to library'), findsOneWidget);
+
+    final pickButton = tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Pick different file'));
+    final addButton = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Add to library'));
+
+    expect(pickButton.style?.shape?.resolve({}), isA<StadiumBorder>());
+    expect(addButton.style?.shape?.resolve({}), isA<StadiumBorder>());
+  });
+
+  testWidgets('committing import actions stay visually stable and show progress', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: const Scaffold(body: ImportBookSheet.withInitialResult(importedBook, initialCommitting: true)),
+      ),
+    );
+
+    final pickButton = tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Pick different file'));
+    final addButton = tester.widget<FilledButton>(find.byType(FilledButton));
+
+    expect(pickButton.onPressed, isNull);
+    expect(addButton.onPressed, isNull);
+    expect(find.text('Adding...'), findsOneWidget);
+    expect(find.text('Add to library'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+
+    final colorScheme = Theme.of(tester.element(find.text('Adding...'))).colorScheme;
+    const disabled = <WidgetState>{WidgetState.disabled};
+
+    expect(pickButton.style?.foregroundColor?.resolve(disabled), colorScheme.primary);
+    expect(pickButton.style?.side?.resolve(disabled)?.color, colorScheme.outline);
+    expect(addButton.style?.backgroundColor?.resolve(disabled), colorScheme.primary);
+    expect(addButton.style?.foregroundColor?.resolve(disabled), colorScheme.onPrimary);
   });
 }
