@@ -5,14 +5,29 @@ import 'package:papyrus/widgets/add_book/import_book_sheet.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 
+class _CountingNavigatorObserver extends NavigatorObserver {
+  int pushCount = 0;
+
+  @override
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) {
+    pushCount += 1;
+    super.didPush(route, previousRoute);
+  }
+}
+
 void main() {
-  Future<void> pumpLauncher(WidgetTester tester, VoidCallback Function(BuildContext) action) async {
+  Future<void> pumpLauncher(
+    WidgetTester tester,
+    VoidCallback Function(BuildContext) action, {
+    List<NavigatorObserver> navigatorObservers = const [],
+  }) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1400, 1000);
     addTearDown(tester.view.reset);
 
     await tester.pumpWidget(
       MaterialApp(
+        navigatorObservers: navigatorObservers,
         home: Builder(
           builder: (context) => Scaffold(
             body: FilledButton(onPressed: action(context), child: const Text('Open')),
@@ -70,5 +85,29 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  testWidgets('digital import transition preserves the modal backdrop', (tester) async {
+    final observer = _CountingNavigatorObserver();
+    await pumpLauncher(
+      tester,
+      (context) =>
+          () => AddBookChoiceSheet.show(context),
+      navigatorObservers: [observer],
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    final dimmingBarrier = find.byWidgetPredicate((widget) => widget is ModalBarrier && widget.color != null);
+    final initialPushCount = observer.pushCount;
+    final initialBarrier = tester.element(dimmingBarrier);
+
+    await tester.tap(find.text('Import digital books'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Import book'), findsOneWidget);
+    expect(dimmingBarrier, findsOneWidget);
+    expect(tester.element(dimmingBarrier), same(initialBarrier));
+    expect(observer.pushCount, initialPushCount);
   });
 }

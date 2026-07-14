@@ -34,12 +34,14 @@ class ImportBookSheet extends StatelessWidget {
       useRootNavigator: true,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
-      builder: (_) => const SingleChildScrollView(child: _ImportContent()),
+      builder: (_) => const ImportBookSheet(),
     );
   }
 
   @override
-  Widget build(BuildContext context) => const SizedBox.shrink();
+  Widget build(BuildContext context) {
+    return const SingleChildScrollView(child: _ImportContent());
+  }
 }
 
 class _ImportContent extends StatefulWidget {

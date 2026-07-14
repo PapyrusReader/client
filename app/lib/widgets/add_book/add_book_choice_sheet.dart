@@ -5,7 +5,7 @@ import 'package:papyrus/widgets/add_book/import_book_sheet.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 
 /// Choice sheet for selecting how to add a book: digital import or physical.
-class AddBookChoiceSheet extends StatelessWidget {
+class AddBookChoiceSheet extends StatefulWidget {
   const AddBookChoiceSheet({required this.callerContext, super.key});
 
   /// The context of the page that opened this sheet.
@@ -18,48 +18,57 @@ class AddBookChoiceSheet extends StatelessWidget {
   static Future<void> show(BuildContext context) {
     return showModalBottomSheet(
       context: context,
+      isScrollControlled: true,
       useRootNavigator: true,
       useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
-      builder: (_) => Padding(
-        padding: const EdgeInsets.only(left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.lg),
-        child: AddBookChoiceSheet(callerContext: context),
-      ),
+      builder: (_) => AddBookChoiceSheet(callerContext: context),
     );
   }
 
   @override
+  State<AddBookChoiceSheet> createState() => _AddBookChoiceSheetState();
+}
+
+class _AddBookChoiceSheetState extends State<AddBookChoiceSheet> {
+  bool _showImport = false;
+
+  @override
   Widget build(BuildContext context) {
+    if (_showImport) {
+      return const ImportBookSheet();
+    }
+
     final textTheme = Theme.of(context).textTheme;
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const BottomSheetHandle(),
-        const SizedBox(height: Spacing.lg),
-        Text('Add book', style: textTheme.headlineSmall),
-        const SizedBox(height: Spacing.lg),
-        _ChoiceOption(
-          icon: Icons.upload_file,
-          title: 'Import digital books',
-          subtitle: 'EPUB, PDF, AZW3, MOBI, CBZ/CBR',
-          onTap: () {
-            Navigator.of(context).pop();
-            ImportBookSheet.show(callerContext);
-          },
-        ),
-        const SizedBox(height: Spacing.sm),
-        _ChoiceOption(
-          icon: Icons.menu_book,
-          title: 'Add physical book',
-          subtitle: 'Enter details manually',
-          onTap: () {
-            Navigator.of(context).pop();
-            AddPhysicalBookSheet.show(callerContext);
-          },
-        ),
-      ],
+    return Padding(
+      padding: const EdgeInsets.only(left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.lg),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const BottomSheetHandle(),
+          const SizedBox(height: Spacing.lg),
+          Text('Add book', style: textTheme.headlineSmall),
+          const SizedBox(height: Spacing.lg),
+          _ChoiceOption(
+            icon: Icons.upload_file,
+            title: 'Import digital books',
+            subtitle: 'EPUB, PDF, AZW3, MOBI, CBZ/CBR',
+            onTap: () => setState(() => _showImport = true),
+          ),
+          const SizedBox(height: Spacing.sm),
+          _ChoiceOption(
+            icon: Icons.menu_book,
+            title: 'Add physical book',
+            subtitle: 'Enter details manually',
+            onTap: () {
+              Navigator.of(context).pop();
+              AddPhysicalBookSheet.show(widget.callerContext);
+            },
+          ),
+        ],
+      ),
     );
   }
 }
