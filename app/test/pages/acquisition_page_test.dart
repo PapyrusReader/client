@@ -61,6 +61,10 @@ class _FakeAcquisitionApiClient extends AcquisitionApiClient {
   );
   Completer<void>? connectionTestCompleter;
   int connectionTestCalls = 0;
+  List<AcquisitionEndpoint> endpointsResult = [];
+  List<TorrentRelease> releasesResult = [];
+  final searchEndpointIds = <List<String>?>[];
+  final submissionCompleters = <String, Completer<AcquisitionJob>>{};
 
   @override
   Future<AcquisitionCapabilities> capabilities(String accessToken) async {
@@ -69,7 +73,7 @@ class _FakeAcquisitionApiClient extends AcquisitionApiClient {
 
   @override
   Future<List<AcquisitionEndpoint>> listEndpoints(String accessToken) async {
-    return [];
+    return endpointsResult;
   }
 
   @override
@@ -84,6 +88,28 @@ class _FakeAcquisitionApiClient extends AcquisitionApiClient {
   }) {
     connectionTestCalls += 1;
     return connectionTestCompleter?.future ?? Future<void>.value();
+  }
+
+  @override
+  Future<List<TorrentRelease>> search({
+    required String accessToken,
+    required String query,
+    List<String>? endpointIds,
+  }) async {
+    searchEndpointIds.add(endpointIds);
+    return releasesResult;
+  }
+
+  @override
+  Future<AcquisitionJob> submitRelease({
+    required String accessToken,
+    required String endpointId,
+    required TorrentRelease release,
+    String? category,
+    String? savePath,
+  }) {
+    final key = '${release.downloadUrl}:$endpointId';
+    return submissionCompleters.putIfAbsent(key, Completer<AcquisitionJob>.new).future;
   }
 }
 
@@ -151,6 +177,148 @@ void main() {
 
     expect(find.text('Prowlarr connection test failed'), findsOneWidget);
   });
+
+  testWidgets('search and submission requires selected indexer and client', (tester) async {
+    final apiClient = _FakeAcquisitionApiClient()..endpointsResult = [_indexerOne, _indexerTwo, _clientOne];
+    await tester.pumpWidget(await _buildPage(apiClient));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(FilterChip), findsNWidgets(2));
+
+    await tester.tap(find.widgetWithText(FilterChip, 'Indexer One'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilterChip, 'Indexer Two'));
+    await tester.pump();
+
+    expect(tester.widget<TextField>(_searchField).enabled, isFalse);
+
+    await tester.tap(find.widgetWithText(FilterChip, 'Indexer One'));
+    await tester.pump();
+    await tester.enterText(_searchField, 'book');
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pumpAndSettle();
+
+    expect(apiClient.searchEndpointIds, [
+      ['indexer-1'],
+    ]);
+  });
+
+  testWidgets('search and submission requires an enabled download client', (tester) async {
+    final apiClient = _FakeAcquisitionApiClient()..endpointsResult = [_indexerOne];
+    await tester.pumpWidget(await _buildPage(apiClient));
+    await tester.pumpAndSettle();
+
+    expect(tester.widget<TextField>(_searchField).enabled, isFalse);
+  });
+
+  testWidgets('search and submission scopes progress and shows job failure', (tester) async {
+    final apiClient = _FakeAcquisitionApiClient()
+      ..endpointsResult = [_indexerOne, _clientOne, _clientTwo]
+      ..releasesResult = [_releaseOne, _releaseTwo];
+    await tester.pumpWidget(await _buildPage(apiClient));
+    await tester.pumpAndSettle();
+    await tester.enterText(_searchField, 'book');
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Release One'), 400, scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byIcon(Icons.send_outlined).first);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Client One').last);
+    await tester.pump();
+
+    await tester.tap(find.byIcon(Icons.send_outlined).first);
+    await tester.pumpAndSettle();
+    expect(_submissionItem(tester, _releaseOne, _clientOne).enabled, isFalse);
+    expect(_submissionItem(tester, _releaseOne, _clientTwo).enabled, isTrue);
+
+    await tester.tapAt(Offset.zero);
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(find.text('Release Two'), 300, scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    final releaseTwoTile = find.ancestor(of: find.text('Release Two'), matching: find.byType(ListTile));
+    final releaseTwoMenu = find.descendant(
+      of: releaseTwoTile,
+      matching: find.byType(PopupMenuButton<AcquisitionEndpoint>),
+    );
+    expect(tester.widget<PopupMenuButton<AcquisitionEndpoint>>(releaseTwoMenu).enabled, isTrue);
+
+    apiClient.submissionCompleters['${_releaseOne.downloadUrl}:${_clientOne.id}']!.complete(
+      _job(status: 'failed', error: 'Transmission rejected the release'),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Transmission rejected the release'), findsOneWidget);
+    expect(find.text('Sent to Client One.'), findsNothing);
+  });
+}
+
+final _searchField = find.widgetWithText(TextField, 'Title, author, movie, album, or series');
+
+PopupMenuItem<AcquisitionEndpoint> _submissionItem(
+  WidgetTester tester,
+  TorrentRelease release,
+  AcquisitionEndpoint client,
+) {
+  return tester.widget<PopupMenuItem<AcquisitionEndpoint>>(
+    find.byKey(Key('submission:${release.downloadUrl}:${client.id}')),
+  );
+}
+
+final _indexerOne = AcquisitionEndpoint(
+  id: 'indexer-1',
+  name: 'Indexer One',
+  kind: AcquisitionEndpointKind.prowlarr,
+  baseUrl: Uri.parse('http://indexer-one.local'),
+  enabled: true,
+);
+final _indexerTwo = AcquisitionEndpoint(
+  id: 'indexer-2',
+  name: 'Indexer Two',
+  kind: AcquisitionEndpointKind.prowlarr,
+  baseUrl: Uri.parse('http://indexer-two.local'),
+  enabled: true,
+);
+final _clientOne = AcquisitionEndpoint(
+  id: 'client-1',
+  name: 'Client One',
+  kind: AcquisitionEndpointKind.transmission,
+  baseUrl: Uri.parse('http://client-one.local'),
+  enabled: true,
+);
+final _clientTwo = AcquisitionEndpoint(
+  id: 'client-2',
+  name: 'Client Two',
+  kind: AcquisitionEndpointKind.qbittorrent,
+  baseUrl: Uri.parse('http://client-two.local'),
+  enabled: true,
+);
+const _releaseOne = TorrentRelease(
+  title: 'Release One',
+  downloadUrl: 'magnet:?xt=urn:btih:release-one',
+  protocol: 'torrent',
+  indexer: 'Indexer One',
+);
+const _releaseTwo = TorrentRelease(
+  title: 'Release Two',
+  downloadUrl: 'magnet:?xt=urn:btih:release-two',
+  protocol: 'torrent',
+  indexer: 'Indexer One',
+);
+
+AcquisitionJob _job({required String status, String? error}) {
+  return AcquisitionJob(
+    id: 'job-1',
+    endpointId: 'client-1',
+    ruleId: null,
+    title: 'Release One',
+    downloadUrl: _releaseOne.downloadUrl,
+    status: status,
+    clientReference: null,
+    error: error,
+    createdAt: null,
+  );
 }
 
 Future<Widget> _buildPage(_FakeAcquisitionApiClient apiClient) async {

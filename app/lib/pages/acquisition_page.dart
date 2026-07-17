@@ -28,9 +28,11 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
   AcquisitionCapabilities? _capabilities;
   List<AcquisitionEndpoint> _endpoints = [];
   List<TorrentRelease> _releases = [];
+  Set<String> _selectedIndexerIds = {};
+  final Set<String> _submittingKeys = {};
+  bool _hasExplicitIndexerSelection = false;
   bool _loading = true;
   bool _searching = false;
-  bool _submitting = false;
   String? _error;
 
   @override
@@ -41,6 +43,8 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     _client?.close();
     _client = widget.clientFactory?.call(config) ?? AcquisitionApiClient(config: config);
     _clientBaseUri = config.serverBaseUri;
+    _selectedIndexerIds = {};
+    _hasExplicitIndexerSelection = false;
     _load();
   }
 
@@ -72,9 +76,18 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
       final capabilities = await _authenticated(_apiClient.capabilities);
       final endpoints = await _authenticated(_apiClient.listEndpoints);
       if (!mounted) return;
+      final enabledIndexerIds = endpoints
+          .where((endpoint) => endpoint.enabled && endpoint.kind.isIndexer)
+          .map((endpoint) => endpoint.id)
+          .toSet();
       setState(() {
         _capabilities = capabilities;
         _endpoints = endpoints;
+        if (_hasExplicitIndexerSelection) {
+          _selectedIndexerIds = _selectedIndexerIds.intersection(enabledIndexerIds);
+        } else {
+          _selectedIndexerIds = enabledIndexerIds;
+        }
       });
     } on AuthApiException catch (error) {
       if (!mounted) return;
@@ -91,7 +104,12 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
 
   Future<void> _search() async {
     final query = _queryController.text.trim();
-    if (query.isEmpty || _capabilities == null) return;
+    final indexerIds = _endpoints
+        .where((endpoint) => endpoint.enabled && endpoint.kind.isIndexer && _selectedIndexerIds.contains(endpoint.id))
+        .map((endpoint) => endpoint.id)
+        .toList();
+    final hasClient = _endpoints.any((endpoint) => endpoint.enabled && endpoint.kind.isDownloadClient);
+    if (query.isEmpty || _capabilities == null || indexerIds.isEmpty || !hasClient) return;
 
     setState(() {
       _searching = true;
@@ -100,12 +118,8 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     });
 
     try {
-      final indexerIds = _endpoints
-          .where((endpoint) => endpoint.enabled && endpoint.kind.isIndexer)
-          .map((endpoint) => endpoint.id)
-          .toList();
       final releases = await _authenticated((token) {
-        return _apiClient.search(accessToken: token, query: query, endpointIds: indexerIds.isEmpty ? null : indexerIds);
+        return _apiClient.search(accessToken: token, query: query, endpointIds: indexerIds);
       });
       if (mounted) setState(() => _releases = releases);
     } on AuthApiException catch (error) {
@@ -120,20 +134,23 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
   }
 
   Future<void> _submitRelease(TorrentRelease release, AcquisitionEndpoint client) async {
-    setState(() => _submitting = true);
+    final submissionKey = _submissionKey(release, client);
+    if (_submittingKeys.contains(submissionKey)) return;
+
+    setState(() => _submittingKeys.add(submissionKey));
     try {
-      await _authenticated((token) {
+      final job = await _authenticated((token) {
         return _apiClient.submitRelease(accessToken: token, endpointId: client.id, release: release);
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sent to ${client.name}.')));
-      }
+      if (!mounted) return;
+
+      _showMessage(job.isSubmitted ? 'Sent to ${client.name}.' : job.error ?? 'Submission failed.');
+    } on AuthApiException catch (error) {
+      if (mounted) _showMessage(error.message);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not submit this release.')));
-      }
+      if (mounted) _showMessage('Could not submit this release.');
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) setState(() => _submittingKeys.remove(submissionKey));
     }
   }
 
@@ -148,20 +165,23 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     final ids = await _askForIds(command);
     if (ids == null) return;
 
-    setState(() => _submitting = true);
+    final submissionKey = 'arr:${endpoint.id}';
+    if (_submittingKeys.contains(submissionKey)) return;
+
+    setState(() => _submittingKeys.add(submissionKey));
     try {
-      await _authenticated((token) {
+      final job = await _authenticated((token) {
         return _apiClient.runArrCommand(accessToken: token, endpointId: endpoint.id, command: command, ids: ids);
       });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$command sent to ${endpoint.name}.')));
-      }
+      if (!mounted) return;
+
+      _showMessage(job.isSubmitted ? '$command sent to ${endpoint.name}.' : job.error ?? 'Arr action failed.');
+    } on AuthApiException catch (error) {
+      if (mounted) _showMessage(error.message);
     } catch (_) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not run this Arr action.')));
-      }
+      if (mounted) _showMessage('Could not run this Arr action.');
     } finally {
-      if (mounted) setState(() => _submitting = false);
+      if (mounted) setState(() => _submittingKeys.remove(submissionKey));
     }
   }
 
@@ -310,7 +330,10 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     final capabilities = _capabilities;
     final clients = _endpoints.where((endpoint) => endpoint.enabled && endpoint.kind.isDownloadClient).toList();
     final indexers = _endpoints.where((endpoint) => endpoint.kind.isIndexer).toList();
+    final enabledIndexers = indexers.where((endpoint) => endpoint.enabled).toList();
     final arrApps = _endpoints.where((endpoint) => endpoint.kind.isArr).toList();
+    final canSearch =
+        clients.isNotEmpty && enabledIndexers.any((endpoint) => _selectedIndexerIds.contains(endpoint.id));
 
     return Scaffold(
       appBar: AppBar(title: const Text('Torrent acquisition')),
@@ -327,13 +350,17 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
           padding: const EdgeInsets.all(Spacing.md),
           children: [
             if (_loading) const LinearProgressIndicator(),
-            if (_submitting) const LinearProgressIndicator(),
+            if (_submittingKeys.isNotEmpty) const LinearProgressIndicator(),
             if (_error != null) _ErrorBanner(message: _error!, onRetry: _load),
             if (!_loading && _error == null) ...[
               _SearchCard(
                 queryController: _queryController,
                 searching: _searching,
-                canSearch: indexers.any((endpoint) => endpoint.enabled),
+                canSearch: canSearch,
+                indexers: enabledIndexers,
+                selectedIndexerIds: _selectedIndexerIds,
+                hasEnabledClient: clients.isNotEmpty,
+                onIndexerSelected: _setIndexerSelected,
                 onSearch: _search,
               ),
               const SizedBox(height: Spacing.md),
@@ -353,6 +380,7 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
               ),
               _ArrSection(
                 endpoints: arrApps,
+                submittingKeys: _submittingKeys,
                 onRun: _runArrCommand,
                 onEdit: (endpoint) => _showEndpointDialog(endpoint: endpoint),
                 onDelete: _deleteEndpoint,
@@ -362,7 +390,12 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
                 Text('Results', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: Spacing.sm),
                 ..._releases.map(
-                  (release) => _ReleaseTile(release: release, clients: clients, onSubmit: _submitRelease),
+                  (release) => _ReleaseTile(
+                    release: release,
+                    clients: clients,
+                    submittingKeys: _submittingKeys,
+                    onSubmit: _submitRelease,
+                  ),
                 ),
               ] else if (!_searching && _queryController.text.trim().isNotEmpty)
                 const Padding(
@@ -381,6 +414,21 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
       return 'This Papyrus server does not expose the torrent acquisition API.';
     }
     return error.message;
+  }
+
+  void _setIndexerSelected(AcquisitionEndpoint endpoint, bool selected) {
+    setState(() {
+      _hasExplicitIndexerSelection = true;
+      if (selected) {
+        _selectedIndexerIds.add(endpoint.id);
+      } else {
+        _selectedIndexerIds.remove(endpoint.id);
+      }
+    });
+  }
+
+  void _showMessage(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   String _arrCommandLabel(String command) => switch (command) {
@@ -648,12 +696,20 @@ class _SearchCard extends StatelessWidget {
     required this.queryController,
     required this.searching,
     required this.canSearch,
+    required this.indexers,
+    required this.selectedIndexerIds,
+    required this.hasEnabledClient,
+    required this.onIndexerSelected,
     required this.onSearch,
   });
 
   final TextEditingController queryController;
   final bool searching;
   final bool canSearch;
+  final List<AcquisitionEndpoint> indexers;
+  final Set<String> selectedIndexerIds;
+  final bool hasEnabledClient;
+  final void Function(AcquisitionEndpoint endpoint, bool selected) onIndexerSelected;
   final VoidCallback onSearch;
 
   @override
@@ -666,6 +722,22 @@ class _SearchCard extends StatelessWidget {
           children: [
             Text('Search torrents', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: Spacing.sm),
+            if (indexers.isNotEmpty) ...[
+              Wrap(
+                spacing: Spacing.sm,
+                runSpacing: Spacing.xs,
+                children: indexers
+                    .map(
+                      (endpoint) => FilterChip(
+                        label: Text(endpoint.name),
+                        selected: selectedIndexerIds.contains(endpoint.id),
+                        onSelected: searching ? null : (selected) => onIndexerSelected(endpoint, selected),
+                      ),
+                    )
+                    .toList(),
+              ),
+              const SizedBox(height: Spacing.sm),
+            ],
             TextField(
               controller: queryController,
               enabled: canSearch && !searching,
@@ -681,9 +753,15 @@ class _SearchCard extends StatelessWidget {
               ),
             ),
             if (!canSearch)
-              const Padding(
-                padding: EdgeInsets.only(top: Spacing.sm),
-                child: Text('Add an enabled Prowlarr or Torznab indexer first.'),
+              Padding(
+                padding: const EdgeInsets.only(top: Spacing.sm),
+                child: Text(
+                  indexers.isEmpty
+                      ? 'Add an enabled Prowlarr or Torznab indexer first.'
+                      : !hasEnabledClient
+                      ? 'Add an enabled download client before searching.'
+                      : 'Select at least one torrent indexer.',
+                ),
               ),
           ],
         ),
@@ -729,9 +807,16 @@ class _EndpointSection extends StatelessWidget {
 }
 
 class _ArrSection extends StatelessWidget {
-  const _ArrSection({required this.endpoints, required this.onRun, required this.onEdit, required this.onDelete});
+  const _ArrSection({
+    required this.endpoints,
+    required this.submittingKeys,
+    required this.onRun,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   final List<AcquisitionEndpoint> endpoints;
+  final Set<String> submittingKeys;
   final ValueChanged<AcquisitionEndpoint> onRun;
   final ValueChanged<AcquisitionEndpoint> onEdit;
   final ValueChanged<AcquisitionEndpoint> onDelete;
@@ -758,7 +843,9 @@ class _ArrSection extends StatelessWidget {
                 trailingAction: IconButton(
                   tooltip: 'Run action',
                   icon: const Icon(Icons.play_arrow_outlined),
-                  onPressed: endpoint.enabled ? () => onRun(endpoint) : null,
+                  onPressed: endpoint.enabled && !submittingKeys.contains('arr:${endpoint.id}')
+                      ? () => onRun(endpoint)
+                      : null,
                 ),
               ),
             ),
@@ -786,7 +873,7 @@ class _EndpointTile extends StatelessWidget {
         trailing: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            if (trailingAction != null) trailingAction!,
+            ?trailingAction,
             Icon(
               endpoint.enabled ? Icons.check_circle_outline : Icons.pause_circle_outline,
               color: endpoint.enabled ? Theme.of(context).colorScheme.primary : null,
@@ -817,10 +904,16 @@ class _EndpointTile extends StatelessWidget {
 }
 
 class _ReleaseTile extends StatelessWidget {
-  const _ReleaseTile({required this.release, required this.clients, required this.onSubmit});
+  const _ReleaseTile({
+    required this.release,
+    required this.clients,
+    required this.submittingKeys,
+    required this.onSubmit,
+  });
 
   final TorrentRelease release;
   final List<AcquisitionEndpoint> clients;
+  final Set<String> submittingKeys;
   final void Function(TorrentRelease release, AcquisitionEndpoint client) onSubmit;
 
   @override
@@ -837,11 +930,18 @@ class _ReleaseTile extends StatelessWidget {
           ].join(' • '),
         ),
         trailing: PopupMenuButton<AcquisitionEndpoint>(
-          enabled: clients.isNotEmpty,
+          enabled: clients.any((client) => !submittingKeys.contains(_submissionKey(release, client))),
           icon: const Icon(Icons.send_outlined),
           tooltip: 'Send to client',
-          itemBuilder: (context) =>
-              clients.map((client) => PopupMenuItem(value: client, child: Text(client.name))).toList(),
+          itemBuilder: (context) => clients.map((client) {
+            final key = _submissionKey(release, client);
+            return PopupMenuItem(
+              key: Key('submission:$key'),
+              value: client,
+              enabled: !submittingKeys.contains(key),
+              child: Text(client.name),
+            );
+          }).toList(),
           onSelected: (client) => onSubmit(release, client),
         ),
       ),
@@ -854,6 +954,10 @@ class _ReleaseTile extends StatelessWidget {
     if (bytes >= 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '$bytes B';
   }
+}
+
+String _submissionKey(TorrentRelease release, AcquisitionEndpoint client) {
+  return '${release.downloadUrl}:${client.id}';
 }
 
 class _ErrorBanner extends StatelessWidget {

@@ -49,9 +49,9 @@ class AcquisitionApiClient {
         'name': name,
         'kind': kind.apiValue,
         'base_url': baseUrl.toString(),
-        if (apiKey != null) 'api_key': apiKey,
-        if (username != null) 'username': username,
-        if (password != null) 'password': password,
+        'api_key': ?apiKey,
+        'username': ?username,
+        'password': ?password,
       }),
     );
     return AcquisitionEndpoint.fromJson(_decodeObject(response));
@@ -71,12 +71,12 @@ class AcquisitionApiClient {
       config.endpoint('/acquisition/endpoints/$endpointId'),
       headers: _headers(accessToken),
       body: jsonEncode({
-        if (name != null) 'name': name,
-        if (baseUrl != null) 'base_url': baseUrl.toString(),
-        if (apiKey != null) 'api_key': apiKey,
-        if (username != null) 'username': username,
-        if (password != null) 'password': password,
-        if (enabled != null) 'enabled': enabled,
+        'name': ?name,
+        'base_url': ?baseUrl?.toString(),
+        'api_key': ?apiKey,
+        'username': ?username,
+        'password': ?password,
+        'enabled': ?enabled,
       }),
     );
     return AcquisitionEndpoint.fromJson(_decodeObject(response));
@@ -95,12 +95,12 @@ class AcquisitionApiClient {
       config.endpoint('/acquisition/endpoints/test'),
       headers: _headers(accessToken),
       body: jsonEncode({
-        if (endpointId != null) 'endpoint_id': endpointId,
-        if (kind != null) 'kind': kind.apiValue,
-        if (baseUrl != null) 'base_url': baseUrl.toString(),
-        if (apiKey != null) 'api_key': apiKey,
-        if (username != null) 'username': username,
-        if (password != null) 'password': password,
+        'endpoint_id': ?endpointId,
+        'kind': ?kind?.apiValue,
+        'base_url': ?baseUrl?.toString(),
+        'api_key': ?apiKey,
+        'username': ?username,
+        'password': ?password,
       }),
     );
     final result = _decodeObject(response);
@@ -126,7 +126,7 @@ class AcquisitionApiClient {
     final response = await _httpClient.post(
       config.endpoint('/acquisition/search'),
       headers: _headers(accessToken),
-      body: jsonEncode({'query': query, if (endpointIds != null) 'endpoint_ids': endpointIds}),
+      body: jsonEncode({'query': query, 'endpoint_ids': ?endpointIds}),
     );
     return _decodeList(response).map(TorrentRelease.fromJson).toList();
   }
@@ -145,8 +145,8 @@ class AcquisitionApiClient {
         'endpoint_id': endpointId,
         'title': release.title,
         'download_url': release.downloadUrl,
-        if (category != null) 'category': category,
-        if (savePath != null) 'save_path': savePath,
+        'category': ?category,
+        'save_path': ?savePath,
       }),
     );
     return AcquisitionJob.fromJson(_decodeObject(response));
