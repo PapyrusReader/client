@@ -3,14 +3,19 @@ import 'package:go_router/go_router.dart';
 import 'package:papyrus/acquisition/acquisition_api_client.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
+import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:provider/provider.dart';
 
+typedef AcquisitionApiClientFactory = AcquisitionApiClient Function(PapyrusApiConfig config);
+
 class AcquisitionPage extends StatefulWidget {
-  const AcquisitionPage({super.key});
+  final AcquisitionApiClientFactory? clientFactory;
+
+  const AcquisitionPage({super.key, this.clientFactory});
 
   @override
   State<AcquisitionPage> createState() => _AcquisitionPageState();
@@ -34,7 +39,7 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     final config = context.read<SyncSettingsProvider>().activeApiConfig;
     if (_clientBaseUri == config.serverBaseUri) return;
     _client?.close();
-    _client = AcquisitionApiClient(config: config);
+    _client = widget.clientFactory?.call(config) ?? AcquisitionApiClient(config: config);
     _clientBaseUri = config.serverBaseUri;
     _load();
   }
@@ -77,8 +82,7 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     } catch (_) {
       if (!mounted) return;
       setState(() {
-        _error =
-            'This Papyrus server does not expose the torrent acquisition API.';
+        _error = 'This Papyrus server does not expose the torrent acquisition API.';
       });
     } finally {
       if (mounted) setState(() => _loading = false);
@@ -101,11 +105,7 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
           .map((endpoint) => endpoint.id)
           .toList();
       final releases = await _authenticated((token) {
-        return _apiClient.search(
-          accessToken: token,
-          query: query,
-          endpointIds: indexerIds.isEmpty ? null : indexerIds,
-        );
+        return _apiClient.search(accessToken: token, query: query, endpointIds: indexerIds.isEmpty ? null : indexerIds);
       });
       if (mounted) setState(() => _releases = releases);
     } on AuthApiException catch (error) {
@@ -119,29 +119,18 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     }
   }
 
-  Future<void> _submitRelease(
-    TorrentRelease release,
-    AcquisitionEndpoint client,
-  ) async {
+  Future<void> _submitRelease(TorrentRelease release, AcquisitionEndpoint client) async {
     setState(() => _submitting = true);
     try {
       await _authenticated((token) {
-        return _apiClient.submitRelease(
-          accessToken: token,
-          endpointId: client.id,
-          release: release,
-        );
+        return _apiClient.submitRelease(accessToken: token, endpointId: client.id, release: release);
       });
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text('Sent to ${client.name}.')));
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Sent to ${client.name}.')));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not submit this release.')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not submit this release.')));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
@@ -162,43 +151,28 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     setState(() => _submitting = true);
     try {
       await _authenticated((token) {
-        return _apiClient.runArrCommand(
-          accessToken: token,
-          endpointId: endpoint.id,
-          command: command,
-          ids: ids,
-        );
+        return _apiClient.runArrCommand(accessToken: token, endpointId: endpoint.id, command: command, ids: ids);
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$command sent to ${endpoint.name}.')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$command sent to ${endpoint.name}.')));
       }
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not run this Arr action.')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not run this Arr action.')));
       }
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
 
-  Future<String?> _pickArrCommand(
-    AcquisitionEndpoint endpoint,
-    List<String> commands,
-  ) {
+  Future<String?> _pickArrCommand(AcquisitionEndpoint endpoint, List<String> commands) {
     return showModalBottomSheet<String>(
       context: context,
       builder: (context) => SafeArea(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            ListTile(
-              title: Text(endpoint.name),
-              subtitle: Text(endpoint.kind.label),
-            ),
+            ListTile(title: Text(endpoint.name), subtitle: Text(endpoint.kind.label)),
             ...commands.map(
               (command) => ListTile(
                 leading: const Icon(Icons.play_arrow_outlined),
@@ -230,10 +204,7 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
             autofocus: true,
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
             FilledButton(
               onPressed: () {
                 final ids = controller.text
@@ -255,137 +226,57 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
 
   Future<void> _showEndpointDialog({AcquisitionEndpoint? endpoint}) async {
     final capabilities = _capabilities;
-    if (capabilities == null) return;
+    if (capabilities == null || capabilities.endpointKinds.isEmpty) return;
 
-    final name = TextEditingController(text: endpoint?.name ?? '');
-    final url = TextEditingController(text: endpoint?.baseUrl.toString() ?? '');
-    final apiKey = TextEditingController();
-    final username = TextEditingController();
-    final password = TextEditingController();
-    var kind = endpoint?.kind ?? capabilities.endpointKinds.first;
-    var enabled = endpoint?.enabled ?? true;
+    final saved = await showDialog<bool>(
+      context: context,
+      builder: (context) => _EndpointDialog(
+        endpoint: endpoint,
+        endpointKinds: capabilities.endpointKinds,
+        onTest: ({required kind, required baseUrl, apiKey, username, password}) {
+          return _authenticated((token) {
+            return _apiClient.testEndpoint(
+              accessToken: token,
+              endpointId: endpoint?.id,
+              kind: endpoint == null ? kind : null,
+              baseUrl: baseUrl,
+              apiKey: apiKey,
+              username: username,
+              password: password,
+            );
+          });
+        },
+        onSave: ({required name, required kind, required baseUrl, required enabled, apiKey, username, password}) async {
+          await _authenticated((token) async {
+            if (endpoint == null) {
+              await _apiClient.createEndpoint(
+                accessToken: token,
+                name: name,
+                kind: kind,
+                baseUrl: baseUrl,
+                apiKey: apiKey,
+                username: username,
+                password: password,
+              );
+              return;
+            }
 
-    try {
-      final saved = await showDialog<bool>(
-        context: context,
-        builder: (context) => StatefulBuilder(
-          builder: (context, setDialogState) => AlertDialog(
-            title: Text(
-              endpoint == null ? 'Add integration' : 'Edit integration',
-            ),
-            content: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    controller: name,
-                    decoration: const InputDecoration(labelText: 'Name'),
-                  ),
-                  DropdownButtonFormField<AcquisitionEndpointKind>(
-                    initialValue: kind,
-                    items: capabilities.endpointKinds
-                        .map(
-                          (value) => DropdownMenuItem(
-                            value: value,
-                            child: Text(value.label),
-                          ),
-                        )
-                        .toList(),
-                    onChanged: endpoint == null
-                        ? (value) => setDialogState(() => kind = value ?? kind)
-                        : null,
-                    decoration: const InputDecoration(labelText: 'Type'),
-                  ),
-                  TextField(
-                    controller: url,
-                    decoration: const InputDecoration(labelText: 'Server URL'),
-                    keyboardType: TextInputType.url,
-                  ),
-                  TextField(
-                    controller: apiKey,
-                    decoration: const InputDecoration(labelText: 'API key'),
-                  ),
-                  TextField(
-                    controller: username,
-                    decoration: const InputDecoration(labelText: 'Username'),
-                  ),
-                  TextField(
-                    controller: password,
-                    obscureText: true,
-                    decoration: const InputDecoration(labelText: 'Password'),
-                  ),
-                  SwitchListTile(
-                    contentPadding: EdgeInsets.zero,
-                    title: const Text('Enabled'),
-                    value: enabled,
-                    onChanged: (value) => setDialogState(() => enabled = value),
-                  ),
-                ],
-              ),
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () async {
-                  final baseUrl = Uri.tryParse(url.text.trim());
-                  if (name.text.trim().isEmpty ||
-                      baseUrl == null ||
-                      !baseUrl.hasScheme ||
-                      baseUrl.userInfo.isNotEmpty) {
-                    return;
-                  }
-                  try {
-                    await _authenticated((token) {
-                      if (endpoint == null) {
-                        return _apiClient.createEndpoint(
-                          accessToken: token,
-                          name: name.text.trim(),
-                          kind: kind,
-                          baseUrl: baseUrl,
-                          apiKey: _optional(apiKey.text),
-                          username: _optional(username.text),
-                          password: _optional(password.text),
-                        );
-                      }
-                      return _apiClient.updateEndpoint(
-                        accessToken: token,
-                        endpointId: endpoint.id,
-                        name: name.text.trim(),
-                        baseUrl: baseUrl,
-                        apiKey: _optional(apiKey.text),
-                        username: _optional(username.text),
-                        password: _optional(password.text),
-                        enabled: enabled,
-                      );
-                    });
-                    if (context.mounted) Navigator.pop(context, true);
-                  } catch (_) {
-                    if (context.mounted) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                          content: Text('Could not save this integration.'),
-                        ),
-                      );
-                    }
-                  }
-                },
-                child: const Text('Save'),
-              ),
-            ],
-          ),
-        ),
-      );
-      if (saved == true) await _load();
-    } finally {
-      name.dispose();
-      url.dispose();
-      apiKey.dispose();
-      username.dispose();
-      password.dispose();
-    }
+            await _apiClient.updateEndpoint(
+              accessToken: token,
+              endpointId: endpoint.id,
+              name: name,
+              baseUrl: baseUrl,
+              apiKey: apiKey,
+              username: username,
+              password: password,
+              enabled: enabled,
+            );
+          });
+        },
+      ),
+    );
+
+    if (saved == true) await _load();
   }
 
   Future<void> _deleteEndpoint(AcquisitionEndpoint endpoint) async {
@@ -393,18 +284,10 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
       context: context,
       builder: (context) => AlertDialog(
         title: Text('Remove ${endpoint.name}?'),
-        content: const Text(
-          'Saved credentials for this integration will be removed.',
-        ),
+        content: const Text('Saved credentials for this integration will be removed.'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Cancel'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Remove'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Remove')),
         ],
       ),
     );
@@ -412,17 +295,12 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
 
     try {
       await _authenticated((token) {
-        return _apiClient.deleteEndpoint(
-          accessToken: token,
-          endpointId: endpoint.id,
-        );
+        return _apiClient.deleteEndpoint(accessToken: token, endpointId: endpoint.id);
       });
       await _load();
     } catch (_) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Could not remove this integration.')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Could not remove this integration.')));
       }
     }
   }
@@ -430,15 +308,9 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
   @override
   Widget build(BuildContext context) {
     final capabilities = _capabilities;
-    final clients = _endpoints
-        .where((endpoint) => endpoint.enabled && endpoint.kind.isDownloadClient)
-        .toList();
-    final indexers = _endpoints
-        .where((endpoint) => endpoint.kind.isIndexer)
-        .toList();
-    final arrApps = _endpoints
-        .where((endpoint) => endpoint.kind.isArr)
-        .toList();
+    final clients = _endpoints.where((endpoint) => endpoint.enabled && endpoint.kind.isDownloadClient).toList();
+    final indexers = _endpoints.where((endpoint) => endpoint.kind.isIndexer).toList();
+    final arrApps = _endpoints.where((endpoint) => endpoint.kind.isArr).toList();
 
     return Scaffold(
       appBar: AppBar(title: const Text('Torrent acquisition')),
@@ -475,9 +347,7 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
               _EndpointSection(
                 title: 'Download clients',
                 emptyLabel: 'No download clients configured',
-                endpoints: _endpoints
-                    .where((endpoint) => endpoint.kind.isDownloadClient)
-                    .toList(),
+                endpoints: _endpoints.where((endpoint) => endpoint.kind.isDownloadClient).toList(),
                 onEdit: (endpoint) => _showEndpointDialog(endpoint: endpoint),
                 onDelete: _deleteEndpoint,
               ),
@@ -492,11 +362,7 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
                 Text('Results', style: Theme.of(context).textTheme.titleMedium),
                 const SizedBox(height: Spacing.sm),
                 ..._releases.map(
-                  (release) => _ReleaseTile(
-                    release: release,
-                    clients: clients,
-                    onSubmit: _submitRelease,
-                  ),
+                  (release) => _ReleaseTile(release: release, clients: clients, onSubmit: _submitRelease),
                 ),
               ] else if (!_searching && _queryController.text.trim().isNotEmpty)
                 const Padding(
@@ -517,11 +383,6 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     return error.message;
   }
 
-  String? _optional(String value) {
-    final trimmed = value.trim();
-    return trimmed.isEmpty ? null : trimmed;
-  }
-
   String _arrCommandLabel(String command) => switch (command) {
     'AuthorSearch' => 'Search authors',
     'BookSearch' => 'Search books',
@@ -535,6 +396,251 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     'MissingAlbumSearch' => 'Search missing albums',
     _ => command,
   };
+}
+
+typedef _EndpointTestCallback =
+    Future<void> Function({
+      required AcquisitionEndpointKind kind,
+      required Uri baseUrl,
+      String? apiKey,
+      String? username,
+      String? password,
+    });
+
+typedef _EndpointSaveCallback =
+    Future<void> Function({
+      required String name,
+      required AcquisitionEndpointKind kind,
+      required Uri baseUrl,
+      required bool enabled,
+      String? apiKey,
+      String? username,
+      String? password,
+    });
+
+class _EndpointDialog extends StatefulWidget {
+  const _EndpointDialog({
+    required this.endpoint,
+    required this.endpointKinds,
+    required this.onTest,
+    required this.onSave,
+  });
+
+  final AcquisitionEndpoint? endpoint;
+  final List<AcquisitionEndpointKind> endpointKinds;
+  final _EndpointTestCallback onTest;
+  final _EndpointSaveCallback onSave;
+
+  @override
+  State<_EndpointDialog> createState() => _EndpointDialogState();
+}
+
+class _EndpointDialogState extends State<_EndpointDialog> {
+  late final TextEditingController _nameController;
+  late final TextEditingController _urlController;
+  final _apiKeyController = TextEditingController();
+  final _usernameController = TextEditingController();
+  final _passwordController = TextEditingController();
+  late AcquisitionEndpointKind _kind;
+  late bool _enabled;
+  bool _testing = false;
+  bool _saving = false;
+  String? _message;
+  bool _messageIsError = false;
+
+  bool get _busy => _testing || _saving;
+
+  bool get _usesApiKey => _kind.isIndexer || _kind.isArr;
+
+  bool get _usesUsername =>
+      _kind == AcquisitionEndpointKind.qbittorrent || _kind == AcquisitionEndpointKind.transmission;
+
+  bool get _usesPassword => _usesUsername || _kind == AcquisitionEndpointKind.deluge;
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController = TextEditingController(text: widget.endpoint?.name ?? '');
+    _urlController = TextEditingController(text: widget.endpoint?.baseUrl.toString() ?? '');
+    _kind = widget.endpoint?.kind ?? widget.endpointKinds.first;
+    _enabled = widget.endpoint?.enabled ?? true;
+  }
+
+  @override
+  void dispose() {
+    _nameController.dispose();
+    _urlController.dispose();
+    _apiKeyController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return AlertDialog(
+      title: Text(widget.endpoint == null ? 'Add integration' : 'Edit integration'),
+      content: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: _nameController,
+              enabled: !_busy,
+              decoration: const InputDecoration(labelText: 'Name'),
+            ),
+            DropdownButtonFormField<AcquisitionEndpointKind>(
+              initialValue: _kind,
+              items: widget.endpointKinds
+                  .map((value) => DropdownMenuItem(value: value, child: Text(value.label)))
+                  .toList(),
+              onChanged: widget.endpoint == null && !_busy ? (value) => setState(() => _kind = value ?? _kind) : null,
+              decoration: const InputDecoration(labelText: 'Type'),
+            ),
+            TextField(
+              controller: _urlController,
+              enabled: !_busy,
+              decoration: const InputDecoration(labelText: 'Server URL'),
+              keyboardType: TextInputType.url,
+            ),
+            if (_usesApiKey)
+              TextField(
+                controller: _apiKeyController,
+                enabled: !_busy,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'API key'),
+              ),
+            if (_usesUsername)
+              TextField(
+                controller: _usernameController,
+                enabled: !_busy,
+                decoration: const InputDecoration(labelText: 'Username'),
+              ),
+            if (_usesPassword)
+              TextField(
+                controller: _passwordController,
+                enabled: !_busy,
+                obscureText: true,
+                decoration: const InputDecoration(labelText: 'Password'),
+              ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const Text('Enabled'),
+              value: _enabled,
+              onChanged: _busy ? null : (value) => setState(() => _enabled = value),
+            ),
+            if (_testing) const LinearProgressIndicator(),
+            if (_message != null)
+              Padding(
+                padding: const EdgeInsets.only(top: Spacing.sm),
+                child: Text(_message!, style: TextStyle(color: _messageIsError ? colorScheme.error : null)),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: _busy ? null : () => Navigator.pop(context, false), child: const Text('Cancel')),
+        OutlinedButton(
+          key: const Key('acquisition-test-connection'),
+          onPressed: _busy ? null : _testConnection,
+          child: const Text('Test connection'),
+        ),
+        FilledButton(key: const Key('acquisition-save'), onPressed: _busy ? null : _save, child: const Text('Save')),
+      ],
+    );
+  }
+
+  Future<void> _testConnection() async {
+    final baseUrl = _baseUrl();
+    if (baseUrl == null) return;
+
+    setState(() {
+      _testing = true;
+      _message = null;
+    });
+
+    try {
+      await widget.onTest(
+        kind: _kind,
+        baseUrl: baseUrl,
+        apiKey: _usesApiKey ? _optional(_apiKeyController.text) : null,
+        username: _usesUsername ? _optional(_usernameController.text) : null,
+        password: _usesPassword ? _optional(_passwordController.text) : null,
+      );
+      if (!mounted) return;
+      setState(() {
+        _message = 'Connection successful.';
+        _messageIsError = false;
+      });
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _message = error is AuthApiException ? error.message : 'Could not connect to this integration.';
+        _messageIsError = true;
+      });
+    } finally {
+      if (mounted) setState(() => _testing = false);
+    }
+  }
+
+  Future<void> _save() async {
+    final name = _nameController.text.trim();
+    final baseUrl = _baseUrl();
+    if (name.isEmpty || baseUrl == null) {
+      if (name.isEmpty) {
+        setState(() {
+          _message = 'Name is required.';
+          _messageIsError = true;
+        });
+      }
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _message = null;
+    });
+
+    try {
+      await widget.onSave(
+        name: name,
+        kind: _kind,
+        baseUrl: baseUrl,
+        enabled: _enabled,
+        apiKey: _usesApiKey ? _optional(_apiKeyController.text) : null,
+        username: _usesUsername ? _optional(_usernameController.text) : null,
+        password: _usesPassword ? _optional(_passwordController.text) : null,
+      );
+      if (mounted) Navigator.pop(context, true);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() {
+        _message = error is AuthApiException ? error.message : 'Could not save this integration.';
+        _messageIsError = true;
+      });
+    } finally {
+      if (mounted) setState(() => _saving = false);
+    }
+  }
+
+  Uri? _baseUrl() {
+    final baseUrl = Uri.tryParse(_urlController.text.trim());
+    if (baseUrl == null || !baseUrl.hasScheme || !baseUrl.hasAuthority || baseUrl.userInfo.isNotEmpty) {
+      setState(() {
+        _message = 'Enter a valid server URL without embedded credentials.';
+        _messageIsError = true;
+      });
+      return null;
+    }
+    return baseUrl;
+  }
+
+  String? _optional(String value) {
+    final trimmed = value.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
 }
 
 class _SearchCard extends StatelessWidget {
@@ -558,10 +664,7 @@ class _SearchCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Search torrents',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Search torrents', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: Spacing.sm),
             TextField(
               controller: queryController,
@@ -572,24 +675,15 @@ class _SearchCard extends StatelessWidget {
                 suffixIcon: searching
                     ? const Padding(
                         padding: EdgeInsets.all(12),
-                        child: SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2),
-                        ),
+                        child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2)),
                       )
-                    : IconButton(
-                        icon: const Icon(Icons.search),
-                        onPressed: canSearch ? onSearch : null,
-                      ),
+                    : IconButton(icon: const Icon(Icons.search), onPressed: canSearch ? onSearch : null),
               ),
             ),
             if (!canSearch)
               const Padding(
                 padding: EdgeInsets.only(top: Spacing.sm),
-                child: Text(
-                  'Add an enabled Prowlarr or Torznab indexer first.',
-                ),
+                child: Text('Add an enabled Prowlarr or Torznab indexer first.'),
               ),
           ],
         ),
@@ -624,19 +718,10 @@ class _EndpointSection extends StatelessWidget {
           const SizedBox(height: Spacing.sm),
           if (endpoints.isEmpty)
             Card(
-              child: ListTile(
-                leading: const Icon(Icons.info_outline),
-                title: Text(emptyLabel),
-              ),
+              child: ListTile(leading: const Icon(Icons.info_outline), title: Text(emptyLabel)),
             )
           else
-            ...endpoints.map(
-              (endpoint) => _EndpointTile(
-                endpoint: endpoint,
-                onEdit: onEdit,
-                onDelete: onDelete,
-              ),
-            ),
+            ...endpoints.map((endpoint) => _EndpointTile(endpoint: endpoint, onEdit: onEdit, onDelete: onDelete)),
         ],
       ),
     );
@@ -644,12 +729,7 @@ class _EndpointSection extends StatelessWidget {
 }
 
 class _ArrSection extends StatelessWidget {
-  const _ArrSection({
-    required this.endpoints,
-    required this.onRun,
-    required this.onEdit,
-    required this.onDelete,
-  });
+  const _ArrSection({required this.endpoints, required this.onRun, required this.onEdit, required this.onDelete});
 
   final List<AcquisitionEndpoint> endpoints;
   final ValueChanged<AcquisitionEndpoint> onRun;
@@ -663,17 +743,11 @@ class _ArrSection extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            'Arr applications',
-            style: Theme.of(context).textTheme.titleMedium,
-          ),
+          Text('Arr applications', style: Theme.of(context).textTheme.titleMedium),
           const SizedBox(height: Spacing.sm),
           if (endpoints.isEmpty)
             const Card(
-              child: ListTile(
-                leading: Icon(Icons.info_outline),
-                title: Text('No Arr applications configured'),
-              ),
+              child: ListTile(leading: Icon(Icons.info_outline), title: Text('No Arr applications configured')),
             )
           else
             ...endpoints.map(
@@ -695,12 +769,7 @@ class _ArrSection extends StatelessWidget {
 }
 
 class _EndpointTile extends StatelessWidget {
-  const _EndpointTile({
-    required this.endpoint,
-    required this.onEdit,
-    required this.onDelete,
-    this.trailingAction,
-  });
+  const _EndpointTile({required this.endpoint, required this.onEdit, required this.onDelete, this.trailingAction});
 
   final AcquisitionEndpoint endpoint;
   final ValueChanged<AcquisitionEndpoint> onEdit;
@@ -719,12 +788,8 @@ class _EndpointTile extends StatelessWidget {
           children: [
             if (trailingAction != null) trailingAction!,
             Icon(
-              endpoint.enabled
-                  ? Icons.check_circle_outline
-                  : Icons.pause_circle_outline,
-              color: endpoint.enabled
-                  ? Theme.of(context).colorScheme.primary
-                  : null,
+              endpoint.enabled ? Icons.check_circle_outline : Icons.pause_circle_outline,
+              color: endpoint.enabled ? Theme.of(context).colorScheme.primary : null,
             ),
             PopupMenuButton<String>(
               onSelected: (value) {
@@ -746,23 +811,17 @@ class _EndpointTile extends StatelessWidget {
     AcquisitionEndpointKind.qbittorrent ||
     AcquisitionEndpointKind.transmission ||
     AcquisitionEndpointKind.deluge => Icons.downloading_outlined,
-    AcquisitionEndpointKind.prowlarr ||
-    AcquisitionEndpointKind.torznab => Icons.travel_explore,
+    AcquisitionEndpointKind.prowlarr || AcquisitionEndpointKind.torznab => Icons.travel_explore,
     _ => Icons.auto_awesome_motion_outlined,
   };
 }
 
 class _ReleaseTile extends StatelessWidget {
-  const _ReleaseTile({
-    required this.release,
-    required this.clients,
-    required this.onSubmit,
-  });
+  const _ReleaseTile({required this.release, required this.clients, required this.onSubmit});
 
   final TorrentRelease release;
   final List<AcquisitionEndpoint> clients;
-  final void Function(TorrentRelease release, AcquisitionEndpoint client)
-  onSubmit;
+  final void Function(TorrentRelease release, AcquisitionEndpoint client) onSubmit;
 
   @override
   Widget build(BuildContext context) {
@@ -781,12 +840,8 @@ class _ReleaseTile extends StatelessWidget {
           enabled: clients.isNotEmpty,
           icon: const Icon(Icons.send_outlined),
           tooltip: 'Send to client',
-          itemBuilder: (context) => clients
-              .map(
-                (client) =>
-                    PopupMenuItem(value: client, child: Text(client.name)),
-              )
-              .toList(),
+          itemBuilder: (context) =>
+              clients.map((client) => PopupMenuItem(value: client, child: Text(client.name))).toList(),
           onSelected: (client) => onSubmit(release, client),
         ),
       ),
@@ -794,8 +849,7 @@ class _ReleaseTile extends StatelessWidget {
   }
 
   String _formatBytes(int bytes) {
-    if (bytes >= 1073741824)
-      return '${(bytes / 1073741824).toStringAsFixed(1)} GB';
+    if (bytes >= 1073741824) return '${(bytes / 1073741824).toStringAsFixed(1)} GB';
     if (bytes >= 1048576) return '${(bytes / 1048576).toStringAsFixed(1)} MB';
     if (bytes >= 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
     return '$bytes B';
@@ -815,10 +869,7 @@ class _ErrorBanner extends StatelessWidget {
       color: colorScheme.errorContainer,
       child: ListTile(
         leading: Icon(Icons.error_outline, color: colorScheme.onErrorContainer),
-        title: Text(
-          message,
-          style: TextStyle(color: colorScheme.onErrorContainer),
-        ),
+        title: Text(message, style: TextStyle(color: colorScheme.onErrorContainer)),
         trailing: TextButton(onPressed: onRetry, child: const Text('Retry')),
       ),
     );
