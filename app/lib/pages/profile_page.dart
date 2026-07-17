@@ -8,6 +8,7 @@ import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/storage_sync_controller.dart';
 import 'package:papyrus/providers/auth_provider.dart';
+import 'package:papyrus/providers/acquisition_availability_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
 import 'package:papyrus/powersync/sync_state.dart';
@@ -113,11 +114,7 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Appearance'),
-        SettingsRow(
-          label: 'Theme',
-          value: _getThemeLabel(prefs.themeModePref),
-          onTap: () => _showThemePicker(context),
-        ),
+        SettingsRow(label: 'Theme', value: _getThemeLabel(prefs.themeModePref), onTap: () => _showThemePicker(context)),
       ],
     );
   }
@@ -129,11 +126,7 @@ class _ProfilePageState extends State<ProfilePage> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Reading'),
-        SettingsRow(
-          label: 'Default font',
-          value: prefs.defaultFont,
-          onTap: () => _showFontPicker(context),
-        ),
+        SettingsRow(label: 'Default font', value: prefs.defaultFont, onTap: () => _showFontPicker(context)),
         SettingsRow(
           label: 'Line spacing',
           value: _capitalize(prefs.lineSpacing),
@@ -214,6 +207,7 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildMobileStorageSyncSection(BuildContext context) {
     final controller = _storageSyncController(context);
     final prefs = context.watch<PreferencesProvider>();
+    final acquisitionAvailable = _acquisitionAvailable(context);
 
     if (controller.isGuest) {
       return Column(
@@ -222,15 +216,12 @@ class _ProfilePageState extends State<ProfilePage> {
           const SettingsSectionHeader(title: 'Storage'),
           const SettingsRow(label: 'Library', value: 'Stored on this device'),
           Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Spacing.sm,
-              vertical: Spacing.xs,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
             child: Text(
               'Nothing is sent to Papyrus servers while offline mode is on.',
-              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
+              style: Theme.of(
+                context,
+              ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
             ),
           ),
           SettingsRow(
@@ -238,10 +229,7 @@ class _ProfilePageState extends State<ProfilePage> {
             value: 'Export or import a backup',
             onTap: () => _showOfflineBackupActions(context),
           ),
-          SettingsRow(
-            label: 'Clear local library',
-            onTap: () => _confirmClearLocalLibrary(context),
-          ),
+          SettingsRow(label: 'Clear local library', onTap: () => _confirmClearLocalLibrary(context)),
         ],
       );
     }
@@ -263,35 +251,19 @@ class _ProfilePageState extends State<ProfilePage> {
             value: controller.failedMediaUploadLabel,
             onTap: () => _retryFailedMediaUploads(context),
           ),
-        SettingsRow(
-          label: 'Manage servers',
-          onTap: () => _showManageSyncServersSheet(context),
-        ),
+        SettingsRow(label: 'Manage servers', onTap: () => _showManageSyncServersSheet(context)),
         SettingsToggleRow(
           label: 'Torrent acquisition',
           value: prefs.acquisitionEnabled,
           onChanged: (value) => prefs.acquisitionEnabled = value,
         ),
-        if (prefs.acquisitionEnabled)
-          SettingsRow(
-            label: 'Torrent & automation',
-            onTap: () => context.push('/acquisition'),
-          ),
-        if (controller.canReconnect)
-          SettingsRow(
-            label: 'Reconnect',
-            onTap: () => _handleReconnectSync(context),
-          ),
+        if (prefs.acquisitionEnabled && acquisitionAvailable)
+          SettingsRow(label: 'Torrent & automation', onTap: () => context.push('/acquisition')),
+        if (controller.canReconnect) SettingsRow(label: 'Reconnect', onTap: () => _handleReconnectSync(context)),
         if (controller.canClearGuestLibrary)
-          SettingsRow(
-            label: 'Clear local library',
-            onTap: () => _confirmClearLocalLibrary(context),
-          ),
+          SettingsRow(label: 'Clear local library', onTap: () => _confirmClearLocalLibrary(context)),
         if (controller.canClearAuthenticatedCache)
-          SettingsRow(
-            label: 'Clear local copy',
-            onTap: () => _confirmClearAuthenticatedCache(context),
-          ),
+          SettingsRow(label: 'Clear local copy', onTap: () => _confirmClearAuthenticatedCache(context)),
       ],
     );
   }
@@ -451,12 +423,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       label: 'Developer options',
                       section: _ProfileSection.developerOptions,
                     ),
-                  _buildNavItem(
-                    context,
-                    icon: Icons.info_outline,
-                    label: 'About',
-                    section: _ProfileSection.about,
-                  ),
+                  _buildNavItem(context, icon: Icons.info_outline, label: 'About', section: _ProfileSection.about),
                   const SizedBox(height: Spacing.sm),
                   Divider(height: 1, color: colorScheme.outlineVariant),
                   const SizedBox(height: Spacing.sm),
@@ -499,9 +466,7 @@ class _ProfilePageState extends State<ProfilePage> {
         : isSelected
         ? colorScheme.onPrimaryContainer
         : null;
-    final bgColor = isSelected
-        ? colorScheme.primaryContainer
-        : Colors.transparent;
+    final bgColor = isSelected ? colorScheme.primaryContainer : Colors.transparent;
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
@@ -518,10 +483,7 @@ class _ProfilePageState extends State<ProfilePage> {
               },
           borderRadius: BorderRadius.circular(AppRadius.md),
           child: Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: Spacing.md,
-              vertical: Spacing.sm + 2,
-            ),
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm + 2),
             child: Row(
               children: [
                 Icon(icon, color: iconColor, size: IconSizes.medium),
@@ -531,9 +493,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     label,
                     style: textTheme.bodyMedium?.copyWith(
                       color: textColor,
-                      fontWeight: isSelected
-                          ? FontWeight.w600
-                          : FontWeight.normal,
+                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
                     ),
                   ),
                 ),
@@ -642,12 +602,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     children: [
                       Text(_getDisplayName(), style: textTheme.headlineSmall),
                       const SizedBox(height: Spacing.xs),
-                      Text(
-                        _getEmail(),
-                        style: textTheme.bodyMedium?.copyWith(
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                      ),
+                      Text(_getEmail(), style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
                       const SizedBox(height: Spacing.md),
                       Align(
                         alignment: Alignment.centerLeft,
@@ -676,11 +631,7 @@ class _ProfilePageState extends State<ProfilePage> {
         SettingsCard(
           title: 'Connected accounts',
           children: [
-            SettingsRow(
-              label: 'Google',
-              value: _isGoogleLinked() ? 'Connected' : 'Not connected',
-              onTap: () {},
-            ),
+            SettingsRow(label: 'Google', value: _isGoogleLinked() ? 'Connected' : 'Not connected', onTap: () {}),
           ],
         ),
         const SizedBox(height: Spacing.lg),
@@ -705,12 +656,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Theme',
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text('Theme', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         const SizedBox(height: Spacing.sm),
         _buildRadioTile('Light', 'light'),
         _buildRadioTile('Dark', 'dark'),
@@ -736,9 +682,7 @@ class _ProfilePageState extends State<ProfilePage> {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.primary
-                      : Theme.of(context).colorScheme.outline,
+                  color: isSelected ? Theme.of(context).colorScheme.primary : Theme.of(context).colorScheme.outline,
                   width: 2,
                 ),
               ),
@@ -747,10 +691,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       child: Container(
                         width: 10,
                         height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Theme.of(context).colorScheme.primary,
-                        ),
+                        decoration: BoxDecoration(shape: BoxShape.circle, color: Theme.of(context).colorScheme.primary),
                       ),
                     )
                   : null,
@@ -792,12 +733,7 @@ class _ProfilePageState extends State<ProfilePage> {
               onChanged: (value) => prefs.defaultFont = value,
             ),
             const SizedBox(height: Spacing.lg),
-            Text(
-              'Default font size',
-              style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            Text('Default font size', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
             Row(
               children: [
                 Expanded(
@@ -809,13 +745,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     onChanged: (value) => prefs.defaultFontSize = value,
                   ),
                 ),
-                SizedBox(
-                  width: 48,
-                  child: Text(
-                    '${prefs.defaultFontSize.toInt()}px',
-                    style: textTheme.bodyMedium,
-                  ),
-                ),
+                SizedBox(width: 48, child: Text('${prefs.defaultFontSize.toInt()}px', style: textTheme.bodyMedium)),
               ],
             ),
             const SizedBox(height: Spacing.md),
@@ -823,11 +753,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Line spacing',
               value: prefs.lineSpacing,
-              options: const {
-                'compact': 'Compact',
-                'normal': 'Normal',
-                'relaxed': 'Relaxed',
-              },
+              options: const {'compact': 'Compact', 'normal': 'Normal', 'relaxed': 'Relaxed'},
               onChanged: (value) => prefs.lineSpacing = value,
             ),
             const SizedBox(height: Spacing.md),
@@ -843,11 +769,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Margins',
               value: prefs.margins,
-              options: const {
-                'small': 'Small',
-                'medium': 'Medium',
-                'large': 'Large',
-              },
+              options: const {'small': 'Small', 'medium': 'Medium', 'large': 'Large'},
               onChanged: (value) => prefs.margins = value,
             ),
           ],
@@ -860,10 +782,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Reading mode',
               value: prefs.readingMode,
-              options: const {
-                'paginated': 'Paginated',
-                'scroll': 'Continuous scroll',
-              },
+              options: const {'paginated': 'Paginated', 'scroll': 'Continuous scroll'},
               onChanged: (value) => prefs.readingMode = value,
             ),
             const SizedBox(height: Spacing.md),
@@ -875,10 +794,7 @@ class _ProfilePageState extends State<ProfilePage> {
           ],
         ),
         const SizedBox(height: Spacing.lg),
-        SettingsCard(
-          title: 'Annotations',
-          children: [_buildHighlightColorField(context)],
-        ),
+        SettingsCard(title: 'Annotations', children: [_buildHighlightColorField(context)]),
         const SizedBox(height: Spacing.lg),
         SettingsCard(
           children: [SettingsRow(label: 'Reading profiles', onTap: () {})],
@@ -903,12 +819,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          'Default highlight color',
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text('Default highlight color', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         const SizedBox(height: Spacing.sm),
         Row(
           children: highlightColors.entries.map((entry) {
@@ -927,9 +838,7 @@ class _ProfilePageState extends State<ProfilePage> {
                         ? Border.all(color: colorScheme.primary, width: 3)
                         : Border.all(color: colorScheme.outline, width: 1),
                   ),
-                  child: isSelected
-                      ? Icon(Icons.check, size: 18, color: colorScheme.primary)
-                      : null,
+                  child: isSelected ? Icon(Icons.check, size: 18, color: colorScheme.primary) : null,
                 ),
               ),
             );
@@ -954,11 +863,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Default view mode',
               value: prefs.defaultViewMode,
-              options: const {
-                'grid': 'Grid',
-                'list': 'List',
-                'compact': 'Compact',
-              },
+              options: const {'grid': 'Grid', 'list': 'List', 'compact': 'Compact'},
               onChanged: (value) => prefs.defaultViewMode = value,
             ),
             const SizedBox(height: Spacing.md),
@@ -966,13 +871,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Default sort order',
               value: prefs.defaultSortOrder,
-              options: const [
-                'title',
-                'author',
-                'date_added',
-                'last_read',
-                'rating',
-              ],
+              options: const ['title', 'author', 'date_added', 'last_read', 'rating'],
               labels: const {
                 'title': 'Title',
                 'author': 'Author',
@@ -992,10 +891,7 @@ class _ProfilePageState extends State<ProfilePage> {
               context,
               label: 'Metadata source',
               value: prefs.metadataSource,
-              options: const {
-                'Open Library': 'Open Library',
-                'Google Books': 'Google Books',
-              },
+              options: const {'Open Library': 'Open Library', 'Google Books': 'Google Books'},
               onChanged: (value) => prefs.metadataSource = value,
             ),
             const SizedBox(height: Spacing.md),
@@ -1045,41 +941,22 @@ class _ProfilePageState extends State<ProfilePage> {
     final textTheme = Theme.of(context).textTheme;
     final controller = _storageSyncController(context);
     final prefs = context.watch<PreferencesProvider>();
+    final acquisitionAvailable = _acquisitionAvailable(context);
 
     if (controller.isGuest) return _buildOfflineStorageSyncContent(context);
 
     return SettingsCard(
       title: 'Data sync',
       children: [
-        _buildInfoRow(
-          context,
-          label: 'Active server',
-          value: controller.dataSyncLabel,
-        ),
+        _buildInfoRow(context, label: 'Active server', value: controller.dataSyncLabel),
         _buildInfoRow(context, label: 'Status', value: controller.statusLabel),
-        _buildInfoRow(
-          context,
-          label: 'File storage',
-          value: controller.fileStorageLabel,
-        ),
+        _buildInfoRow(context, label: 'File storage', value: controller.fileStorageLabel),
         if (controller.hasFailedMediaUploads)
-          _buildInfoRow(
-            context,
-            label: 'Media uploads',
-            value: controller.failedMediaUploadLabel,
-          ),
+          _buildInfoRow(context, label: 'Media uploads', value: controller.failedMediaUploadLabel),
         const SizedBox(height: Spacing.sm),
         Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.sm,
-            vertical: Spacing.xs,
-          ),
-          child: Text(
-            controller.syncDetail,
-            style: textTheme.bodySmall?.copyWith(
-              color: colorScheme.onSurfaceVariant,
-            ),
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+          child: Text(controller.syncDetail, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
         ),
         const SizedBox(height: Spacing.sm),
         SwitchListTile(
@@ -1104,13 +981,10 @@ class _ProfilePageState extends State<ProfilePage> {
               icon: const Icon(Icons.dns_outlined, size: IconSizes.small),
               label: const Text('Manage servers'),
             ),
-            if (prefs.acquisitionEnabled)
+            if (prefs.acquisitionEnabled && acquisitionAvailable)
               OutlinedButton.icon(
                 onPressed: () => context.push('/acquisition'),
-                icon: const Icon(
-                  Icons.downloading_outlined,
-                  size: IconSizes.small,
-                ),
+                icon: const Icon(Icons.downloading_outlined, size: IconSizes.small),
                 label: const Text('Torrent & automation'),
               ),
             if (controller.hasFailedMediaUploads)
@@ -1122,10 +996,7 @@ class _ProfilePageState extends State<ProfilePage> {
             if (controller.canClearAuthenticatedCache)
               OutlinedButton.icon(
                 onPressed: () => _confirmClearAuthenticatedCache(context),
-                icon: const Icon(
-                  Icons.cleaning_services_outlined,
-                  size: IconSizes.small,
-                ),
+                icon: const Icon(Icons.cleaning_services_outlined, size: IconSizes.small),
                 label: const Text('Clear local copy'),
               ),
           ],
@@ -1136,9 +1007,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildOfflineStorageSyncContent(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final mutedStyle = textTheme.bodyMedium?.copyWith(
-      color: Theme.of(context).colorScheme.onSurfaceVariant,
-    );
+    final mutedStyle = textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant);
 
     return SettingsCard(
       title: 'Library storage',
@@ -1148,10 +1017,7 @@ class _ProfilePageState extends State<ProfilePage> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                'Your library is stored on this device.',
-                style: textTheme.bodyLarge,
-              ),
+              Text('Your library is stored on this device.', style: textTheme.bodyLarge),
               const SizedBox(height: Spacing.sm),
               Text(
                 'Nothing is sent to Papyrus servers while offline mode is on. Export a backup before changing devices or clearing app data.',
@@ -1167,18 +1033,12 @@ class _ProfilePageState extends State<ProfilePage> {
           children: [
             OutlinedButton.icon(
               onPressed: () => _showBackupUnavailable(context, 'Backup export'),
-              icon: const Icon(
-                Icons.file_download_outlined,
-                size: IconSizes.small,
-              ),
+              icon: const Icon(Icons.file_download_outlined, size: IconSizes.small),
               label: const Text('Export backup'),
             ),
             OutlinedButton.icon(
               onPressed: () => _showBackupUnavailable(context, 'Backup import'),
-              icon: const Icon(
-                Icons.file_upload_outlined,
-                size: IconSizes.small,
-              ),
+              icon: const Icon(Icons.file_upload_outlined, size: IconSizes.small),
               label: const Text('Import backup'),
             ),
             OutlinedButton.icon(
@@ -1200,49 +1060,35 @@ class _ProfilePageState extends State<ProfilePage> {
       syncState: context.watch<SyncState>(),
       fileStorageUsedBytes: _fileStorageUsedBytes(context.watch<DataStore>()),
       mediaStorageUsage: context.watch<MediaUploadQueue>().storageUsage,
-      failedMediaUploadCount: _failedMediaUploadCount(
-        context.watch<MediaUploadQueue>(),
-      ),
+      failedMediaUploadCount: _failedMediaUploadCount(context.watch<MediaUploadQueue>()),
     );
+  }
+
+  bool _acquisitionAvailable(BuildContext context) {
+    final serverBaseUri = context.watch<SyncSettingsProvider>().activeApiConfig.serverBaseUri;
+    return context.watch<AcquisitionAvailabilityProvider>().isAvailableFor(serverBaseUri);
   }
 
   int _fileStorageUsedBytes(DataStore dataStore) {
-    return dataStore.books.fold<int>(
-      0,
-      (total, book) => total + (book.fileSize ?? 0),
-    );
+    return dataStore.books.fold<int>(0, (total, book) => total + (book.fileSize ?? 0));
   }
 
   int _failedMediaUploadCount(MediaUploadQueue queue) {
-    return queue.pendingTasks
-        .where((task) => task.status == MediaUploadTaskStatus.failed)
-        .length;
+    return queue.pendingTasks.where((task) => task.status == MediaUploadTaskStatus.failed).length;
   }
 
-  Widget _buildInfoRow(
-    BuildContext context, {
-    required String label,
-    required String value,
-  }) {
+  Widget _buildInfoRow(BuildContext context, {required String label, required String value}) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: Spacing.sm,
-        vertical: Spacing.xs,
-      ),
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
             width: 160,
-            child: Text(
-              label,
-              style: textTheme.bodyMedium?.copyWith(
-                color: colorScheme.onSurfaceVariant,
-              ),
-            ),
+            child: Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
           ),
           Expanded(child: SelectableText(value, style: textTheme.bodyMedium)),
         ],
@@ -1271,9 +1117,9 @@ class _ProfilePageState extends State<ProfilePage> {
               child: Text(
                 'Help improve Papyrus by sharing anonymous usage statistics. '
                 'No personal data or reading content is collected.',
-                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
+                style: Theme.of(
+                  context,
+                ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ),
           ],
@@ -1309,17 +1155,13 @@ class _ProfilePageState extends State<ProfilePage> {
           onChanged: (value) => prefs.reduceAnimations = value,
         ),
         Padding(
-          padding: const EdgeInsets.only(
-            left: Spacing.sm,
-            right: Spacing.sm,
-            bottom: Spacing.md,
-          ),
+          padding: const EdgeInsets.only(left: Spacing.sm, right: Spacing.sm, bottom: Spacing.md),
           child: Text(
             'Minimizes motion effects throughout the app. '
             'Separate from e-ink mode.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ),
         SettingsToggleRow(
@@ -1328,16 +1170,12 @@ class _ProfilePageState extends State<ProfilePage> {
           onChanged: (value) => prefs.dyslexiaFont = value,
         ),
         Padding(
-          padding: const EdgeInsets.only(
-            left: Spacing.sm,
-            right: Spacing.sm,
-            bottom: Spacing.md,
-          ),
+          padding: const EdgeInsets.only(left: Spacing.sm, right: Spacing.sm, bottom: Spacing.md),
           child: Text(
             'Use OpenDyslexic font across the app interface.',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
+            style: Theme.of(
+              context,
+            ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
           ),
         ),
       ],
@@ -1427,10 +1265,7 @@ class _ProfilePageState extends State<ProfilePage> {
         title: const Text('Log out'),
         content: const Text('Are you sure you want to log out?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Cancel'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
           FilledButton(
             onPressed: () {
               Navigator.pop(context);
@@ -1448,11 +1283,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _showLicenses(BuildContext context) {
-    showLicensePage(
-      context: context,
-      applicationName: 'Papyrus',
-      applicationVersion: '1.0.0',
-    );
+    showLicensePage(context: context, applicationName: 'Papyrus', applicationVersion: '1.0.0');
   }
 
   void _showManageSyncServersSheet(BuildContext context) {
@@ -1465,41 +1296,26 @@ class _ProfilePageState extends State<ProfilePage> {
               shrinkWrap: true,
               children: [
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(
-                    Spacing.md,
-                    Spacing.md,
-                    Spacing.md,
-                    Spacing.sm,
-                  ),
-                  child: Text(
-                    'Sync servers',
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
+                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, Spacing.sm),
+                  child: Text('Sync servers', style: Theme.of(context).textTheme.titleMedium),
                 ),
                 ListTile(
                   leading: Icon(
-                    settings.activeServerId ==
-                            SyncSettingsProvider.officialServerId
+                    settings.activeServerId == SyncSettingsProvider.officialServerId
                         ? Icons.radio_button_checked
                         : Icons.radio_button_unchecked,
                   ),
                   title: const Text('Official server'),
-                  subtitle: const Text(
-                    'Papyrus-hosted data sync and file storage',
-                  ),
+                  subtitle: const Text('Papyrus-hosted data sync and file storage'),
                   onTap: () {
-                    settings.selectServer(
-                      SyncSettingsProvider.officialServerId,
-                    );
+                    settings.selectServer(SyncSettingsProvider.officialServerId);
                     Navigator.pop(sheetContext);
                   },
                 ),
                 for (final server in settings.customServers)
                   ListTile(
                     leading: Icon(
-                      settings.activeServerId == server.id
-                          ? Icons.radio_button_checked
-                          : Icons.radio_button_unchecked,
+                      settings.activeServerId == server.id ? Icons.radio_button_checked : Icons.radio_button_unchecked,
                     ),
                     title: Text(server.label),
                     subtitle: Text(server.url),
@@ -1511,9 +1327,7 @@ class _ProfilePageState extends State<ProfilePage> {
                       onSelected: (value) {
                         if (value == 'edit') {
                           Navigator.pop(sheetContext);
-                          unawaited(
-                            _showCustomServerDialog(context, server: server),
-                          );
+                          unawaited(_showCustomServerDialog(context, server: server));
                         } else if (value == 'remove') {
                           settings.removeCustomServer(server.id);
                         }
@@ -1540,10 +1354,7 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Future<void> _showCustomServerDialog(
-    BuildContext context, {
-    CustomSyncServer? server,
-  }) async {
+  Future<void> _showCustomServerDialog(BuildContext context, {CustomSyncServer? server}) async {
     final settings = context.read<SyncSettingsProvider>();
     final urlController = TextEditingController(text: server?.url ?? '');
     final messenger = ScaffoldMessenger.of(context);
@@ -1552,9 +1363,7 @@ class _ProfilePageState extends State<ProfilePage> {
       await showDialog<void>(
         context: context,
         builder: (dialogContext) => AlertDialog(
-          title: Text(
-            server == null ? 'Add custom server' : 'Edit custom server',
-          ),
+          title: Text(server == null ? 'Add custom server' : 'Edit custom server'),
           content: TextField(
             controller: urlController,
             decoration: const InputDecoration(labelText: 'Server URL'),
@@ -1562,26 +1371,18 @@ class _ProfilePageState extends State<ProfilePage> {
             autofocus: true,
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              child: const Text('Cancel'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(dialogContext), child: const Text('Cancel')),
             FilledButton(
               onPressed: () async {
                 try {
                   if (server == null) {
                     await settings.addCustomServer(urlController.text);
                   } else {
-                    await settings.updateCustomServer(
-                      server.id,
-                      urlController.text,
-                    );
+                    await settings.updateCustomServer(server.id, urlController.text);
                   }
                   if (dialogContext.mounted) Navigator.pop(dialogContext);
                 } catch (error) {
-                  messenger.showSnackBar(
-                    SnackBar(content: Text('Could not save server: $error')),
-                  );
+                  messenger.showSnackBar(SnackBar(content: Text('Could not save server: $error')));
                 }
               },
               child: const Text('Save'),
@@ -1598,24 +1399,16 @@ class _ProfilePageState extends State<ProfilePage> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await context.read<PapyrusPowerSyncService>().reconnect();
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Sync reconnect requested.')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('Sync reconnect requested.')));
     } catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Could not reconnect sync: $error')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Could not reconnect sync: $error')));
     }
   }
 
   Future<void> _retryFailedMediaUploads(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     await context.read<MediaUploadQueue>().retryFailed();
-    messenger.showSnackBar(
-      const SnackBar(
-        content: Text('Media uploads will retry on the next sync.'),
-      ),
-    );
+    messenger.showSnackBar(const SnackBar(content: Text('Media uploads will retry on the next sync.')));
   }
 
   void _showOfflineBackupActions(BuildContext context) {
@@ -1650,9 +1443,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }
 
   void _showBackupUnavailable(BuildContext context, String action) {
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text('$action is not available yet.')));
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$action is not available yet.')));
   }
 
   Future<void> _confirmClearLocalLibrary(BuildContext context) async {
@@ -1668,13 +1459,9 @@ class _ProfilePageState extends State<ProfilePage> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await context.read<PapyrusPowerSyncService>().clearGuestLibrary();
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Local library cleared.')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('Local library cleared.')));
     } catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Could not clear local library: $error')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Could not clear local library: $error')));
     }
   }
 
@@ -1697,13 +1484,9 @@ class _ProfilePageState extends State<ProfilePage> {
       if (scope != null) {
         await importService.clearCoverFiles(scope);
       }
-      messenger.showSnackBar(
-        const SnackBar(content: Text('Local copy cleared.')),
-      );
+      messenger.showSnackBar(const SnackBar(content: Text('Local copy cleared.')));
     } catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Could not clear local copy: $error')),
-      );
+      messenger.showSnackBar(SnackBar(content: Text('Could not clear local copy: $error')));
     }
   }
 
@@ -1719,14 +1502,8 @@ class _ProfilePageState extends State<ProfilePage> {
             title: Text(title),
             content: Text(message),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(dialogContext, false),
-                child: const Text('Cancel'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(dialogContext, true),
-                child: Text(actionLabel),
-              ),
+              TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
+              FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: Text(actionLabel)),
             ],
           ),
         ) ??
@@ -1751,12 +1528,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         const SizedBox(height: Spacing.sm),
         DropdownMenu<String>(
           initialSelection: value,
@@ -1786,21 +1558,13 @@ class _ProfilePageState extends State<ProfilePage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          label,
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
-        ),
+        Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
         const SizedBox(height: Spacing.sm),
         SizedBox(
           width: double.infinity,
           child: SegmentedButton<T>(
             segments: options.entries.map((entry) {
-              return ButtonSegment<T>(
-                value: entry.key,
-                label: Text(entry.value),
-              );
+              return ButtonSegment<T>(value: entry.key, label: Text(entry.value));
             }).toList(),
             selected: {value},
             onSelectionChanged: (selected) {
@@ -1852,12 +1616,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     _showPickerSheet(
       context,
-      items: [
-        ('Light', 'light'),
-        ('Dark', 'dark'),
-        ('E-ink', 'eink'),
-        ('System', 'system'),
-      ],
+      items: [('Light', 'light'), ('Dark', 'dark'), ('E-ink', 'eink'), ('System', 'system')],
       selected: prefs.themeModePref,
       onSelected: (value) => prefs.themeModePref = value,
     );
@@ -1887,11 +1646,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     _showPickerSheet(
       context,
-      items: [
-        ('Compact', 'compact'),
-        ('Normal', 'normal'),
-        ('Relaxed', 'relaxed'),
-      ],
+      items: [('Compact', 'compact'), ('Normal', 'normal'), ('Relaxed', 'relaxed')],
       selected: prefs.lineSpacing,
       onSelected: (value) => prefs.lineSpacing = value,
     );
@@ -1941,10 +1696,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     _showPickerSheet(
       context,
-      items: [
-        ('Open Library', 'Open Library'),
-        ('Google Books', 'Google Books'),
-      ],
+      items: [('Open Library', 'Open Library'), ('Google Books', 'Google Books')],
       selected: prefs.metadataSource,
       onSelected: (value) => prefs.metadataSource = value,
     );
@@ -1955,12 +1707,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
     _showPickerSheet(
       context,
-      items: [
-        ('Markdown', 'Markdown'),
-        ('PDF', 'PDF'),
-        ('TXT', 'TXT'),
-        ('HTML', 'HTML'),
-      ],
+      items: [('Markdown', 'Markdown'), ('PDF', 'PDF'), ('TXT', 'TXT'), ('HTML', 'HTML')],
       selected: prefs.annotationExportFormat,
       onSelected: (value) => prefs.annotationExportFormat = value,
     );
@@ -2023,26 +1770,17 @@ class _ProfilePageState extends State<ProfilePage> {
       children: [
         _buildAvatar(context, size: avatarSize),
         const SizedBox(height: Spacing.md),
-        Text(
-          _getDisplayName(),
-          style: textTheme.headlineSmall,
-          textAlign: TextAlign.center,
-        ),
+        Text(_getDisplayName(), style: textTheme.headlineSmall, textAlign: TextAlign.center),
         const SizedBox(height: Spacing.xs),
         Text(
           _getEmail(),
-          style: textTheme.bodyMedium?.copyWith(
-            color: colorScheme.onSurfaceVariant,
-          ),
+          style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: Spacing.md),
         SizedBox(
           width: 200,
-          child: OutlinedButton(
-            onPressed: () => _navigateToEditProfile(context),
-            child: const Text('Edit profile'),
-          ),
+          child: OutlinedButton(onPressed: () => _navigateToEditProfile(context), child: const Text('Edit profile')),
         ),
       ],
     );
@@ -2056,10 +1794,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return Container(
       width: size,
       height: size,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(size / 2),
-        color: colorScheme.primaryContainer,
-      ),
+      decoration: BoxDecoration(borderRadius: BorderRadius.circular(size / 2), color: colorScheme.primaryContainer),
       clipBehavior: Clip.antiAlias,
       child: avatarUrl != null && avatarUrl.isNotEmpty
           ? Image.network(
@@ -2078,10 +1813,7 @@ class _ProfilePageState extends State<ProfilePage> {
           : Center(
               child: Text(
                 _initials,
-                style: textTheme.headlineMedium?.copyWith(
-                  color: colorScheme.onPrimaryContainer,
-                  fontSize: size * 0.35,
-                ),
+                style: textTheme.headlineMedium?.copyWith(color: colorScheme.onPrimaryContainer, fontSize: size * 0.35),
               ),
             ),
     );
@@ -2097,9 +1829,7 @@ class _ProfilePageState extends State<ProfilePage> {
   }) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final iconColor = isDestructive
-        ? colorScheme.error
-        : colorScheme.onSurfaceVariant;
+    final iconColor = isDestructive ? colorScheme.error : colorScheme.onSurfaceVariant;
     final textColor = isDestructive ? colorScheme.error : null;
 
     return Material(
@@ -2108,10 +1838,7 @@ class _ProfilePageState extends State<ProfilePage> {
         onTap: onTap,
         borderRadius: BorderRadius.circular(AppRadius.sm),
         child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: Spacing.sm,
-            vertical: Spacing.md,
-          ),
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.md),
           child: Row(
             children: [
               Container(
@@ -2127,17 +1854,9 @@ class _ProfilePageState extends State<ProfilePage> {
               ),
               const SizedBox(width: Spacing.md),
               Expanded(
-                child: Text(
-                  label,
-                  style: textTheme.bodyLarge?.copyWith(color: textColor),
-                ),
+                child: Text(label, style: textTheme.bodyLarge?.copyWith(color: textColor)),
               ),
-              if (showChevron)
-                Icon(
-                  Icons.chevron_right,
-                  color: colorScheme.onSurfaceVariant,
-                  size: IconSizes.medium,
-                ),
+              if (showChevron) Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: IconSizes.medium),
             ],
           ),
         ),

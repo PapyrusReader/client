@@ -24,21 +24,35 @@ import 'package:papyrus/pages/annotations_page.dart';
 import 'package:papyrus/pages/acquisition_page.dart';
 import 'package:papyrus/pages/notes_page.dart';
 import 'package:papyrus/pages/welcome_page.dart';
+import 'package:papyrus/providers/acquisition_availability_provider.dart';
 import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
+import 'package:papyrus/providers/sync_settings_provider.dart';
 
 class AppRouter {
   final AuthProvider authProvider;
   final PreferencesProvider preferencesProvider;
+  final SyncSettingsProvider syncSettingsProvider;
+  final AcquisitionAvailabilityProvider acquisitionAvailabilityProvider;
   final rootNavigatorKey = GlobalKey<NavigatorState>();
   final shellNavigatorKey = GlobalKey<NavigatorState>();
 
-  AppRouter({required this.authProvider, required this.preferencesProvider});
+  AppRouter({
+    required this.authProvider,
+    required this.preferencesProvider,
+    required this.syncSettingsProvider,
+    required this.acquisitionAvailabilityProvider,
+  });
 
   late final GoRouter router = GoRouter(
     debugLogDiagnostics: true,
     navigatorKey: rootNavigatorKey,
-    refreshListenable: Listenable.merge([authProvider, preferencesProvider]),
+    refreshListenable: Listenable.merge([
+      authProvider,
+      preferencesProvider,
+      syncSettingsProvider,
+      acquisitionAvailabilityProvider,
+    ]),
     routes: [
       GoRoute(
         path: '/',
@@ -49,34 +63,24 @@ class AppRouter {
           GoRoute(
             name: 'LOGIN',
             path: 'login',
-            pageBuilder: (context, state) =>
-                NoTransitionPage(key: state.pageKey, child: const LoginPage()),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const LoginPage()),
           ),
           GoRoute(
             name: 'REGISTER',
             path: 'register',
-            pageBuilder: (context, state) => NoTransitionPage(
-              key: state.pageKey,
-              child: const RegisterPage(),
-            ),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const RegisterPage()),
           ),
           GoRoute(
             name: 'FORGOT_PASSWORD',
             path: 'forgot-password',
-            pageBuilder: (context, state) => NoTransitionPage(
-              key: state.pageKey,
-              child: const ForgotPasswordPage(),
-            ),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const ForgotPasswordPage()),
           ),
           GoRoute(
             name: 'RESET_PASSWORD',
             path: 'reset-password',
             pageBuilder: (context, state) => NoTransitionPage(
               key: state.pageKey,
-              child: ForgotPasswordPage(
-                resetToken: state.uri.queryParameters['token'],
-                isResetLink: true,
-              ),
+              child: ForgotPasswordPage(resetToken: state.uri.queryParameters['token'], isResetLink: true),
             ),
           ),
           GoRoute(
@@ -100,40 +104,26 @@ class AppRouter {
           GoRoute(
             name: 'DASHBOARD',
             path: '/dashboard',
-            pageBuilder: (context, state) => NoTransitionPage(
-              key: state.pageKey,
-              child: const DashboardPage(),
-            ),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const DashboardPage()),
           ),
           // Library and sub-routes
           GoRoute(
             name: 'LIBRARY',
             path: '/library',
             redirect: (context, state) {
-              return state.uri.toString() == '/library'
-                  ? '/library/books'
-                  : null;
+              return state.uri.toString() == '/library' ? '/library/books' : null;
             },
-            pageBuilder: (context, state) => NoTransitionPage(
-              key: state.pageKey,
-              child: const LibraryPage(),
-            ),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const LibraryPage()),
             routes: [
               GoRoute(
                 name: 'BOOKS',
                 path: 'books',
-                pageBuilder: (context, state) => NoTransitionPage(
-                  key: state.pageKey,
-                  child: const LibraryPage(),
-                ),
+                pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const LibraryPage()),
               ),
               GoRoute(
                 name: 'SHELVES',
                 path: 'shelves',
-                pageBuilder: (context, state) => NoTransitionPage(
-                  key: state.pageKey,
-                  child: const ShelvesPage(),
-                ),
+                pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const ShelvesPage()),
                 routes: [
                   GoRoute(
                     name: 'SHELF_CONTENTS',
@@ -151,34 +141,22 @@ class AppRouter {
               GoRoute(
                 name: 'BOOKMARKS',
                 path: 'bookmarks',
-                pageBuilder: (context, state) => NoTransitionPage(
-                  key: state.pageKey,
-                  child: const BookmarksPage(),
-                ),
+                pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const BookmarksPage()),
               ),
               GoRoute(
                 name: 'ANNOTATIONS',
                 path: 'annotations',
-                pageBuilder: (context, state) => NoTransitionPage(
-                  key: state.pageKey,
-                  child: const AnnotationsPage(),
-                ),
+                pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const AnnotationsPage()),
               ),
               GoRoute(
                 name: 'NOTES',
                 path: 'notes',
-                pageBuilder: (context, state) => NoTransitionPage(
-                  key: state.pageKey,
-                  child: const NotesPage(),
-                ),
+                pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const NotesPage()),
               ),
               GoRoute(
                 name: 'SEARCH_OPTIONS',
                 path: 'search/options',
-                pageBuilder: (context, state) => NoTransitionPage(
-                  key: state.pageKey,
-                  child: const SearchOptionsPage(),
-                ),
+                pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const SearchOptionsPage()),
               ),
               GoRoute(
                 name: 'BOOK_DETAILS',
@@ -208,42 +186,29 @@ class AppRouter {
           GoRoute(
             name: 'GOALS',
             path: '/goals',
-            pageBuilder: (context, state) =>
-                NoTransitionPage(key: state.pageKey, child: const GoalsPage()),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const GoalsPage()),
           ),
           // Statistics
           GoRoute(
             name: 'STATISTICS',
             path: '/statistics',
-            pageBuilder: (context, state) => NoTransitionPage(
-              key: state.pageKey,
-              child: const StatisticsPage(),
-            ),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const StatisticsPage()),
           ),
           GoRoute(
             name: 'ACQUISITION',
             path: '/acquisition',
-            pageBuilder: (context, state) => NoTransitionPage(
-              key: state.pageKey,
-              child: const AcquisitionPage(),
-            ),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const AcquisitionPage()),
           ),
           // Profile
           GoRoute(
             name: 'PROFILE',
             path: '/profile',
-            pageBuilder: (context, state) => NoTransitionPage(
-              key: state.pageKey,
-              child: const ProfilePage(),
-            ),
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const ProfilePage()),
             routes: [
               GoRoute(
                 name: 'EDIT_PROFILE',
                 path: 'edit',
-                pageBuilder: (context, state) => NoTransitionPage(
-                  key: state.pageKey,
-                  child: const EditProfilePage(),
-                ),
+                pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const EditProfilePage()),
               ),
             ],
           ),
@@ -252,10 +217,8 @@ class AppRouter {
             GoRoute(
               name: 'DEVELOPER_OPTIONS',
               path: '/developer-options',
-              pageBuilder: (context, state) => NoTransitionPage(
-                key: state.pageKey,
-                child: const DeveloperOptionsPage(),
-              ),
+              pageBuilder: (context, state) =>
+                  NoTransitionPage(key: state.pageKey, child: const DeveloperOptionsPage()),
             ),
         ],
       ),
@@ -286,14 +249,14 @@ class AppRouter {
       return '/';
     }
 
-    if (location == '/' ||
-        location == '/login' ||
-        location == '/register' ||
-        location == '/reset-password') {
+    if (location == '/' || location == '/login' || location == '/register' || location == '/reset-password') {
       return '/library/books';
     }
 
-    if (location == '/acquisition' && !preferencesProvider.acquisitionEnabled) {
+    final acquisitionAvailable = acquisitionAvailabilityProvider.isAvailableFor(
+      syncSettingsProvider.activeApiConfig.serverBaseUri,
+    );
+    if (location == '/acquisition' && (!preferencesProvider.acquisitionEnabled || !acquisitionAvailable)) {
       return '/profile';
     }
 
