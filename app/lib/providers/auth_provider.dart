@@ -34,11 +34,8 @@ class AuthProvider extends ChangeNotifier {
   String? _error;
   String? get error => _error;
 
-  AuthProvider(
-    this._prefs, {
-    required AuthRepository repository,
-    bool bootstrapOnCreate = true,
-  }) : _repository = repository {
+  AuthProvider(this._prefs, {required AuthRepository repository, bool bootstrapOnCreate = true})
+    : _repository = repository {
     _isOfflineMode = _prefs.getBool(_keyOfflineMode) ?? false;
 
     if (bootstrapOnCreate) {
@@ -46,10 +43,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> replaceRepository(
-    AuthRepository repository, {
-    bool bootstrapNewRepository = true,
-  }) async {
+  Future<void> replaceRepository(AuthRepository repository, {bool bootstrapNewRepository = true}) async {
     _repository = repository;
     _user = null;
     _error = null;
@@ -77,11 +71,7 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<bool> register({
-    required String email,
-    required String password,
-    required String displayName,
-  }) async {
+  Future<bool> register({required String email, required String password, required String displayName}) async {
     return _runTokenAction(() {
       return _repository.register(
         email: email,
@@ -95,12 +85,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> login({required String email, required String password}) async {
     return _runTokenAction(() {
-      return _repository.login(
-        email: email,
-        password: password,
-        clientType: _clientType,
-        deviceLabel: _deviceLabel,
-      );
+      return _repository.login(email: email, password: password, clientType: _clientType, deviceLabel: _deviceLabel);
     });
   }
 
@@ -109,10 +94,7 @@ class AuthProvider extends ChangeNotifier {
     _error = null;
 
     try {
-      final tokens = await _repository.signInWithGoogle(
-        clientType: _clientType,
-        deviceLabel: _deviceLabel,
-      );
+      final tokens = await _repository.signInWithGoogle(clientType: _clientType, deviceLabel: _deviceLabel);
 
       if (tokens == null) {
         return false;
@@ -133,11 +115,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> completeGoogleSignIn(Uri callbackUri) async {
     return _runTokenAction(() {
-      return _repository.completeGoogleSignIn(
-        callbackUri,
-        clientType: _clientType,
-        deviceLabel: _deviceLabel,
-      );
+      return _repository.completeGoogleSignIn(callbackUri, clientType: _clientType, deviceLabel: _deviceLabel);
     });
   }
 
@@ -172,15 +150,9 @@ class AuthProvider extends ChangeNotifier {
     _setStatus(AuthStatus.signedOut);
   }
 
-  Future<bool> updateProfile({
-    required String displayName,
-    String? avatarUrl,
-  }) async {
+  Future<bool> updateProfile({required String displayName, String? avatarUrl}) async {
     try {
-      _user = await _repository.updateCurrentUser(
-        displayName: displayName,
-        avatarUrl: avatarUrl,
-      );
+      _user = await _repository.updateCurrentUser(displayName: displayName, avatarUrl: avatarUrl);
       _error = null;
       notifyListeners();
       return true;
@@ -195,10 +167,7 @@ class AuthProvider extends ChangeNotifier {
     return _runMessageAction(() => _repository.forgotPassword(email));
   }
 
-  Future<String?> resetPassword({
-    required String token,
-    required String password,
-  }) {
+  Future<String?> resetPassword({required String token, required String password}) {
     return _runMessageAction(() {
       return _repository.resetPassword(token: token, password: password);
     });
@@ -216,9 +185,7 @@ class AuthProvider extends ChangeNotifier {
     return _repository.downloadMedia(assetId);
   }
 
-  Future<T> withFreshAccessToken<T>(
-    Future<T> Function(String accessToken) action,
-  ) async {
+  Future<T> withFreshAccessToken<T>(Future<T> Function(String accessToken) action) async {
     try {
       return await _repository.withFreshAccessToken(action);
     } catch (error) {
