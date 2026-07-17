@@ -48,6 +48,7 @@ enum AcquisitionEndpointKind {
 }
 
 class AcquisitionCapabilities {
+  final bool enabled;
   final List<AcquisitionEndpointKind> endpointKinds;
   final List<AcquisitionEndpointKind> indexerKinds;
   final List<AcquisitionEndpointKind> downloadClientKinds;
@@ -55,6 +56,7 @@ class AcquisitionCapabilities {
   final Map<AcquisitionEndpointKind, List<String>> arrCommands;
 
   const AcquisitionCapabilities({
+    required this.enabled,
     required this.endpointKinds,
     required this.indexerKinds,
     required this.downloadClientKinds,
@@ -64,24 +66,19 @@ class AcquisitionCapabilities {
 
   factory AcquisitionCapabilities.fromJson(Map<String, dynamic> json) {
     return AcquisitionCapabilities(
+      enabled: json['enabled'] as bool? ?? true,
       endpointKinds: _kinds(json['endpoint_kinds']),
       indexerKinds: _kinds(json['indexer_kinds']),
       downloadClientKinds: _kinds(json['download_client_kinds']),
       arrKinds: _kinds(json['arr_kinds']),
       arrCommands: ((json['arr_commands'] as Map<String, dynamic>?) ?? {}).map(
-        (key, value) => MapEntry(
-          AcquisitionEndpointKind.values.byName(key),
-          (value as List<dynamic>).cast<String>(),
-        ),
+        (key, value) => MapEntry(AcquisitionEndpointKind.values.byName(key), (value as List<dynamic>).cast<String>()),
       ),
     );
   }
 
   static List<AcquisitionEndpointKind> _kinds(Object? value) {
-    return ((value as List<dynamic>?) ?? [])
-        .cast<String>()
-        .map(AcquisitionEndpointKind.values.byName)
-        .toList();
+    return ((value as List<dynamic>?) ?? []).cast<String>().map(AcquisitionEndpointKind.values.byName).toList();
   }
 }
 
@@ -100,14 +97,13 @@ class AcquisitionEndpoint {
     required this.enabled,
   });
 
-  factory AcquisitionEndpoint.fromJson(Map<String, dynamic> json) =>
-      AcquisitionEndpoint(
-        id: json['endpoint_id'] as String,
-        name: json['name'] as String,
-        kind: AcquisitionEndpointKind.values.byName(json['kind'] as String),
-        baseUrl: Uri.parse(json['base_url'] as String),
-        enabled: json['enabled'] as bool,
-      );
+  factory AcquisitionEndpoint.fromJson(Map<String, dynamic> json) => AcquisitionEndpoint(
+    id: json['endpoint_id'] as String,
+    name: json['name'] as String,
+    kind: AcquisitionEndpointKind.values.byName(json['kind'] as String),
+    baseUrl: Uri.parse(json['base_url'] as String),
+    enabled: json['enabled'] as bool,
+  );
 }
 
 class TorrentRelease {
@@ -136,5 +132,43 @@ class TorrentRelease {
     indexer: json['indexer'] as String,
     seeders: json['seeders'] as int?,
     sizeBytes: json['size_bytes'] as int?,
+  );
+}
+
+class AcquisitionJob {
+  final String id;
+  final String? endpointId;
+  final String? ruleId;
+  final String title;
+  final String downloadUrl;
+  final String status;
+  final String? clientReference;
+  final String? error;
+  final DateTime? createdAt;
+
+  const AcquisitionJob({
+    required this.id,
+    required this.endpointId,
+    required this.ruleId,
+    required this.title,
+    required this.downloadUrl,
+    required this.status,
+    required this.clientReference,
+    required this.error,
+    required this.createdAt,
+  });
+
+  bool get isSubmitted => status == 'submitted';
+
+  factory AcquisitionJob.fromJson(Map<String, dynamic> json) => AcquisitionJob(
+    id: json['job_id'] as String,
+    endpointId: json['endpoint_id'] as String?,
+    ruleId: json['rule_id'] as String?,
+    title: json['title'] as String,
+    downloadUrl: json['download_url'] as String,
+    status: json['status'] as String,
+    clientReference: json['client_reference'] as String?,
+    error: json['error'] as String?,
+    createdAt: json['created_at'] == null ? null : DateTime.parse(json['created_at'] as String),
   );
 }

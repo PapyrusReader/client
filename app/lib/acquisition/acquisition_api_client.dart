@@ -29,10 +29,7 @@ class AcquisitionApiClient {
   }
 
   Future<List<AcquisitionEndpoint>> listEndpoints(String accessToken) async {
-    final response = await _httpClient.get(
-      config.endpoint('/acquisition/endpoints'),
-      headers: _headers(accessToken),
-    );
+    final response = await _httpClient.get(config.endpoint('/acquisition/endpoints'), headers: _headers(accessToken));
     return _decodeList(response).map(AcquisitionEndpoint.fromJson).toList();
   }
 
@@ -85,10 +82,34 @@ class AcquisitionApiClient {
     return AcquisitionEndpoint.fromJson(_decodeObject(response));
   }
 
-  Future<void> deleteEndpoint({
+  Future<void> testEndpoint({
     required String accessToken,
-    required String endpointId,
+    String? endpointId,
+    AcquisitionEndpointKind? kind,
+    Uri? baseUrl,
+    String? apiKey,
+    String? username,
+    String? password,
   }) async {
+    final response = await _httpClient.post(
+      config.endpoint('/acquisition/endpoints/test'),
+      headers: _headers(accessToken),
+      body: jsonEncode({
+        if (endpointId != null) 'endpoint_id': endpointId,
+        if (kind != null) 'kind': kind.apiValue,
+        if (baseUrl != null) 'base_url': baseUrl.toString(),
+        if (apiKey != null) 'api_key': apiKey,
+        if (username != null) 'username': username,
+        if (password != null) 'password': password,
+      }),
+    );
+    final result = _decodeObject(response);
+    if (result['ok'] != true) {
+      throw const AuthApiException(statusCode: 502, message: 'Connection test returned an invalid response');
+    }
+  }
+
+  Future<void> deleteEndpoint({required String accessToken, required String endpointId}) async {
     final response = await _httpClient.delete(
       config.endpoint('/acquisition/endpoints/$endpointId'),
       headers: _headers(accessToken),
@@ -105,15 +126,12 @@ class AcquisitionApiClient {
     final response = await _httpClient.post(
       config.endpoint('/acquisition/search'),
       headers: _headers(accessToken),
-      body: jsonEncode({
-        'query': query,
-        if (endpointIds != null) 'endpoint_ids': endpointIds,
-      }),
+      body: jsonEncode({'query': query, if (endpointIds != null) 'endpoint_ids': endpointIds}),
     );
     return _decodeList(response).map(TorrentRelease.fromJson).toList();
   }
 
-  Future<void> submitRelease({
+  Future<AcquisitionJob> submitRelease({
     required String accessToken,
     required String endpointId,
     required TorrentRelease release,
@@ -131,10 +149,10 @@ class AcquisitionApiClient {
         if (savePath != null) 'save_path': savePath,
       }),
     );
-    _decodeObject(response);
+    return AcquisitionJob.fromJson(_decodeObject(response));
   }
 
-  Future<void> runArrCommand({
+  Future<AcquisitionJob> runArrCommand({
     required String accessToken,
     required String endpointId,
     required String command,
@@ -145,7 +163,7 @@ class AcquisitionApiClient {
       headers: _headers(accessToken),
       body: jsonEncode({'command': command, 'ids': ids}),
     );
-    _decodeObject(response);
+    return AcquisitionJob.fromJson(_decodeObject(response));
   }
 
   Map<String, String> _headers(String accessToken) => {
@@ -155,15 +173,16 @@ class AcquisitionApiClient {
   };
 
   Map<String, dynamic> _decodeObject(http.Response response) {
-    final decoded = response.body.isEmpty
-        ? <String, dynamic>{}
-        : jsonDecode(response.body) as Map<String, dynamic>;
+    final decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body) as Map<String, dynamic>;
     if (response.statusCode >= 200 && response.statusCode < 300) return decoded;
     final error = decoded['error'];
+    final detail = decoded['detail'];
     throw AuthApiException(
       statusCode: response.statusCode,
       message: error is Map<String, dynamic>
           ? error['message'] as String? ?? 'Acquisition request failed'
+          : detail is String
+          ? detail
           : 'Acquisition request failed',
     );
   }
@@ -172,7 +191,6 @@ class AcquisitionApiClient {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       _decodeObject(response);
     }
-    return (jsonDecode(response.body) as List<dynamic>)
-        .cast<Map<String, dynamic>>();
+    return (jsonDecode(response.body) as List<dynamic>).cast<Map<String, dynamic>>();
   }
 }
