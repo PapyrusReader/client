@@ -1,11 +1,12 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/services/book_import_result.dart';
-import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/add_book/add_book_choice_sheet.dart';
-import 'package:papyrus/widgets/add_book/import_book_sheet.dart';
+import 'package:papyrus/widgets/add_book/add_physical_book_sheet.dart';
+import 'package:papyrus/widgets/add_book/book_import_batch_item.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 
 class _CountingNavigatorObserver extends NavigatorObserver {
   int pushCount = 0;
@@ -16,16 +17,6 @@ class _CountingNavigatorObserver extends NavigatorObserver {
     super.didPush(route, previousRoute);
   }
 }
-
-const importedBook = BookImportResult(
-  bookId: 'book-1',
-  title: 'Frankenstein',
-  author: 'Mary Wollstonecraft Shelley',
-  pageCount: 239,
-  fileSize: 1024,
-  fileHash: 'hash',
-  fileExtension: 'epub',
-);
 
 void main() {
   Future<void> pumpLauncher(
@@ -139,42 +130,58 @@ void main() {
     expect(find.text('Open page'), findsNothing);
   });
 
-  testWidgets('import book opens as a format-neutral bottom sheet on desktop', (tester) async {
+  testWidgets('digital selection and results use distinct modal routes', (tester) async {
+    final observer = _CountingNavigatorObserver();
+    final selected = SelectedBookFile(name: 'selected.epub', bytes: Uint8List.fromList([1]));
     await pumpLauncher(
       tester,
       (context) =>
-          () => ImportBookSheet.show(context),
+          () => AddBookChoiceSheet.show(
+            context,
+            digitalFilePicker: () async => [selected],
+            bookImportProcessor: (_, filename) async => BookImportResult(
+              bookId: 'temporary-book',
+              title: filename,
+              author: 'Author',
+              fileSize: 1,
+              fileHash: 'hash',
+              fileExtension: 'epub',
+            ),
+            deleteImportedBookFile: (_) async {},
+          ),
+      navigatorObservers: [observer],
     );
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(BottomSheet), findsOneWidget);
-    expect(find.byType(Dialog), findsNothing);
-    expect(find.byType(BottomSheetHandle), findsOneWidget);
-    expect(find.byType(BottomSheetHeader), findsOneWidget);
-    expect(find.text('Cancel'), findsOneWidget);
-    expect(find.byIcon(Icons.close), findsNothing);
-    expect(find.text('Select a digital book file'), findsOneWidget);
-    expect(find.text('EPUB, PDF, AZW3, MOBI, CBZ/CBR'), findsOneWidget);
-    expect(find.text('Select an EPUB file'), findsNothing);
-    expect(find.text('The file will be stored offline on this device'), findsNothing);
-    expect(find.byKey(const Key('import-pending-content')), findsOneWidget);
-    expect(tester.getSize(find.byKey(const Key('import-pending-content'))).height, 232);
-    expect(
-      find.ancestor(
-        of: find.text('Select a digital book file'),
-        matching: find.byWidgetPredicate(
-          (widget) =>
-              widget is Container &&
-              widget.decoration is BoxDecoration &&
-              (widget.decoration! as BoxDecoration).border != null,
-        ),
-      ),
-      findsNothing,
-    );
+    final initialPushCount = observer.pushCount;
+
+    await tester.tap(find.text('Import digital books'));
+    await tester.pumpAndSettle();
+
+    expect(find.widgetWithText(OutlinedButton, 'Browse files'), findsOneWidget);
+    expect(find.text('Add book'), findsNothing);
+    expect(observer.pushCount, initialPushCount + 1);
+
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Browse files'));
+    await tester.pump();
+    await tester.tap(find.widgetWithText(FilledButton, 'Import 1 book'));
+    await tester.pump();
+
+    // The results route is not pushed until the selection route has finished
+    // its dismissal animation.
+    expect(find.text('Import results'), findsNothing);
+
+    await tester.pumpAndSettle();
+
+    expect(find.text('Import results'), findsOneWidget);
+    expect(find.text('selected.epub'), findsOneWidget);
+    expect(find.text('Ready'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Browse files'), findsNothing);
+    expect(observer.pushCount, initialPushCount + 2);
   });
 
-  testWidgets('digital import transition preserves the modal backdrop', (tester) async {
+  testWidgets('physical choice dismisses before opening its separate sheet', (tester) async {
     final observer = _CountingNavigatorObserver();
     await pumpLauncher(
       tester,
@@ -185,55 +192,107 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
-    final dimmingBarrier = find.byWidgetPredicate((widget) => widget is ModalBarrier && widget.color != null);
     final initialPushCount = observer.pushCount;
-    final initialBarrier = tester.element(dimmingBarrier);
 
-    await tester.tap(find.text('Import digital books'));
+    await tester.tap(find.text('Add physical book'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Import book'), findsOneWidget);
-    expect(dimmingBarrier, findsOneWidget);
-    expect(tester.element(dimmingBarrier), same(initialBarrier));
-    expect(observer.pushCount, initialPushCount);
+    expect(find.text('Add physical book'), findsOneWidget);
+    expect(find.byKey(const Key('add-book-sheet-header')), findsOneWidget);
+    expect(find.text('Add book'), findsNothing);
+    expect(observer.pushCount, initialPushCount + 1);
   });
 
-  testWidgets('successful import actions can be rendered for widget verification', (tester) async {
-    await tester.pumpWidget(const MaterialApp(home: Scaffold(body: ImportBookSheet.withInitialResult(importedBook))));
+  testWidgets('physical import places Add in the fixed footer', (tester) async {
+    await pumpLauncher(
+      tester,
+      (context) =>
+          () => AddPhysicalBookSheet.show(context),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
 
-    expect(find.text('Pick different file'), findsOneWidget);
-    expect(find.text('Add to library'), findsOneWidget);
-
-    final pickButton = tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Pick different file'));
-    final addButton = tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Add to library'));
-
-    expect(pickButton.style?.shape?.resolve({}), isA<StadiumBorder>());
-    expect(addButton.style?.shape?.resolve({}), isA<StadiumBorder>());
+    expect(
+      find.ancestor(
+        of: find.widgetWithText(FilledButton, 'Add'),
+        matching: find.byKey(const Key('add-book-sheet-footer')),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.ancestor(
+        of: find.widgetWithText(FilledButton, 'Add'),
+        matching: find.byKey(const Key('add-book-sheet-header')),
+      ),
+      findsNothing,
+    );
   });
 
-  testWidgets('committing import actions stay visually stable and show progress', (tester) async {
+  testWidgets('physical import keeps its footer above the landscape keyboard', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 400);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 250);
+    addTearDown(tester.view.reset);
+
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.dark,
-        home: const Scaffold(body: ImportBookSheet.withInitialResult(importedBook, initialCommitting: true)),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(onPressed: () => AddPhysicalBookSheet.show(context), child: const Text('Open')),
+          ),
+        ),
       ),
     );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
 
-    final pickButton = tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Pick different file'));
-    final addButton = tester.widget<FilledButton>(find.byType(FilledButton));
+    expect(tester.takeException(), isNull);
+    expect(find.byKey(const Key('add-book-sheet-footer')), findsOneWidget);
+    expect(tester.getRect(find.byKey(const Key('add-book-sheet-footer'))).bottom, lessThanOrEqualTo(150));
 
-    expect(pickButton.onPressed, isNull);
-    expect(addButton.onPressed, isNull);
-    expect(find.text('Adding...'), findsOneWidget);
-    expect(find.text('Add to library'), findsNothing);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    final listView = find.byType(ListView);
+    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(tester.getSize(listView).height, greaterThan(0));
+    expect(scrollable.position.maxScrollExtent, greaterThan(0));
 
-    final colorScheme = Theme.of(tester.element(find.text('Adding...'))).colorScheme;
-    const disabled = <WidgetState>{WidgetState.disabled};
+    scrollable.position.jumpTo(1);
+    await tester.pump();
 
-    expect(pickButton.style?.foregroundColor?.resolve(disabled), colorScheme.primary);
-    expect(pickButton.style?.side?.resolve(disabled)?.color, colorScheme.outline);
-    expect(addButton.style?.backgroundColor?.resolve(disabled), colorScheme.primary);
-    expect(addButton.style?.foregroundColor?.resolve(disabled), colorScheme.onPrimary);
+    expect(scrollable.position.pixels, 1);
+  });
+
+  testWidgets('physical import keeps scaled compact controls above the landscape keyboard', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(800, 400);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 250);
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: FilledButton(onPressed: () => AddPhysicalBookSheet.show(context), child: const Text('Open')),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(tester.getRect(find.byKey(const Key('add-book-sheet-footer'))).bottom, lessThanOrEqualTo(150));
+
+    final closeButton = find.descendant(
+      of: find.byKey(const Key('add-book-sheet-header')),
+      matching: find.byType(IconButton),
+    );
+    expect(tester.getSize(closeButton).width, greaterThanOrEqualTo(44));
+    expect(tester.getSize(closeButton).height, greaterThanOrEqualTo(44));
+
+    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(tester.getSize(find.byType(ListView)).height, greaterThan(0));
+    expect(scrollable.position.maxScrollExtent, greaterThan(0));
   });
 }
