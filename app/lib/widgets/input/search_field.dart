@@ -23,6 +23,7 @@ class SearchField extends StatelessWidget {
 
   /// Called when the text changes.
   final ValueChanged<String>? onChanged;
+  final ValueChanged<String>? onSubmitted;
 
   /// Called when the clear button is pressed.
   ///
@@ -33,14 +34,19 @@ class SearchField extends StatelessWidget {
   /// Height of the search field. Defaults to 40.
   final double? height;
 
+  /// An optional action inside the field, after the clear button.
+  final Widget? trailing;
+
   /// Creates a search field widget.
   const SearchField({
     super.key,
     required this.controller,
     required this.hintText,
     this.onChanged,
+    this.onSubmitted,
     this.onClear,
     this.height,
+    this.trailing,
   });
 
   /// Whether the search field has text content.
@@ -62,10 +68,25 @@ class SearchField extends StatelessWidget {
       child: TextField(
         controller: controller,
         onChanged: onChanged,
+        onSubmitted: onSubmitted,
+        textInputAction: onSubmitted == null ? null : TextInputAction.search,
         decoration: InputDecoration(
           hintText: hintText,
           prefixIcon: const Icon(Icons.search, size: 20),
-          suffixIcon: _hasContent ? IconButton(icon: const Icon(Icons.close, size: 20), onPressed: _handleClear) : null,
+          suffixIcon: trailing == null && !_hasContent
+              ? null
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (_hasContent)
+                      IconButton(
+                        tooltip: 'Clear search',
+                        icon: const Icon(Icons.close, size: 20),
+                        onPressed: _handleClear,
+                      ),
+                    ?trailing,
+                  ],
+                ),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
           contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md),
           isDense: true,

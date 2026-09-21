@@ -13,6 +13,33 @@ import 'package:provider/provider.dart';
 
 void main() {
   group('BookGrid ordinary behavior', () {
+    testWidgets('grid density follows available content width inside a desktop shell', (tester) async {
+      tester.view.physicalSize = const Size(1280, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(
+                width: 500,
+                child: ChangeNotifierProvider(
+                  create: (_) => LibraryProvider(),
+                  child: BookGrid(
+                    books: [_book(id: 'one', title: 'A book')],
+                    libraryViewMode: LibraryViewMode.smallGrid,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      final grid = tester.widget<GridView>(find.byType(GridView));
+      expect((grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount).crossAxisCount, 2);
+      expect(tester.takeException(), isNull);
+    });
     testWidgets('renders books in a GridView', (tester) async {
       final books = [_book(id: 'book-1', title: 'First Book'), _book(id: 'book-2', title: 'Second Book')];
 
@@ -325,10 +352,13 @@ void main() {
 
   group('BookGrid responsiveness', () {
     testWidgets('preserves responsive columns and matching item widths', (tester) async {
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
       final book = _book(id: 'book-1', title: 'Book');
       final orphan = _job(id: 'job-1', bookId: null, title: 'Orphan');
 
       for (final (width, columns) in const [(400.0, 2), (700.0, 4), (900.0, 5), (1300.0, 6)]) {
+        tester.view.physicalSize = Size(width, 800);
         await tester.pumpWidget(_buildGrid(books: [book], placeholderJobs: [orphan], screenSize: Size(width, 800)));
 
         final grid = tester.widget<GridView>(find.byType(GridView));

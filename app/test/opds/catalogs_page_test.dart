@@ -4,24 +4,32 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:papyrus/opds/opds_catalog_store.dart';
 import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/opds/opds_downloads.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
 import 'package:papyrus/pages/catalogs_page.dart';
+import 'package:papyrus/pages/catalog_book_page.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'catalog_store_test.dart' show MemorySecrets;
+import 'relay_fixture_client.dart';
 
 class _WidgetCatalogStore extends OpdsCatalogStore {
   _WidgetCatalogStore(super.prefs) : super(secrets: MemorySecrets());
   String? saveFailure;
   String? removeFailure;
+  String? loadFailure;
+
+  @override
+  List<OpdsCatalog> load(String scope) {
+    if (loadFailure != null) throw OpdsException(loadFailure!);
+    return super.load(scope);
+  }
 
   @override
   Future<void> save(String scope, OpdsCatalog catalog, {OpdsCredentials? credentials, bool clearCredentials = false}) {
@@ -63,7 +71,7 @@ class _CatalogPageHarness {
     final catalogs = OpdsCatalogs(store)..setScope('local--guest');
     final harness = _CatalogPageHarness(store, catalogs);
     final gateway = OpdsHttpClient(
-      clientFactory: () => MockClient((request) async {
+      clientFactory: () => MockRelayClient((request) async {
         harness.requests.add(request.url);
         return respond(request.url);
       }),
@@ -79,15 +87,16 @@ class _CatalogPageHarness {
       catalogId: state.pathParameters['catalogId'],
       feedUri: state.uri.queryParameters['feed'] == null ? null : Uri.parse(state.uri.queryParameters['feed']!),
       query: state.uri.queryParameters['q'] ?? '',
-      httpClient: gateway,
     );
     harness.router = GoRouter(
       initialLocation: initialLocation,
       routes: [
         GoRoute(
           path: '/library/catalogs',
-          builder: (_, _) => CatalogsPage(httpClient: gateway),
-          routes: [GoRoute(path: ':catalogId', builder: (_, state) => page(state))],
+          builder: (_, _) => const CatalogsPage(),
+          routes: [
+            GoRoute(path: ':catalogId', builder: (_, state) => page(state), routes: [catalogBookRoute()]),
+          ],
         ),
       ],
     );
@@ -96,6 +105,7 @@ class _CatalogPageHarness {
         providers: [
           ChangeNotifierProvider.value(value: catalogs),
           ChangeNotifierProvider.value(value: harness.downloads),
+          Provider.value(value: gateway),
         ],
         child: MaterialApp.router(
           theme: AppTheme.eink,
@@ -116,8 +126,11 @@ class _CatalogPageHarness {
 }
 
 Future<void> _settleNetwork(WidgetTester tester) async {
-  await tester.pumpAndSettle();
-  await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+  // A deep link loads its source feed and then its publication document.
+  for (var hop = 0; hop < 3; hop++) {
+    await tester.pumpAndSettle();
+    await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+  }
   await tester.pumpAndSettle();
 }
 
@@ -143,7 +156,259 @@ Map<String, dynamic> _book() => {
 };
 
 void main() {
-  testWidgets('expanded transfers leave room for catalog search when the keyboard opens', (tester) async {
+  testWidgets('mobile catalog home uses a FAB and keeps Downloads in the title row', (tester) async {
+    await _CatalogPageHarness.mount(tester, (_) => _feedResponse('Books'), initialLocation: '/library/catalogs');
+    tester.view.physicalSize = const Size(424, 951);
+    await _settleNetwork(tester);
+    expect(find.byType(FloatingActionButton), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Add catalog'), findsNothing);
+    expect(tester.getTopLeft(find.byTooltip('Downloads')).dy, lessThan(tester.getBottomLeft(find.text('Catalogs')).dy));
+    await tester.tap(find.byTooltip('Add catalog'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byKey(const Key('opds-name')), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('the last mobile source scrolls above the Add catalog FAB', (tester) async {
+    final harness = await _CatalogPageHarness.mount(
+      tester,
+      (_) => _feedResponse('Books'),
+      initialLocation: '/library/catalogs',
+    );
+    for (var index = 0; index < 12; index++) {
+      await harness.store.save(
+        'local--guest',
+        OpdsCatalog(id: 'source-$index', name: 'Source $index', uri: Uri.parse('https://books.test/$index')),
+      );
+    }
+    harness.catalogs.reload();
+    tester.view.physicalSize = const Size(360, 640);
+    await _settleNetwork(tester);
+    await tester.drag(find.byType(ListView), const Offset(0, -2000));
+    await tester.pumpAndSettle();
+    expect(
+      tester.getBottomRight(find.byTooltip('Catalog options').last).dy,
+      lessThan(tester.getTopLeft(find.byType(FloatingActionButton)).dy),
+    );
+    await tester.tap(find.byTooltip('Catalog options').last);
+    await tester.pumpAndSettle();
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Remove'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('phone header keeps actions together and embeds search submission', (tester) async {
+    await _CatalogPageHarness.mount(
+      tester,
+      (_) => _feedResponse('Pride and Prejudice by Jane Austen', publications: [_book()]),
+    );
+    tester.view.physicalSize = const Size(424, 951);
+    await _settleNetwork(tester);
+    final heading = tester.getRect(find.text('My catalog'));
+    final downloads = tester.getRect(find.byTooltip('Downloads'));
+    expect(downloads.top, lessThan(heading.bottom));
+    expect(find.byTooltip('Catalog home'), findsNothing);
+    expect(find.text('books.test'), findsNothing);
+    final divider = tester.getRect(find.byKey(const Key('catalog-header-divider')));
+    expect(divider.left, 0);
+    expect(divider.width, 424);
+    expect(divider.top, greaterThan(heading.bottom));
+    final field = tester.getRect(find.byType(TextField));
+    expect(field.contains(tester.getCenter(find.byTooltip('Search catalog'))), isTrue);
+    expect(tester.getTopLeft(find.text('A book')).dy, lessThan(560));
+    await tester.tap(find.byTooltip('Edit catalog'));
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('catalog sources use flat rows and edit in a bottom sheet', (tester) async {
+    await _CatalogPageHarness.mount(tester, (_) => _feedResponse('Books'), initialLocation: '/library/catalogs');
+    expect(find.byType(GridView), findsNothing);
+    expect(find.byType(Card), findsNothing);
+    await tester.tap(find.text('Add catalog').first);
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('publication opens a routed page instead of a modal', (tester) async {
+    final harness = await _CatalogPageHarness.mount(tester, (_) => _feedResponse('Books', publications: [_book()]));
+    await tester.tap(find.text('A book'));
+    await _settleNetwork(tester);
+    expect(harness.router.routeInformationProvider.value.uri.path, '/library/catalogs/one/book');
+    expect(find.byType(Dialog), findsNothing);
+    expect(find.byType(BottomSheet), findsNothing);
+    expect(find.text('Add to library'), findsOneWidget);
+  });
+
+  testWidgets('a direct book URL resolves metadata and missing publications can recover', (tester) async {
+    var available = false;
+    final location = Uri(
+      path: '/library/catalogs/one/book',
+      queryParameters: {
+        'feed': 'https://books.test/search?q=tea%20%26%20coffee',
+        'publication': 'urn:book/one?edition=2',
+        'q': 'tea & coffee',
+      },
+    ).toString();
+    final harness = await _CatalogPageHarness.mount(tester, (uri) {
+      if (uri.path == '/detail') {
+        return http.Response(
+          jsonEncode({
+            'metadata': {
+              'identifier': 'urn:book/one?edition=2',
+              'title': 'Full title',
+              'description': 'Complete description.',
+            },
+            'links': [
+              {'rel': 'download', 'href': '/book.epub', 'type': 'application/epub+zip'},
+            ],
+          }),
+          200,
+          headers: {'content-type': 'application/opds-publication+json'},
+        );
+      }
+      return _feedResponse(
+        'Search results',
+        publications: available
+            ? [
+                {
+                  'metadata': {'identifier': 'urn:book/one?edition=2', 'title': 'Preview'},
+                  'links': [
+                    {'rel': 'self', 'href': '/detail', 'type': 'application/opds-publication+json'},
+                  ],
+                },
+              ]
+            : [],
+      );
+    }, initialLocation: location);
+    expect(find.text('Book unavailable'), findsOneWidget);
+    available = true;
+    await tester.tap(find.text('Retry'));
+    await _settleNetwork(tester);
+    expect(
+      find.text('Full title'),
+      findsOneWidget,
+      reason: '${harness.requests}; ${tester.widgetList<Text>(find.byType(Text)).map((t) => t.data).join(' | ')}',
+    );
+    expect(find.text('Complete description.'), findsOneWidget);
+    expect(harness.requests.last.path, '/detail');
+    expect(find.text('Add to library'), findsOneWidget);
+    await tester.tap(find.byTooltip('Back to catalog'));
+    await _settleNetwork(tester);
+    expect(harness.router.routeInformationProvider.value.uri.queryParameters['q'], 'tea & coffee');
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'tea & coffee');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('returning from a book keeps the feed position and list view', (tester) async {
+    final harness = await _CatalogPageHarness.mount(
+      tester,
+      (_) => _feedResponse(
+        'Books',
+        publications: [
+          for (var index = 0; index < 40; index++)
+            {
+              'metadata': {'identifier': 'book-$index', 'title': 'Book $index'},
+              'links': [
+                {'rel': 'download', 'href': '/$index.epub', 'type': 'application/epub+zip'},
+              ],
+            },
+        ],
+      ),
+    );
+    await tester.tap(find.byIcon(Icons.view_list));
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Book 20'),
+      500,
+      scrollable: find.descendant(of: find.byType(CustomScrollView), matching: find.byType(Scrollable)).first,
+    );
+    await tester.pumpAndSettle();
+    final y = tester.getTopLeft(find.text('Book 20')).dy;
+    final requests = harness.requests.length;
+    await tester.tap(find.text('Book 20'));
+    await _settleNetwork(tester);
+    await tester.tap(find.byTooltip('Back to catalog'));
+    await _settleNetwork(tester);
+    expect(tester.getTopLeft(find.text('Book 20')).dy, closeTo(y, 1));
+    expect(harness.requests.length, requests, reason: 'Returning should not reload the retained source feed.');
+    expect(find.byType(SliverGrid), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('book unavailable retries a transient catalog storage failure', (tester) async {
+    final harness = await _CatalogPageHarness.mount(tester, (_) => _feedResponse('Books', publications: [_book()]));
+    await tester.tap(find.text('A book'));
+    await _settleNetwork(tester);
+    harness.store.loadFailure = 'Could not read saved catalogs.';
+    harness.catalogs.reload();
+    await _settleNetwork(tester);
+    expect(find.text('Book unavailable'), findsOneWidget);
+    harness.store.loadFailure = null;
+    await tester.tap(find.text('Retry'));
+    await _settleNetwork(tester);
+    expect(find.text('Add to library'), findsOneWidget);
+  });
+
+  testWidgets('an edition feed never silently replaces the selected publication', (tester) async {
+    await _CatalogPageHarness.mount(tester, (uri) {
+      if (uri.path == '/editions') {
+        return _feedResponse(
+          'Editions',
+          publications: [
+            {
+              'metadata': {'identifier': 'other-edition', 'title': 'Another edition'},
+              'links': [
+                {'rel': 'download', 'href': '/other.epub', 'type': 'application/epub+zip'},
+              ],
+            },
+          ],
+        );
+      }
+      return _feedResponse(
+        'Books',
+        publications: [
+          {
+            'metadata': {'identifier': 'original', 'title': 'Selected book', 'author': 'Writer'},
+            'links': [
+              {'rel': 'alternate', 'href': '/editions', 'type': 'application/atom+xml;kind=acquisition'},
+            ],
+          },
+        ],
+      );
+    });
+    await tester.tap(find.text('Selected book'));
+    await _settleNetwork(tester);
+    expect(find.text('Selected book'), findsOneWidget);
+    expect(find.text('Another edition'), findsNothing);
+    await tester.tap(find.text('Add to library'));
+    await _settleNetwork(tester);
+    await tester.tap(find.text('Full catalog details'));
+    await _settleNetwork(tester);
+    expect(find.text('Another edition'), findsOneWidget);
+  });
+
+  testWidgets('downloads retry with refreshed catalog settings after a catalog reload', (tester) async {
+    final harness = await _CatalogPageHarness.mount(tester, (_) => _feedResponse('Books', publications: [_book()]));
+    final catalog = harness.catalogs.catalogs.single;
+    await harness.downloads.start(
+      catalog,
+      OpdsPublication(id: 'test', title: 'Failed book'),
+      OpdsLink(uri: Uri.parse('https://books.test/book.epub'), type: 'application/epub+zip', rels: ['download']),
+    );
+    expect(harness.importAttempts, 1);
+    harness.catalogs.reload();
+    await _settleNetwork(tester);
+    await tester.tap(find.byTooltip('Downloads'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Retry'));
+    await _settleNetwork(tester);
+    expect(harness.importAttempts, 2);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('download sheet closes without losing jobs and search fits above keyboard', (tester) async {
     final harness = await _CatalogPageHarness.mount(tester, (_) => _feedResponse('Books'));
     tester.view.physicalSize = const Size(360, 640);
     addTearDown(tester.view.resetViewInsets);
@@ -155,9 +420,11 @@ void main() {
       );
     }
     await tester.pumpAndSettle();
-    await tester.tap(find.textContaining('Downloads ·'));
+    await tester.tap(find.byTooltip('Downloads'));
     await tester.pumpAndSettle();
     expect(find.text('Retry'), findsWidgets);
+    await tester.tap(find.text('Close'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byType(TextField));
     tester.view.viewInsets = const FakeViewPadding(bottom: 300);
     await tester.pumpAndSettle();
@@ -165,6 +432,8 @@ void main() {
     expect(tester.getBottomLeft(find.byType(TextField)).dy, lessThan(340));
     expect(tester.takeException(), isNull);
     tester.view.resetViewInsets();
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Downloads'));
     await tester.pumpAndSettle();
     expect(find.text('Retry'), findsWidgets);
   });
@@ -203,7 +472,9 @@ void main() {
     await _settleNetwork(tester);
     expect(find.text('Filtered books'), findsOneWidget);
     expect(harness.requests.last, Uri.parse('https://books.test/filtered?language=en'));
-    await tester.tap(find.byTooltip('Catalog home'));
+    await tester.tap(find.byTooltip('All catalogs'));
+    await _settleNetwork(tester);
+    await tester.tap(find.text('My catalog'));
     await _settleNetwork(tester);
     await tester.tap(find.text('View all'));
     await _settleNetwork(tester);
@@ -344,6 +615,8 @@ void main() {
     final harness = await _CatalogPageHarness.mount(tester, (_) => _feedResponse('Books', publications: [_book()]));
     for (final changeAccount in [false, true]) {
       await tester.tap(find.text('A book'));
+      await _settleNetwork(tester);
+      await tester.tap(find.text('Add to library'));
       await tester.pumpAndSettle();
       expect(find.text('Download EPUB'), findsOneWidget);
       if (changeAccount) {
@@ -362,6 +635,7 @@ void main() {
       expect(harness.requests.where((uri) => uri.path.endsWith('.epub')), isEmpty);
       await tester.tap(find.text('Close'));
       await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Back to catalog'));
       await tester.pump(const Duration(seconds: 5));
       await tester.pumpAndSettle();
     }
@@ -402,7 +676,7 @@ void main() {
         ..setScope('local--guest');
       final downloads = OpdsDownloads(captureImport: () => throw StateError('unused'));
       final gateway = OpdsHttpClient(
-        clientFactory: () => MockClient(
+        clientFactory: () => MockRelayClient(
           (_) async => http.Response(
             '{"metadata":{"title":"Fixture books"},"publications":[{"metadata":{"title":"A book","author":"An author"},"links":[{"rel":"http://opds-spec.org/acquisition/open-access","href":"book.epub","type":"application/epub+zip"}]}]}',
             200,

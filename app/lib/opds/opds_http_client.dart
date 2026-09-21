@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
+import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/opds/opds_models.dart';
 
 class OpdsException implements Exception {
@@ -17,13 +18,15 @@ class OpdsCancelled extends OpdsException {
   const OpdsCancelled() : super('Download cancelled.');
 }
 
-/// Browser transport errors do not reveal whether CORS or connectivity failed.
+class _OpdsRelayBusy extends OpdsException {
+  const _OpdsRelayBusy(super.message);
+}
+
+/// Connection failures refer to the selected Papyrus relay server.
 class OpdsConnectionException extends OpdsException {
   const OpdsConnectionException()
     : super(
-        kIsWeb
-            ? 'The browser could not read this catalog resource. Check your connection; the catalog or a redirect may not allow browser access (CORS).'
-            : 'Could not connect. Check the catalog URL and your connection, then retry.',
+        'Could not reach the Papyrus catalog server or the download was interrupted. Check your connection and retry.',
       );
 }
 
@@ -63,10 +66,43 @@ class OpdsResponse {
   String get text => utf8.decode(bytes);
 }
 
-/// Uses a fresh HTTP client for every resource without Papyrus bearer tokens.
+/// Relays every resource through the backend without Papyrus bearer tokens.
 class OpdsHttpClient {
-  OpdsHttpClient({http.Client Function()? clientFactory}) : _clientFactory = clientFactory ?? http.Client.new;
+  OpdsHttpClient({http.Client Function()? clientFactory, PapyrusApiConfig Function()? apiConfig})
+    : _clientFactory = clientFactory ?? http.Client.new,
+      _apiConfig = apiConfig ?? PapyrusApiConfig.fromEnvironment;
   final http.Client Function() _clientFactory;
+  final PapyrusApiConfig Function() _apiConfig;
+  final _waitingRequests = Queue<Completer<void>>();
+  int _activeRequests = 0;
+
+  Future<void> _acquire(OpdsCancellation? cancellation) async {
+    cancellation?.check();
+    if (_activeRequests < 4) {
+      _activeRequests++;
+      return;
+    }
+    final pending = Completer<void>();
+    _waitingRequests.add(pending);
+    void cancel() {
+      if (_waitingRequests.remove(pending)) pending.completeError(const OpdsCancelled());
+    }
+
+    cancellation?.addListener(cancel);
+    try {
+      await pending.future;
+    } finally {
+      cancellation?.removeListener(cancel);
+    }
+  }
+
+  void _release() {
+    if (_waitingRequests.isNotEmpty) {
+      _waitingRequests.removeFirst().complete();
+    } else {
+      _activeRequests--;
+    }
+  }
 
   static Uri validateUri(Uri uri) {
     if (!['http', 'https'].contains(uri.scheme) || uri.host.isEmpty || uri.userInfo.isNotEmpty) {
@@ -86,56 +122,91 @@ class OpdsHttpClient {
     validateUri(catalog.uri);
     validateUri(uri);
     cancellation?.check();
-    final client = _clientFactory();
-    cancellation?.addListener(client.close);
+    final relayUri = validateUri(_apiConfig().endpoint('/opds/relay'));
+    await _acquire(cancellation);
+    http.Client? client;
     try {
-      var current = uri;
-      for (var redirects = 0; redirects <= 5; redirects++) {
+      cancellation?.check();
+      client = _clientFactory();
+      cancellation?.addListener(client.close);
+      late http.StreamedResponse response;
+      final body = jsonEncode({
+        'url': uri.toString(),
+        'catalog_url': catalog.uri.toString(),
+        'max_bytes': maxBytes,
+        if (credentials != null) 'credentials': {'username': credentials.username, 'password': credentials.password},
+      });
+      for (var attempt = 0; ; attempt++) {
         cancellation?.check();
-        final request = http.Request('GET', validateUri(current))..followRedirects = kIsWeb;
-        if (current.origin == catalog.uri.origin && credentials != null) {
-          request.headers['authorization'] =
-              'Basic ${base64Encode(utf8.encode('${credentials.username}:${credentials.password}'))}';
-        }
-        final response = await client.send(request).timeout(const Duration(seconds: 30));
-        if ([301, 302, 303, 307, 308].contains(response.statusCode)) {
-          final location = response.headers['location'];
-          await response.stream.drain<void>().timeout(const Duration(seconds: 30));
-          if (location == null) throw const OpdsException('The catalog returned an invalid redirect.');
-          current = current.resolve(location);
-          continue;
-        }
-        if (response.statusCode == 401) {
-          throw const OpdsException('Check the catalog username and password, then retry with updated credentials.');
-        }
-        if (response.statusCode == 403) {
-          throw const OpdsException('This catalog denied access. Check your account permissions.');
-        }
-        if (response.statusCode < 200 || response.statusCode >= 300) {
-          throw OpdsException('The catalog returned HTTP ${response.statusCode}. Please retry later.');
-        }
-        final total = response.contentLength;
-        if (total != null && total > maxBytes) throw const OpdsException('This resource is too large to load.');
-        final bytes = BytesBuilder(copy: false);
-        await for (final chunk in response.stream.timeout(const Duration(seconds: 30))) {
-          cancellation?.check();
-          if (bytes.length + chunk.length > maxBytes) throw const OpdsException('This resource is too large to load.');
-          bytes.add(chunk);
-          onProgress?.call(bytes.length, total);
-        }
-        cancellation?.check();
-        final finalUri = response is http.BaseResponseWithUrl ? (response as http.BaseResponseWithUrl).url : current;
-        return OpdsResponse(uri: validateUri(finalUri), bytes: bytes.takeBytes(), headers: response.headers);
+        final request = http.Request('POST', relayUri)
+          ..headers['content-type'] = 'application/json'
+          ..body = body;
+        response = await client.send(request).timeout(const Duration(seconds: 35));
+        if (response.statusCode == 200) break;
+        final error = await _relayError(response);
+        if (error is! _OpdsRelayBusy || attempt >= 2) throw error;
+        await Future<void>.delayed(Duration(milliseconds: 500 * (attempt + 1)));
       }
-      throw const OpdsException('The catalog redirected too many times. Check its URL.');
+      final upstreamUrl = response.headers['x-opds-url'];
+      if (upstreamUrl == null) {
+        throw const OpdsException(
+          'The Papyrus server returned an invalid catalog response. Check its relay configuration.',
+        );
+      }
+      final finalUri = validateUri(Uri.parse(upstreamUrl));
+      final total = response.contentLength;
+      if (total != null && total > maxBytes) throw const OpdsException('This resource is too large to load.');
+      final bytes = BytesBuilder(copy: false);
+      await for (final chunk in response.stream.timeout(const Duration(seconds: 35))) {
+        cancellation?.check();
+        if (bytes.length + chunk.length > maxBytes) throw const OpdsException('This resource is too large to load.');
+        bytes.add(chunk);
+        onProgress?.call(bytes.length, total);
+      }
+      cancellation?.check();
+      if (total != null && bytes.length != total) throw const OpdsConnectionException();
+      return OpdsResponse(uri: finalUri, bytes: bytes.takeBytes(), headers: response.headers);
     } on OpdsException {
       rethrow;
     } catch (_) {
       cancellation?.check();
       throw const OpdsConnectionException();
     } finally {
-      cancellation?.removeListener(client.close);
-      client.close();
+      if (client != null) {
+        cancellation?.removeListener(client.close);
+        client.close();
+      }
+      _release();
     }
+  }
+
+  Future<OpdsException> _relayError(http.StreamedResponse response) async {
+    final bytes = BytesBuilder(copy: false);
+    await for (final chunk in response.stream.timeout(const Duration(seconds: 35))) {
+      if (bytes.length + chunk.length > 8192) break;
+      bytes.add(chunk);
+    }
+    try {
+      final body = jsonDecode(utf8.decode(bytes.takeBytes()));
+      if (body is Map && body['error'] is Map) {
+        final error = body['error'] as Map;
+        if (error['code'] == 'OPDS_RELAY_ERROR' && error['message'] is String) {
+          if (response.statusCode == 503 && error['details'] is Map && error['details']['retryable'] == true) {
+            return _OpdsRelayBusy(error['message'] as String);
+          }
+          return OpdsException(error['message'] as String);
+        }
+      }
+    } on FormatException {
+      // Gateways can return HTML instead of the API error envelope.
+    }
+    return OpdsException(switch (response.statusCode) {
+      401 => 'Check the catalog credentials and the Papyrus server relay configuration.',
+      403 => 'The catalog or Papyrus server denied access. Check the catalog settings.',
+      404 => 'The catalog resource or server relay was not found. Check the URL and update your Papyrus server.',
+      413 => 'This resource is too large to load.',
+      429 => 'Too many catalog requests. Please wait and retry.',
+      _ => 'The catalog relay returned HTTP ${response.statusCode}. Please retry later.',
+    });
   }
 }

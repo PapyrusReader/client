@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/library/book_grid_layout.dart';
 import 'package:papyrus/widgets/opds/opds_publication_tile.dart';
 import 'package:papyrus/widgets/shared/view_mode_toggle.dart';
 
@@ -12,13 +13,14 @@ class OpdsFeedView extends StatelessWidget {
     required this.feed,
     required this.httpClient,
     required this.onNavigate,
-    required this.onDownload,
+    required this.onOpenPublication,
     required this.onRefresh,
     required this.isGridView,
     required this.onViewChanged,
     required this.onPage,
     this.credentials,
     this.query = '',
+    this.scrollController,
   });
   final OpdsCatalog catalog;
   final OpdsFeed feed;
@@ -26,11 +28,12 @@ class OpdsFeedView extends StatelessWidget {
   final OpdsCredentials? credentials;
   final ValueChanged<Uri> onNavigate;
   final ValueChanged<Uri> onPage;
-  final void Function(OpdsPublication, OpdsLink) onDownload;
+  final ValueChanged<OpdsPublication> onOpenPublication;
   final VoidCallback onRefresh;
   final bool isGridView;
   final ValueChanged<bool> onViewChanged;
   final String query;
+  final ScrollController? scrollController;
 
   @override
   Widget build(BuildContext context) {
@@ -39,20 +42,38 @@ class OpdsFeedView extends StatelessWidget {
     final hasBooks = feed.publications.isNotEmpty || feed.groups.any((group) => group.publications.isNotEmpty);
     return LayoutBuilder(
       builder: (context, constraints) {
-        final columns = (constraints.maxWidth / 190).floor().clamp(2, 6);
+        final layout = bookGridLayout(constraints.maxWidth);
         return CustomScrollView(
-          key: PageStorageKey(feed.uri),
+          controller: scrollController,
+          key: PageStorageKey('${catalog.id}/${feed.uri}'),
           slivers: [
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.only(top: Spacing.lg, bottom: Spacing.md),
+                padding: EdgeInsets.only(
+                  top: constraints.maxWidth < Breakpoints.tablet ? Spacing.md : Spacing.lg,
+                  bottom: Spacing.md,
+                ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.center,
                       children: [
-                        Expanded(child: Text(feed.title, style: text.titleLarge)),
+                        Expanded(
+                          child: Text(
+                            feed.title,
+                            style: constraints.maxWidth < Breakpoints.tablet ? text.titleMedium : text.titleLarge,
+                          ),
+                        ),
                         IconButton(tooltip: 'Refresh catalog', onPressed: onRefresh, icon: const Icon(Icons.refresh)),
+                        if (hasBooks && constraints.maxWidth >= Breakpoints.tablet)
+                          ViewModeToggle(isGridView: isGridView, onChanged: onViewChanged),
+                        if (hasBooks && constraints.maxWidth < Breakpoints.tablet)
+                          IconButton(
+                            tooltip: isGridView ? 'List view' : 'Grid view',
+                            onPressed: () => onViewChanged(!isGridView),
+                            icon: Icon(isGridView ? Icons.view_list : Icons.grid_view),
+                          ),
                       ],
                     ),
                     if (query.isNotEmpty)
@@ -61,21 +82,6 @@ class OpdsFeedView extends StatelessWidget {
                         child: Text(
                           'Results for “$query”',
                           style: text.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
-                        ),
-                      ),
-                    if (hasBooks)
-                      Padding(
-                        padding: const EdgeInsets.only(top: Spacing.sm),
-                        child: Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                'Browse books',
-                                style: text.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
-                              ),
-                            ),
-                            ViewModeToggle(isGridView: isGridView, onChanged: onViewChanged),
-                          ],
                         ),
                       ),
                   ],
@@ -107,7 +113,7 @@ class OpdsFeedView extends StatelessWidget {
                   ),
                 ),
               ),
-            ..._entries(context, feed.navigation, feed.publications, columns, constraints.maxWidth),
+            ..._entries(context, feed.navigation, feed.publications, layout, constraints.maxWidth),
             for (final group in feed.groups) ...[
               SliverToBoxAdapter(
                 child: Padding(
@@ -122,7 +128,7 @@ class OpdsFeedView extends StatelessWidget {
                   ),
                 ),
               ),
-              ..._entries(context, group.navigation, group.publications, columns, constraints.maxWidth),
+              ..._entries(context, group.navigation, group.publications, layout, constraints.maxWidth),
             ],
             if (feed.navigation.isEmpty && feed.publications.isEmpty && feed.groups.isEmpty)
               SliverToBoxAdapter(
@@ -187,31 +193,25 @@ class OpdsFeedView extends StatelessWidget {
     BuildContext context,
     List<OpdsLink> navigation,
     List<OpdsPublication> publications,
-    int columns,
+    BookGridLayout layout,
     double width,
   ) => [
     if (navigation.isNotEmpty)
       SliverPadding(
         padding: const EdgeInsets.only(bottom: Spacing.md),
-        sliver: SliverGrid.builder(
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: (width / 340).floor().clamp(1, 3),
-            mainAxisExtent:
-                (navigation.any((link) => link.description != null) ? 112 : 88) *
-                MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
-            crossAxisSpacing: Spacing.sm,
-            mainAxisSpacing: Spacing.sm,
-          ),
+        sliver: SliverList.separated(
+          separatorBuilder: (_, _) => const Divider(height: 1),
           itemCount: navigation.length,
           itemBuilder: (_, index) {
             final link = navigation[index];
-            return Card(
-              margin: EdgeInsets.zero,
+            return Material(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
               clipBehavior: Clip.antiAlias,
               child: InkWell(
                 onTap: () => onNavigate(link.uri),
                 child: Padding(
-                  padding: const EdgeInsets.all(Spacing.md),
+                  padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.md),
                   child: Row(
                     children: [
                       if (link.imageUri != null && ['http', 'https'].contains(link.imageUri!.scheme))
@@ -265,12 +265,12 @@ class OpdsFeedView extends StatelessWidget {
       if (isGridView)
         SliverGrid.builder(
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: columns,
-            crossAxisSpacing: Spacing.md,
-            mainAxisSpacing: Spacing.md,
+            crossAxisCount: layout.crossAxisCount,
+            crossAxisSpacing: layout.spacing,
+            mainAxisSpacing: layout.spacing,
             mainAxisExtent:
-                ((width - (columns - 1) * Spacing.md) / columns) * 1.3 +
-                106 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
+                ((width - (layout.crossAxisCount - 1) * layout.spacing) / layout.crossAxisCount) * 1.5 +
+                120 * MediaQuery.textScalerOf(context).scale(1),
           ),
           itemCount: publications.length,
           itemBuilder: (_, index) => _publication(publications[index]),
@@ -278,7 +278,7 @@ class OpdsFeedView extends StatelessWidget {
       else
         SliverList.separated(
           itemCount: publications.length,
-          separatorBuilder: (_, _) => const SizedBox(height: Spacing.sm),
+          separatorBuilder: (_, _) => const Divider(height: 1),
           itemBuilder: (_, index) => _publication(publications[index]),
         ),
   ];
@@ -290,7 +290,6 @@ class OpdsFeedView extends StatelessWidget {
     credentials: credentials,
     httpClient: httpClient,
     isGridView: isGridView,
-    onNavigate: onNavigate,
-    onDownload: (link) => onDownload(publication, link),
+    onOpen: () => onOpenPublication(publication),
   );
 }

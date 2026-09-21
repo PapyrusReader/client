@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:archive/archive.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
 import 'package:papyrus/opds/opds_parser.dart';
@@ -14,18 +14,14 @@ const _credentials = OpdsCredentials(username: 'reader', password: 'secret');
 void main() {
   group('local OPDS network smoke', () {
     final base = Uri.parse(_smokeUrl);
-    final gateway = OpdsHttpClient();
+    final gateway = OpdsHttpClient(apiConfig: () => PapyrusApiConfig(serverBaseUri: base));
 
     for (final path in ['/no-cors/redirect', '/no-cors/book.epub']) {
-      test('missing CORS headers at $path block web reads but allow native downloads', () async {
+      test('relay downloads $path even when the upstream omits CORS headers', () async {
         final catalog = OpdsCatalog(id: 'cors', name: 'No CORS', uri: base.resolve(path));
-        if (kIsWeb) {
-          await expectLater(gateway.get(catalog, catalog.uri), throwsA(isA<OpdsConnectionException>()));
-        } else {
-          final response = await gateway.get(catalog, catalog.uri);
-          final archive = ZipDecoder().decodeBytes(response.bytes, verify: true);
-          expect(utf8.decode(archive.findFile('mimetype')!.content), 'application/epub+zip');
-        }
+        final response = await gateway.get(catalog, catalog.uri);
+        final archive = ZipDecoder().decodeBytes(response.bytes, verify: true);
+        expect(utf8.decode(archive.findFile('mimetype')!.content), 'application/epub+zip');
       });
     }
 

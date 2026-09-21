@@ -42,7 +42,7 @@ Many reading applications offer partial solutions but fall short on essential fe
 | **Goals** | Reading goals (books, pages, time) with streak tracking |
 | **Sync** | Cross-device synchronization via self-hostable server |
 | **Storage** | Multiple backends: self-hosted, Google Drive, WebDAV, S3 |
-| **Catalogs** | OPDS 1.2 and 2.0 browsing, keyword search, and direct book downloads |
+| **Catalogs** | OPDS 1.2 and 2.0 browsing, keyword search, and automatic imports through the backend relay |
 | **Accessibility** | E-ink optimization, dark/light themes, customizable fonts |
 
 ## Supported platforms
@@ -125,7 +125,7 @@ See [PapyrusReader/docs](https://github.com/PapyrusReader/docs).
 
 Open **Library → Catalogs → Add catalog**, enter its URL, and optionally enter HTTP Basic credentials. Browse sections, search, open a publication, and download a supported format into your library. Web imports support EPUB; native imports support EPUB, PDF, MOBI, AZW3, TXT, CBZ, and CBR.
 
-Saved catalogs and secure-storage credentials are local to each server/account, with a separate guest collection. Imported books use the existing storage and synchronization pipeline. Web catalogs must allow CORS; browser mixed-content rules also apply. OAuth, lending, purchases, DRM, offline catalog caching, and download resumption after closing the app are deferred.
+Saved catalogs and secure-storage credentials are local to each server/account, with a separate guest collection. Catalog requests and downloads use the selected Papyrus backend relay, so catalogs do not need browser CORS support. A reachable backend is required, but a Papyrus account is not. Guest imports stay local. The relay accepts public network destinations and sends catalog credentials only to their origin. OAuth, lending, purchases, DRM, offline catalog caching, and download resumption after closing the app are deferred.
 
 See [OPDS setup, compatibility, and verification](docs/opds-support.md) for details and local smoke-test commands.
 

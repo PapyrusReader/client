@@ -12,6 +12,7 @@ import 'package:papyrus/pages/developer_options_page.dart';
 import 'package:papyrus/pages/goals_page.dart';
 import 'package:papyrus/pages/library_page.dart';
 import 'package:papyrus/pages/catalogs_page.dart';
+import 'package:papyrus/pages/catalog_book_page.dart';
 import 'package:papyrus/pages/forgot_password_page.dart';
 import 'package:papyrus/pages/login_page.dart';
 import 'package:papyrus/pages/edit_profile_page.dart';
@@ -130,6 +131,7 @@ class AppRouter {
                   GoRoute(
                     name: 'CATALOG',
                     path: ':catalogId',
+                    routes: [catalogBookRoute()],
                     pageBuilder: (context, state) => NoTransitionPage(
                       key: state.pageKey,
                       child: CatalogsPage(
