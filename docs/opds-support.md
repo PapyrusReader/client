@@ -1,13 +1,15 @@
 # OPDS support
 
-Papyrus can browse OPDS 1.2 (Atom/XML) and OPDS 2.0 (JSON) catalogs and import direct downloads into the active library.
+Papyrus browses OPDS 1.2 (Atom/XML) and OPDS 2.0 (JSON) catalogs through its backend relay and imports book downloads automatically into the active library. A running Papyrus backend is required; a Papyrus account is not.
 
 ## Using catalogs
 
 1. Open **Library → Catalogs**. On a narrow screen, open **Library sections** first.
 2. Select **Add catalog** and enter a name and the catalog's HTTP or HTTPS URL. Enter a username and password if the catalog uses HTTP Basic authentication.
-3. Open the catalog, browse its sections or use keyword search, and select a publication to see details and available downloads. Switch between cover grids and lists using the view control. Descriptions keep their paragraphs; select **Read more** to expand longer descriptions.
-4. Select a supported format. Open the **Downloads** panel at the bottom of the catalog to see progress, cancel, retry, or dismiss a finished transfer. Downloads continue when you navigate elsewhere in Papyrus. Use **Open book** after the import finishes.
+3. Open the catalog, browse its sections or use keyword search, and select a publication to open its book details page. Switch between cover grids and lists using the view control. Details preserve description paragraphs and can be refreshed or opened directly from their URL. Going back restores your feed position and view mode.
+4. Select **Add to library** to open the download-options sheet, then choose a supported format. The **Downloads** control in the page header opens progress, cancellation, retry, and completed transfers. Downloads continue when you close a sheet or navigate elsewhere in Papyrus. Use **Open book** after the import finishes.
+
+Catalog creation, settings, removal confirmation, download options, and transfer activity use bottom sheets on all screen sizes. Forms keep their actions above the keyboard; catalog and book lists use the library's page alignment and theme.
 
 Web imports support EPUB. Native imports support EPUB, PDF, MOBI, AZW3, TXT, CBZ, and CBR, matching the existing file importer. The short final **Adding to library** step cannot be cancelled; earlier download and processing steps can. Failed downloads offer Retry.
 
@@ -17,19 +19,20 @@ Imported books use the existing local file storage, metadata persistence, cover 
 
 ## Compatibility and troubleshooting
 
-- Catalogs connect directly from the client. Web access requires CORS permission from the catalog, including permission for the Authorization header on protected catalogs. Browsers can also block HTTP catalogs from an HTTPS application. Use the native app or configure the catalog's browser access when necessary.
-- Authentication supports HTTP Basic. Use HTTPS to protect credentials in transit. Papyrus account tokens are never added to catalog requests; credentials are not forwarded to another origin.
+- Feeds, search descriptions, covers, and book files all pass through the selected Papyrus backend. Catalogs do not need browser CORS support. The app must be able to reach its backend, whose `CORS_ORIGINS` must allow the web app. Use an HTTPS backend when hosting the web app over HTTPS.
+- Authentication supports HTTP Basic. The selected backend receives catalog credentials for the request and forwards them only to that catalog's origin. Use a trusted backend and HTTPS for the backend and protected catalog. Papyrus account tokens and browser cookies are never forwarded upstream.
+- The relay only permits public network destinations. Loopback, private LAN, link-local, and metadata-service addresses are rejected, including after redirects. Administrators can further restrict catalog hosts. Private LAN catalogs are not supported by this relay.
 - Browsing includes groups, facets, pagination, complete publication entries, and advertised keyword search. OPDS 1.2 uses OpenSearch descriptions; OPDS 2.0 uses URI templates.
 - Purchases, loans, subscriptions, DRM, indirect acquisition, and OAuth are displayed as unsupported acquisition methods. Papyrus does not follow those links as book downloads.
 - This version does not sync catalog settings, cache catalogs for offline browsing, or resume downloads after the app closes.
-- Feed, search-description, and image responses are limited to 8 MiB; book downloads to 256 MiB. A request or stalled stream times out after 30 seconds. These limits protect the current in-memory import pipeline.
-- Authentication errors offer guidance to edit credentials. Network errors offer retry and browser-policy guidance without claiming to distinguish a CORS failure from other browser network failures.
+- Feed, search-description, and image responses are limited to 8 MiB; book downloads to 256 MiB. DNS and opening a response each have a 30-second limit, stalled reads time out after 30 seconds, and each upstream request has a five-minute total deadline. These limits protect the current in-memory import pipeline.
+- The client queues excess requests and briefly retries temporary relay-capacity errors. Authentication errors offer guidance to edit catalog credentials. Other failures remain in the download panel with Retry; no manual save-and-import step is required.
 
-### When a website download works but importing from a catalog fails
+### Server setup
 
-A catalog can allow browsing while its book files or redirects omit the CORS headers required by a web app. For example, on 2026-09-06 both Project Gutenberg's `/ebooks/1342.epub.noimages` redirect and its final `/cache/epub/1342/pg1342.epub` response omitted `Access-Control-Allow-Origin`. Requesting the final URL directly does not resolve this restriction.
+The official backend comes from `PAPYRUS_API_BASE_URL` (default `http://localhost:8080`). Selecting a custom server uses that server's relay, including in guest mode. Deploy the updated client and backend together. If OPDS requests return 404, update the backend and check its API prefix and reverse-proxy routing.
 
-After a web connection failure, select **Download in browser** in the book details or expanded Downloads panel. Save the EPUB, then use **Library → Add book** to import it. This opens the catalog link in a separate browser tab without forwarding saved Basic credentials; sign in on the catalog website if necessary. It does not automatically import the file or mark the failed job complete. Native Papyrus downloads are not subject to browser CORS restrictions.
+The relay is enabled by default. Operators can disable it with `OPDS_RELAY_ENABLED=false` or restrict destinations using `OPDS_RELAY_ALLOWED_HOSTS`, a JSON list of exact hostnames. All redirect and image/CDN hosts must also be permitted. An empty list allows public hosts. Guest imports stay local; relaying does not create an account or upload the guest library.
 
 ## Implementation
 
@@ -37,7 +40,7 @@ The `lib/opds` module separates normalized models, XML/JSON parsing, search expa
 
 The routes `/library/catalogs` and `/library/catalogs/:catalogId` live inside the existing Library shell. The `feed` query parameter stores the current resource URL, and `q` retains the displayed keyword query. Neither contains Basic credentials. Browser history and refresh reload the selected feed.
 
-No server API, database schema, or dependency changes are required.
+`OpdsHttpClient` posts resource URLs and optional catalog credentials to `/v1/opds/relay`. It reads the final upstream URL from `X-OPDS-URL` so relative links resolve against the catalog. The backend streams bytes without storing books. No database schema or dependency changes are required.
 
 ## Verification
 
@@ -51,7 +54,7 @@ flutter build web --no-pub
 flutter build linux --no-pub
 ```
 
-Network smoke tests use a local fixture server and are skipped in the normal suite. Start it in a separate terminal:
+Network smoke tests use a local fixture server that emulates the relay contract for its own loopback resources. These tests are skipped in the normal suite. Start it in a separate terminal:
 
 ```sh
 python3 tool/opds_fixture_server.py --port 8766
@@ -66,13 +69,20 @@ flutter test test/opds/network_smoke_test.dart --no-pub --platform chrome --dart
 
 The fixtures cover public and Basic-auth catalogs in both formats, browsing, details, search, pagination, EPUB bytes, redirect URL resolution, authentication failures, and cross-origin credential stripping. They use the test credentials `reader` / `secret` and bind only to localhost.
 
-The smoke suite also checks missing CORS headers on redirects and book responses: Chrome must report a connection failure, while native downloads succeed. The catalog at `/public/v2/blocked.json` exercises the manual browser-download recovery flow.
+The smoke suite checks that missing CORS headers on upstream redirects and book responses do not prevent relay downloads on Chrome or native platforms. The catalog at `/public/v2/blocked.json` exercises this flow.
 
-The recovery change was verified with 78 focused OPDS tests, ten native network smoke tests, and twelve Chrome network/widget tests. Analysis, formatting, and the web build passed. The built web app saved a valid EPUB through **Download in browser** after its in-app request failed against the missing-CORS fixture.
+For visual fixture checks, launch the client with `--dart-define=PAPYRUS_API_BASE_URL=http://127.0.0.1:8766` and add `http://127.0.0.1:8766/public/v2/showcase.json` as a catalog. This fixture includes books, covers, sections, and long descriptions. Replace `public` with `protected` to check Basic authentication. This loopback exception exists only in the fixture server; the production backend rejects these destinations.
 
-For visual checks, add `http://127.0.0.1:8766/public/v2/showcase.json` as a catalog. This fixture includes multiple books, simple test covers, sections, edition labels, and long descriptions. Its EPUB action returns the fixture book; other formats are illustrative. Replace `public` with `protected` to check the same layout with Basic authentication.
+### Relay verification — 2026-09-21
 
-### Implementation verification — 2026-09-06
+- 93 Flutter OPDS tests passed, including ten native fixture network tests.
+- 30 Chrome network, relay-contract, and presentation tests passed.
+- 48 backend tests passed, including destination/deadline/cleanup coverage and health-route regression tests. Ruff and scoped mypy passed.
+- Flutter analysis and the production web build passed.
+- Chrome fetched Gutenberg's OPDS entry and a complete 558,381-byte EPUB through the actual FastAPI relay without account authentication. The client import pipeline is covered by download regression tests; this live browser check verified transport, not a full interactive app import.
+- The updated client and backend must be deployed together. No deployment was performed during this verification.
+
+### Original implementation verification — 2026-09-06
 
 - Full Flutter suite: 1,222 passed, 18 skipped (including the eight opt-in network smoke tests).
 - Real HTTP smoke suite: eight passed on the Linux Dart VM and eight passed in Chrome.

@@ -8,10 +8,14 @@ import 'package:papyrus/opds/opds_downloads.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
 import 'package:papyrus/themes/app_motion.dart';
+import 'package:papyrus/pages/catalog_book_page.dart';
+import 'package:papyrus/widgets/input/search_field.dart';
+import 'package:papyrus/widgets/opds/opds_sheet.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/opds/catalog_editor.dart';
 import 'package:papyrus/widgets/opds/opds_feed_view.dart';
 import 'package:papyrus/widgets/opds/opds_download_panel.dart';
+import 'package:papyrus/widgets/opds/opds_download_actions.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -26,12 +30,13 @@ class CatalogsPage extends StatefulWidget {
 }
 
 class _CatalogsPageState extends State<CatalogsPage> {
-  late final _browser = OpdsBrowser(httpClient: widget.httpClient);
+  late final _browser = OpdsBrowser(httpClient: widget.httpClient ?? context.read<OpdsHttpClient>());
   late final _search = TextEditingController(text: widget.query);
   OpdsCredentials? _credentials;
   String? _loadKey;
   bool _searching = false;
   bool _isGridView = true;
+  final _feedScroll = ScrollController();
 
   @override
   void didUpdateWidget(covariant CatalogsPage oldWidget) {
@@ -40,15 +45,16 @@ class _CatalogsPageState extends State<CatalogsPage> {
   }
 
   void _scheduleLoad(OpdsCatalogs catalogs) {
-    final key = '${catalogs.scope}/${catalogs.revision}/${widget.catalogId}/${widget.feedUri}';
+    final catalog = widget.catalogId == null ? null : catalogs.find(widget.catalogId!);
+    final key = '${catalogs.scope}/${catalogs.revision}/${widget.catalogId}/${widget.feedUri ?? catalog?.uri}';
     if (_loadKey == key) return;
     _loadKey = key;
     _credentials = null;
     _browser.clear();
-    final catalog = widget.catalogId == null ? null : catalogs.find(widget.catalogId!);
     if (catalog == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || _loadKey != key) return;
+      if (_feedScroll.hasClients) _feedScroll.jumpTo(0);
       try {
         final credentials = await catalogs.credentials(catalog.id);
         if (!mounted || _loadKey != key) return;
@@ -60,27 +66,29 @@ class _CatalogsPageState extends State<CatalogsPage> {
     });
   }
 
-  Future<void> _edit(OpdsCatalogs catalogs, [OpdsCatalog? catalog]) => showDialog<void>(
-    context: context,
-    barrierDismissible: false,
-    animationStyle: AppMotion.animationStyle(context),
-    builder: (_) => CatalogEditor(catalogs: catalogs, catalog: catalog),
-  );
+  Future<void> _edit(OpdsCatalogs catalogs, [OpdsCatalog? catalog]) =>
+      CatalogEditor.show(context, catalogs: catalogs, catalog: catalog);
 
   Future<void> _remove(OpdsCatalogs catalogs, OpdsCatalog catalog) async {
     final scope = catalogs.scope;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      animationStyle: AppMotion.animationStyle(context),
-      builder: (dialogContext) => AlertDialog(
-        title: Text('Remove ${catalog.name}?'),
-        content: const Text(
-          'The saved catalog and its credentials will be removed. Downloaded books stay in your library.',
+    ScaffoldMessenger.of(context).clearSnackBars();
+    final confirmed = await showOpdsSheet<bool>(
+      context,
+      title: 'Remove catalog',
+      child: Builder(
+        builder: (sheetContext) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text('Remove ${catalog.name}?', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: Spacing.md),
+            const Text('The saved catalog and its credentials will be removed. Downloaded books stay in your library.'),
+            const SizedBox(height: Spacing.lg),
+            Align(
+              alignment: Alignment.centerRight,
+              child: FilledButton(onPressed: () => Navigator.of(sheetContext).pop(true), child: const Text('Remove')),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(dialogContext, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(dialogContext, true), child: const Text('Remove')),
-        ],
       ),
     );
     if (confirmed != true || !mounted || catalogs.scope != scope) return;
@@ -120,24 +128,6 @@ class _CatalogsPageState extends State<CatalogsPage> {
     }
   }
 
-  Future<void> _download(OpdsCatalog catalog, OpdsPublication publication, OpdsLink link) async {
-    final catalogs = context.read<OpdsCatalogs>();
-    final downloads = context.read<OpdsDownloads>();
-    final scope = catalogs.scope;
-    final revision = catalogs.revision;
-    if (!identical(catalogs.find(catalog.id), catalog)) {
-      _message('The catalog or account changed. Close these details and reopen the book.');
-      return;
-    }
-    try {
-      final credentials = await catalogs.credentials(catalog.id);
-      if (!mounted || catalogs.scope != scope || catalogs.revision != revision) return;
-      await downloads.start(catalog, publication, link, credentials: credentials);
-    } catch (error) {
-      if (mounted) _message(opdsErrorMessage(error));
-    }
-  }
-
   void _message(String text) => ScaffoldMessenger.of(
     context,
   ).showSnackBar(snackBarAnimationStyle: AppMotion.animationStyle(context), SnackBar(content: Text(text)));
@@ -146,102 +136,94 @@ class _CatalogsPageState extends State<CatalogsPage> {
   void dispose() {
     _browser.dispose();
     _search.dispose();
+    _feedScroll.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final catalogs = context.watch<OpdsCatalogs>();
-    final downloads = context.watch<OpdsDownloads>();
     _scheduleLoad(catalogs);
     final catalog = widget.catalogId == null ? null : catalogs.find(widget.catalogId!);
-    final compact = MediaQuery.sizeOf(context).width < Breakpoints.tablet;
     return SafeArea(
       child: LayoutBuilder(
-        builder: (context, constraints) => Column(
-          children: [
-            Expanded(
-              child: Align(
-                alignment: Alignment.topCenter,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 1344),
-                  child: Padding(
-                    padding: EdgeInsets.fromLTRB(
-                      compact ? Spacing.md : Spacing.xl,
-                      compact ? Spacing.md : Spacing.lg,
-                      compact ? Spacing.md : Spacing.xl,
-                      0,
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        _header(catalogs, catalog),
-                        const SizedBox(height: Spacing.lg),
-                        if (catalog != null)
-                          Align(
-                            alignment: Alignment.centerLeft,
-                            child: ConstrainedBox(
-                              constraints: const BoxConstraints(maxWidth: 640),
-                              child: TextField(
-                                controller: _search,
-                                onSubmitted: (_) => _submitSearch(catalog),
-                                onChanged: (_) => setState(() {}),
-                                textInputAction: TextInputAction.search,
-                                decoration: InputDecoration(
-                                  hintText: 'Search this catalog',
-                                  prefixIcon: const Icon(Icons.search),
-                                  isDense: true,
-                                  contentPadding: const EdgeInsets.symmetric(
-                                    horizontal: Spacing.md,
-                                    vertical: Spacing.sm,
-                                  ),
-                                  suffixIcon: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (_search.text.isNotEmpty)
-                                        IconButton(
-                                          tooltip: 'Clear search',
-                                          icon: const Icon(Icons.clear),
-                                          onPressed: () {
-                                            setState(() => _search.clear());
-                                            if (widget.query.isNotEmpty) _navigate(catalog, catalog.uri);
-                                          },
-                                        ),
-                                      IconButton(
-                                        tooltip: 'Search catalog',
-                                        onPressed: _searching ? null : () => _submitSearch(catalog),
-                                        icon: _searching
-                                            ? const SizedBox.square(
-                                                dimension: 20,
-                                                child: AppCircularProgressIndicator(),
-                                              )
-                                            : const Icon(Icons.arrow_forward),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        Expanded(
-                          child: catalog == null
-                              ? _catalogList(catalogs)
-                              : AnimatedBuilder(animation: _browser, builder: (_, _) => _feedView(catalog)),
-                        ),
-                      ],
+        builder: (context, constraints) {
+          final compact = constraints.maxWidth < Breakpoints.tablet;
+          final mobileHome = widget.catalogId == null && MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
+          final body = Padding(
+            padding: EdgeInsets.fromLTRB(
+              compact ? Spacing.md : Spacing.lg,
+              compact ? Spacing.md : Spacing.lg,
+              compact ? Spacing.md : Spacing.lg,
+              0,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.catalogId == null) ...[
+                  _header(catalogs, catalog),
+                  SizedBox(height: compact ? Spacing.md : Spacing.lg),
+                ],
+                if (catalog != null)
+                  SearchField(
+                    controller: _search,
+                    hintText: 'Search this catalog',
+                    height: MediaQuery.textScalerOf(context).scale(16) > 24 ? 56 : 40,
+                    onSubmitted: (_) => _submitSearch(catalog),
+                    onChanged: (_) => setState(() {}),
+                    onClear: () {
+                      setState(() {});
+                      if (widget.query.isNotEmpty) _navigate(catalog, catalog.uri);
+                    },
+                    trailing: IconButton(
+                      tooltip: 'Search catalog',
+                      onPressed: _searching ? null : () => _submitSearch(catalog),
+                      icon: _searching
+                          ? const SizedBox.square(dimension: 20, child: AppCircularProgressIndicator())
+                          : const Icon(Icons.arrow_forward),
                     ),
                   ),
+                Expanded(
+                  child: catalog == null
+                      ? _catalogList(catalogs)
+                      : AnimatedBuilder(animation: _browser, builder: (_, _) => _feedView(catalog)),
+                ),
+              ],
+            ),
+          );
+          if (widget.catalogId != null) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                    child: _header(catalogs, catalog),
+                  ),
+                ),
+                const Divider(key: Key('catalog-header-divider'), height: 1),
+                Expanded(child: body),
+              ],
+            );
+          }
+          if (!mobileHome) return body;
+          return Stack(
+            fit: StackFit.expand,
+            children: [
+              body,
+              Positioned(
+                right: Spacing.md,
+                bottom: Spacing.md,
+                child: FloatingActionButton(
+                  tooltip: 'Add catalog',
+                  onPressed: catalogs.scope == null ? null : () => _edit(catalogs),
+                  child: const Icon(Icons.add),
                 ),
               ),
-            ),
-            OpdsDownloadPanel(
-              downloads: downloads,
-              allowExpansion: constraints.maxHeight >= 480,
-              maxExpandedHeight: constraints.maxHeight * 0.28,
-              onRetry: (job) => unawaited(_download(job.catalog, job.publication, job.link)),
-            ),
-          ],
-        ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -249,7 +231,41 @@ class _CatalogsPageState extends State<CatalogsPage> {
   Widget _header(OpdsCatalogs catalogs, OpdsCatalog? catalog) {
     final theme = Theme.of(context);
     final mobile = MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
-    return Row(
+    final downloads = context.watch<OpdsDownloads>();
+    final downloadsButton = OpdsDownloadsButton(
+      compact: mobile,
+      downloads: downloads,
+      onRetry: (job) => unawaited(retryOpdsDownload(context, job)),
+    );
+    if (widget.catalogId != null) {
+      return Row(
+        children: [
+          IconButton(
+            tooltip: 'All catalogs',
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => context.go('/library/catalogs'),
+          ),
+          const SizedBox(width: Spacing.sm),
+          Expanded(
+            child: Text(
+              catalog?.name ?? 'Catalogs',
+              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          downloadsButton,
+          if (catalog != null)
+            IconButton(
+              tooltip: 'Edit catalog',
+              onPressed: () => _edit(catalogs, catalog),
+              icon: const Icon(Icons.settings_outlined),
+            ),
+        ],
+      );
+    }
+    final heading = Row(
+      crossAxisAlignment: mobile ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
         if (mobile)
           IconButton(
@@ -257,25 +273,14 @@ class _CatalogsPageState extends State<CatalogsPage> {
             icon: const Icon(Icons.menu),
             onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
           ),
-        if (widget.catalogId != null)
-          IconButton(
-            tooltip: 'All catalogs',
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go('/library/catalogs'),
-          ),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(
-                catalog?.name ?? 'Catalogs',
-                style: theme.textTheme.headlineSmall,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+              Text('Catalogs', style: theme.textTheme.headlineSmall),
               const SizedBox(height: Spacing.xs),
               Text(
-                catalog?.uri.host ?? 'Discover books from your favorite libraries.',
+                'Discover books from your favorite libraries.',
                 maxLines: 2,
                 overflow: TextOverflow.ellipsis,
                 style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -283,34 +288,48 @@ class _CatalogsPageState extends State<CatalogsPage> {
             ],
           ),
         ),
-        const SizedBox(width: Spacing.sm),
-        if (catalog == null && widget.catalogId == null)
-          if (mobile)
-            IconButton(
-              tooltip: 'Add catalog',
-              onPressed: catalogs.scope == null ? null : () => _edit(catalogs),
-              icon: const Icon(Icons.add),
-            )
-          else
-            FilledButton.icon(
-              onPressed: catalogs.scope == null ? null : () => _edit(catalogs),
-              style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
-              icon: const Icon(Icons.add),
-              label: const Text('Add catalog'),
-            ),
-        if (catalog != null) ...[
-          IconButton(
-            tooltip: 'Catalog home',
-            onPressed: () => _navigate(catalog, catalog.uri),
-            icon: const Icon(Icons.home_outlined),
-          ),
-          IconButton(
-            tooltip: 'Edit catalog',
-            onPressed: () => _edit(catalogs, catalog),
-            icon: const Icon(Icons.settings_outlined),
-          ),
-        ],
       ],
+    );
+    if (mobile) {
+      return Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(child: heading),
+          downloadsButton,
+        ],
+      );
+    }
+    final actions = Wrap(
+      spacing: Spacing.xs,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        downloadsButton,
+        FilledButton.icon(
+          onPressed: catalogs.scope == null ? null : () => _edit(catalogs),
+          icon: const Icon(Icons.add),
+          label: const Text('Add catalog'),
+        ),
+      ],
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return constraints.maxWidth < Breakpoints.tablet || MediaQuery.textScalerOf(context).scale(1) > 1.4
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  heading,
+                  const SizedBox(height: Spacing.md),
+                  Align(alignment: Alignment.centerRight, child: actions),
+                ],
+              )
+            : Row(
+                children: [
+                  Expanded(child: heading),
+                  const SizedBox(width: Spacing.md),
+                  actions,
+                ],
+              );
+      },
     );
   }
 
@@ -341,73 +360,28 @@ class _CatalogsPageState extends State<CatalogsPage> {
         onAction: () => _edit(catalogs),
       );
     }
-    return LayoutBuilder(
-      builder: (context, constraints) => GridView.builder(
-        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: (constraints.maxWidth / 360).floor().clamp(1, 3),
-          mainAxisExtent: 176 * MediaQuery.textScalerOf(context).scale(1).clamp(1, 2),
-          crossAxisSpacing: Spacing.md,
-          mainAxisSpacing: Spacing.md,
-        ),
-        padding: const EdgeInsets.only(bottom: Spacing.lg),
-        itemCount: catalogs.catalogs.length,
-        itemBuilder: (_, index) {
-          final catalog = catalogs.catalogs[index];
-          return Card(
-            margin: EdgeInsets.zero,
-            clipBehavior: Clip.antiAlias,
-            child: InkWell(
-              onTap: () => context.go('/library/catalogs/${Uri.encodeComponent(catalog.id)}'),
-              child: Padding(
-                padding: const EdgeInsets.all(Spacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(Icons.public, color: Theme.of(context).colorScheme.primary, size: 28),
-                        const Spacer(),
-                        PopupMenuButton<String>(
-                          tooltip: 'Catalog options',
-                          onSelected: (value) =>
-                              value == 'edit' ? _edit(catalogs, catalog) : _remove(catalogs, catalog),
-                          itemBuilder: (_) => [
-                            const PopupMenuItem(value: 'edit', child: Text('Edit')),
-                            const PopupMenuItem(value: 'remove', child: Text('Remove')),
-                          ],
-                        ),
-                      ],
-                    ),
-                    const Spacer(),
-                    Text(
-                      catalog.name,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleMedium,
-                    ),
-                    const SizedBox(height: Spacing.xs),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            catalog.uri.host,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: Theme.of(
-                              context,
-                            ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                          ),
-                        ),
-                        const Icon(Icons.arrow_forward, size: IconSizes.small),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          );
-        },
-      ),
+    return ListView.separated(
+      padding: EdgeInsets.only(bottom: MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall ? 96 : Spacing.lg),
+      itemCount: catalogs.catalogs.length,
+      separatorBuilder: (_, _) => const Divider(height: 1),
+      itemBuilder: (_, index) {
+        final catalog = catalogs.catalogs[index];
+        return ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.sm),
+          leading: Icon(Icons.public, color: Theme.of(context).colorScheme.primary),
+          title: Text(catalog.name),
+          subtitle: Text(catalog.uri.host),
+          onTap: () => context.go('/library/catalogs/${Uri.encodeComponent(catalog.id)}'),
+          trailing: PopupMenuButton<String>(
+            tooltip: 'Catalog options',
+            onSelected: (value) => value == 'edit' ? _edit(catalogs, catalog) : _remove(catalogs, catalog),
+            itemBuilder: (_) => const [
+              PopupMenuItem(value: 'edit', child: Text('Edit')),
+              PopupMenuItem(value: 'remove', child: Text('Remove')),
+            ],
+          ),
+        );
+      },
     );
   }
 
@@ -425,6 +399,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
     final feed = _browser.feed;
     if (feed == null) return const SizedBox.shrink();
     return OpdsFeedView(
+      scrollController: _feedScroll,
       catalog: catalog,
       feed: feed,
       credentials: _credentials,
@@ -435,7 +410,21 @@ class _CatalogsPageState extends State<CatalogsPage> {
       onNavigate: (uri) => _navigate(catalog, uri),
       onPage: (uri) => _navigate(catalog, uri, query: widget.query),
       onRefresh: () => setState(() => _loadKey = null),
-      onDownload: (publication, link) => unawaited(_download(catalog, publication, link)),
+      onOpenPublication: (publication) => context.go(
+        Uri(
+          path: '/library/catalogs/${Uri.encodeComponent(catalog.id)}/book',
+          queryParameters: {
+            'feed': (widget.feedUri ?? catalog.uri).toString(),
+            'publication': publication.id,
+            if (widget.query.isNotEmpty) 'q': widget.query,
+          },
+        ).toString(),
+        extra: CatalogBookSelection(
+          catalog: catalog,
+          publication: publication,
+          scope: context.read<OpdsCatalogs>().scope,
+        ),
+      ),
     );
   }
 

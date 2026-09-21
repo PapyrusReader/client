@@ -3,13 +3,15 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/opds/opds_downloads.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
+
 import 'package:papyrus/services/book_import_session.dart';
 import 'package:papyrus/services/book_import_result.dart';
+
+import 'relay_fixture_client.dart';
 
 void main() {
   final catalog = OpdsCatalog(id: 'c', name: 'Books', uri: Uri.parse('https://books.test/feed'));
@@ -32,7 +34,7 @@ void main() {
     var processes = 0;
     final downloads = OpdsDownloads(
       httpClient: OpdsHttpClient(
-        clientFactory: () => MockClient((_) async {
+        clientFactory: () => MockRelayClient((_) async {
           throw http.ClientException('Failed to fetch');
         }),
       ),
@@ -63,7 +65,7 @@ void main() {
     final downloads = OpdsDownloads(
       httpClient: OpdsHttpClient(
         clientFactory: () =>
-            MockClient((_) async => http.Response('<!DOCTYPE html><html><body>Sign in</body></html>', 200)),
+            MockRelayClient((_) async => http.Response('<!DOCTYPE html><html><body>Sign in</body></html>', 200)),
       ),
       captureImport: () => BookImportSession(
         process: (_, _) async {
@@ -85,7 +87,7 @@ void main() {
   test('commits a downloaded book and fills missing embedded metadata', () async {
     BookImportResult? imported;
     final downloads = OpdsDownloads(
-      httpClient: OpdsHttpClient(clientFactory: () => MockClient((_) async => http.Response('book', 200))),
+      httpClient: OpdsHttpClient(clientFactory: () => MockRelayClient((_) async => http.Response('book', 200))),
       captureImport: () => BookImportSession(
         process: (_, _) async => result(),
         deleteFile: (_) async {},
@@ -107,7 +109,7 @@ void main() {
     final committing = Completer<void>();
     final finish = Completer<Book>();
     final downloads = OpdsDownloads(
-      httpClient: OpdsHttpClient(clientFactory: () => MockClient((_) async => http.Response('book', 200))),
+      httpClient: OpdsHttpClient(clientFactory: () => MockRelayClient((_) async => http.Response('book', 200))),
       captureImport: () => BookImportSession(
         process: (_, _) async => result(),
         deleteFile: (_) async {},
@@ -134,7 +136,7 @@ void main() {
     final deleted = <String>[];
     var commits = 0;
     final downloads = OpdsDownloads(
-      httpClient: OpdsHttpClient(clientFactory: () => MockClient((_) async => http.Response('book', 200))),
+      httpClient: OpdsHttpClient(clientFactory: () => MockRelayClient((_) async => http.Response('book', 200))),
       captureImport: () => BookImportSession(
         process: (Uint8List _, String _) {
           started.complete();
@@ -165,7 +167,7 @@ void main() {
     final deleted = <String>[];
     final downloads = OpdsDownloads(
       httpClient: OpdsHttpClient(
-        clientFactory: () => MockClient((_) async {
+        clientFactory: () => MockRelayClient((_) async {
           requests++;
           return http.Response('book', 200);
         }),

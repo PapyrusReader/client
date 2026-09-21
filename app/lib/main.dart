@@ -17,6 +17,7 @@ import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/opds/opds_catalog_store.dart';
 import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/opds/opds_downloads.dart';
+import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/services/book_import_session.dart';
 import 'package:papyrus/platform/book_import_drop_registration.dart';
 import 'package:papyrus/platform/hot_restart_cleanup.dart';
@@ -169,6 +170,7 @@ class _PapyrusState extends State<Papyrus> {
   late final BookImportService _bookImportService;
   late final OpdsCatalogs _opdsCatalogs;
   late final OpdsDownloads _opdsDownloads;
+  late final OpdsHttpClient _opdsHttpClient;
   late final PapyrusPowerSyncService _powerSyncService;
   late final BookStorageStatusController _bookStorageStatusController;
   late final PapyrusApiConfig _officialApiConfig;
@@ -225,7 +227,9 @@ class _PapyrusState extends State<Papyrus> {
       hasBookFile: _bookImportService.hasBookFile,
     );
     _opdsCatalogs = OpdsCatalogs(OpdsCatalogStore(widget.prefs));
+    _opdsHttpClient = OpdsHttpClient(apiConfig: () => _syncSettingsProvider.activeApiConfig);
     _opdsDownloads = OpdsDownloads(
+      httpClient: _opdsHttpClient,
       captureImport: () => BookImportSession.capture(
         dataStore: _dataStore,
         queue: _mediaUploadQueue,
@@ -463,6 +467,7 @@ class _PapyrusState extends State<Papyrus> {
         Provider.value(value: _bookImportService),
         ChangeNotifierProvider.value(value: _opdsCatalogs),
         ChangeNotifierProvider.value(value: _opdsDownloads),
+        Provider.value(value: _opdsHttpClient),
         Provider(create: _createBookDownloadService),
         Provider(create: _createMediaCacheService),
         StreamProvider<SyncState>.value(value: _powerSyncService.syncStates, initialData: _powerSyncService.syncState),

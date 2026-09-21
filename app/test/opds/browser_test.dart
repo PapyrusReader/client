@@ -2,10 +2,11 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:papyrus/opds/opds_browser.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
+
+import 'relay_fixture_client.dart';
 
 void main() {
   final catalog = OpdsCatalog(id: 'c', name: 'Books', uri: Uri.parse('https://books.test/feed'));
@@ -13,7 +14,7 @@ void main() {
     final oldResponse = Completer<http.Response>();
     final browser = OpdsBrowser(
       httpClient: OpdsHttpClient(
-        clientFactory: () => MockClient((request) async {
+        clientFactory: () => MockRelayClient((request) async {
           if (request.url.path == '/old') return oldResponse.future;
           return http.Response('{"metadata":{"title":"New"},"navigation":[]}', 200);
         }),
@@ -31,7 +32,7 @@ void main() {
   test('resolves root search while browsing a subsection', () async {
     final browser = OpdsBrowser(
       httpClient: OpdsHttpClient(
-        clientFactory: () => MockClient((request) async {
+        clientFactory: () => MockRelayClient((request) async {
           return http.Response(
             request.url.path == '/feed'
                 ? '{"metadata":{"title":"Root"},"links":[{"rel":"search","href":"search{?query}","templated":true,"type":"application/opds+json"}],"navigation":[]}'

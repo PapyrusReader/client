@@ -4,7 +4,6 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:http/testing.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/opds/opds_downloads.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
@@ -16,8 +15,11 @@ import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/opds/opds_download_panel.dart';
 import 'package:papyrus/widgets/opds/opds_feed_view.dart';
 import 'package:papyrus/widgets/opds/opds_publication_tile.dart';
+import 'package:papyrus/widgets/opds/opds_publication_details.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 import 'package:provider/provider.dart';
+
+import 'relay_fixture_client.dart';
 
 final _catalog = OpdsCatalog(id: 'catalog', name: 'Public library', uri: Uri.parse('https://books.test/feed'));
 final _epub = OpdsLink(
@@ -27,7 +29,7 @@ final _epub = OpdsLink(
   rels: ['download'],
 );
 final _pdf = OpdsLink(uri: Uri.parse('https://books.test/book.pdf'), type: 'application/pdf', rels: ['download']);
-final _gateway = OpdsHttpClient(clientFactory: () => MockClient((_) async => http.Response('book', 200)));
+final _gateway = OpdsHttpClient(clientFactory: () => MockRelayClient((_) async => http.Response('book', 200)));
 
 OpdsPublication _publication({String id = 'one', String title = 'Pride and Prejudice', String? description}) =>
     OpdsPublication(
@@ -108,11 +110,74 @@ Widget _panel(OpdsDownloads downloads, {ValueChanged<OpdsDownloadJob>? onRetry})
   animation: downloads,
   builder: (_, _) => Align(
     alignment: Alignment.bottomCenter,
-    child: OpdsDownloadPanel(downloads: downloads, onRetry: onRetry ?? (_) {}),
+    child: OpdsDownloadsButton(downloads: downloads, onRetry: onRetry ?? (_) {}),
   ),
 );
 
 void main() {
+  testWidgets('phone cards keep author next to title and preserve equal cover sizes', (tester) async {
+    await _mount(
+      tester,
+      OpdsFeedView(
+        catalog: _catalog,
+        feed: OpdsFeed(
+          uri: _catalog.uri,
+          title: 'Pride and Prejudice by Jane Austen',
+          publications: [
+            _publication(title: 'Short title'),
+            _publication(id: 'two', title: 'A much longer title that needs two lines'),
+          ],
+        ),
+        httpClient: _gateway,
+        onNavigate: (_) {},
+        onOpenPublication: (_) {},
+        onRefresh: () {},
+        isGridView: true,
+        onViewChanged: (_) {},
+        onPage: (_) {},
+      ),
+      theme: AppTheme.dark,
+      width: 424,
+    );
+    final card = find.byKey(const ValueKey('one'));
+    final title = find.descendant(of: card, matching: find.text('Short title'));
+    expect(tester.getSize(title).height, lessThan(26));
+    final author = find.descendant(of: card, matching: find.text('Jane Austen'));
+    expect(tester.getTopLeft(author).dy - tester.getBottomLeft(title).dy, lessThanOrEqualTo(8));
+    expect(tester.widget<Text>(find.descendant(of: card, matching: find.text(_epub.title!))).maxLines, 2);
+    final cover = tester.getRect(find.descendant(of: card, matching: find.byType(OpdsCover)));
+    final other = tester.getRect(
+      find.descendant(of: find.byKey(const ValueKey('two')), matching: find.byType(OpdsCover)),
+    );
+    expect(cover.height, closeTo(cover.width * 1.5, 1));
+    expect(cover.size, other.size);
+    expect(
+      tester
+          .getRect(find.byTooltip('List view'))
+          .overlaps(tester.getRect(find.text('Pride and Prejudice by Jane Austen'))),
+      isFalse,
+    );
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('relay failure offers retry without a manual browser download', (tester) async {
+    final downloads = OpdsDownloads(
+      captureImport: _unusedSession,
+      httpClient: OpdsHttpClient(
+        clientFactory: () => MockRelayClient((_) async {
+          throw http.ClientException('Relay unavailable');
+        }),
+      ),
+    );
+    await downloads.start(_catalog, _publication(), _epub);
+    await _mount(tester, _panel(downloads), theme: AppTheme.light, downloads: downloads);
+    await tester.tap(find.byTooltip('Downloads'));
+    await _settle(tester);
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.textContaining('Papyrus catalog server'), findsOneWidget);
+    expect(find.text('Download in browser'), findsNothing);
+    expect(find.textContaining('Library → Add book'), findsNothing);
+  });
+
   final themes = [('light', AppTheme.light), ('dark', AppTheme.dark), ('eink', AppTheme.eink)];
   for (final (name, theme) in themes) {
     for (final width in [360.0, 1280.0]) {
@@ -153,7 +218,7 @@ void main() {
                 onViewChanged: (value) => setState(() => grid = value),
                 onNavigate: (uri) => navigated = uri,
                 onPage: (uri) => paged = uri,
-                onDownload: (_, _) {},
+                onOpenPublication: (_) {},
                 onRefresh: () {},
               ),
             ),
@@ -197,109 +262,71 @@ void main() {
       });
     }
 
-    testWidgets('$name 360 details expand a long description while download formats stay reachable', (tester) async {
-      final description = List.generate(
-        12,
-        (index) =>
-            'Paragraph ${index + 1}. This edition includes notes about the story, its characters, and the original publication.',
-      ).join('\n\n');
-      final selected = <OpdsLink>[];
-      await _mount(
-        tester,
-        Padding(
-          padding: const EdgeInsets.all(16),
-          child: Align(
-            alignment: Alignment.topCenter,
-            child: OpdsPublicationTile(
+    for (final width in [360.0, 1280.0]) {
+      testWidgets('$name $width full details preserve paragraphs and open format sheet', (tester) async {
+        final description = List.generate(
+          12,
+          (index) =>
+              'Paragraph ${index + 1}. This edition includes notes about the story, its characters, and the original publication.',
+        ).join('\n\n');
+        final selected = <OpdsLink>[];
+        final downloads = OpdsDownloads(captureImport: _unusedSession);
+        await _mount(
+          tester,
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: OpdsPublicationDetails(
               catalog: _catalog,
               publication: _publication(description: description),
               httpClient: _gateway,
+              downloads: downloads,
               onNavigate: (_) {},
               onDownload: selected.add,
             ),
           ),
-        ),
-        theme: theme,
-      );
-      await tester.tap(find.text('Pride and Prejudice'));
-      await tester.pumpAndSettle();
-      expect(find.byType(BottomSheet), findsOneWidget);
-      expect(find.text('Book details'), findsOneWidget);
-      await tester.ensureVisible(find.text('Download EPUB'));
-      await tester.pumpAndSettle();
-      expect(find.text('Download EPUB').hitTestable(), findsOneWidget);
-      await tester.tap(find.text('Download EPUB'));
-      expect(selected, [_epub]);
-      final text = find.byKey(const Key('opds-description'));
-      expect(tester.widget<Text>(text).maxLines, 7);
-      await tester.ensureVisible(find.text('Read more'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Read more'));
-      await tester.pumpAndSettle();
-      expect(tester.widget<Text>(text).maxLines, isNull);
-      expect(tester.widget<Text>(text).data, description);
-      await tester.ensureVisible(find.text('Download PDF'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Download PDF'));
-      expect(selected, [_epub, _pdf]);
-      await tester.ensureVisible(find.text('Show less'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Show less'));
-      await tester.pumpAndSettle();
-      expect(tester.widget<Text>(text).maxLines, 7);
-      expect(find.text('Close').hitTestable(), findsOneWidget);
-      await tester.tap(find.text('Close'));
-      await tester.pumpAndSettle();
-      expect(find.byType(BottomSheet), findsNothing);
-      expect(tester.takeException(), isNull);
-    });
+          theme: theme,
+          width: width,
+          downloads: downloads,
+        );
+        expect(find.byType(Dialog), findsNothing);
+        expect(find.byType(BottomSheet), findsNothing);
+        final text = tester.widget<Text>(find.byKey(const Key('opds-description')));
+        expect(text.maxLines, isNull);
+        expect(text.data, description);
+        await tester.tap(find.text('Add to library'));
+        await _settle(tester);
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('Download options'), findsOneWidget);
+        await tester.tap(find.text('Download EPUB'));
+        expect(selected, [_epub]);
+        if (OpdsDownloads.supports(_pdf)) {
+          await tester.tap(find.text('Download PDF'));
+          expect(selected, [_epub, _pdf]);
+        } else {
+          expect(find.text('Download PDF'), findsNothing);
+          await tester.tap(find.text('Other catalog options (1)'));
+          await _settle(tester);
+          expect(find.textContaining('cannot be imported'), findsOneWidget);
+        }
+        await tester.tap(find.text('Close'));
+        await _settle(tester);
+        expect(find.byType(BottomSheet), findsNothing);
+        expect(tester.takeException(), isNull);
+      });
+    }
   }
-
-  testWidgets('360 details can expand a short description that wraps beyond seven lines', (tester) async {
-    final description = List.filled(4, 'A sentence with enough words to wrap at this width.').join('\n');
-    expect(description.length, lessThan(320));
-    final publication = OpdsPublication(
-      id: 'short-description',
-      title: 'Book with notes',
-      description: description,
-      links: [_epub],
-    );
-    await _mount(
-      tester,
-      Align(
-        alignment: Alignment.topCenter,
-        child: OpdsPublicationTile(
-          catalog: _catalog,
-          publication: publication,
-          httpClient: _gateway,
-          onNavigate: (_) {},
-          onDownload: (_) {},
-        ),
-      ),
-      theme: AppTheme.light,
-    );
-    await tester.tap(find.text('Book with notes'));
-    await tester.pumpAndSettle();
-    expect(find.text('Read more'), findsOneWidget);
-    await tester.ensureVisible(find.text('Read more'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Read more'));
-    await tester.pumpAndSettle();
-    expect(tester.widget<Text>(find.byKey(const Key('opds-description'))).maxLines, isNull);
-    expect(tester.takeException(), isNull);
-  });
 
   testWidgets('360 download panel stays compact and protects active transfers until cancelled', (tester) async {
     final gateway = _PendingHttp();
     final downloads = OpdsDownloads(httpClient: gateway, captureImport: _unusedSession);
     final operation = downloads.start(_catalog, _publication(), _epub);
     await _mount(tester, _panel(downloads), theme: AppTheme.eink, downloads: downloads);
-    expect(find.text('Downloads · 1 in progress'), findsOneWidget);
+    expect(find.byType(Badge), findsOneWidget);
     expect(find.text('Pride and Prejudice'), findsNothing);
-    expect(tester.getSize(find.byType(OpdsDownloadPanel)).height, lessThan(80));
+    expect(tester.getSize(find.byType(OpdsDownloadsButton)).height, lessThan(80));
     downloads.dismiss(downloads.jobs.single.key);
     expect(downloads.jobs, hasLength(1));
-    await tester.tap(find.text('Downloads · 1 in progress'));
+    await tester.tap(find.byTooltip('Downloads'));
     await tester.pumpAndSettle();
     expect(find.text('Downloading · 50%'), findsOneWidget);
     expect(tester.widget<AppLinearProgressIndicator>(find.byType(AppLinearProgressIndicator)).value, 0.5);
@@ -331,9 +358,9 @@ void main() {
     gateway.response.completeError(const OpdsException('The catalog could not send this book.'));
     await operation;
     await _settle(tester);
-    expect(find.text('Downloads · 1 failed'), findsOneWidget);
+    expect(find.byIcon(Icons.error_outline), findsOneWidget);
     expect(find.text('The catalog could not send this book.'), findsNothing);
-    await tester.tap(find.text('Downloads · 1 failed'));
+    await tester.tap(find.byTooltip('Downloads'));
     await tester.pumpAndSettle();
     expect(find.text('The catalog could not send this book.'), findsOneWidget);
     expect(find.byType(AppLinearProgressIndicator), findsNothing);
@@ -366,7 +393,7 @@ void main() {
     final operation = downloads.start(_catalog, _publication(), _epub);
     await _mount(tester, _panel(downloads), theme: AppTheme.light, width: 1280, downloads: downloads);
     expect(downloads.jobs.single.status, OpdsDownloadStatus.committing);
-    await tester.tap(find.text('Downloads · 1 in progress'));
+    await tester.tap(find.byTooltip('Downloads'));
     await tester.pumpAndSettle();
     expect(find.text('Adding to library…'), findsOneWidget);
     expect(find.byTooltip('Cancel download'), findsNothing);
@@ -376,7 +403,7 @@ void main() {
     finish.complete(Book(id: 'imported', title: 'Book', author: 'Author', addedAt: DateTime(2026)));
     await operation;
     await _settle(tester);
-    expect(find.text('Downloads · 1 finished'), findsOneWidget);
+    expect(find.text('Added to library'), findsOneWidget);
     expect(find.text('Open book'), findsOneWidget);
     await tester.tap(find.byTooltip('Dismiss download'));
     await tester.pumpAndSettle();

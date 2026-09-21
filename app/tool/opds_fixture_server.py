@@ -12,10 +12,11 @@ import argparse
 import base64
 import io
 import json
+from http.client import HTTPConnection
 import struct
 import zlib
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, urljoin, urlsplit
 from xml.sax.saxutils import escape
 from zipfile import ZIP_DEFLATED, ZIP_STORED, ZipFile
 
@@ -147,9 +148,9 @@ class FixtureHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         if cors:
             self.send_header("Access-Control-Allow-Origin", "*")
-            self.send_header("Access-Control-Allow-Methods", "GET, OPTIONS")
+            self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
             self.send_header("Access-Control-Allow-Headers", "Authorization, Content-Type")
-            self.send_header("Access-Control-Expose-Headers", "Content-Type, Content-Length, Location")
+            self.send_header("Access-Control-Expose-Headers", "Content-Type, Content-Length, Location, X-OPDS-URL")
             self.send_header("Access-Control-Allow-Private-Network", "true")
         self.send_header("Cache-Control", "no-store")
         for name, value in headers.items():
@@ -162,6 +163,49 @@ class FixtureHandler(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         self.respond(204)
+
+    def do_POST(self):
+        """Emulate the relay contract only for this loopback fixture's own resources."""
+        if self.path != "/v1/opds/relay":
+            self.respond(404)
+            return
+        payload = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
+        current = payload["url"]
+        catalog = urlsplit(payload["catalog_url"])
+        for _ in range(6):
+            target = urlsplit(current)
+            if (target.scheme != "http" or target.hostname not in ("127.0.0.1", "localhost")
+                    or target.port != self.server.server_port or target.username is not None):
+                self.respond(400, "Fixture relay only accepts its own loopback URLs.")
+                return
+            headers = {}
+            credentials = payload.get("credentials")
+            if credentials and (target.scheme, target.netloc) == (catalog.scheme, catalog.netloc):
+                token = f"{credentials['username']}:{credentials['password']}".encode()
+                headers["Authorization"] = "Basic " + base64.b64encode(token).decode()
+            connection = HTTPConnection(target.hostname, target.port, timeout=5)
+            try:
+                path = target.path + ("?" + target.query if target.query else "")
+                connection.request("GET", path, headers=headers)
+                response = connection.getresponse()
+                if response.status in (301, 302, 303, 307, 308):
+                    current = urljoin(current, response.getheader("Location"))
+                    continue
+                if response.status != 200:
+                    message = "Check the catalog credentials." if response.status == 401 else "Fixture resource failed."
+                    self.respond(response.status, json.dumps({"error": {
+                        "code": "OPDS_RELAY_ERROR", "message": message,
+                    }}), "application/json")
+                    return
+                body = response.read(payload["max_bytes"] + 1)
+                if len(body) > payload["max_bytes"]:
+                    self.respond(413)
+                    return
+                self.respond(200, body, response.getheader("Content-Type"), X_OPDS_URL=current)
+                return
+            finally:
+                connection.close()
+        self.respond(502, "Too many fixture redirects.")
 
     def do_GET(self):
         request = urlsplit(self.path)

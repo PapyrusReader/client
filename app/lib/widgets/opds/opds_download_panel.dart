@@ -2,111 +2,87 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/opds/opds_downloads.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/opds/opds_browser_download.dart';
+import 'package:papyrus/widgets/opds/opds_sheet.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
-/// Keeps transfers visible without pushing catalog content down the page.
-class OpdsDownloadPanel extends StatefulWidget {
-  const OpdsDownloadPanel({
-    super.key,
-    required this.downloads,
-    required this.onRetry,
-    this.allowExpansion = true,
-    this.maxExpandedHeight = 240,
-  });
+/// Opens transfer details without consuming space in the catalog feed.
+class OpdsDownloadsButton extends StatelessWidget {
+  const OpdsDownloadsButton({super.key, required this.downloads, required this.onRetry, this.compact});
+
   final OpdsDownloads downloads;
   final ValueChanged<OpdsDownloadJob> onRetry;
-  final bool allowExpansion;
-  final double maxExpandedHeight;
+  final bool? compact;
 
-  @override
-  State<OpdsDownloadPanel> createState() => _OpdsDownloadPanelState();
-}
-
-class _OpdsDownloadPanelState extends State<OpdsDownloadPanel> {
-  bool _expanded = false;
-
-  @override
-  Widget build(BuildContext context) {
-    final jobs = widget.downloads.jobs;
-    if (jobs.isEmpty) return const SizedBox.shrink();
-    final colors = Theme.of(context).colorScheme;
-    final active = jobs.where((job) => job.isActive).length;
-    final failed = jobs.where((job) => job.status == OpdsDownloadStatus.failed).length;
-    final summary = [
-      if (active > 0) '$active in progress',
-      if (failed > 0) '$failed failed',
-      if (active == 0 && failed == 0) '${jobs.length} finished',
-    ].join(' · ');
-    return Material(
-      color: colors.surfaceContainerLow,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          const Divider(height: 1),
-          ListTile(
-            dense: true,
-            leading: Icon(
-              failed > 0 ? Icons.error_outline : Icons.downloading_outlined,
-              color: failed > 0 ? colors.error : colors.primary,
-            ),
-            title: Text('Downloads · $summary'),
-            trailing: widget.allowExpansion ? Icon(_expanded ? Icons.expand_more : Icons.expand_less) : null,
-            onTap: widget.allowExpansion ? () => setState(() => _expanded = !_expanded) : null,
-          ),
-          if (_expanded && widget.allowExpansion)
-            ConstrainedBox(
-              constraints: BoxConstraints(maxHeight: widget.maxExpandedHeight),
-              child: ListView.separated(
-                shrinkWrap: true,
-                padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.sm),
-                itemCount: jobs.length,
-                separatorBuilder: (_, _) => const Divider(),
-                itemBuilder: (_, index) => _job(context, jobs[index]),
-              ),
-            ),
-        ],
-      ),
+  void _show(BuildContext context) {
+    showOpdsSheet<void>(
+      context,
+      title: 'Downloads',
+      scrollable: false,
+      child: _DownloadsList(downloads: downloads, onRetry: onRetry),
     );
   }
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: downloads,
+    builder: (context, _) {
+      final active = downloads.jobs.where((job) => job.isActive).length;
+      final failed = downloads.jobs.any((job) => job.status == OpdsDownloadStatus.failed);
+      final icon = Badge(
+        isLabelVisible: active > 0,
+        label: Text('$active'),
+        child: Icon(
+          failed ? Icons.error_outline : Icons.downloading_outlined,
+          color: failed ? Theme.of(context).colorScheme.error : null,
+        ),
+      );
+      if (compact ?? MediaQuery.sizeOf(context).width < 600) {
+        return IconButton(tooltip: 'Downloads', onPressed: () => _show(context), icon: icon);
+      }
+      return Tooltip(
+        message: 'Downloads',
+        child: TextButton.icon(onPressed: () => _show(context), icon: icon, label: const Text('Downloads')),
+      );
+    },
+  );
+}
+
+class _DownloadsList extends StatelessWidget {
+  const _DownloadsList({required this.downloads, required this.onRetry});
+  final OpdsDownloads downloads;
+  final ValueChanged<OpdsDownloadJob> onRetry;
+
+  @override
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: downloads,
+    builder: (context, _) {
+      final jobs = downloads.jobs;
+      if (jobs.isEmpty) {
+        return const Padding(
+          padding: EdgeInsets.symmetric(vertical: Spacing.xl),
+          child: Text('No downloads yet'),
+        );
+      }
+      return ListView.separated(
+        shrinkWrap: true,
+        itemCount: jobs.length,
+        separatorBuilder: (_, _) => const Padding(
+          padding: EdgeInsets.symmetric(vertical: Spacing.sm),
+          child: Divider(),
+        ),
+        itemBuilder: (context, index) => _job(context, jobs[index]),
+      );
+    },
+  );
 
   Widget _job(BuildContext context, OpdsDownloadJob job) {
     final theme = Theme.of(context);
     return Column(
+      key: ValueKey(job.key),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          children: [
-            Expanded(
-              child: Text(
-                job.publication.title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.titleSmall,
-              ),
-            ),
-            if (job.isCancellable)
-              IconButton(
-                tooltip: 'Cancel download',
-                onPressed: () => widget.downloads.cancel(job.key),
-                icon: const Icon(Icons.close),
-              ),
-            if (!job.isActive) ...[
-              if (job.status == OpdsDownloadStatus.complete)
-                TextButton(
-                  onPressed: () => context.go('/library/details/${job.bookId}'),
-                  child: const Text('Open book'),
-                )
-              else
-                TextButton(onPressed: () => widget.onRetry(job), child: const Text('Retry')),
-              IconButton(
-                tooltip: 'Dismiss download',
-                onPressed: () => widget.downloads.dismiss(job.key),
-                icon: const Icon(Icons.close, size: IconSizes.small),
-              ),
-            ],
-          ],
-        ),
+        Text(job.publication.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleSmall),
+        const SizedBox(height: Spacing.xs),
         Text(
           job.error ?? opdsDownloadStatus(job),
           style: theme.textTheme.bodySmall?.copyWith(
@@ -117,7 +93,41 @@ class _OpdsDownloadPanelState extends State<OpdsDownloadPanel> {
           const SizedBox(height: Spacing.sm),
           AppLinearProgressIndicator(value: job.status == OpdsDownloadStatus.downloading ? job.progress : null),
         ],
-        OpdsBrowserDownload(job: job),
+        if (job.isCancellable || !job.isActive)
+          Align(
+            alignment: Alignment.centerRight,
+            child: Wrap(
+              alignment: WrapAlignment.end,
+              children: [
+                if (job.isCancellable)
+                  IconButton(
+                    tooltip: 'Cancel download',
+                    onPressed: () => downloads.cancel(job.key),
+                    icon: const Icon(Icons.close),
+                  ),
+                if (!job.isActive) ...[
+                  if (job.status == OpdsDownloadStatus.complete)
+                    TextButton(
+                      onPressed: job.bookId == null
+                          ? null
+                          : () {
+                              final router = GoRouter.of(context);
+                              Navigator.of(context).pop();
+                              router.go('/library/details/${job.bookId}');
+                            },
+                      child: const Text('Open book'),
+                    )
+                  else
+                    TextButton(onPressed: () => onRetry(job), child: const Text('Retry')),
+                  IconButton(
+                    tooltip: 'Dismiss download',
+                    onPressed: () => downloads.dismiss(job.key),
+                    icon: const Icon(Icons.close, size: IconSizes.small),
+                  ),
+                ],
+              ],
+            ),
+          ),
       ],
     );
   }
