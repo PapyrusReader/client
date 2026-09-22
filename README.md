@@ -132,14 +132,6 @@ for the full integration guide.
 
 See [PapyrusReader/docs](https://github.com/PapyrusReader/docs).
 
-### OPDS catalogs
-
-Open **Library → Catalogs → Add catalog**, enter its URL, and optionally enter HTTP Basic credentials. Browse sections, search, open a publication, and download a supported format into your library. Web imports support EPUB; native imports support EPUB, PDF, MOBI, AZW3, TXT, CBZ, and CBR.
-
-Saved catalogs and secure-storage credentials are local to each server/account, with a separate guest collection. Catalog requests and downloads use the selected Papyrus backend relay, so catalogs do not need browser CORS support. A reachable backend is required, but a Papyrus account is not. Guest imports stay local. The relay accepts public network destinations and sends catalog credentials only to their origin. OAuth, lending, purchases, DRM, offline catalog caching, and download resumption after closing the app are deferred.
-
-See [OPDS setup, compatibility, and verification](docs/opds-support.md) for details and local smoke-test commands.
-
 ## Technology stack
 
 | Layer        | Technology         |
