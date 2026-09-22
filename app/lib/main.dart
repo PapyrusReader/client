@@ -20,7 +20,6 @@ import 'package:papyrus/opds/opds_downloads.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/services/book_import_session.dart';
 import 'package:papyrus/platform/book_import_drop_registration.dart';
-import 'package:papyrus/platform/hot_restart_cleanup.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/papyrus_powersync_connector.dart';
 import 'package:papyrus/powersync/sync_profile_switch_queue.dart';
@@ -43,7 +42,6 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'config/app_router.dart';
 
 Future main() async {
-  await runPreviousHotRestartCleanup();
   WidgetsFlutterBinding.ensureInitialized();
   ensureBookImportDropPluginRegistered();
   usePathUrlStrategy();
@@ -239,7 +237,6 @@ class _PapyrusState extends State<Papyrus> {
       ),
     );
     _opdsCatalogs.addListener(_opdsDownloads.reset);
-    registerHotRestartCleanup(_disposeDataServices);
     unawaited(_dataStore.attachBookRepository(_powerSyncService));
     _appRouter = AppRouter(
       authProvider: _authProvider,

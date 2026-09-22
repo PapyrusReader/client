@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -13,6 +14,7 @@ import 'package:papyrus/pages/catalogs_page.dart';
 import 'package:papyrus/pages/catalog_book_page.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/app_theme.dart';
+import 'package:papyrus/widgets/opds/catalog_source_tile.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -55,7 +57,7 @@ class _CatalogPageHarness {
 
   static Future<_CatalogPageHarness> mount(
     WidgetTester tester,
-    http.Response Function(Uri uri) respond, {
+    FutureOr<http.Response> Function(Uri uri) respond, {
     String initialLocation = '/library/catalogs/one',
   }) async {
     tester.view.physicalSize = const Size(1100, 1000);
@@ -137,15 +139,17 @@ Future<void> _settleNetwork(WidgetTester tester) async {
 http.Response _feedResponse(
   String title, {
   List<Map<String, dynamic>> publications = const [],
+  List<Map<String, dynamic>> navigation = const [],
   List<Map<String, dynamic>> links = const [],
 }) => http.Response(
   jsonEncode({
     'metadata': {'title': title},
     'publications': publications,
+    'navigation': navigation,
     'links': links,
   }),
   200,
-  headers: {'content-type': 'application/opds+json'},
+  headers: {'content-type': 'application/opds+json; charset=utf-8'},
 );
 
 Map<String, dynamic> _book() => {
@@ -156,6 +160,107 @@ Map<String, dynamic> _book() => {
 };
 
 void main() {
+  testWidgets('catalog heading waits for the actual feed title', (tester) async {
+    final response = Completer<http.Response>();
+    await _CatalogPageHarness.mount(tester, (_) => response.future);
+    expect(find.text('Browse catalog'), findsNothing);
+    expect(find.byTooltip('Refresh catalog'), findsNothing);
+    response.complete(_feedResponse('All books'));
+    await _settleNetwork(tester);
+    expect(find.text('All books'), findsOneWidget);
+    expect(find.text('Browse catalog'), findsNothing);
+  });
+
+  testWidgets('navigation does not substitute the clicked label for the feed title', (tester) async {
+    final response = Completer<http.Response>();
+    const title = 'Austen & Brontë / novels';
+    final harness = await _CatalogPageHarness.mount(
+      tester,
+      (uri) => uri.path == '/feed'
+          ? _feedResponse(
+              'All books',
+              navigation: [
+                {'title': title, 'href': '/authors'},
+              ],
+            )
+          : response.future,
+    );
+    await tester.tap(find.text(title));
+    await _settleNetwork(tester);
+    expect(find.text(title), findsNothing);
+    expect(find.text('All books'), findsNothing);
+    expect(find.byType(CustomScrollView), findsNothing);
+    expect(harness.router.routeInformationProvider.value.uri.queryParameters.containsKey('title'), isFalse);
+    response.complete(_feedResponse('Novels by Austen and Brontë'));
+    await _settleNetwork(tester);
+    expect(find.text('Novels by Austen and Brontë'), findsOneWidget);
+  });
+
+  testWidgets('a direct feed URL ignores outdated title hints', (tester) async {
+    final response = Completer<http.Response>();
+    await _CatalogPageHarness.mount(
+      tester,
+      (_) => response.future,
+      initialLocation: Uri(
+        path: '/library/catalogs/one',
+        queryParameters: {'feed': 'https://books.test/authors', 'title': 'Austen & Brontë / novels'},
+      ).toString(),
+    );
+    expect(find.text('Austen & Brontë / novels'), findsNothing);
+    response.complete(_feedResponse('Author novels'));
+    await _settleNetwork(tester);
+    expect(find.text('Author novels'), findsOneWidget);
+  });
+
+  for (final view in ['navigation', 'grid', 'list']) {
+    testWidgets('feed heading stays fixed while $view scrolls and reloads', (tester) async {
+      final refreshed = Completer<http.Response>();
+      var requests = 0;
+      final response = _feedResponse(
+        'All books',
+        publications: view == 'navigation'
+            ? []
+            : List.generate(
+                40,
+                (index) => {
+                  ..._book(),
+                  'metadata': {'identifier': 'book-$index', 'title': 'Book $index'},
+                },
+              ),
+        navigation: view == 'navigation'
+            ? List.generate(40, (index) => {'title': 'Section $index', 'href': '/section-$index'})
+            : [],
+      );
+      await _CatalogPageHarness.mount(tester, (_) => ++requests == 2 ? refreshed.future : response);
+      if (view == 'list') {
+        await tester.tap(find.byIcon(Icons.view_list));
+        await tester.pumpAndSettle();
+      }
+      final headingPosition = tester.getTopLeft(find.text('All books'));
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -700));
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(find.text('All books')), headingPosition);
+      expect(find.byTooltip('Refresh catalog').hitTestable(), findsOneWidget);
+      await tester.tap(find.byTooltip('Refresh catalog'));
+      await tester.pump();
+      await tester.runAsync(() => Future<void>.delayed(Duration.zero));
+      await tester.pump();
+      expect(requests, 2);
+      expect(tester.getTopLeft(find.text('All books')), headingPosition);
+      expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.refresh)).onPressed, isNull);
+      refreshed.complete(http.Response('Unavailable', 503));
+      await _settleNetwork(tester);
+      expect(find.text('Could not open this catalog'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('All books')), headingPosition);
+      await tester.tap(find.text('Retry'));
+      await _settleNetwork(tester);
+      expect(requests, 3);
+      expect(find.byType(CustomScrollView), findsOneWidget);
+      expect(tester.getTopLeft(find.text('All books')), headingPosition);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('mobile catalog home uses a FAB and keeps Downloads in the title row', (tester) async {
     await _CatalogPageHarness.mount(tester, (_) => _feedResponse('Books'), initialLocation: '/library/catalogs');
     tester.view.physicalSize = const Size(424, 951);
@@ -187,13 +292,84 @@ void main() {
     await tester.drag(find.byType(ListView), const Offset(0, -2000));
     await tester.pumpAndSettle();
     expect(
-      tester.getBottomRight(find.byTooltip('Catalog options').last).dy,
+      tester.getBottomRight(find.byType(CatalogSourceTile).last).dy,
       lessThan(tester.getTopLeft(find.byType(FloatingActionButton)).dy),
     );
-    await tester.tap(find.byTooltip('Catalog options').last);
+    expect(find.byTooltip('Catalog options'), findsNothing);
+    await tester.drag(find.byType(CatalogSourceTile).last, const Offset(-250, 0));
     await tester.pumpAndSettle();
-    expect(find.text('Edit'), findsOneWidget);
-    expect(find.text('Remove'), findsOneWidget);
+    expect(find.text('Remove catalog'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mobile swipe actions edit and confirm deletion without opening the catalog', (tester) async {
+    final harness = await _CatalogPageHarness.mount(
+      tester,
+      (_) => _feedResponse('Books'),
+      initialLocation: '/library/catalogs',
+    );
+    tester.view.physicalSize = const Size(424, 951);
+    await _settleNetwork(tester);
+    expect(find.byTooltip('Catalog options'), findsNothing);
+    final editGesture = await tester.startGesture(tester.getCenter(find.byType(CatalogSourceTile)));
+    await editGesture.moveBy(const Offset(20, 0));
+    await tester.pump();
+    await editGesture.moveBy(const Offset(230, 0));
+    await tester.pump();
+    expect(find.byType(BottomSheet), findsNothing);
+    await editGesture.up();
+    await tester.pumpAndSettle();
+    expect(harness.catalogs.catalogs, hasLength(1));
+    expect(harness.requests, isEmpty);
+    expect(find.byKey(const Key('opds-name')), findsOneWidget);
+    await tester.enterText(find.byKey(const Key('opds-name')), 'Renamed catalog');
+    await tester.tap(find.text('Save'));
+    await _settleNetwork(tester);
+    expect(find.text('Renamed catalog'), findsOneWidget);
+
+    await tester.drag(find.byType(CatalogSourceTile), const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('Remove catalog'), findsOneWidget);
+    expect(harness.catalogs.catalogs, hasLength(1));
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('Renamed catalog'), findsOneWidget);
+    expect(find.text('Delete').hitTestable(), findsNothing);
+
+    await tester.tap(find.text('Renamed catalog'));
+    await _settleNetwork(tester);
+    expect(find.text('Books'), findsOneWidget);
+    harness.router.go('/library/catalogs');
+    await _settleNetwork(tester);
+    await tester.drag(find.byType(CatalogSourceTile), const Offset(-300, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
+    await _settleNetwork(tester);
+    expect(find.text('No catalogs yet'), findsOneWidget);
+    expect(harness.catalogs.catalogs, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('short mobile swipes snap back without an action and leave rows tappable', (tester) async {
+    final harness = await _CatalogPageHarness.mount(
+      tester,
+      (_) => _feedResponse('Books'),
+      initialLocation: '/library/catalogs',
+    );
+    tester.view.physicalSize = const Size(424, 951);
+    await _settleNetwork(tester);
+    final originalPosition = tester.getTopLeft(find.text('My catalog'));
+    for (final distance in [-60.0, 60.0]) {
+      await tester.timedDrag(find.byType(CatalogSourceTile), Offset(distance, 0), const Duration(milliseconds: 500));
+      await tester.pumpAndSettle();
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(tester.getTopLeft(find.text('My catalog')), originalPosition);
+      expect(harness.catalogs.catalogs, hasLength(1));
+      expect(harness.requests, isEmpty);
+    }
+    await tester.tap(find.text('My catalog'));
+    await _settleNetwork(tester);
+    expect(find.text('Books'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

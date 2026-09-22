@@ -64,8 +64,6 @@ class OpdsPublicationDetails extends StatelessWidget {
             style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
           const SizedBox(height: Spacing.md),
-          Text(catalog.name, style: theme.textTheme.labelLarge?.copyWith(color: theme.colorScheme.primary)),
-          const SizedBox(height: Spacing.lg),
           FilledButton.icon(
             onPressed: resolving
                 ? null
@@ -184,7 +182,7 @@ class _DownloadOptionsState extends State<_DownloadOptions> {
         Text(widget.publication.title, style: Theme.of(context).textTheme.titleMedium),
         const SizedBox(height: Spacing.xs),
         const Text('Choose a format to add to your library.'),
-        const SizedBox(height: Spacing.md),
+        const SizedBox(height: Spacing.sm),
         AnimatedBuilder(
           animation: widget.downloads,
           builder: (_, _) => Column(
@@ -206,12 +204,31 @@ class _DownloadOptionsState extends State<_DownloadOptions> {
             ),
           ),
         if (unsupported.isNotEmpty) ...[
-          Align(
-            alignment: Alignment.centerLeft,
-            child: TextButton.icon(
-              onPressed: () => setState(() => _showUnsupported = !_showUnsupported),
-              icon: Icon(_showUnsupported ? Icons.expand_less : Icons.expand_more),
-              label: Text('Other catalog options (${unsupported.length})'),
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+            child: Semantics(
+              expanded: _showUnsupported,
+              child: TextButton(
+                style: TextButton.styleFrom(
+                  minimumSize: const Size(0, TouchTargets.mobileRecommended),
+                  padding: const EdgeInsets.all(Spacing.sm),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.sm)),
+                  foregroundColor: Theme.of(context).colorScheme.onSurface,
+                  textStyle: Theme.of(context).textTheme.titleSmall,
+                  alignment: Alignment.centerLeft,
+                ),
+                onPressed: () => setState(() => _showUnsupported = !_showUnsupported),
+                child: Row(
+                  children: [
+                    Expanded(child: Text('Other catalog options (${unsupported.length})')),
+                    const SizedBox(width: Spacing.md),
+                    Icon(
+                      _showUnsupported ? Icons.expand_less : Icons.expand_more,
+                      color: Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
+                  ],
+                ),
+              ),
             ),
           ),
           if (_showUnsupported) ...[
@@ -241,7 +258,7 @@ class _DownloadOptionsState extends State<_DownloadOptions> {
         border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant)),
       ),
       child: Padding(
-        padding: const EdgeInsets.all(Spacing.md),
+        padding: const EdgeInsets.symmetric(vertical: Spacing.listItemPaddingVertical),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -306,6 +323,7 @@ class _DownloadOptionsState extends State<_DownloadOptions> {
                     TextButton(onPressed: () => widget.downloads.cancel(job.key), child: const Text('Cancel')),
                 ],
               ),
+              const SizedBox(height: Spacing.sm),
               AppLinearProgressIndicator(value: job.progress),
             ],
             if (job?.error != null)

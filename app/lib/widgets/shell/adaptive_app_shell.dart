@@ -2,9 +2,11 @@ import 'package:papyrus/themes/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/shell/desktop_sidebar.dart';
 import 'package:papyrus/widgets/shell/mobile_bottom_nav.dart';
+import 'package:papyrus/widgets/shell/nav_item_count.dart';
 import 'package:provider/provider.dart';
 
 /// Navigation item for the app shell.
@@ -34,7 +36,7 @@ class AdaptiveAppShell extends StatelessWidget {
 
   const AdaptiveAppShell({super.key, required this.child});
 
-  static List<AppShellNavItem> buildNavItems(DataStore dataStore) {
+  static List<AppShellNavItem> buildNavItems(DataStore dataStore, {required int catalogCount}) {
     return [
       const AppShellNavItem(
         path: '/dashboard',
@@ -62,11 +64,12 @@ class AdaptiveAppShell extends StatelessWidget {
             count: dataStore.shelves.length,
             selectedIcon: Icons.shelves,
           ),
-          const AppShellNavItem(
+          AppShellNavItem(
             path: '/library/catalogs',
             label: 'Catalogs',
             icon: Icons.public_outlined,
             selectedIcon: Icons.public,
+            count: catalogCount,
           ),
           AppShellNavItem(
             path: '/library/bookmarks',
@@ -110,7 +113,8 @@ class AdaptiveAppShell extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final dataStore = context.watch<DataStore>();
-    final navItems = buildNavItems(dataStore);
+    final catalogCount = context.select<OpdsCatalogs, int>((catalogs) => catalogs.catalogs.length);
+    final navItems = buildNavItems(dataStore, catalogCount: catalogCount);
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= Breakpoints.desktopSmall;
 
@@ -178,6 +182,7 @@ class AdaptiveAppShell extends StatelessWidget {
                   return ListTile(
                     leading: Icon(isSelected ? item.selectedIcon ?? item.icon : item.icon),
                     title: Text(item.label),
+                    trailing: (item.count ?? 0) > 0 ? NavItemCount(count: item.count!, selected: isSelected) : null,
                     selected: isSelected,
                     onTap: () {
                       Navigator.of(context).pop();

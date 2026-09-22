@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/book/cover_loading_placeholder.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/media/cover_storage_bucket.dart';
 import 'package:papyrus/media/local_cover_image_provider.dart';
@@ -271,7 +272,7 @@ class _PrivateBookCoverState extends State<CoverImage> {
         fadeOutDuration: AppMotion.duration(context, const Duration(milliseconds: 1000)),
         imageUrl: widget.imageUrl!,
         fit: widget.fit,
-        placeholder: (_, _) => _buildLoadingPlaceholder(context),
+        placeholder: (_, _) => const CoverLoadingPlaceholder(),
         errorWidget: (_, _, _) => widget.placeholder,
       );
     }
@@ -284,7 +285,7 @@ class _PrivateBookCoverState extends State<CoverImage> {
         gaplessPlayback: true,
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
           if (wasSynchronouslyLoaded || frame != null) return child;
-          return _buildLoadingPlaceholder(context);
+          return const CoverLoadingPlaceholder();
         },
         errorBuilder: (_, _, _) => widget.placeholder,
       );
@@ -297,7 +298,7 @@ class _PrivateBookCoverState extends State<CoverImage> {
       future: coverFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
-          return _buildLoadingPlaceholder(context);
+          return const CoverLoadingPlaceholder();
         }
         final bytes = snapshot.data;
         if (bytes != null) {
@@ -306,48 +307,6 @@ class _PrivateBookCoverState extends State<CoverImage> {
         if (snapshot.hasError) return widget.placeholder;
         return widget.placeholder;
       },
-    );
-  }
-
-  Widget _buildLoadingPlaceholder(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Semantics(
-      label: 'Loading book cover',
-      child: Container(
-        key: const Key('cover-image-loading'),
-        decoration: BoxDecoration(
-          color: colorScheme.surfaceContainerHighest,
-          border: Border.all(color: colorScheme.outlineVariant),
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 72 || constraints.maxHeight < 96;
-            final icon = Icon(
-              Icons.auto_stories_rounded,
-              size: compact ? 22 : 36,
-              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
-            );
-            if (compact) return Center(child: icon);
-
-            return Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  icon,
-                  const SizedBox(height: 8),
-                  Text(
-                    'Loading…',
-                    style: Theme.of(
-                      context,
-                    ).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant, fontWeight: FontWeight.w600),
-                  ),
-                ],
-              ),
-            );
-          },
-        ),
-      ),
     );
   }
 }

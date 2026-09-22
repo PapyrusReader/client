@@ -6,6 +6,8 @@ Book details are full pages at `/library/catalogs/:catalogId/book?feed=…&publi
 
 The main book action opens a format-selection sheet. Catalog forms, removal confirmation, and transfer activity also use bottom sheets. The Downloads header control replaces the persistent bottom bar and displays activity and failure indicators. Jobs continue after sheet dismissal and page navigation, preserve cancellation restrictions during commit, and link completed imports to their library book.
 
+Catalog sheets follow the Import books styling: a left-aligned title and top-right close icon, a divider below the header, and a fixed footer with a top divider for actions. Content scrolls independently above the keyboard. Save, Cancel, and Remove stay in the footer; per-format and per-download actions stay with their corresponding items. Both close controls are disabled while a catalog is saving.
+
 The existing relay, import pipeline, account isolation, and application-level job reset on catalog-setting changes remain in place. No backend API, database, or global theme changes are required.
 
 ## Verification and visual review
@@ -44,6 +46,10 @@ Review images are generated build artifacts and are not committed.
 
 The catalog browsing header keeps Back, the catalog name, Downloads, and settings together, above a full-width divider matching Edit book. The redundant Catalog home action and hostname subtitle have been removed. Search submission sits inside the search field, and a single grid/list switch shares the feed-heading row with refresh.
 
+The feed heading and its controls stay below search while entries scroll. Refresh replaces only the content area with loading or error feedback; the heading stays visible through retry. A single grid/list icon button is used at every screen size.
+
+On first load, the heading waits for the actual feed title. Link labels and placeholder titles are not used, so the title does not change when metadata arrives. Changing feeds or accounts clears the previous section's heading; refreshing the current feed keeps its loaded heading visible.
+
 Book covers keep a fixed 2:3 ratio. Titles use their natural height, authors follow immediately, and edition captions can occupy two lines. This removes the empty title slot and makes similar editions easier to distinguish.
 
 The visual fixture now also reproduces a two-edition feed with the long Pride and Prejudice heading and format labels, including the reported 424px screen width. [Updated mobile preview](../app/build/catalog-review/dark-424-1x-editions.png).
@@ -53,5 +59,7 @@ Follow-up verification: 224 targeted regression tests passed (ten opt-in network
 ## Mobile catalog creation
 
 Below the library's 840px desktop breakpoint, Add catalog uses the same floating action button as Add book. Downloads stays beside the page heading, removing the separate actions row. The source list includes bottom clearance so its last menu can scroll above the floating button. Desktop keeps its existing header action.
+
+The Catalogs source page and catalog book details use the same header height, padding, title weight, and full-width divider as catalog browsing, without a subtitle. Book details keep Back and Downloads in the header, with compact Downloads on mobile.
 
 Verification: 19 catalog-page tests passed in Chrome, including creation through the FAB and scrolling the last source menu clear of it. The 21 responsive/theme capture journeys check button placement above bottom navigation, desktop actions, and enlarged text. Flutter analysis passed. [Updated mobile sources](../app/build/catalog-review/dark-424-1x-sources.png).

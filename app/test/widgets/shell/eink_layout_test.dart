@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/opds/opds_catalog_store.dart';
+import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sidebar_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
@@ -20,6 +22,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
       SharedPreferences.setMockInitialValues({'theme_mode': 'light'});
       final prefs = PreferencesProvider(await SharedPreferences.getInstance());
+      final catalogStore = OpdsCatalogStore(await SharedPreferences.getInstance());
       final router = GoRouter(
         initialLocation: '/library/books',
         routes: [
@@ -35,6 +38,7 @@ void main() {
           providers: [
             ChangeNotifierProvider.value(value: prefs),
             ChangeNotifierProvider(create: (_) => DataStore()),
+            ChangeNotifierProvider(create: (_) => OpdsCatalogs(catalogStore)),
             ChangeNotifierProvider(create: (_) => SidebarProvider()),
           ],
           child: Consumer<PreferencesProvider>(

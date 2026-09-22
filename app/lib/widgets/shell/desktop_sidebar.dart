@@ -6,6 +6,7 @@ import 'package:papyrus/providers/sidebar_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/navigation_utils.dart';
 import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
+import 'package:papyrus/widgets/shell/nav_item_count.dart';
 import 'package:provider/provider.dart';
 
 /// Desktop sidebar with collapsible navigation.
@@ -288,26 +289,10 @@ class DesktopSidebar extends StatelessWidget {
                           ),
                         ),
                       ),
-                      const SizedBox(width: Spacing.xs),
-
-                      if (item.count != null)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? Theme.of(context).colorScheme.onPrimaryContainer.withValues(alpha: 0.12)
-                                : Theme.of(context).colorScheme.onSurfaceVariant.withValues(alpha: 0.12),
-                            borderRadius: BorderRadius.circular(AppRadius.full),
-                          ),
-                          child: Text(
-                            item.count.toString(),
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: isSelected
-                                  ? Theme.of(context).colorScheme.onPrimaryContainer
-                                  : Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ),
+                      if ((item.count ?? 0) > 0) ...[
+                        const SizedBox(width: Spacing.xs),
+                        NavItemCount(count: item.count!, selected: isSelected),
+                      ],
                     ],
                   ),
                 ),

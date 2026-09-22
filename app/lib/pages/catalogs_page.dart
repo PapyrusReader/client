@@ -13,6 +13,7 @@ import 'package:papyrus/widgets/input/search_field.dart';
 import 'package:papyrus/widgets/opds/opds_sheet.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/opds/catalog_editor.dart';
+import 'package:papyrus/widgets/opds/catalog_source_tile.dart';
 import 'package:papyrus/widgets/opds/opds_feed_view.dart';
 import 'package:papyrus/widgets/opds/opds_download_panel.dart';
 import 'package:papyrus/widgets/opds/opds_download_actions.dart';
@@ -34,6 +35,8 @@ class _CatalogsPageState extends State<CatalogsPage> {
   late final _search = TextEditingController(text: widget.query);
   OpdsCredentials? _credentials;
   String? _loadKey;
+  bool _reloadRequested = false;
+  OpdsFeed? _feedForHeader;
   bool _searching = false;
   bool _isGridView = true;
   final _feedScroll = ScrollController();
@@ -47,7 +50,9 @@ class _CatalogsPageState extends State<CatalogsPage> {
   void _scheduleLoad(OpdsCatalogs catalogs) {
     final catalog = widget.catalogId == null ? null : catalogs.find(widget.catalogId!);
     final key = '${catalogs.scope}/${catalogs.revision}/${widget.catalogId}/${widget.feedUri ?? catalog?.uri}';
-    if (_loadKey == key) return;
+    if (_loadKey == key && !_reloadRequested) return;
+    _feedForHeader = _loadKey == key ? (_browser.feed ?? _feedForHeader) : null;
+    _reloadRequested = false;
     _loadKey = key;
     _credentials = null;
     _browser.clear();
@@ -75,20 +80,12 @@ class _CatalogsPageState extends State<CatalogsPage> {
     final confirmed = await showOpdsSheet<bool>(
       context,
       title: 'Remove catalog',
-      child: Builder(
-        builder: (sheetContext) => Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text('Remove ${catalog.name}?', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: Spacing.md),
-            const Text('The saved catalog and its credentials will be removed. Downloaded books stay in your library.'),
-            const SizedBox(height: Spacing.lg),
-            Align(
-              alignment: Alignment.centerRight,
-              child: FilledButton(onPressed: () => Navigator.of(sheetContext).pop(true), child: const Text('Remove')),
-            ),
-          ],
-        ),
+      cancelLabel: 'Cancel',
+      saveLabel: 'Remove',
+      onSave: () => Navigator.of(context, rootNavigator: true).pop(true),
+      child: Text(
+        'This will remove “${catalog.name}” and its saved credentials. '
+        'Downloaded books will remain in your library.',
       ),
     );
     if (confirmed != true || !mounted || catalogs.scope != scope) return;
@@ -160,10 +157,6 @@ class _CatalogsPageState extends State<CatalogsPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                if (widget.catalogId == null) ...[
-                  _header(catalogs, catalog),
-                  SizedBox(height: compact ? Spacing.md : Spacing.lg),
-                ],
                 if (catalog != null)
                   SearchField(
                     controller: _search,
@@ -191,27 +184,25 @@ class _CatalogsPageState extends State<CatalogsPage> {
               ],
             ),
           );
-          if (widget.catalogId != null) {
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-                    child: _header(catalogs, catalog),
-                  ),
+          final content = Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                  child: _header(catalogs, catalog),
                 ),
-                const Divider(key: Key('catalog-header-divider'), height: 1),
-                Expanded(child: body),
-              ],
-            );
-          }
-          if (!mobileHome) return body;
+              ),
+              const Divider(key: Key('catalog-header-divider'), height: 1),
+              Expanded(child: body),
+            ],
+          );
+          if (!mobileHome) return content;
           return Stack(
             fit: StackFit.expand,
             children: [
-              body,
+              content,
               Positioned(
                 right: Spacing.md,
                 bottom: Spacing.md,
@@ -265,34 +256,22 @@ class _CatalogsPageState extends State<CatalogsPage> {
       );
     }
     final heading = Row(
-      crossAxisAlignment: mobile ? CrossAxisAlignment.start : CrossAxisAlignment.center,
       children: [
-        if (mobile)
+        if (mobile) ...[
           IconButton(
             tooltip: 'Library sections',
             icon: const Icon(Icons.menu),
             onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
           ),
+          const SizedBox(width: Spacing.sm),
+        ],
         Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Catalogs', style: theme.textTheme.headlineSmall),
-              const SizedBox(height: Spacing.xs),
-              Text(
-                'Discover books from your favorite libraries.',
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ],
-          ),
+          child: Text('Catalogs', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
         ),
       ],
     );
     if (mobile) {
       return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Expanded(child: heading),
           downloadsButton,
@@ -361,44 +340,42 @@ class _CatalogsPageState extends State<CatalogsPage> {
       );
     }
     return ListView.separated(
+      key: ValueKey(catalogs.scope),
       padding: EdgeInsets.only(bottom: MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall ? 96 : Spacing.lg),
       itemCount: catalogs.catalogs.length,
       separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (_, index) {
         final catalog = catalogs.catalogs[index];
-        return ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.sm),
-          leading: Icon(Icons.public, color: Theme.of(context).colorScheme.primary),
-          title: Text(catalog.name),
-          subtitle: Text(catalog.uri.host),
-          onTap: () => context.go('/library/catalogs/${Uri.encodeComponent(catalog.id)}'),
-          trailing: PopupMenuButton<String>(
-            tooltip: 'Catalog options',
-            onSelected: (value) => value == 'edit' ? _edit(catalogs, catalog) : _remove(catalogs, catalog),
-            itemBuilder: (_) => const [
-              PopupMenuItem(value: 'edit', child: Text('Edit')),
-              PopupMenuItem(value: 'remove', child: Text('Remove')),
-            ],
-          ),
+        return CatalogSourceTile(
+          key: ValueKey(catalog.id),
+          catalog: catalog,
+          onOpen: () => context.go('/library/catalogs/${Uri.encodeComponent(catalog.id)}'),
+          onEdit: () => _edit(catalogs, catalog),
+          onRemove: () => _remove(catalogs, catalog),
         );
       },
     );
   }
 
+  void _reloadFeed() => setState(() => _reloadRequested = true);
+
   Widget _feedView(OpdsCatalog catalog) {
-    if (_browser.loading) return const Center(child: AppCircularProgressIndicator());
+    Widget? status;
     if (_browser.error != null) {
-      return _empty(
+      status = _empty(
         'Could not open this catalog',
         detail: _browser.error,
         action: 'Retry',
-        onAction: () => setState(() => _loadKey = null),
+        onAction: _reloadFeed,
         icon: Icons.cloud_off_outlined,
       );
+    } else if (_browser.loading || _browser.feed == null) {
+      status = const Center(child: AppCircularProgressIndicator());
     }
-    final feed = _browser.feed;
-    if (feed == null) return const SizedBox.shrink();
+    final feed = _browser.feed ?? _feedForHeader;
+    if (feed == null) return status ?? const SizedBox.shrink();
     return OpdsFeedView(
+      contentOverride: status,
       scrollController: _feedScroll,
       catalog: catalog,
       feed: feed,
@@ -409,7 +386,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
       onViewChanged: (value) => setState(() => _isGridView = value),
       onNavigate: (uri) => _navigate(catalog, uri),
       onPage: (uri) => _navigate(catalog, uri, query: widget.query),
-      onRefresh: () => setState(() => _loadKey = null),
+      onRefresh: _browser.loading || (_browser.feed == null && _browser.error == null) ? null : _reloadFeed,
       onOpenPublication: (publication) => context.go(
         Uri(
           path: '/library/catalogs/${Uri.encodeComponent(catalog.id)}/book',

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/book/cover_loading_placeholder.dart';
 
 class OpdsPublicationTile extends StatelessWidget {
   const OpdsPublicationTile({
@@ -116,6 +117,7 @@ class OpdsCover extends StatefulWidget {
 class _OpdsCoverState extends State<OpdsCover> {
   OpdsCancellation _token = OpdsCancellation();
   Uint8List? _bytes;
+  bool _loading = false;
   @override
   void initState() {
     super.initState();
@@ -136,7 +138,8 @@ class _OpdsCoverState extends State<OpdsCover> {
     _token.cancel();
     final token = _token = OpdsCancellation();
     _bytes = null;
-    if (widget.uri == null || !['http', 'https'].contains(widget.uri!.scheme)) return;
+    _loading = widget.uri != null && ['http', 'https'].contains(widget.uri!.scheme);
+    if (!_loading) return;
     try {
       final response = await widget.httpClient.get(
         widget.catalog,
@@ -147,6 +150,8 @@ class _OpdsCoverState extends State<OpdsCover> {
       if (mounted && !token.isCancelled) setState(() => _bytes = response.bytes);
     } catch (_) {
       // Catalog artwork is optional; keep the themed cover placeholder.
+    } finally {
+      if (mounted && !token.isCancelled) setState(() => _loading = false);
     }
   }
 
@@ -162,15 +167,27 @@ class _OpdsCoverState extends State<OpdsCover> {
     final placeholder = ColoredBox(
       color: colors.surfaceContainerHighest,
       child: Center(
-        child: Icon(Icons.menu_book_outlined, size: widget.width <= 56 ? 24 : 48, color: colors.onSurfaceVariant),
+        child: Icon(
+          Icons.menu_book,
+          size: widget.width <= 60 ? IconSizes.medium : IconSizes.display,
+          color: colors.onSurfaceVariant.withValues(alpha: 0.5),
+        ),
       ),
     );
     return SizedBox(
       width: widget.width,
       height: widget.height,
-      child: _bytes == null
+      child: _loading
+          ? const CoverLoadingPlaceholder()
+          : _bytes == null
           ? placeholder
-          : Image.memory(_bytes!, fit: BoxFit.cover, errorBuilder: (_, _, _) => placeholder),
+          : Image.memory(
+              _bytes!,
+              fit: BoxFit.cover,
+              frameBuilder: (_, child, frame, wasSynchronouslyLoaded) =>
+                  wasSynchronouslyLoaded || frame != null ? child : const CoverLoadingPlaceholder(),
+              errorBuilder: (_, _, _) => placeholder,
+            ),
     );
   }
 }
