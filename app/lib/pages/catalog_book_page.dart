@@ -185,62 +185,77 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
     final publication = _publication;
     return SafeArea(
       child: LayoutBuilder(
-        builder: (context, constraints) => Padding(
-          padding: EdgeInsets.all(constraints.maxWidth < Breakpoints.tablet ? Spacing.md : Spacing.lg),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  IconButton(tooltip: 'Back to catalog', onPressed: _back, icon: const Icon(Icons.arrow_back)),
-                  Expanded(
-                    child: Text(
-                      catalog?.name ?? 'Book details',
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.titleLarge,
-                    ),
-                  ),
-                  OpdsDownloadsButton(
-                    downloads: downloads,
-                    onRetry: (job) => unawaited(retryOpdsDownload(context, job)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: Spacing.lg),
-              if (_error != null && _publication != null)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: Spacing.md),
-                  child: Wrap(
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: Spacing.sm,
-                    children: [
-                      Text(_error!),
-                      TextButton(onPressed: _retry, child: const Text('Retry')),
-                    ],
-                  ),
-                ),
-              Expanded(
-                child: catalog == null
-                    ? _unavailable(catalogs.error ?? 'This catalog is not saved for the active account.')
-                    : _loading && _publication == null
-                    ? const Center(child: AppCircularProgressIndicator())
-                    : _publication == null
-                    ? _unavailable(_error ?? 'This book is unavailable.')
-                    : OpdsPublicationDetails(
-                        key: ValueKey('${catalogs.scope}/${catalogs.revision}/${_publication!.id}'),
-                        catalog: catalog,
-                        publication: _publication!,
-                        httpClient: _browser.httpClient,
-                        credentials: _credentials,
-                        downloads: downloads,
-                        onNavigate: _navigate,
-                        resolving: _loading,
-                        onDownload: (link) => unawaited(_download(catalog, publication!, link)),
+        builder: (context, constraints) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                child: Row(
+                  children: [
+                    IconButton(tooltip: 'Back to catalog', onPressed: _back, icon: const Icon(Icons.arrow_back)),
+                    const SizedBox(width: Spacing.sm),
+                    Expanded(
+                      child: Text(
+                        catalog?.name ?? 'Book details',
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
                       ),
+                    ),
+                    OpdsDownloadsButton(
+                      compact: MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall,
+                      downloads: downloads,
+                      onRetry: (job) => unawaited(retryOpdsDownload(context, job)),
+                    ),
+                  ],
+                ),
               ),
-            ],
-          ),
+            ),
+            const Divider(key: Key('catalog-book-header-divider'), height: 1),
+            Expanded(
+              child: Padding(
+                padding: EdgeInsets.all(constraints.maxWidth < Breakpoints.tablet ? Spacing.md : Spacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    if (_error != null && _publication != null)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: Spacing.md),
+                        child: Wrap(
+                          crossAxisAlignment: WrapCrossAlignment.center,
+                          spacing: Spacing.sm,
+                          children: [
+                            Text(_error!),
+                            TextButton(onPressed: _retry, child: const Text('Retry')),
+                          ],
+                        ),
+                      ),
+                    Expanded(
+                      child: catalog == null
+                          ? _unavailable(catalogs.error ?? 'This catalog is not saved for the active account.')
+                          : _loading && _publication == null
+                          ? const Center(child: AppCircularProgressIndicator())
+                          : _publication == null
+                          ? _unavailable(_error ?? 'This book is unavailable.')
+                          : OpdsPublicationDetails(
+                              key: ValueKey('${catalogs.scope}/${catalogs.revision}/${_publication!.id}'),
+                              catalog: catalog,
+                              publication: _publication!,
+                              httpClient: _browser.httpClient,
+                              credentials: _credentials,
+                              downloads: downloads,
+                              onNavigate: _navigate,
+                              resolving: _loading,
+                              onDownload: (link) => unawaited(_download(catalog, publication!, link)),
+                            ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );

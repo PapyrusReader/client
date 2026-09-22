@@ -22,10 +22,13 @@ import 'package:papyrus/pages/catalog_book_page.dart';
 import 'package:papyrus/pages/catalogs_page.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/providers/sidebar_provider.dart';
+import 'package:papyrus/services/book_import_result.dart';
+import 'package:papyrus/services/book_import_session.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/book_details/book_header.dart';
 import 'package:papyrus/widgets/library/book_grid.dart';
+import 'package:papyrus/widgets/opds/catalog_source_tile.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
 import 'package:provider/provider.dart';
@@ -131,11 +134,18 @@ void main() {
             if (request.url.path.endsWith('.jpg')) {
               return http.Response.bytes(cover, 200, headers: {'content-type': 'image/jpeg'});
             }
+            if (request.url.path.endsWith('.epub')) {
+              return http.Response('Review book bytes', 200, headers: {'content-type': 'application/epub+zip'});
+            }
             return http.Response(
               jsonEncode({
                 'metadata': {
                   'title': request.url.path == '/editions' ? 'Pride and Prejudice by Jane Austen' : 'Popular books',
                 },
+                'links': [
+                  {'rel': 'previous', 'href': '/feed?page=1'},
+                  {'rel': 'next', 'href': '/feed?page=3'},
+                ],
                 'navigation': [
                   if (request.url.path != '/editions')
                     {
@@ -202,7 +212,23 @@ void main() {
             );
           }),
         );
-        final downloads = OpdsDownloads(httpClient: gateway, captureImport: () => throw StateError('Review only'));
+        final downloads = OpdsDownloads(
+          httpClient: gateway,
+          captureImport: () => BookImportSession(
+            process: (_, _) async => const BookImportResult(
+              bookId: 'review-book',
+              title: 'Pride and Prejudice',
+              author: 'Jane Austen',
+              fileSize: 17,
+              fileHash: 'review',
+              fileExtension: 'epub',
+            ),
+            deleteFile: (_) async {},
+            isCurrent: () => true,
+            commit: (_, _) async =>
+                Book(id: 'review-book', title: 'Pride and Prejudice', author: 'Jane Austen', addedAt: DateTime(2026)),
+          ),
+        );
         final dataStore = DataStore();
         final sidebar = SidebarProvider();
         final library = LibraryProvider();
@@ -289,6 +315,26 @@ void main() {
         final label = '$name-${width.toInt()}-${scale.toInt()}x';
         await _snapshot(tester, '$label-sources');
         if (width < 840) {
+          expect(find.byTooltip('Catalog options'), findsNothing);
+          for (final (direction, action) in [(1.0, 'edit'), (-1.0, 'delete')]) {
+            final sourceRect = tester.getRect(find.byType(CatalogSourceTile).first);
+            final gesture = await tester.startGesture(sourceRect.center);
+            await gesture.moveBy(Offset(direction * 20, 0));
+            await tester.pump();
+            await gesture.moveBy(Offset(direction * sourceRect.width * 0.6, 0));
+            await _snapshot(tester, '$label-source-$action-swipe');
+            expect(find.byType(BottomSheet), findsNothing);
+            await gesture.up();
+            await _settle(tester);
+            expect(find.byType(BottomSheet), findsOneWidget);
+            if (action == 'edit') {
+              expect(find.byKey(const Key('opds-name')), findsOneWidget);
+            } else {
+              expect(find.text('Remove catalog'), findsOneWidget);
+            }
+            await tester.tap(find.text('Cancel'));
+            await _settle(tester);
+          }
           expect(find.byType(FloatingActionButton), findsOneWidget);
           expect(
             tester.getBottomRight(find.byType(FloatingActionButton)).dy,
@@ -310,6 +356,19 @@ void main() {
           findsOneWidget,
           reason: tester.widgetList<Text>(find.byType(Text)).map((t) => t.data).join(' | '),
         );
+        await tester.scrollUntilVisible(
+          find.text('Next'),
+          200,
+          scrollable: find.descendant(of: find.byType(CustomScrollView), matching: find.byType(Scrollable)).first,
+        );
+        await _snapshot(tester, '$label-pagination');
+        tester
+            .state<ScrollableState>(
+              find.descendant(of: find.byType(CustomScrollView), matching: find.byType(Scrollable)).first,
+            )
+            .position
+            .jumpTo(0);
+        await tester.pumpAndSettle();
         router.go(
           Uri(path: '/library/catalogs/gutenberg', queryParameters: {'feed': 'https://books.test/editions'}).toString(),
         );
@@ -329,10 +388,35 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Add to library'));
         await _snapshot(tester, '$label-formats');
+        await tester.ensureVisible(find.textContaining('Other catalog options'));
+        await tester.tap(find.textContaining('Other catalog options'));
+        await _snapshot(tester, '$label-formats-expanded');
+        if (_capture && width >= 840) {
+          final mouse = await tester.createGesture(kind: ui.PointerDeviceKind.mouse);
+          await mouse.addPointer(location: Offset.zero);
+          await mouse.moveTo(tester.getCenter(find.textContaining('Other catalog options')));
+          await _snapshot(tester, '$label-formats-hover');
+          await mouse.removePointer();
+        }
         await tester.tap(find.text('Close'));
         await tester.pumpAndSettle();
         await tester.tap(find.byTooltip('Downloads'));
         await _snapshot(tester, '$label-downloads');
+        final reviewLink = OpdsLink(
+          uri: Uri.parse('https://books.test/review.epub'),
+          type: 'application/epub+zip',
+          rels: ['download'],
+        );
+        await tester.runAsync(
+          () => downloads.start(
+            catalogs.catalogs.first,
+            OpdsPublication(id: 'review-book', title: 'Pride and Prejudice', links: [reviewLink]),
+            reviewLink,
+          ),
+        );
+        await _snapshot(tester, '$label-downloads-complete');
+        expect(find.text('Added to library'), findsOneWidget);
+        expect(find.text('Open book'), findsOneWidget);
         await tester.tap(find.text('Close'));
         router.go('/library/catalogs');
         await _settle(tester);
@@ -341,6 +425,7 @@ void main() {
               ? find.byTooltip('Add catalog')
               : find.text('Add catalog'),
         );
+        await _snapshot(tester, '$label-editor');
         tester.view.viewInsets = const FakeViewPadding(bottom: 300);
         await _snapshot(tester, '$label-editor-keyboard');
         tester.view.resetViewInsets();

@@ -239,6 +239,8 @@ void main() {
         );
         await tester.tap(find.text('An author collection'));
         expect(navigated, Uri.parse('https://books.test/author'));
+        expect(find.byType(SegmentedButton<bool>), findsNothing);
+        expect(find.byTooltip('List view'), findsOneWidget);
         await tester.tap(find.byIcon(Icons.view_list));
         await tester.pumpAndSettle();
         expect(tester.getTopLeft(first).dx, tester.getTopLeft(second).dx);
@@ -247,8 +249,8 @@ void main() {
         await tester.pumpAndSettle();
         expect(tester.getTopLeft(first).dy, tester.getTopLeft(second).dy);
         await tester.scrollUntilVisible(find.text('Next'), 200, scrollable: find.byType(Scrollable).first);
-        final previous = find.widgetWithText(OutlinedButton, 'Previous');
-        final next = find.widgetWithText(OutlinedButton, 'Next');
+        final previous = find.widgetWithText(TextButton, 'Previous');
+        final next = find.widgetWithText(FilledButton, 'Next');
         expect(tester.getSize(previous).width, lessThanOrEqualTo(width - 32));
         expect(tester.getRect(previous).overlaps(tester.getRect(next)), isFalse);
         expect(tester.getSize(next).width, lessThan(160));
@@ -290,6 +292,7 @@ void main() {
         );
         expect(find.byType(Dialog), findsNothing);
         expect(find.byType(BottomSheet), findsNothing);
+        expect(find.text(_catalog.name), findsNothing);
         final text = tester.widget<Text>(find.byKey(const Key('opds-description')));
         expect(text.maxLines, isNull);
         expect(text.data, description);
@@ -405,6 +408,14 @@ void main() {
     await _settle(tester);
     expect(find.text('Added to library'), findsOneWidget);
     expect(find.text('Open book'), findsOneWidget);
+    expect(
+      tester.getCenter(find.text('Open book')).dy,
+      lessThan(tester.getBottomLeft(find.text('Added to library')).dy),
+    );
+    expect(
+      tester.getCenter(find.text('Open book')).dy,
+      greaterThan(tester.getTopLeft(find.text('Pride and Prejudice')).dy),
+    );
     await tester.tap(find.byTooltip('Dismiss download'));
     await tester.pumpAndSettle();
     expect(downloads.jobs, isEmpty);

@@ -18,7 +18,6 @@ import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/opds/catalog_editor.dart';
 import 'package:papyrus/widgets/opds/opds_download_panel.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -100,7 +99,7 @@ Future<void> _mountDownloads(WidgetTester tester, OpdsDownloads downloads, Value
 }
 
 void main() {
-  testWidgets('narrow catalog header keeps enlarged Cancel on one line above the keyboard', (tester) async {
+  testWidgets('narrow catalog footer keeps enlarged actions reachable above the keyboard', (tester) async {
     tester.view.physicalSize = const Size(360, 640);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -128,6 +127,12 @@ void main() {
     );
     await tester.tap(find.text('Open editor'));
     await tester.pumpAndSettle();
+    final title = tester.getRect(find.text('Add catalog'));
+    final close = tester.getRect(find.byTooltip('Close'));
+    final footer = tester.getRect(find.byKey(const Key('opds-sheet-footer')));
+    expect(title.left, lessThan(close.left));
+    expect(footer.top, greaterThan(tester.getBottomLeft(find.byKey(const Key('opds-name'))).dy));
+    expect(tester.getTopLeft(find.text('Save')).dy, greaterThan(footer.top));
     final cancel = tester.renderObject<RenderParagraph>(find.text('Cancel'));
     final oneLine = TextPainter(text: cancel.text, textDirection: cancel.textDirection, textScaler: cancel.textScaler)
       ..layout();
@@ -205,6 +210,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Saving…')).onPressed, isNull);
     expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Cancel')).onPressed, isNull);
+    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.close)).onPressed, isNull);
     await tester.tapAt(const Offset(10, 10));
     await tester.drag(find.byType(BottomSheetHandle), const Offset(0, 400));
     await tester.binding.handlePopRoute();
@@ -246,7 +252,7 @@ void main() {
     );
     await tester.tap(find.text('Open editor'));
     await tester.pumpAndSettle();
-    expect(find.byType(BottomSheetHeader), findsOneWidget);
+    expect(find.byKey(const Key('opds-sheet-header')), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
@@ -275,7 +281,7 @@ void main() {
     expect(find.text('1'), findsOneWidget);
     await tester.tap(find.byTooltip('Downloads'));
     await tester.pumpAndSettle();
-    expect(find.byType(BottomSheetHeader), findsOneWidget);
+    expect(find.byKey(const Key('opds-sheet-header')), findsOneWidget);
     expect(find.text('Downloading · 20%'), findsOneWidget);
     gateway.progress!(70, 100);
     await tester.pumpAndSettle();

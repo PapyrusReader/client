@@ -65,6 +65,7 @@ class _DownloadsList extends StatelessWidget {
       }
       return ListView.separated(
         shrinkWrap: true,
+        padding: EdgeInsets.zero,
         itemCount: jobs.length,
         separatorBuilder: (_, _) => const Padding(
           padding: EdgeInsets.symmetric(vertical: Spacing.sm),
@@ -77,8 +78,7 @@ class _DownloadsList extends StatelessWidget {
 
   Widget _job(BuildContext context, OpdsDownloadJob job) {
     final theme = Theme.of(context);
-    return Column(
-      key: ValueKey(job.key),
+    final info = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(job.publication.title, maxLines: 2, overflow: TextOverflow.ellipsis, style: theme.textTheme.titleSmall),
@@ -89,48 +89,75 @@ class _DownloadsList extends StatelessWidget {
             color: job.error == null ? theme.colorScheme.onSurfaceVariant : theme.colorScheme.error,
           ),
         ),
+      ],
+    );
+    return Column(
+      key: ValueKey(job.key),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            if (!job.isCancellable && job.isActive) return info;
+            final actions = _actions(context, job);
+            if (job.isCancellable || constraints.maxWidth >= 400 * MediaQuery.textScalerOf(context).scale(1)) {
+              return Row(
+                children: [
+                  Expanded(child: info),
+                  const SizedBox(width: Spacing.md),
+                  actions,
+                ],
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                info,
+                const SizedBox(height: Spacing.sm),
+                actions,
+              ],
+            );
+          },
+        ),
         if (job.isActive) ...[
           const SizedBox(height: Spacing.sm),
           AppLinearProgressIndicator(value: job.status == OpdsDownloadStatus.downloading ? job.progress : null),
         ],
-        if (job.isCancellable || !job.isActive)
-          Align(
-            alignment: Alignment.centerRight,
-            child: Wrap(
-              alignment: WrapAlignment.end,
-              children: [
-                if (job.isCancellable)
-                  IconButton(
-                    tooltip: 'Cancel download',
-                    onPressed: () => downloads.cancel(job.key),
-                    icon: const Icon(Icons.close),
-                  ),
-                if (!job.isActive) ...[
-                  if (job.status == OpdsDownloadStatus.complete)
-                    TextButton(
-                      onPressed: job.bookId == null
-                          ? null
-                          : () {
-                              final router = GoRouter.of(context);
-                              Navigator.of(context).pop();
-                              router.go('/library/details/${job.bookId}');
-                            },
-                      child: const Text('Open book'),
-                    )
-                  else
-                    TextButton(onPressed: () => onRetry(job), child: const Text('Retry')),
-                  IconButton(
-                    tooltip: 'Dismiss download',
-                    onPressed: () => downloads.dismiss(job.key),
-                    icon: const Icon(Icons.close, size: IconSizes.small),
-                  ),
-                ],
-              ],
-            ),
-          ),
       ],
     );
   }
+
+  Widget _actions(BuildContext context, OpdsDownloadJob job) => Wrap(
+    crossAxisAlignment: WrapCrossAlignment.center,
+    spacing: Spacing.xs,
+    children: [
+      if (job.isCancellable)
+        IconButton(
+          tooltip: 'Cancel download',
+          onPressed: () => downloads.cancel(job.key),
+          icon: const Icon(Icons.close),
+        ),
+      if (!job.isActive) ...[
+        if (job.status == OpdsDownloadStatus.complete)
+          TextButton(
+            onPressed: job.bookId == null
+                ? null
+                : () {
+                    final router = GoRouter.of(context);
+                    Navigator.of(context).pop();
+                    router.go('/library/details/${job.bookId}');
+                  },
+            child: const Text('Open book'),
+          )
+        else
+          TextButton(onPressed: () => onRetry(job), child: const Text('Retry')),
+        IconButton(
+          tooltip: 'Dismiss download',
+          onPressed: () => downloads.dismiss(job.key),
+          icon: const Icon(Icons.close, size: IconSizes.small),
+        ),
+      ],
+    ],
+  );
 }
 
 String opdsDownloadStatus(OpdsDownloadJob job) => switch (job.status) {

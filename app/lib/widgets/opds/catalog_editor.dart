@@ -150,7 +150,6 @@ class _CatalogEditorState extends State<CatalogEditor> {
             ),
             if (widget.catalog != null) ...[
               const SizedBox(height: Spacing.sm),
-              const Text('Leave credentials blank to keep them. Changing the URL origin clears saved credentials.'),
               CheckboxListTile(
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Remove saved credentials'),
