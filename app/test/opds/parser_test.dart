@@ -9,6 +9,16 @@ void main() {
   final uri = Uri.parse('https://books.example/catalog/index');
   const acquisition = 'http://opds-spec.org/acquisition';
 
+  test('details prefer a full cover even when a thumbnail is listed first', () {
+    final thumbnail = OpdsLink(uri: uri.resolve('small.jpg'), rels: ['http://opds-spec.org/image/thumbnail']);
+    final cover = OpdsLink(uri: uri.resolve('cover.jpg'), rels: ['http://opds-spec.org/image']);
+    expect(OpdsPublication(id: 'book', title: 'Book', images: [thumbnail, cover]).coverLink, same(cover));
+    expect(OpdsPublication(id: 'book', title: 'Book', images: [thumbnail]).coverLink, same(thumbnail));
+    expect(OpdsPublication(id: 'book', title: 'Book').coverLink, isNull);
+    final unmarked = OpdsLink(uri: uri.resolve('opds2-cover.jpg'));
+    expect(OpdsPublication(id: 'book', title: 'Book', images: [unmarked]).coverLink, same(unmarked));
+  });
+
   test('catalog serialization excludes embedded credentials', () {
     final catalog = OpdsCatalog(id: 'one', name: 'Books', uri: Uri.parse('https://user:secret@books.example/catalog'));
     expect(catalog.uri.userInfo, isEmpty);

@@ -129,7 +129,7 @@ class _BookNotesState extends State<BookNotes> {
               ? _buildNoResultsState(context, colorScheme)
               : _buildNotesList(
                   filtered,
-                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.sm, Spacing.md, Spacing.md),
+                  padding: const EdgeInsets.only(top: Spacing.sm, bottom: Spacing.md),
                   separatorHeight: Spacing.md,
                   showActionMenu: true,
                 ),
@@ -140,7 +140,7 @@ class _BookNotesState extends State<BookNotes> {
 
   Widget _buildDesktopHeader() {
     return Padding(
-      padding: const EdgeInsets.all(Spacing.md),
+      padding: const EdgeInsets.symmetric(vertical: Spacing.md),
       child: Row(
         children: [
           Expanded(

@@ -17,6 +17,7 @@ import 'package:papyrus/widgets/opds/catalog_source_tile.dart';
 import 'package:papyrus/widgets/opds/opds_feed_view.dart';
 import 'package:papyrus/widgets/opds/opds_download_panel.dart';
 import 'package:papyrus/widgets/opds/opds_download_actions.dart';
+import 'package:papyrus/widgets/opds/opds_mobile_header.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -51,11 +52,12 @@ class _CatalogsPageState extends State<CatalogsPage> {
     final catalog = widget.catalogId == null ? null : catalogs.find(widget.catalogId!);
     final key = '${catalogs.scope}/${catalogs.revision}/${widget.catalogId}/${widget.feedUri ?? catalog?.uri}';
     if (_loadKey == key && !_reloadRequested) return;
-    _feedForHeader = _loadKey == key ? (_browser.feed ?? _feedForHeader) : null;
+    final sameFeed = _loadKey == key;
+    _feedForHeader = sameFeed ? (_browser.feed ?? _feedForHeader) : null;
     _reloadRequested = false;
     _loadKey = key;
     _credentials = null;
-    _browser.clear();
+    if (!sameFeed) _browser.clear();
     if (catalog == null) return;
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || _loadKey != key) return;
@@ -99,7 +101,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
   void _navigate(OpdsCatalog catalog, Uri uri, {String query = ''}) {
     try {
       OpdsHttpClient.validateUri(uri);
-      context.go(
+      context.push(
         Uri(
           path: '/library/catalogs/${Uri.encodeComponent(catalog.id)}',
           queryParameters: {'feed': uri.toString(), if (query.isNotEmpty) 'q': query},
@@ -107,6 +109,19 @@ class _CatalogsPageState extends State<CatalogsPage> {
       );
     } catch (error) {
       _message(opdsErrorMessage(error));
+    }
+  }
+
+  void _back(OpdsCatalog? catalog) {
+    final router = GoRouter.of(context);
+    if (router.routerDelegate.currentConfiguration.last is ImperativeRouteMatch && router.canPop()) {
+      router.pop();
+    } else if (catalog != null && widget.feedUri != null && widget.feedUri != catalog.uri) {
+      // A refreshed/shared subsection has no earlier visit in its route stack.
+      // Return to this catalog's root before leaving the catalog altogether.
+      router.go('/library/catalogs/${Uri.encodeComponent(catalog.id)}');
+    } else {
+      router.go('/library/catalogs');
     }
   }
 
@@ -187,14 +202,18 @@ class _CatalogsPageState extends State<CatalogsPage> {
           final content = Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              ConstrainedBox(
-                constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-                  child: _header(catalogs, catalog),
+              if (MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall)
+                _header(catalogs, catalog)
+              else ...[
+                ConstrainedBox(
+                  constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                    child: _header(catalogs, catalog),
+                  ),
                 ),
-              ),
-              const Divider(key: Key('catalog-header-divider'), height: 1),
+                const Divider(key: Key('catalog-header-divider'), height: 1),
+              ],
               Expanded(child: body),
             ],
           );
@@ -228,14 +247,32 @@ class _CatalogsPageState extends State<CatalogsPage> {
       downloads: downloads,
       onRetry: (job) => unawaited(retryOpdsDownload(context, job)),
     );
+    if (mobile) {
+      return OpdsMobileHeader(
+        key: const Key('catalog-mobile-header'),
+        title: catalog?.name ?? 'Catalogs',
+        leading: widget.catalogId != null
+            ? IconButton(tooltip: 'Back', icon: const BackButtonIcon(), onPressed: () => _back(catalog))
+            : IconButton(
+                tooltip: 'Library sections',
+                icon: const Icon(Icons.menu),
+                onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
+              ),
+        actions: [
+          downloadsButton,
+          if (catalog != null)
+            IconButton(
+              tooltip: 'Edit catalog',
+              onPressed: () => _edit(catalogs, catalog),
+              icon: const Icon(Icons.settings_outlined),
+            ),
+        ],
+      );
+    }
     if (widget.catalogId != null) {
       return Row(
         children: [
-          IconButton(
-            tooltip: 'All catalogs',
-            icon: const Icon(Icons.arrow_back),
-            onPressed: () => context.go('/library/catalogs'),
-          ),
+          IconButton(tooltip: 'Back', icon: const Icon(Icons.arrow_back), onPressed: () => _back(catalog)),
           const SizedBox(width: Spacing.sm),
           Expanded(
             child: Text(
@@ -257,27 +294,11 @@ class _CatalogsPageState extends State<CatalogsPage> {
     }
     final heading = Row(
       children: [
-        if (mobile) ...[
-          IconButton(
-            tooltip: 'Library sections',
-            icon: const Icon(Icons.menu),
-            onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
-          ),
-          const SizedBox(width: Spacing.sm),
-        ],
         Expanded(
           child: Text('Catalogs', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
         ),
       ],
     );
-    if (mobile) {
-      return Row(
-        children: [
-          Expanded(child: heading),
-          downloadsButton,
-        ],
-      );
-    }
     final actions = Wrap(
       spacing: Spacing.xs,
       crossAxisAlignment: WrapCrossAlignment.center,
@@ -349,7 +370,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
         return CatalogSourceTile(
           key: ValueKey(catalog.id),
           catalog: catalog,
-          onOpen: () => context.go('/library/catalogs/${Uri.encodeComponent(catalog.id)}'),
+          onOpen: () => context.push('/library/catalogs/${Uri.encodeComponent(catalog.id)}'),
           onEdit: () => _edit(catalogs, catalog),
           onRemove: () => _remove(catalogs, catalog),
         );
@@ -361,7 +382,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
 
   Widget _feedView(OpdsCatalog catalog) {
     Widget? status;
-    if (_browser.error != null) {
+    if (_browser.error != null && _browser.feed == null) {
       status = _empty(
         'Could not open this catalog',
         detail: _browser.error,
@@ -369,12 +390,27 @@ class _CatalogsPageState extends State<CatalogsPage> {
         onAction: _reloadFeed,
         icon: Icons.cloud_off_outlined,
       );
-    } else if (_browser.loading || _browser.feed == null) {
+    } else if (_browser.feed == null) {
       status = const Center(child: AppCircularProgressIndicator());
     }
     final feed = _browser.feed ?? _feedForHeader;
     if (feed == null) return status ?? const SizedBox.shrink();
     return OpdsFeedView(
+      libraryBookId: (publication) => context.read<OpdsDownloads>().libraryBookId(catalog, publication),
+      status: _browser.feed != null && _browser.error != null
+          ? Padding(
+              padding: const EdgeInsets.only(bottom: Spacing.sm),
+              child: Wrap(
+                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: Spacing.sm,
+                children: [
+                  const Text('Showing saved content. Could not refresh this catalog.'),
+                  TextButton(onPressed: _reloadFeed, child: const Text('Retry')),
+                ],
+              ),
+            )
+          : null,
+      isRefreshing: _browser.loading && _browser.feed != null,
       contentOverride: status,
       scrollController: _feedScroll,
       catalog: catalog,
@@ -387,7 +423,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
       onNavigate: (uri) => _navigate(catalog, uri),
       onPage: (uri) => _navigate(catalog, uri, query: widget.query),
       onRefresh: _browser.loading || (_browser.feed == null && _browser.error == null) ? null : _reloadFeed,
-      onOpenPublication: (publication) => context.go(
+      onOpenPublication: (publication) => context.push(
         Uri(
           path: '/library/catalogs/${Uri.encodeComponent(catalog.id)}/book',
           queryParameters: {
@@ -400,6 +436,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
           catalog: catalog,
           publication: publication,
           scope: context.read<OpdsCatalogs>().scope,
+          cached: _browser.isCached,
         ),
       ),
     );

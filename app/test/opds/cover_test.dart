@@ -5,6 +5,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
+import 'package:papyrus/opds/opds_resource_cache.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/book/cover_loading_placeholder.dart';
 import 'package:papyrus/widgets/opds/opds_publication_tile.dart';
@@ -13,6 +15,7 @@ final _catalog = OpdsCatalog(id: 'catalog', name: 'Catalog', uri: Uri.parse('htt
 final _coverUri = Uri.parse('https://books.test/cover.png');
 
 class _PendingCoverClient extends OpdsHttpClient {
+  _PendingCoverClient({super.cache});
   final response = Completer<OpdsResponse>();
   var requests = 0;
 
@@ -46,6 +49,49 @@ Future<void> _mount(
 );
 
 void main() {
+  testWidgets('persisted artwork appears without a new request or loading placeholder', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final cache = OpdsResourceCache(prefs)..setScope('guest');
+    await cache.write(
+      cache.capture(_catalog, _coverUri)!,
+      OpdsResponse(
+        uri: _coverUri,
+        bytes: base64Decode(
+          'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=',
+        ),
+        headers: {'content-type': 'image/png'},
+      ),
+    );
+    final client = _PendingCoverClient(cache: OpdsResourceCache(prefs)..setScope('guest'));
+    await _mount(tester, client, theme: AppTheme.eink, size: const Size(180, 270), uri: _coverUri);
+    await tester.pumpAndSettle();
+    final image = tester.widget<Image>(find.byType(Image));
+    await tester.runAsync(() => precacheImage(image.image, tester.element(find.byType(OpdsCover))));
+    await tester.pumpAndSettle();
+    expect(find.byType(CoverLoadingPlaceholder), findsNothing);
+    expect(find.byType(Image), findsOneWidget);
+    expect(client.requests, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('invalid optional artwork falls back when caching is enabled', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final cache = OpdsResourceCache(await SharedPreferences.getInstance())..setScope('guest');
+    final client = _PendingCoverClient(cache: cache);
+    await _mount(
+      tester,
+      client,
+      theme: AppTheme.eink,
+      size: const Size(180, 270),
+      uri: Uri.parse('https://user:secret@books.test/cover.png'),
+    );
+    await tester.pumpAndSettle();
+    expect(find.byType(CoverLoadingPlaceholder), findsNothing);
+    expect(find.byIcon(Icons.menu_book), findsOneWidget);
+    expect(client.requests, 0);
+    expect(tester.takeException(), isNull);
+  });
   for (final (name, theme) in [('light', AppTheme.light), ('dark', AppTheme.dark), ('eink', AppTheme.eink)]) {
     for (final size in [const Size(60, 90), const Size(180, 270)]) {
       testWidgets('$name $size shares library loading state until request fails', (tester) async {

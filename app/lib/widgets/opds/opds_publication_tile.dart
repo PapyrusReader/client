@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
+import 'package:papyrus/opds/opds_resource_cache.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book/cover_loading_placeholder.dart';
 
@@ -15,6 +16,7 @@ class OpdsPublicationTile extends StatelessWidget {
     required this.httpClient,
     this.credentials,
     this.isGridView = false,
+    this.inLibrary = false,
   });
   final OpdsCatalog catalog;
   final OpdsPublication publication;
@@ -22,6 +24,7 @@ class OpdsPublicationTile extends StatelessWidget {
   final OpdsHttpClient httpClient;
   final OpdsCredentials? credentials;
   final bool isGridView;
+  final bool inLibrary;
 
   Widget _cover({double width = double.infinity, double height = double.infinity}) => OpdsCover(
     catalog: catalog,
@@ -42,7 +45,8 @@ class OpdsPublicationTile extends StatelessWidget {
         .toSet()
         .join(' · ');
     final edition = acquisition.isEmpty ? null : acquisition.first.title;
-    final caption = edition ?? (formats.isEmpty ? 'View details' : formats);
+    final formatCaption = edition ?? (formats.isEmpty ? 'View details' : formats);
+    final caption = inLibrary ? 'In library · $formatCaption' : formatCaption;
     final info = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -140,18 +144,34 @@ class _OpdsCoverState extends State<OpdsCover> {
     _bytes = null;
     _loading = widget.uri != null && ['http', 'https'].contains(widget.uri!.scheme);
     if (!_loading) return;
+    final cache = widget.httpClient.cache;
+    OpdsCacheToken? cacheToken;
     try {
+      cacheToken = cache?.capture(widget.catalog, widget.uri!);
+      final cached = cacheToken == null ? null : cache?.read(cacheToken);
+      if (cached != null && cached.response.headers['content-type']?.startsWith('image/') == true) {
+        _bytes = cached.response.bytes;
+        _loading = false;
+        if (DateTime.now().difference(cached.fetchedAt) < const Duration(days: 1)) return;
+      }
       final response = await widget.httpClient.get(
         widget.catalog,
         widget.uri!,
         credentials: widget.credentials,
         cancellation: token,
       );
-      if (mounted && !token.isCancelled) setState(() => _bytes = response.bytes);
+      if (!mounted || token.isCancelled || (cacheToken != null && !cache!.isCurrent(cacheToken))) return;
+      setState(() => _bytes = response.bytes);
+      if (cacheToken != null && response.headers['content-type']?.startsWith('image/') == true) {
+        await cache!.write(cacheToken, response);
+      }
+    } on OpdsAuthorizationException {
+      if (mounted && !token.isCancelled) setState(() => _bytes = null);
+      if (cacheToken != null) await cache!.remove(cacheToken);
     } catch (_) {
       // Catalog artwork is optional; keep the themed cover placeholder.
     } finally {
-      if (mounted && !token.isCancelled) setState(() => _loading = false);
+      if (mounted && !token.isCancelled && _loading) setState(() => _loading = false);
     }
   }
 

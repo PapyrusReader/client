@@ -18,6 +18,8 @@ import 'package:papyrus/opds/opds_catalog_store.dart';
 import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/opds/opds_downloads.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
+import 'package:papyrus/opds/opds_library.dart';
+import 'package:papyrus/opds/opds_resource_cache.dart';
 import 'package:papyrus/services/book_import_session.dart';
 import 'package:papyrus/platform/book_import_drop_registration.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
@@ -169,6 +171,7 @@ class _PapyrusState extends State<Papyrus> {
   late final OpdsCatalogs _opdsCatalogs;
   late final OpdsDownloads _opdsDownloads;
   late final OpdsHttpClient _opdsHttpClient;
+  late final OpdsLibrary _opdsLibrary;
   late final PapyrusPowerSyncService _powerSyncService;
   late final BookStorageStatusController _bookStorageStatusController;
   late final PapyrusApiConfig _officialApiConfig;
@@ -224,9 +227,12 @@ class _PapyrusState extends State<Papyrus> {
       mediaUploadQueue: _mediaUploadQueue,
       hasBookFile: _bookImportService.hasBookFile,
     );
-    _opdsCatalogs = OpdsCatalogs(OpdsCatalogStore(widget.prefs));
-    _opdsHttpClient = OpdsHttpClient(apiConfig: () => _syncSettingsProvider.activeApiConfig);
+    _opdsLibrary = OpdsLibrary(widget.prefs, dataStore: _dataStore);
+    final opdsCache = OpdsResourceCache(widget.prefs);
+    _opdsCatalogs = OpdsCatalogs(OpdsCatalogStore(widget.prefs), library: _opdsLibrary, cache: opdsCache);
+    _opdsHttpClient = OpdsHttpClient(apiConfig: () => _syncSettingsProvider.activeApiConfig, cache: opdsCache);
     _opdsDownloads = OpdsDownloads(
+      library: _opdsLibrary,
       httpClient: _opdsHttpClient,
       captureImport: () => BookImportSession.capture(
         dataStore: _dataStore,
@@ -257,7 +263,9 @@ class _PapyrusState extends State<Papyrus> {
     _bookStorageStatusController.dispose();
     _opdsCatalogs.removeListener(_opdsDownloads.reset);
     _opdsDownloads.dispose();
+    _opdsLibrary.dispose();
     _opdsCatalogs.dispose();
+    _opdsHttpClient.cache?.dispose();
     _bookImportService.dispose();
     _acquisitionDownloadsComposition.dispose();
     _acquisitionAvailabilityProvider.dispose();

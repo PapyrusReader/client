@@ -4,6 +4,7 @@ import 'package:papyrus/opds/opds_models.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/library/book_grid_layout.dart';
 import 'package:papyrus/widgets/opds/opds_publication_tile.dart';
+import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
 class OpdsFeedView extends StatelessWidget {
   const OpdsFeedView({
@@ -21,8 +22,12 @@ class OpdsFeedView extends StatelessWidget {
     this.query = '',
     this.scrollController,
     this.contentOverride,
+    this.libraryBookId,
+    this.status,
+    this.isRefreshing = false,
   });
   final OpdsCatalog catalog;
+  final String? Function(OpdsPublication)? libraryBookId;
   final OpdsFeed feed;
   final OpdsHttpClient httpClient;
   final OpdsCredentials? credentials;
@@ -35,6 +40,8 @@ class OpdsFeedView extends StatelessWidget {
   final String query;
   final ScrollController? scrollController;
   final Widget? contentOverride;
+  final Widget? status;
+  final bool isRefreshing;
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +57,7 @@ class OpdsFeedView extends StatelessWidget {
             Padding(
               padding: EdgeInsets.only(
                 top: constraints.maxWidth < Breakpoints.tablet ? Spacing.md : Spacing.lg,
-                bottom: Spacing.md,
+                bottom: Spacing.sm,
               ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -64,7 +71,20 @@ class OpdsFeedView extends StatelessWidget {
                           style: constraints.maxWidth < Breakpoints.tablet ? text.titleMedium : text.titleLarge,
                         ),
                       ),
-                      IconButton(tooltip: 'Refresh catalog', onPressed: onRefresh, icon: const Icon(Icons.refresh)),
+                      IconButton(
+                        key: const Key('opds-refresh'),
+                        tooltip: 'Refresh catalog',
+                        onPressed: isRefreshing ? null : onRefresh,
+                        icon: isRefreshing
+                            ? const SizedBox.square(
+                                dimension: 24,
+                                child: AppCircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  semanticsLabel: 'Refreshing catalog',
+                                ),
+                              )
+                            : const Icon(Icons.refresh),
+                      ),
                       if (hasBooks)
                         IconButton(
                           tooltip: isGridView ? 'List view' : 'Grid view',
@@ -84,6 +104,7 @@ class OpdsFeedView extends StatelessWidget {
                 ],
               ),
             ),
+            ?status,
             Expanded(
               child:
                   contentOverride ??
@@ -291,6 +312,7 @@ class OpdsFeedView extends StatelessWidget {
   ];
 
   Widget _publication(OpdsPublication publication) => OpdsPublicationTile(
+    inLibrary: libraryBookId?.call(publication) != null,
     key: ValueKey(publication.id),
     catalog: catalog,
     publication: publication,

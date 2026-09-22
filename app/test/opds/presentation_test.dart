@@ -12,6 +12,7 @@ import 'package:papyrus/services/book_import_result.dart';
 import 'package:papyrus/services/book_import_session.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/app_theme.dart';
+import 'package:papyrus/widgets/book_details/book_details_tab_rail.dart';
 import 'package:papyrus/widgets/opds/opds_download_panel.dart';
 import 'package:papyrus/widgets/opds/opds_feed_view.dart';
 import 'package:papyrus/widgets/opds/opds_publication_tile.dart';
@@ -115,6 +116,51 @@ Widget _panel(OpdsDownloads downloads, {ValueChanged<OpdsDownloadJob>? onRetry})
 );
 
 void main() {
+  for (final width in [360.0, 424.0]) {
+    testWidgets('mobile $width details rail stays below the header while content scrolls', (tester) async {
+      final downloads = OpdsDownloads(captureImport: _unusedSession);
+      await _mount(
+        tester,
+        Scaffold(
+          appBar: AppBar(title: const Text('Catalog header')),
+          body: OpdsPublicationDetails(
+            catalog: _catalog,
+            publication: _publication(description: List.filled(50, 'A long book description.').join('\n\n')),
+            httpClient: _gateway,
+            downloads: downloads,
+            onDownload: (_) {},
+            onNavigate: (_) {},
+          ),
+        ),
+        theme: AppTheme.dark,
+        width: width,
+        downloads: downloads,
+      );
+      final rail = find.byType(BookDetailsTabRail);
+      final headerBottom = tester.getBottomLeft(find.byType(AppBar)).dy;
+      final description = find.byKey(const Key('opds-description'));
+      expect(tester.getRect(rail).left, 0);
+      expect(tester.getRect(rail).width, width);
+      await tester.dragFrom(Offset(width / 2, 750), const Offset(0, -650));
+      await _settle(tester);
+      expect(tester.getTopLeft(rail).dy, headerBottom);
+      expect(tester.getTopLeft(description).dx, 16);
+      expect(find.text('Add to library').hitTestable(), findsNothing);
+      final descriptionTop = tester.getTopLeft(description).dy;
+      await tester.dragFrom(Offset(width / 2, 750), const Offset(0, -200));
+      await _settle(tester);
+      expect(tester.getTopLeft(rail).dy, headerBottom);
+      expect(tester.getTopLeft(description).dy, lessThan(descriptionTop));
+      await tester.dragFrom(Offset(width / 2, 200), const Offset(0, 1800));
+      await _settle(tester);
+      expect(find.text('Add to library').hitTestable(), findsOneWidget);
+      await tester.tap(find.text('Add to library'));
+      await _settle(tester);
+      expect(find.text('Download options'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('phone cards keep author next to title and preserve equal cover sizes', (tester) async {
     await _mount(
       tester,
@@ -375,50 +421,52 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('1280 download panel protects the commit phase then allows completed dismissal', (tester) async {
-    final finish = Completer<Book>();
-    final downloads = OpdsDownloads(
-      httpClient: _gateway,
-      captureImport: () => BookImportSession(
-        process: (Uint8List _, String _) async => const BookImportResult(
-          bookId: 'imported',
-          title: 'Book',
-          author: 'Author',
-          fileSize: 4,
-          fileHash: 'hash',
-          fileExtension: 'epub',
+  for (final width in [360.0, 424.0, 1280.0]) {
+    testWidgets('$width download panel keeps completed actions beside the book and protects commit', (tester) async {
+      final finish = Completer<Book>();
+      final downloads = OpdsDownloads(
+        httpClient: _gateway,
+        captureImport: () => BookImportSession(
+          process: (Uint8List _, String _) async => const BookImportResult(
+            bookId: 'imported',
+            title: 'Book',
+            author: 'Author',
+            fileSize: 4,
+            fileHash: 'hash',
+            fileExtension: 'epub',
+          ),
+          deleteFile: (_) async {},
+          isCurrent: () => true,
+          commit: (_, _) => finish.future,
         ),
-        deleteFile: (_) async {},
-        isCurrent: () => true,
-        commit: (_, _) => finish.future,
-      ),
-    );
-    final operation = downloads.start(_catalog, _publication(), _epub);
-    await _mount(tester, _panel(downloads), theme: AppTheme.light, width: 1280, downloads: downloads);
-    expect(downloads.jobs.single.status, OpdsDownloadStatus.committing);
-    await tester.tap(find.byTooltip('Downloads'));
-    await tester.pumpAndSettle();
-    expect(find.text('Adding to library…'), findsOneWidget);
-    expect(find.byTooltip('Cancel download'), findsNothing);
-    expect(find.byTooltip('Dismiss download'), findsNothing);
-    downloads.dismiss(downloads.jobs.single.key);
-    expect(downloads.jobs, hasLength(1));
-    finish.complete(Book(id: 'imported', title: 'Book', author: 'Author', addedAt: DateTime(2026)));
-    await operation;
-    await _settle(tester);
-    expect(find.text('Added to library'), findsOneWidget);
-    expect(find.text('Open book'), findsOneWidget);
-    expect(
-      tester.getCenter(find.text('Open book')).dy,
-      lessThan(tester.getBottomLeft(find.text('Added to library')).dy),
-    );
-    expect(
-      tester.getCenter(find.text('Open book')).dy,
-      greaterThan(tester.getTopLeft(find.text('Pride and Prejudice')).dy),
-    );
-    await tester.tap(find.byTooltip('Dismiss download'));
-    await tester.pumpAndSettle();
-    expect(downloads.jobs, isEmpty);
-    expect(tester.takeException(), isNull);
-  });
+      );
+      final operation = downloads.start(_catalog, _publication(), _epub);
+      await _mount(tester, _panel(downloads), theme: AppTheme.light, width: width, downloads: downloads);
+      expect(downloads.jobs.single.status, OpdsDownloadStatus.committing);
+      await tester.tap(find.byTooltip('Downloads'));
+      await tester.pumpAndSettle();
+      expect(find.text('Adding to library…'), findsOneWidget);
+      expect(find.byTooltip('Cancel download'), findsNothing);
+      expect(find.byTooltip('Dismiss download'), findsNothing);
+      downloads.dismiss(downloads.jobs.single.key);
+      expect(downloads.jobs, hasLength(1));
+      finish.complete(Book(id: 'imported', title: 'Book', author: 'Author', addedAt: DateTime(2026)));
+      await operation;
+      await _settle(tester);
+      expect(find.text('Added to library'), findsOneWidget);
+      expect(find.text('Open book'), findsOneWidget);
+      expect(
+        tester.getCenter(find.text('Open book')).dy,
+        lessThan(tester.getBottomLeft(find.text('Added to library')).dy),
+      );
+      expect(
+        tester.getCenter(find.text('Open book')).dy,
+        greaterThan(tester.getTopLeft(find.text('Pride and Prejudice')).dy),
+      );
+      await tester.tap(find.byTooltip('Dismiss download'));
+      await tester.pumpAndSettle();
+      expect(downloads.jobs, isEmpty);
+      expect(tester.takeException(), isNull);
+    });
+  }
 }

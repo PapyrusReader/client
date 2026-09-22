@@ -136,13 +136,13 @@ class _BookAnnotationsState extends State<BookAnnotations> {
 
     return Column(
       children: [
-        _buildHeader(showAddButton: true),
+        _buildHeader(isDesktop: true),
         Expanded(
           child: filtered.isEmpty
               ? _buildNoResultsState(context, colorScheme)
               : _buildAnnotationsList(
                   filtered,
-                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.sm, Spacing.md, Spacing.md),
+                  padding: const EdgeInsets.only(top: Spacing.sm, bottom: Spacing.md),
                   separatorHeight: Spacing.md,
                   showActionMenu: true,
                 ),
@@ -172,9 +172,9 @@ class _BookAnnotationsState extends State<BookAnnotations> {
     );
   }
 
-  Widget _buildHeader({bool showAddButton = false}) {
+  Widget _buildHeader({bool isDesktop = false}) {
     return Padding(
-      padding: const EdgeInsets.all(Spacing.md),
+      padding: isDesktop ? const EdgeInsets.symmetric(vertical: Spacing.md) : const EdgeInsets.all(Spacing.md),
       child: Row(
         children: [
           Expanded(
@@ -187,7 +187,7 @@ class _BookAnnotationsState extends State<BookAnnotations> {
           ),
           const SizedBox(width: Spacing.sm),
           _buildSortButton(),
-          if (showAddButton && widget.isPhysical) ...[
+          if (isDesktop && widget.isPhysical) ...[
             const SizedBox(width: Spacing.md),
             FilledButton.icon(
               onPressed: widget.onAddAnnotation,

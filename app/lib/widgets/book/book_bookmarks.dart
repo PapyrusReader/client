@@ -110,7 +110,7 @@ class _BookBookmarksState extends State<BookBookmarks> {
               ? _buildNoResultsState(context, colorScheme)
               : _buildBookmarksList(
                   filtered,
-                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.sm, Spacing.md, Spacing.md),
+                  padding: const EdgeInsets.only(top: Spacing.sm, bottom: Spacing.md),
                   separatorHeight: Spacing.md,
                   showActionMenu: true,
                 ),
@@ -121,7 +121,7 @@ class _BookBookmarksState extends State<BookBookmarks> {
 
   Widget _buildDesktopHeader() {
     return Padding(
-      padding: EdgeInsets.all(Spacing.md),
+      padding: const EdgeInsets.symmetric(vertical: Spacing.md),
       child: Row(
         children: [
           Expanded(

@@ -45,7 +45,11 @@ class AppRouter {
     required this.preferencesProvider,
     required this.syncSettingsProvider,
     required this.acquisitionAvailabilityProvider,
-  });
+  }) {
+    // Catalog browsing pushes visited pages to preserve their state on Back.
+    // Reflect those destinations in web URLs for refresh, sharing and history.
+    GoRouter.optionURLReflectsImperativeAPIs = true;
+  }
 
   late final GoRouter router = GoRouter(
     debugLogDiagnostics: true,

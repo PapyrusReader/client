@@ -108,6 +108,15 @@ class OpdsXmlParser {
       publisher: _dcText(entry, 'publisher'),
       language: _dcText(entry, 'language'),
       isbn: isbn,
+      published: _dcText(entry, 'issued'),
+      rights: _text(entry, 'rights') ?? _dcText(entry, 'rights'),
+      subjects: _children(entry, 'category')
+          .map((category) => category.getAttribute('label') ?? category.getAttribute('term'))
+          .whereType<String>()
+          .map(opdsPlainText)
+          .where((subject) => subject.isNotEmpty)
+          .toSet()
+          .toList(),
       links: links,
       images: links
           .where(

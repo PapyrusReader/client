@@ -1,4 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/book_details/book_details_action_style.dart';
+import 'package:papyrus/widgets/book_details/book_details_tab_rail.dart';
+import 'package:papyrus/widgets/book_details/book_details_scroll_view.dart';
+import 'package:papyrus/widgets/opds/opds_publication_information.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/opds/opds_downloads.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
@@ -32,63 +36,112 @@ class OpdsPublicationDetails extends StatelessWidget {
   final bool resolving;
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, constraints) {
-      final desktop = constraints.maxWidth >= Breakpoints.desktopSmall;
-      final theme = Theme.of(context);
-      final cover = ClipRRect(
-        borderRadius: BorderRadius.circular(AppRadius.lg),
-        child: OpdsCover(
-          catalog: catalog,
-          uri: publication.images.firstOrNull?.uri,
-          httpClient: httpClient,
-          credentials: credentials,
-          width: desktop ? 240 : 180,
-          height: desktop ? 360 : 270,
-        ),
-      );
-      final metadata = Column(
-        crossAxisAlignment: desktop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
-        children: [
-          Text(
-            publication.title,
-            textAlign: desktop ? TextAlign.start : TextAlign.center,
-            style: (desktop ? theme.textTheme.displaySmall : theme.textTheme.headlineSmall)?.copyWith(
-              fontWeight: FontWeight.bold,
-            ),
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: downloads,
+    builder: (context, _) => LayoutBuilder(
+      builder: (context, constraints) {
+        final desktop = constraints.maxWidth >= Breakpoints.desktopSmall;
+        final theme = Theme.of(context);
+        final bookId = downloads.libraryBookId(catalog, publication);
+        final actionStyle = bookDetailsActionStyle(context);
+        void showOptions() => showOpdsSheet<void>(
+          context,
+          title: 'Download options',
+          child: _DownloadOptions(
+            catalog: catalog,
+            publication: publication,
+            downloads: downloads,
+            onDownload: onDownload,
+            onNavigate: onNavigate,
           ),
-          const SizedBox(height: Spacing.sm),
-          Text(
-            publication.authors.isEmpty ? 'Unknown author' : publication.authors.join(', '),
-            textAlign: desktop ? TextAlign.start : TextAlign.center,
-            style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+        );
+        final cover = ClipRRect(
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          child: OpdsCover(
+            catalog: catalog,
+            uri: publication.coverLink?.uri,
+            httpClient: httpClient,
+            credentials: credentials,
+            width: desktop ? 240 : 180,
+            height: desktop ? 360 : 270,
           ),
-          const SizedBox(height: Spacing.md),
-          FilledButton.icon(
-            onPressed: resolving
-                ? null
-                : () => showOpdsSheet<void>(
-                    context,
-                    title: 'Download options',
-                    child: _DownloadOptions(
-                      catalog: catalog,
-                      publication: publication,
-                      downloads: downloads,
-                      onDownload: onDownload,
-                      onNavigate: onNavigate,
-                    ),
-                  ),
-            icon: const Icon(Icons.add),
-            label: const Text('Add to library'),
-          ),
-        ],
-      );
-      return SingleChildScrollView(
-        key: PageStorageKey('publication/${catalog.id}/${publication.id}'),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+        );
+        final metadata = Column(
+          crossAxisAlignment: desktop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
           children: [
-            if (desktop)
+            Text(
+              publication.title,
+              textAlign: desktop ? TextAlign.start : TextAlign.center,
+              style: (desktop ? theme.textTheme.displaySmall : theme.textTheme.headlineMedium)?.copyWith(
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+            const SizedBox(height: Spacing.sm),
+            Text(
+              publication.authors.isEmpty ? 'Unknown author' : publication.authors.join(', '),
+              textAlign: desktop ? TextAlign.start : TextAlign.center,
+              style: theme.textTheme.titleMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: Spacing.md),
+            Wrap(
+              alignment: desktop ? WrapAlignment.start : WrapAlignment.center,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              spacing: Spacing.sm,
+              runSpacing: Spacing.sm,
+              children: [
+                FilledButton.icon(
+                  style: actionStyle,
+                  onPressed: bookId != null
+                      ? () => context.go('/library/details/${Uri.encodeComponent(bookId)}')
+                      : resolving
+                      ? null
+                      : showOptions,
+                  icon: Icon(bookId != null ? Icons.menu_book_outlined : Icons.add),
+                  label: Text(bookId != null ? 'Open book' : 'Add to library'),
+                ),
+                if (bookId != null)
+                  OutlinedButton(
+                    style: actionStyle,
+                    onPressed: resolving ? null : showOptions,
+                    child: const Text('Download options'),
+                  ),
+              ],
+            ),
+          ],
+        );
+        final information = OpdsPublicationInformation(catalog: catalog, publication: publication);
+        if (!desktop) {
+          return DefaultTabController(
+            length: 1,
+            child: BookDetailsScrollView(
+              key: PageStorageKey('publication/${catalog.id}/${publication.id}'),
+              header: Padding(
+                padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.lg, Spacing.md, Spacing.md),
+                child: Column(
+                  children: [
+                    Center(child: cover),
+                    const SizedBox(height: Spacing.md),
+                    metadata,
+                  ],
+                ),
+              ),
+              rail: const BookDetailsTabRail(tabs: [Tab(text: 'Details')]),
+              body: TabBarView(
+                children: [
+                  SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+                    child: information,
+                  ),
+                ],
+              ),
+            ),
+          );
+        }
+        return SingleChildScrollView(
+          key: PageStorageKey('publication/${catalog.id}/${publication.id}'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
               Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -96,57 +149,18 @@ class OpdsPublicationDetails extends StatelessWidget {
                   const SizedBox(width: Spacing.xl),
                   Expanded(child: metadata),
                 ],
-              )
-            else ...[
-              Center(child: cover),
-              const SizedBox(height: Spacing.lg),
-              metadata,
-            ],
-            const SizedBox(height: Spacing.xl),
-            const Divider(height: 1),
-            const SizedBox(height: Spacing.lg),
-            Text('About this book', style: theme.textTheme.titleLarge),
-            const SizedBox(height: Spacing.md),
-            Text(
-              publication.description?.trim().isNotEmpty == true
-                  ? publication.description!
-                  : 'No description is available for this book.',
-              key: const Key('opds-description'),
-              style: theme.textTheme.bodyMedium?.copyWith(height: 1.6),
-            ),
-            if (publication.language != null || publication.publisher != null || publication.isbn != null) ...[
-              const SizedBox(height: Spacing.xl),
-              Wrap(
-                spacing: Spacing.xxl,
-                runSpacing: Spacing.lg,
-                children: [
-                  if (publication.language != null) _metadata(context, 'Language', publication.language!),
-                  if (publication.publisher != null) _metadata(context, 'Publisher', publication.publisher!),
-                  if (publication.isbn != null) _metadata(context, 'ISBN', publication.isbn!),
-                ],
               ),
+              const SizedBox(height: Spacing.md),
+              const DefaultTabController(
+                length: 1,
+                child: BookDetailsTabRail(tabs: [Tab(text: 'Details')]),
+              ),
+              information,
+              const SizedBox(height: Spacing.xl),
             ],
-            const SizedBox(height: Spacing.xl),
-          ],
-        ),
-      );
-    },
-  );
-
-  Widget _metadata(BuildContext context, String label, String value) => ConstrainedBox(
-    constraints: const BoxConstraints(maxWidth: 320),
-    child: Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label,
-          style: Theme.of(
-            context,
-          ).textTheme.labelMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-        ),
-        const SizedBox(height: Spacing.xs),
-        Text(value, style: Theme.of(context).textTheme.bodyMedium),
-      ],
+          ),
+        );
+      },
     ),
   );
 }
@@ -251,7 +265,10 @@ class _DownloadOptionsState extends State<_DownloadOptions> {
     final jobs = widget.downloads.jobs.where((job) => job.key == key);
     final job = jobs.isEmpty ? null : jobs.first;
     final format = link.supportedExtension!.toUpperCase();
-    final complete = job?.status == OpdsDownloadStatus.complete;
+    final bookId =
+        widget.downloads.libraryBookId(widget.catalog, widget.publication, link: link) ??
+        (widget.downloads.library == null && job?.status == OpdsDownloadStatus.complete ? job?.bookId : null);
+    final complete = bookId != null;
     final active = job?.isActive ?? false;
     return Container(
       decoration: BoxDecoration(
@@ -280,12 +297,10 @@ class _DownloadOptionsState extends State<_DownloadOptions> {
                   onPressed: active
                       ? null
                       : complete
-                      ? job?.bookId == null
-                            ? null
-                            : () {
-                                Navigator.of(context).pop();
-                                context.go('/library/details/${Uri.encodeComponent(job!.bookId!)}');
-                              }
+                      ? () {
+                          Navigator.of(context).pop();
+                          context.go('/library/details/${Uri.encodeComponent(bookId)}');
+                        }
                       : () => widget.onDownload(link),
                   icon: Icon(complete ? Icons.check : Icons.download_outlined, size: IconSizes.small),
                   label: Text(
@@ -296,7 +311,7 @@ class _DownloadOptionsState extends State<_DownloadOptions> {
                         : 'Download $format',
                   ),
                 );
-                return constraints.maxWidth < 400
+                return constraints.maxWidth < 300 * MediaQuery.textScalerOf(context).scale(1)
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [

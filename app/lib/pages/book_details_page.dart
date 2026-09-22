@@ -27,6 +27,8 @@ import 'package:papyrus/widgets/book/book_notes.dart';
 import 'package:papyrus/widgets/book_details/annotation_dialog.dart';
 import 'package:papyrus/widgets/book_details/book_action_buttons.dart';
 import 'package:papyrus/widgets/book_details/book_header.dart';
+import 'package:papyrus/widgets/book_details/book_details_tab_rail.dart';
+import 'package:papyrus/widgets/book_details/book_details_scroll_view.dart';
 import 'package:papyrus/widgets/book_details/bookmark_dialog.dart';
 import 'package:papyrus/widgets/book_details/annotation_action_sheet.dart';
 import 'package:papyrus/widgets/book_details/note_action_sheet.dart';
@@ -189,6 +191,35 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        ConstrainedBox(
+          constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+            child: Row(
+              children: [
+                IconButton(
+                  tooltip: 'Back',
+                  onPressed: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/library/books');
+                    }
+                  },
+                  icon: const Icon(Icons.arrow_back),
+                ),
+                const SizedBox(width: Spacing.sm),
+                Expanded(
+                  child: Text(
+                    'Book details',
+                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Divider(height: 1),
         // Scrollable content
         Expanded(
           child: SingleChildScrollView(
@@ -208,10 +239,10 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
                   readingError: _readingError,
                   onRetryReading: _onContinueReading,
                 ),
-                const SizedBox(height: Spacing.xl),
+                const SizedBox(height: Spacing.md),
 
                 // Tab bar
-                _buildDesktopTabBar(context, provider),
+                _buildTabRail(provider),
                 const SizedBox(height: Spacing.md),
 
                 // Tab content (embedded, not TabBarView)
@@ -224,24 +255,15 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
     );
   }
 
-  Widget _buildDesktopTabBar(BuildContext context, BookDetailsProvider provider) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return Container(
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
-      ),
-      child: TabBar(
-        controller: _tabController,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        tabs: [
-          const Tab(text: 'Details'),
-          Tab(text: 'Bookmarks (${provider.bookmarkCount})'),
-          Tab(text: 'Annotations (${provider.annotationCount})'),
-          Tab(text: 'Notes (${provider.noteCount})'),
-        ],
-      ),
+  Widget _buildTabRail(BookDetailsProvider provider) {
+    return BookDetailsTabRail(
+      controller: _tabController,
+      tabs: [
+        const Tab(text: 'Details'),
+        Tab(text: 'Bookmarks (${provider.bookmarkCount})'),
+        Tab(text: 'Annotations (${provider.annotationCount})'),
+        Tab(text: 'Notes (${provider.noteCount})'),
+      ],
     );
   }
 
@@ -266,63 +288,41 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
           ),
         ],
       ),
-      body: NestedScrollView(
-        headerSliverBuilder: (context, innerBoxIsScrolled) => [
-          SliverToBoxAdapter(
-            child: BookHeader(
-              book: provider.book!,
-              isDesktop: false,
-              onContinueReading: _onContinueReading,
-              onUpdateProgress: _onUpdateProgress,
-              onToggleFavorite: _provider.toggleFavorite,
-              onEdit: _onEdit,
-              readingActionState: readingActionState,
-              readingError: _readingError,
-              onRetryReading: _onContinueReading,
-            ),
-          ),
-        ],
-        body: Column(
+      body: BookDetailsScrollView(
+        header: BookHeader(
+          book: provider.book!,
+          isDesktop: false,
+          onContinueReading: _onContinueReading,
+          onUpdateProgress: _onUpdateProgress,
+          onToggleFavorite: _provider.toggleFavorite,
+          onEdit: _onEdit,
+          readingActionState: readingActionState,
+          readingError: _readingError,
+          onRetryReading: _onContinueReading,
+        ),
+        rail: _buildTabRail(provider),
+        body: TabBarView(
+          controller: _tabController,
           children: [
-            // Tab bar
-            TabBar(
-              controller: _tabController,
-              isScrollable: true,
-              tabAlignment: TabAlignment.start,
-              tabs: [
-                const Tab(text: 'Details'),
-                Tab(text: 'Bookmarks (${provider.bookmarkCount})'),
-                Tab(text: 'Annotations (${provider.annotationCount})'),
-                Tab(text: 'Notes (${provider.noteCount})'),
-              ],
+            BookDetails(
+              book: provider.book!,
+              isDescriptionExpanded: provider.isDescriptionExpanded,
+              onToggleDescription: provider.toggleDescriptionExpanded,
             ),
-            // Tab content
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  BookDetails(
-                    book: provider.book!,
-                    isDescriptionExpanded: provider.isDescriptionExpanded,
-                    onToggleDescription: provider.toggleDescriptionExpanded,
-                  ),
-                  BookBookmarks(
-                    bookmarks: provider.bookmarks,
-                    bookTitle: provider.book!.title,
-                    isPhysical: provider.book!.isPhysical,
-                    onAddBookmark: _onAddBookmark,
-                    onBookmarkActions: _onBookmarkActions,
-                  ),
-                  BookAnnotations(
-                    annotations: provider.annotations,
-                    isPhysical: provider.book!.isPhysical,
-                    onAddAnnotation: _onAddAnnotation,
-                    onAnnotationActions: _onAnnotationActions,
-                  ),
-                  BookNotes(notes: provider.notes, onAddNote: _onAddNote, onNoteActions: _onNoteActions),
-                ],
-              ),
+            BookBookmarks(
+              bookmarks: provider.bookmarks,
+              bookTitle: provider.book!.title,
+              isPhysical: provider.book!.isPhysical,
+              onAddBookmark: _onAddBookmark,
+              onBookmarkActions: _onBookmarkActions,
             ),
+            BookAnnotations(
+              annotations: provider.annotations,
+              isPhysical: provider.book!.isPhysical,
+              onAddAnnotation: _onAddAnnotation,
+              onAnnotationActions: _onAnnotationActions,
+            ),
+            BookNotes(notes: provider.notes, onAddNote: _onAddNote, onNoteActions: _onNoteActions),
           ],
         ),
       ),

@@ -7,19 +7,28 @@ import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/opds/opds_downloads.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
+import 'package:papyrus/opds/opds_parser.dart';
+import 'package:papyrus/opds/opds_resource_cache.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/opds/opds_download_panel.dart';
 import 'package:papyrus/widgets/opds/opds_download_actions.dart';
+import 'package:papyrus/widgets/opds/opds_mobile_header.dart';
 import 'package:papyrus/widgets/opds/opds_publication_details.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 import 'package:provider/provider.dart';
 
 /// An optional in-memory preview, never a substitute for a reloadable URL.
 class CatalogBookSelection {
-  const CatalogBookSelection({required this.catalog, required this.publication, required this.scope});
+  const CatalogBookSelection({
+    required this.catalog,
+    required this.publication,
+    required this.scope,
+    this.cached = false,
+  });
   final OpdsCatalog catalog;
   final OpdsPublication publication;
   final String? scope;
+  final bool cached;
 }
 
 GoRoute catalogBookRoute() => GoRoute(
@@ -57,23 +66,45 @@ class CatalogBookPage extends StatefulWidget {
 }
 
 class _CatalogBookPageState extends State<CatalogBookPage> {
-  late final _browser = OpdsBrowser(httpClient: context.read<OpdsHttpClient>());
+  late final _browser = _createBrowser();
+  OpdsCacheToken? _previewCacheToken;
   String? _loadKey;
   OpdsPublication? _publication;
   OpdsCredentials? _credentials;
   String? _error;
   bool _loading = true;
+  bool _cachedPreview = false;
+
+  OpdsBrowser _createBrowser() {
+    final browser = OpdsBrowser(httpClient: context.read<OpdsHttpClient>());
+    browser.httpClient.cache?.addListener(_cacheChanged);
+    return browser;
+  }
+
+  void _cacheChanged() {
+    final token = _previewCacheToken;
+    if (!mounted || token == null || _browser.httpClient.cache!.isCurrent(token)) return;
+    _previewCacheToken = null;
+    setState(() {
+      _publication = null;
+      _loading = false;
+      _error = 'Catalog data changed. Refresh to load it again.';
+    });
+  }
 
   void _scheduleLoad(OpdsCatalogs catalogs, OpdsCatalog? catalog) {
     final key = '${catalogs.scope}/${catalogs.revision}/${widget.catalogId}/${widget.source}/${widget.publicationId}';
     if (key == _loadKey) return;
     _loadKey = key;
     _browser.clear();
+    _previewCacheToken = null;
     _credentials = null;
     _publication = null;
+    _cachedPreview = false;
     _error = null;
     _loading = catalog != null;
     if (catalog == null) return;
+    _previewCacheToken = _browser.httpClient.cache?.capture(catalog, catalog.uri);
     final initial = widget.initial;
     if (initial != null &&
         initial.scope == catalogs.scope &&
@@ -81,26 +112,34 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
         initial.publication.id == widget.publicationId) {
       _publication = initial.publication;
     }
+    final resolveSource = _publication == null || initial?.cached == true;
+    if (resolveSource) {
+      _publication = _readCachedPublication(catalog) ?? _publication;
+      _cachedPreview = _publication != null;
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted || key != _loadKey) return;
       try {
         final credentials = await catalogs.credentials(catalog.id);
         if (!mounted || key != _loadKey) return;
         _credentials = credentials;
-        if (_publication == null) {
+        if (resolveSource) {
           final source = widget.source;
           if (source == null || !source.hasScheme || widget.publicationId.isEmpty) {
             throw const OpdsException('This book link is incomplete. Return to the catalog and select the book again.');
           }
           await _browser.load(catalog, source, credentials: credentials);
           if (!mounted || key != _loadKey) return;
-          if (_browser.error != null) throw OpdsException(_browser.error!);
-          final feed = _browser.feed!;
+          if (_browser.authorizationFailed || _browser.cacheInvalidated) _publication = null;
+          final feed = _browser.feed;
+          if (feed == null) throw OpdsException(_browser.error ?? 'Could not load this book.');
+          if (_browser.error != null) _error = 'Showing saved content. ${_browser.error}';
           _publication = [
             ...feed.publications,
             for (final group in feed.groups) ...group.publications,
           ].where((book) => book.id == widget.publicationId).firstOrNull;
           if (_publication == null) throw const OpdsException('This book is no longer available in this catalog feed.');
+          setState(() {});
         }
         // Resolve standalone publication metadata using the existing OPDS parser
         // and detail-link classification. Multi-edition feeds remain distinct.
@@ -108,6 +147,10 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
         if (detail != null && detail.uri != widget.source) {
           await _browser.load(catalog, detail.uri, credentials: credentials);
           if (!mounted || key != _loadKey) return;
+          if (_browser.authorizationFailed || _browser.cacheInvalidated) {
+            _publication = null;
+            throw OpdsException(_browser.error!);
+          }
           final books = _browser.feed?.publications ?? <OpdsPublication>[];
           final type = detail.type?.toLowerCase() ?? '';
           final standalone =
@@ -115,6 +158,7 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
           final matching = books.where((book) => book.id == _publication!.id).firstOrNull;
           if (matching != null || (standalone && books.length == 1)) {
             _publication = matching ?? books.single;
+            if (_browser.error != null) _error = 'Showing saved content. ${_browser.error}';
           } else if (_browser.error != null) {
             _error = _browser.error;
           }
@@ -128,20 +172,57 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
     });
   }
 
+  OpdsPublication? _readCachedPublication(OpdsCatalog catalog) {
+    final source = widget.source;
+    if (source == null) return null;
+    final feed = _readCachedFeed(catalog, source);
+    if (feed == null) return null;
+    final publication = [
+      ...feed.publications,
+      for (final group in feed.groups) ...group.publications,
+    ].where((book) => book.id == widget.publicationId).firstOrNull;
+    final detail = publication?.detailLink;
+    if (detail == null || detail.uri == source) return publication;
+    final books = _readCachedFeed(catalog, detail.uri)?.publications ?? <OpdsPublication>[];
+    final type = detail.type?.toLowerCase() ?? '';
+    final standalone =
+        type.startsWith('application/opds-publication+json') || RegExp(r'type\s*=\s*"?entry').hasMatch(type);
+    return books.where((book) => book.id == publication!.id).firstOrNull ??
+        (standalone && books.length == 1 ? books.single : publication);
+  }
+
+  OpdsFeed? _readCachedFeed(OpdsCatalog catalog, Uri source) {
+    final cache = _browser.httpClient.cache;
+    if (cache == null) return null;
+    try {
+      final token = cache.capture(catalog, source);
+      final response = token == null ? null : cache.read(token)?.response;
+      if (response == null) return null;
+      return OpdsParser.parse(response.text, response.uri, contentType: response.headers['content-type']);
+    } catch (_) {
+      return null;
+    }
+  }
+
   void _back() {
     if (context.canPop()) {
       context.pop();
     } else {
-      _navigate(widget.source);
+      _navigate(widget.source, replace: true);
     }
   }
 
-  void _navigate(Uri? uri) => context.go(
-    Uri(
+  void _navigate(Uri? uri, {bool replace = false}) {
+    final location = Uri(
       path: '/library/catalogs/${Uri.encodeComponent(widget.catalogId)}',
       queryParameters: {if (uri != null) 'feed': uri.toString(), if (widget.query.isNotEmpty) 'q': widget.query},
-    ).toString(),
-  );
+    ).toString();
+    if (replace) {
+      context.go(location);
+    } else {
+      context.push(location);
+    }
+  }
 
   Future<void> _download(OpdsCatalog catalog, OpdsPublication publication, OpdsLink link) async {
     if (!mounted) return;
@@ -172,6 +253,7 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
 
   @override
   void dispose() {
+    _browser.httpClient.cache?.removeListener(_cacheChanged);
     _browser.dispose();
     super.dispose();
   }
@@ -188,41 +270,60 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
         builder: (context, constraints) => Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight),
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-                child: Row(
-                  children: [
-                    IconButton(tooltip: 'Back to catalog', onPressed: _back, icon: const Icon(Icons.arrow_back)),
-                    const SizedBox(width: Spacing.sm),
-                    Expanded(
-                      child: Text(
-                        catalog?.name ?? 'Book details',
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+            if (MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall)
+              OpdsMobileHeader(
+                key: const Key('catalog-book-mobile-header'),
+                leading: IconButton(tooltip: 'Back to catalog', onPressed: _back, icon: const BackButtonIcon()),
+                title: catalog?.name ?? 'Book details',
+                actions: [
+                  OpdsDownloadsButton(
+                    compact: true,
+                    downloads: downloads,
+                    onRetry: (job) => unawaited(retryOpdsDownload(context, job)),
+                  ),
+                ],
+              )
+            else ...[
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                  child: Row(
+                    children: [
+                      IconButton(tooltip: 'Back to catalog', onPressed: _back, icon: const Icon(Icons.arrow_back)),
+                      const SizedBox(width: Spacing.sm),
+                      Expanded(
+                        child: Text(
+                          catalog?.name ?? 'Book details',
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
+                        ),
                       ),
-                    ),
-                    OpdsDownloadsButton(
-                      compact: MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall,
-                      downloads: downloads,
-                      onRetry: (job) => unawaited(retryOpdsDownload(context, job)),
-                    ),
-                  ],
+                      OpdsDownloadsButton(
+                        compact: MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall,
+                        downloads: downloads,
+                        onRetry: (job) => unawaited(retryOpdsDownload(context, job)),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-            const Divider(key: Key('catalog-book-header-divider'), height: 1),
+              const Divider(key: Key('catalog-book-header-divider'), height: 1),
+            ],
             Expanded(
               child: Padding(
-                padding: EdgeInsets.all(constraints.maxWidth < Breakpoints.tablet ? Spacing.md : Spacing.lg),
+                padding: _publication != null && constraints.maxWidth < Breakpoints.desktopSmall
+                    ? EdgeInsets.zero
+                    : EdgeInsets.all(constraints.maxWidth < Breakpoints.tablet ? Spacing.md : Spacing.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
                     if (_error != null && _publication != null)
                       Padding(
-                        padding: const EdgeInsets.only(bottom: Spacing.md),
+                        padding: constraints.maxWidth < Breakpoints.desktopSmall
+                            ? const EdgeInsets.all(Spacing.md)
+                            : const EdgeInsets.only(bottom: Spacing.md),
                         child: Wrap(
                           crossAxisAlignment: WrapCrossAlignment.center,
                           spacing: Spacing.sm,
@@ -247,7 +348,7 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
                               credentials: _credentials,
                               downloads: downloads,
                               onNavigate: _navigate,
-                              resolving: _loading,
+                              resolving: _loading && !_cachedPreview,
                               onDownload: (link) => unawaited(_download(catalog, publication!, link)),
                             ),
                     ),

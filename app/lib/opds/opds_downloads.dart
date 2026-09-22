@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
+import 'package:papyrus/opds/opds_library.dart';
 import 'package:papyrus/opds/opds_models.dart';
 import 'package:papyrus/services/book_import_result.dart';
 import 'package:papyrus/services/book_import_session.dart';
@@ -28,14 +29,20 @@ class OpdsDownloadJob {
 }
 
 class OpdsDownloads extends ChangeNotifier {
-  OpdsDownloads({required this.captureImport, OpdsHttpClient? httpClient})
-    : httpClient = httpClient ?? OpdsHttpClient();
+  OpdsDownloads({required this.captureImport, OpdsHttpClient? httpClient, this.library})
+    : httpClient = httpClient ?? OpdsHttpClient() {
+    library?.addListener(_notify);
+  }
+  final OpdsLibrary? library;
   final BookImportSession Function() captureImport;
   final OpdsHttpClient httpClient;
   final Map<String, OpdsDownloadJob> _jobs = {};
   final Map<String, Future<void>> _operations = {};
   bool _disposed = false;
   List<OpdsDownloadJob> get jobs => List.unmodifiable(_jobs.values);
+
+  String? libraryBookId(OpdsCatalog catalog, OpdsPublication publication, {OpdsLink? link}) =>
+      library?.bookId(catalog, publication, link: link);
 
   static bool supports(OpdsLink link) =>
       (kIsWeb ? bookImportWebExtensions : bookImportNativeExtensions).contains(link.supportedExtension);
@@ -48,6 +55,13 @@ class OpdsDownloads extends ChangeNotifier {
     if (_disposed) return Future.value();
     final job = OpdsDownloadJob(key: key, catalog: catalog, publication: publication, link: link);
     _jobs[key] = job;
+    final existing = libraryBookId(catalog, publication, link: link);
+    if (existing != null) {
+      job.bookId = existing;
+      job.status = OpdsDownloadStatus.complete;
+      _notify();
+      return Future.value();
+    }
     final operation = _run(job, credentials);
     _operations[key] = operation;
     operation.whenComplete(() {
@@ -57,6 +71,7 @@ class OpdsDownloads extends ChangeNotifier {
   }
 
   Future<void> _run(OpdsDownloadJob job, OpdsCredentials? credentials) async {
+    final identity = library?.capture(job.catalog, job.publication, job.link);
     BookImportSession? session;
     BookImportResult? imported;
     var committed = false;
@@ -134,6 +149,9 @@ class OpdsDownloads extends ChangeNotifier {
       committed = true;
       job.bookId = book.id;
       job.status = OpdsDownloadStatus.complete;
+      if (identity != null && identical(_jobs[job.key], job) && session.isCurrent()) {
+        await library!.record(identity, book.id);
+      }
     } on OpdsCancelled {
       job.status = OpdsDownloadStatus.cancelled;
     } catch (error) {
@@ -182,6 +200,7 @@ class OpdsDownloads extends ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    library?.removeListener(_notify);
     reset();
     super.dispose();
   }

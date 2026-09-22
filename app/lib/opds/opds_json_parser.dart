@@ -56,6 +56,11 @@ class OpdsJsonParser {
       publisher: _joined(_names(metadata['publisher'])),
       language: _joined(_names(metadata['language'])),
       isbn: opdsIsbn(identifier),
+      published: _text(metadata['published']),
+      subjects: _names(metadata['subject']).toSet().toList(),
+      numberOfPages: metadata['numberOfPages'] is int && (metadata['numberOfPages'] as int) > 0
+          ? metadata['numberOfPages'] as int
+          : null,
       links: links,
       images: _links(json['images'], uri),
     );

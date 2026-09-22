@@ -6,6 +6,7 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/opds/opds_models.dart';
+import 'package:papyrus/opds/opds_resource_cache.dart';
 
 class OpdsException implements Exception {
   const OpdsException(this.message);
@@ -16,6 +17,10 @@ class OpdsException implements Exception {
 
 class OpdsCancelled extends OpdsException {
   const OpdsCancelled() : super('Download cancelled.');
+}
+
+class OpdsAuthorizationException extends OpdsException {
+  const OpdsAuthorizationException(super.message);
 }
 
 class _OpdsRelayBusy extends OpdsException {
@@ -68,11 +73,12 @@ class OpdsResponse {
 
 /// Relays every resource through the backend without Papyrus bearer tokens.
 class OpdsHttpClient {
-  OpdsHttpClient({http.Client Function()? clientFactory, PapyrusApiConfig Function()? apiConfig})
+  OpdsHttpClient({http.Client Function()? clientFactory, PapyrusApiConfig Function()? apiConfig, this.cache})
     : _clientFactory = clientFactory ?? http.Client.new,
       _apiConfig = apiConfig ?? PapyrusApiConfig.fromEnvironment;
   final http.Client Function() _clientFactory;
   final PapyrusApiConfig Function() _apiConfig;
+  final OpdsResourceCache? cache;
   final _waitingRequests = Queue<Completer<void>>();
   int _activeRequests = 0;
 
@@ -194,19 +200,24 @@ class OpdsHttpClient {
           if (response.statusCode == 503 && error['details'] is Map && error['details']['retryable'] == true) {
             return _OpdsRelayBusy(error['message'] as String);
           }
-          return OpdsException(error['message'] as String);
+          return response.statusCode == 401 || response.statusCode == 403
+              ? OpdsAuthorizationException(error['message'] as String)
+              : OpdsException(error['message'] as String);
         }
       }
     } on FormatException {
       // Gateways can return HTML instead of the API error envelope.
     }
-    return OpdsException(switch (response.statusCode) {
+    final message = switch (response.statusCode) {
       401 => 'Check the catalog credentials and the Papyrus server relay configuration.',
       403 => 'The catalog or Papyrus server denied access. Check the catalog settings.',
       404 => 'The catalog resource or server relay was not found. Check the URL and update your Papyrus server.',
       413 => 'This resource is too large to load.',
       429 => 'Too many catalog requests. Please wait and retry.',
       _ => 'The catalog relay returned HTTP ${response.statusCode}. Please retry later.',
-    });
+    };
+    return response.statusCode == 401 || response.statusCode == 403
+        ? OpdsAuthorizationException(message)
+        : OpdsException(message);
   }
 }
