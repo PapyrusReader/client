@@ -3,6 +3,7 @@ import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book_details/book_info_grid.dart';
+import 'package:papyrus/widgets/book_details/book_details_sections.dart';
 import 'package:papyrus/widgets/shelves/move_to_shelf_sheet.dart';
 import 'package:papyrus/widgets/topics/manage_topics_sheet.dart';
 import 'package:papyrus/widgets/topics/topic_detail_sheet.dart';
@@ -36,7 +37,7 @@ class _BookDetailsState extends State<BookDetails> {
 
   Widget _buildDesktopLayout(BuildContext context) {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(Spacing.md),
+      padding: EdgeInsets.zero,
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -106,15 +107,7 @@ class _BookDetailsState extends State<BookDetails> {
   }
 
   Widget _buildSectionTitle(BuildContext context, String title) {
-    final colorScheme = Theme.of(context).colorScheme;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Divider(height: 1, thickness: 1, color: colorScheme.outlineVariant),
-      ],
-    );
+    return BookDetailsSectionTitle(title);
   }
 
   Widget _buildDescription(BuildContext context, {bool showFull = false}) {

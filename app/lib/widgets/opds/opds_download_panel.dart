@@ -99,7 +99,7 @@ class _DownloadsList extends StatelessWidget {
           builder: (context, constraints) {
             if (!job.isCancellable && job.isActive) return info;
             final actions = _actions(context, job);
-            if (job.isCancellable || constraints.maxWidth >= 400 * MediaQuery.textScalerOf(context).scale(1)) {
+            if (job.isCancellable || constraints.maxWidth >= 300 * MediaQuery.textScalerOf(context).scale(1)) {
               return Row(
                 children: [
                   Expanded(child: info),
@@ -113,7 +113,7 @@ class _DownloadsList extends StatelessWidget {
               children: [
                 info,
                 const SizedBox(height: Spacing.sm),
-                actions,
+                Align(alignment: AlignmentDirectional.centerEnd, child: actions),
               ],
             );
           },
@@ -127,6 +127,7 @@ class _DownloadsList extends StatelessWidget {
   }
 
   Widget _actions(BuildContext context, OpdsDownloadJob job) => Wrap(
+    alignment: WrapAlignment.end,
     crossAxisAlignment: WrapCrossAlignment.center,
     spacing: Spacing.xs,
     children: [
@@ -139,6 +140,7 @@ class _DownloadsList extends StatelessWidget {
       if (!job.isActive) ...[
         if (job.status == OpdsDownloadStatus.complete)
           TextButton(
+            style: TextButton.styleFrom(textStyle: Theme.of(context).textTheme.labelLarge),
             onPressed: job.bookId == null
                 ? null
                 : () {
@@ -149,7 +151,11 @@ class _DownloadsList extends StatelessWidget {
             child: const Text('Open book'),
           )
         else
-          TextButton(onPressed: () => onRetry(job), child: const Text('Retry')),
+          TextButton(
+            style: TextButton.styleFrom(textStyle: Theme.of(context).textTheme.labelLarge),
+            onPressed: () => onRetry(job),
+            child: const Text('Retry'),
+          ),
         IconButton(
           tooltip: 'Dismiss download',
           onPressed: () => downloads.dismiss(job.key),

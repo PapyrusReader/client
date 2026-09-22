@@ -8,6 +8,24 @@ import '../../helpers/test_helpers.dart';
 
 void main() {
   group('BookActionButtons', () {
+    testWidgets('physical book actions wrap without clipping at enlarged text sizes', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: MediaQuery(
+              data: const MediaQueryData(textScaler: TextScaler.linear(2)),
+              child: SizedBox(
+                width: 288,
+                child: BookActionButtons(book: buildTestBook(isPhysical: true), onUpdateProgress: () {}),
+              ),
+            ),
+          ),
+        ),
+      );
+      expect(find.text('Update progress'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
     Widget buildWidget({
       Book? book,
       VoidCallback? onContinueReading,

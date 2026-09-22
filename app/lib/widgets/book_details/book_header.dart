@@ -79,24 +79,11 @@ class BookHeader extends StatelessWidget {
               // Author
               Text(
                 book.allAuthors,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.onSurface),
+                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: Spacing.md),
 
-              // Meta row: rating, format, topics
-              _buildMetaRow(context, colorScheme),
-              const SizedBox(height: Spacing.lg),
-
-              // Progress bar
-              if (book.progress > 0 || book.isPhysical) ...[
-                BookProgressBar(
-                  progress: book.progress,
-                  currentPage: book.currentPage,
-                  totalPages: book.totalPages,
-                  onTap: book.isPhysical ? onUpdateProgress : null,
-                ),
-                const SizedBox(height: Spacing.lg),
-              ],
+              if (book.topics.isNotEmpty) ...[_buildTopics(context), const SizedBox(height: Spacing.lg)],
 
               // Action buttons
               BookActionButtons(
@@ -112,6 +99,7 @@ class BookHeader extends StatelessWidget {
                 const SizedBox(height: Spacing.sm),
                 _ReadingError(message: error, onRetry: onRetryReading),
               ],
+              if (book.progress > 0 || book.isPhysical) ...[const SizedBox(height: Spacing.md), _buildProgressBar()],
             ],
           ),
         ),
@@ -159,26 +147,10 @@ class BookHeader extends StatelessWidget {
           // Author (centered)
           Text(
             book.allAuthors,
-            style: Theme.of(context).textTheme.titleSmall?.copyWith(color: colorScheme.onSurface),
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: Spacing.md),
-
-          // Meta row: rating, format, pages
-          _buildMobileMetaRow(context, colorScheme),
-          const SizedBox(height: Spacing.md),
-
-          // Progress bar
-          if (book.progress > 0 || book.isPhysical) ...[
-            BookProgressBar(
-              progress: book.progress,
-              currentPage: book.currentPage,
-              totalPages: book.totalPages,
-              height: 4,
-              onTap: book.isPhysical ? onUpdateProgress : null,
-            ),
-            const SizedBox(height: Spacing.md),
-          ],
 
           // Action buttons
           BookActionButtons(
@@ -194,30 +166,29 @@ class BookHeader extends StatelessWidget {
             const SizedBox(height: Spacing.sm),
             _ReadingError(message: error, onRetry: onRetryReading),
           ],
+          if (book.progress > 0 || book.isPhysical) ...[const SizedBox(height: Spacing.md), _buildProgressBar()],
           const SizedBox(height: Spacing.md),
         ],
       ),
     );
   }
 
-  Widget _buildMetaRow(BuildContext context, ColorScheme colorScheme) {
+  Widget _buildProgressBar() => ConstrainedBox(
+    constraints: const BoxConstraints(maxWidth: 320),
+    child: BookProgressBar(
+      progress: book.progress,
+      currentPage: book.currentPage,
+      totalPages: book.totalPages,
+      onTap: book.isPhysical ? onUpdateProgress : null,
+    ),
+  );
+
+  Widget _buildTopics(BuildContext context) {
     return Wrap(
       spacing: Spacing.sm,
       runSpacing: Spacing.xs,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        // Format badge
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
-          decoration: BoxDecoration(
-            color: colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(AppRadius.sm),
-          ),
-          child: Text(
-            book.formatLabel,
-            style: Theme.of(context).textTheme.labelSmall?.copyWith(fontWeight: FontWeight.w600),
-          ),
-        ),
         // Topics (first 2)
         ...book.topics
             .take(2)
@@ -234,19 +205,6 @@ class BookHeader extends StatelessWidget {
                 ),
               ),
             ),
-      ],
-    );
-  }
-
-  Widget _buildMobileMetaRow(BuildContext context, ColorScheme colorScheme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        Text(book.formatLabel, style: Theme.of(context).textTheme.bodyMedium),
-        if (book.totalPages != null) ...[
-          Text('  •  ', style: TextStyle(color: colorScheme.onSurfaceVariant)),
-          Text('${book.totalPages} pages', style: Theme.of(context).textTheme.bodyMedium),
-        ],
       ],
     );
   }

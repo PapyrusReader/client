@@ -6,7 +6,7 @@ Papyrus browses OPDS 1.2 (Atom/XML) and OPDS 2.0 (JSON) catalogs through its bac
 
 1. Open **Library → Catalogs**. On a narrow screen, open **Library sections** first.
 2. Select **Add catalog** and enter a name and the catalog's HTTP or HTTPS URL. Enter a username and password if the catalog uses HTTP Basic authentication.
-3. Open the catalog, browse its sections or use keyword search, and select a publication to open its book details page. Switch between cover grids and lists using the view control. Details preserve description paragraphs and can be refreshed or opened directly from their URL. Going back restores your feed position and view mode.
+3. Open the catalog, browse its sections or use keyword search, and select a publication to open its book details page. Switch between cover grids and lists using the view control. Details preserve description paragraphs and can be refreshed or opened directly from their URL. Back returns through each visited feed, edition selection and details page, preserving search, scroll position and view mode. A shared subsection with no prior visit returns to its catalog's root, then to all catalogs. Browser URLs continue to identify the visible feed or publication.
 4. Select **Add to library** to open the download-options sheet, then choose a supported format. The **Downloads** control in the page header opens progress, cancellation, retry, and completed transfers. Downloads continue when you close a sheet or navigate elsewhere in Papyrus. Use **Open book** after the import finishes.
 
 Catalog creation, settings, removal confirmation, download options, and transfer activity use bottom sheets on all screen sizes. Forms keep their actions above the keyboard; catalog and book lists use the library's page alignment and theme.
@@ -17,6 +17,16 @@ Catalog settings stay on this device, separately for each server/account and for
 
 Imported books use the existing local file storage, metadata persistence, cover handling, and media-upload queue. Embedded book metadata takes precedence; catalog metadata fills missing values. Signed-in libraries retain their existing synchronization behavior. Switching accounts invalidates in-flight OPDS work before it can import into the newly selected library.
 
+## Previously imported books and saved catalog content
+
+After a successful import, publications show **In library** and their details offer **Open book**, including after restarting Papyrus. **Download options** remains available for other formats. Recognition uses the saved catalog, source URL, exact publication identifier and acquisition URL; matching titles or ISBNs never combine editions. Samples do not mark the full publication as imported. Removing a book from the active library makes it downloadable again.
+
+Recognition is local to this device and library account, including the guest library. Older imports and manually added books have no OPDS provenance and are not matched automatically. Renaming a catalog preserves recognition; removing it, changing its source URL, or replacing/removing its credentials clears that catalog's recognition without deleting any books.
+
+Previously visited feeds appear immediately and refresh through the relay in the background. If refreshing fails, Papyrus keeps saved content visible with a retry notice. Previously cached publication details can also open from their URLs offline. Cached cover images are reused for up to one day before refreshing. Offline browsing covers saved pages only; new searches/pages and book downloads still need a connection, though saved search descriptions can resolve previously visited search URLs.
+
+The response cache is shared across scopes with a total serialized limit of 2 MiB, 64 entries, and 512 KiB per entry. Least recently used entries are evicted; larger responses still load online but are not saved. The cache retains response bytes, final URLs, timestamps and content types, never authorization headers or passwords. It does not cache book files. Account switching hides other accounts' content; source/credential edits, removal and authorization failures invalidate affected cached content and outstanding requests. Corruption or unavailable browser storage does not block browsing or importing.
+
 ## Compatibility and troubleshooting
 
 - Feeds, search descriptions, covers, and book files all pass through the selected Papyrus backend. Catalogs do not need browser CORS support. The app must be able to reach its backend, whose `CORS_ORIGINS` must allow the web app. Use an HTTPS backend when hosting the web app over HTTPS.
@@ -24,7 +34,7 @@ Imported books use the existing local file storage, metadata persistence, cover 
 - The relay only permits public network destinations. Loopback, private LAN, link-local, and metadata-service addresses are rejected, including after redirects. Administrators can further restrict catalog hosts. Private LAN catalogs are not supported by this relay.
 - Browsing includes groups, facets, pagination, complete publication entries, and advertised keyword search. OPDS 1.2 uses OpenSearch descriptions; OPDS 2.0 uses URI templates.
 - Purchases, loans, subscriptions, DRM, indirect acquisition, and OAuth are displayed as unsupported acquisition methods. Papyrus does not follow those links as book downloads.
-- This version does not sync catalog settings, cache catalogs for offline browsing, or resume downloads after the app closes.
+- Catalog settings, import recognition and cached catalog content do not sync between devices. Downloads do not resume after the app closes.
 - Feed, search-description, and image responses are limited to 8 MiB; book downloads to 256 MiB. DNS and opening a response each have a 30-second limit, stalled reads time out after 30 seconds, and each upstream request has a five-minute total deadline. These limits protect the current in-memory import pipeline.
 - The client queues excess requests and briefly retries temporary relay-capacity errors. Authentication errors offer guidance to edit catalog credentials. Other failures remain in the download panel with Retry; no manual save-and-import step is required.
 
@@ -35,6 +45,10 @@ The official backend comes from `PAPYRUS_API_BASE_URL` (default `http://localhos
 The relay is enabled by default. Operators can disable it with `OPDS_RELAY_ENABLED=false` or restrict destinations using `OPDS_RELAY_ALLOWED_HOSTS`, a JSON list of exact hostnames. All redirect and image/CDN hosts must also be permitted. An empty list allows public hosts. Guest imports stay local; relaying does not create an account or upload the guest library.
 
 ## Implementation
+
+Catalog book details share the library's section headings, description typography and metadata rows. Description and Information use two columns when space permits, and stack on mobile; subjects are read-only chips. The parser retains available publication dates, page counts, rights and subjects. Atom entry timestamps are not treated as publication dates.
+
+For catalogs hosted on `gutenberg.org` or its subdomains, a presentation adapter recognizes Gutenberg's labeled description paragraphs. Summary, edition prose, credits, notes and unfamiliar paragraphs appear in Description. Metadata, including reading level and classification, appears in Information; conflicting values remain visible in the corresponding row. Subject chips exclude classification and category labels already shown in Information. All content is visible without expanding a section. The original description remains unchanged in the publication model. Other catalogs retain their supplied descriptions without this extraction.
 
 The `lib/opds` module separates normalized models, XML/JSON parsing, search expansion, scoped persistence, HTTP transport, browsing state, and application-scoped downloads. `BookImportSession` captures the existing import destination and supplies the shared `BookImportCommitService` composition used by OPDS and file-import widgets.
 

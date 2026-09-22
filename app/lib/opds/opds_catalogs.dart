@@ -3,10 +3,14 @@ import 'package:papyrus/opds/opds_browser.dart';
 import 'package:papyrus/opds/opds_catalog_store.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
+import 'package:papyrus/opds/opds_library.dart';
+import 'package:papyrus/opds/opds_resource_cache.dart';
 
 class OpdsCatalogs extends ChangeNotifier {
-  OpdsCatalogs(this.store);
+  OpdsCatalogs(this.store, {this.library, this.cache});
   final OpdsCatalogStore store;
+  final OpdsLibrary? library;
+  final OpdsResourceCache? cache;
   String? _scope;
   String? get scope => _scope;
   int revision = 0;
@@ -23,6 +27,8 @@ class OpdsCatalogs extends ChangeNotifier {
   void setScope(String? scope) {
     if (_scope == scope) return;
     _scope = scope;
+    library?.setScope(scope);
+    cache?.setScope(scope);
     reload();
   }
 
@@ -52,14 +58,24 @@ class OpdsCatalogs extends ChangeNotifier {
   Future<void> save(OpdsCatalog catalog, {OpdsCredentials? credentials, bool clearCredentials = false}) async {
     final scope = _scope;
     if (scope == null) throw const OpdsException('Wait for the library account to finish loading.');
+    final previous = find(catalog.id);
     await store.save(scope, catalog, credentials: credentials, clearCredentials: clearCredentials);
+    if (previous != null && (previous.uri != catalog.uri || credentials != null || clearCredentials)) {
+      await cache?.invalidateCatalog(previous, scope: scope);
+      await library?.forgetCatalog(previous.id, scope: scope);
+    }
     if (_scope == scope && !_disposed) reload();
   }
 
   Future<void> remove(String id) async {
     final scope = _scope;
     if (scope == null) return;
+    final catalog = find(id);
     await store.remove(scope, id);
+    if (catalog != null) {
+      await cache?.invalidateCatalog(catalog, scope: scope);
+      await library?.forgetCatalog(id, scope: scope);
+    }
     if (_scope == scope && !_disposed) reload();
   }
 

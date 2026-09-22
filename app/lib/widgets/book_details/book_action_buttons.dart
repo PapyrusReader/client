@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/book_details/book_details_action_style.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
 enum BookReadingActionState { ready, download, checking, syncing, failed, downloading, unavailable }
@@ -30,7 +31,8 @@ class BookActionButtons extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final buttonHeight = isDesktop ? ComponentSizes.buttonHeightDesktop : ComponentSizes.buttonHeightMobile;
+    final actionStyle = bookDetailsActionStyle(context);
+    final iconStyle = bookDetailsActionStyle(context, iconOnly: true);
     final normalReadingLabel = book.progress > 0
         ? 'Continue'
         : isDesktop
@@ -59,76 +61,37 @@ class BookActionButtons extends StatelessWidget {
       BookReadingActionState.unavailable => const Icon(Icons.file_download_off_outlined),
     };
 
-    return Row(
-      mainAxisSize: isDesktop ? MainAxisSize.min : MainAxisSize.max,
+    return Wrap(
+      spacing: Spacing.sm,
+      runSpacing: Spacing.sm,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
-        // Primary action button
-        if (isDesktop)
-          SizedBox(
-            width: 180,
-            height: buttonHeight,
-            child: book.isPhysical
-                ? FilledButton.icon(
-                    onPressed: onUpdateProgress,
-                    icon: const Icon(Icons.edit_note),
-                    label: const Text('Update progress'),
-                  )
-                : FilledButton.icon(
-                    onPressed: canUseDigitalAction ? onContinueReading : null,
-                    icon: digitalIcon,
-                    label: Text(digitalLabel),
-                  ),
+        if (book.isPhysical)
+          FilledButton.icon(
+            style: actionStyle,
+            onPressed: onUpdateProgress,
+            icon: const Icon(Icons.edit_note),
+            label: const Text('Update progress'),
           )
         else
-          Expanded(
-            flex: 2,
-            child: SizedBox(
-              height: buttonHeight,
-              child: book.isPhysical
-                  ? FilledButton.icon(
-                      onPressed: onUpdateProgress,
-                      icon: const Icon(Icons.edit_note),
-                      label: const Text('Update progress'),
-                    )
-                  : FilledButton.icon(
-                      onPressed: canUseDigitalAction ? onContinueReading : null,
-                      icon: digitalIcon,
-                      label: Text(digitalLabel),
-                    ),
-            ),
+          FilledButton.icon(
+            style: actionStyle,
+            onPressed: canUseDigitalAction ? onContinueReading : null,
+            icon: digitalIcon,
+            label: Text(digitalLabel),
           ),
-        const SizedBox(width: Spacing.sm),
-
-        // Favorite toggle button
-        SizedBox(
-          width: buttonHeight,
-          height: buttonHeight,
-          child: OutlinedButton(
-            onPressed: onToggleFavorite,
-            style: OutlinedButton.styleFrom(
-              padding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
-            ),
-            child: Icon(
-              book.isFavorite ? Icons.favorite : Icons.favorite_border,
-              color: book.isFavorite ? colorScheme.error : colorScheme.primary,
-            ),
+        OutlinedButton(
+          onPressed: onToggleFavorite,
+          style: iconStyle,
+          child: Icon(
+            book.isFavorite ? Icons.favorite : Icons.favorite_border,
+            color: book.isFavorite ? colorScheme.error : colorScheme.primary,
           ),
         ),
-        const SizedBox(width: Spacing.sm),
-
-        // Edit button (icon only)
-        SizedBox(
-          width: buttonHeight,
-          height: buttonHeight,
-          child: OutlinedButton(
-            onPressed: onEdit,
-            style: OutlinedButton.styleFrom(
-              padding: EdgeInsets.zero,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.button)),
-            ),
-            child: Icon(Icons.edit_outlined, color: colorScheme.primary),
-          ),
+        OutlinedButton(
+          onPressed: onEdit,
+          style: iconStyle,
+          child: Icon(Icons.edit_outlined, color: colorScheme.primary),
         ),
       ],
     );

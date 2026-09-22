@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
-import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/book_details/book_details_sections.dart';
 
 /// Information grid for book metadata.
 /// Displays key-value pairs like Publisher, ISBN, Format, etc.
@@ -13,30 +13,8 @@ class BookInfoGrid extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final entries = _buildEntries();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: entries.map((entry) {
-        return Padding(
-          padding: const EdgeInsets.only(bottom: Spacing.sm),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox(
-                width: 100,
-                child: Text(
-                  entry.label,
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                ),
-              ),
-              Expanded(child: Text(entry.value, style: Theme.of(context).textTheme.bodyMedium)),
-            ],
-          ),
-        );
-      }).toList(),
-    );
+    return BookMetadataRows(entries: entries.map((entry) => (entry.label, entry.value)).toList());
   }
 
   List<_InfoEntry> _buildEntries() {

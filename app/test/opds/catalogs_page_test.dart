@@ -10,11 +10,13 @@ import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/opds/opds_downloads.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
+import 'package:papyrus/opds/opds_resource_cache.dart';
 import 'package:papyrus/pages/catalogs_page.dart';
 import 'package:papyrus/pages/catalog_book_page.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/opds/catalog_source_tile.dart';
+import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -59,7 +61,11 @@ class _CatalogPageHarness {
     WidgetTester tester,
     FutureOr<http.Response> Function(Uri uri) respond, {
     String initialLocation = '/library/catalogs/one',
+    Future<void> Function(OpdsResourceCache cache, OpdsCatalog catalog)? prepareCache,
   }) async {
+    final previousUrlReflection = GoRouter.optionURLReflectsImperativeAPIs;
+    GoRouter.optionURLReflectsImperativeAPIs = true;
+    addTearDown(() => GoRouter.optionURLReflectsImperativeAPIs = previousUrlReflection);
     tester.view.physicalSize = const Size(1100, 1000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -70,9 +76,12 @@ class _CatalogPageHarness {
       'local--guest',
       OpdsCatalog(id: 'one', name: 'My catalog', uri: Uri.parse('https://books.test/feed')),
     );
-    final catalogs = OpdsCatalogs(store)..setScope('local--guest');
+    final cache = prepareCache == null ? null : OpdsResourceCache(await SharedPreferences.getInstance());
+    final catalogs = OpdsCatalogs(store, cache: cache)..setScope('local--guest');
+    if (cache != null) await prepareCache!(cache, catalogs.find('one')!);
     final harness = _CatalogPageHarness(store, catalogs);
     final gateway = OpdsHttpClient(
+      cache: cache,
       clientFactory: () => MockRelayClient((request) async {
         harness.requests.add(request.url);
         return respond(request.url);
@@ -160,6 +169,341 @@ Map<String, dynamic> _book() => {
 };
 
 void main() {
+  testWidgets('back arrows retrace catalog, editions, and publication pages without skipping', (tester) async {
+    final harness = await _CatalogPageHarness.mount(
+      tester,
+      (uri) => uri.path == '/editions'
+          ? _feedResponse('Available editions', publications: [_book()])
+          : _feedResponse(
+              'Gutenberg books',
+              navigation: [
+                {'title': 'Choose an edition', 'href': '/editions'},
+              ],
+            ),
+      initialLocation: '/library/catalogs',
+    );
+    await tester.tap(find.text('My catalog'));
+    await _settleNetwork(tester);
+    await tester.tap(find.text('Choose an edition'));
+    await _settleNetwork(tester);
+    expect(find.text('Available editions'), findsOneWidget);
+    await tester.tap(find.text('A book'));
+    await _settleNetwork(tester);
+    expect(find.text('Description'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await _settleNetwork(tester);
+    expect(find.text('Available editions'), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await _settleNetwork(tester);
+    expect(find.text('Gutenberg books'), findsOneWidget);
+    expect(find.byTooltip('Catalog options'), findsNothing);
+    await tester.tap(find.byIcon(Icons.arrow_back));
+    await _settleNetwork(tester);
+    expect(harness.router.routeInformationProvider.value.uri.path, '/library/catalogs');
+    expect(find.byTooltip('Catalog options'), findsOneWidget);
+  });
+
+  testWidgets('subsection back restores scroll and list mode without reloading the parent', (tester) async {
+    final harness = await _CatalogPageHarness.mount(
+      tester,
+      (uri) => uri.path == '/editions'
+          ? _feedResponse('Available editions', publications: [_book()])
+          : _feedResponse(
+              'Gutenberg books',
+              publications: [_book()],
+              navigation: List.generate(30, (index) => {'title': 'Edition group $index', 'href': '/editions'}),
+            ),
+    );
+    await tester.tap(find.byTooltip('List view'));
+    await _settleNetwork(tester);
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -450));
+    await tester.pumpAndSettle();
+    final group = find.text('Edition group 10');
+    await tester.ensureVisible(group);
+    await tester.pumpAndSettle();
+    final scroll = tester.widget<CustomScrollView>(find.byType(CustomScrollView)).controller!;
+    final offset = scroll.offset;
+    expect(offset, greaterThan(0));
+    await tester.tap(group);
+    await _settleNetwork(tester);
+    expect(find.text('Available editions'), findsOneWidget);
+    final requests = harness.requests.length;
+    // System Back uses the same route stack as the header arrow.
+    await tester.binding.handlePopRoute();
+    await _settleNetwork(tester);
+    expect(find.text('Gutenberg books'), findsOneWidget);
+    expect(find.byTooltip('Grid view'), findsOneWidget);
+    expect(scroll.offset, offset);
+    expect(harness.requests.length, requests);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a shared subsection falls back to its catalog before all catalogs', (tester) async {
+    final harness = await _CatalogPageHarness.mount(
+      tester,
+      (uri) => _feedResponse(uri.path == '/editions' ? 'Available editions' : 'Gutenberg books'),
+      initialLocation: Uri(
+        path: '/library/catalogs/one',
+        queryParameters: {'feed': 'https://books.test/editions', 'q': 'Austen'},
+      ).toString(),
+    );
+    expect(find.text('Available editions'), findsOneWidget);
+    await tester.tap(find.byTooltip('Back'));
+    await _settleNetwork(tester);
+    expect(find.text('Gutenberg books'), findsOneWidget);
+    expect(harness.router.routeInformationProvider.value.uri.queryParameters, isEmpty);
+    await tester.tap(find.byTooltip('Back'));
+    await _settleNetwork(tester);
+    expect(find.byTooltip('Catalog options'), findsOneWidget);
+  });
+
+  testWidgets('web route restoration preserves search and one-step header back', (tester) async {
+    const query = 'tea & coffee/ž';
+    final harness = await _CatalogPageHarness.mount(
+      tester,
+      (uri) => uri.path == '/search'
+          ? _feedResponse(
+              'Search results',
+              navigation: [
+                {'title': 'Editions', 'href': '/editions'},
+              ],
+            )
+          : uri.path == '/editions'
+          ? _feedResponse('Available editions', publications: [_book()])
+          : _feedResponse(
+              'Gutenberg books',
+              links: [
+                {'rel': 'search', 'href': 'https://books.test/search{?query}', 'templated': true},
+              ],
+            ),
+    );
+    await tester.enterText(find.byType(TextField), query);
+    await tester.tap(find.byTooltip('Search catalog'));
+    await _settleNetwork(tester);
+    final parser = harness.router.routeInformationParser;
+    final searchHistory = parser.restoreRouteInformation(harness.router.routerDelegate.currentConfiguration)!;
+    expect(searchHistory.uri.queryParameters['q'], query);
+    expect(Uri.parse(searchHistory.uri.queryParameters['feed']!).path, '/search');
+    await tester.tap(find.text('Editions'));
+    await _settleNetwork(tester);
+    final editionsHistory = parser.restoreRouteInformation(harness.router.routerDelegate.currentConfiguration)!;
+    expect(Uri.parse(editionsHistory.uri.queryParameters['feed']!).path, '/editions');
+    // A browser Back/Forward event includes the router's serialized history state.
+    await harness.router.routeInformationProvider.didPushRouteInformation(searchHistory);
+    await _settleNetwork(tester);
+    expect(find.text('Search results'), findsOneWidget);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, query);
+    await harness.router.routeInformationProvider.didPushRouteInformation(editionsHistory);
+    await _settleNetwork(tester);
+    expect(find.text('Available editions'), findsOneWidget);
+    await tester.tap(find.byTooltip('Back'));
+    await _settleNetwork(tester);
+    expect(find.text('Search results'), findsOneWidget);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, query);
+    await tester.tap(find.byTooltip('Back'));
+    await _settleNetwork(tester);
+    expect(find.text('Gutenberg books'), findsOneWidget);
+  });
+
+  Future<void> seedCache(OpdsResourceCache cache, OpdsCatalog catalog) async {
+    final response = _feedResponse('Saved books', publications: [_book()]);
+    await cache.write(
+      cache.capture(catalog, catalog.uri)!,
+      OpdsResponse(uri: catalog.uri, bytes: response.bodyBytes, headers: response.headers),
+    );
+  }
+
+  testWidgets('saved feed appears during refresh and stays usable after network failure', (tester) async {
+    final response = Completer<http.Response>();
+    await _CatalogPageHarness.mount(tester, (_) => response.future, prepareCache: seedCache);
+    expect(find.text('Saved books'), findsOneWidget);
+    expect(find.text('A book'), findsOneWidget);
+    response.completeError(http.ClientException('Offline'));
+    await _settleNetwork(tester);
+    expect(find.text('A book'), findsOneWidget);
+    expect(find.text('Showing saved content. Could not refresh this catalog.'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+    expect(find.text('Could not open this catalog'), findsNothing);
+  });
+
+  for (final width in [424.0, 1100.0]) {
+    for (final listView in [false, true]) {
+      testWidgets('refresh keeps ${listView ? 'list' : 'grid'} content in place at $width', (tester) async {
+        final initial = Completer<http.Response>();
+        final refreshed = Completer<http.Response>();
+        var requests = 0;
+        await _CatalogPageHarness.mount(
+          tester,
+          (_) => ++requests == 1 ? initial.future : refreshed.future,
+          prepareCache: seedCache,
+        );
+        tester.view.physicalSize = Size(width, 1000);
+        await tester.pumpAndSettle();
+        if (listView) {
+          await tester.tap(find.byIcon(Icons.view_list));
+          await tester.pumpAndSettle();
+        }
+        final bookPosition = tester.getTopLeft(find.text('A book'));
+        final contentPosition = tester.getTopLeft(find.byType(CustomScrollView));
+        initial.complete(_feedResponse('Saved books', publications: [_book()]));
+        await _settleNetwork(tester);
+        expect(tester.getTopLeft(find.text('A book')), bookPosition);
+        expect(tester.getTopLeft(find.byType(CustomScrollView)), contentPosition);
+        final refresh = find.byKey(const Key('opds-refresh'));
+        expect(contentPosition.dy - tester.getBottomLeft(refresh).dy, 8);
+        await tester.tap(refresh);
+        await _settleNetwork(tester);
+        expect(requests, 2);
+        expect(tester.getTopLeft(find.text('A book')), bookPosition);
+        expect(tester.getTopLeft(find.byType(CustomScrollView)), contentPosition);
+        expect(find.byType(AppLinearProgressIndicator), findsNothing);
+        expect(find.descendant(of: refresh, matching: find.byType(AppCircularProgressIndicator)), findsOneWidget);
+        expect(tester.widget<IconButton>(refresh).onPressed, isNull);
+        refreshed.complete(_feedResponse('Saved books', publications: [_book()]));
+        await _settleNetwork(tester);
+        expect(tester.getTopLeft(find.text('A book')), bookPosition);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
+  testWidgets('details deep link renders cached publication before refresh and survives offline', (tester) async {
+    final response = Completer<http.Response>();
+    await _CatalogPageHarness.mount(
+      tester,
+      (_) => response.future,
+      prepareCache: seedCache,
+      initialLocation: Uri(
+        path: '/library/catalogs/one/book',
+        queryParameters: {'feed': 'https://books.test/feed', 'publication': 'book-one'},
+      ).toString(),
+    );
+    expect(find.text('A book'), findsOneWidget);
+    expect(find.text('Description'), findsOneWidget);
+    response.completeError(http.ClientException('Offline'));
+    await _settleNetwork(tester);
+    expect(find.text('A book'), findsOneWidget);
+    expect(find.textContaining('Showing saved content.'), findsOneWidget);
+    expect(find.text('Book unavailable'), findsNothing);
+  });
+
+  testWidgets('authorization rejection removes cached details', (tester) async {
+    final response = Completer<http.Response>();
+    await _CatalogPageHarness.mount(
+      tester,
+      (_) => response.future,
+      prepareCache: seedCache,
+      initialLocation: Uri(
+        path: '/library/catalogs/one/book',
+        queryParameters: {'feed': 'https://books.test/feed', 'publication': 'book-one'},
+      ).toString(),
+    );
+    expect(find.text('A book'), findsOneWidget);
+    response.complete(http.Response('Unauthorized', 401));
+    await _settleNetwork(tester);
+    expect(find.text('A book'), findsNothing);
+    expect(find.text('Book unavailable'), findsOneWidget);
+  });
+
+  testWidgets('cached standalone metadata appears before the source refresh completes', (tester) async {
+    final response = Completer<http.Response>();
+    final detailUri = Uri.parse('https://books.test/detail');
+    await _CatalogPageHarness.mount(
+      tester,
+      (_) => response.future,
+      prepareCache: (cache, catalog) async {
+        final source = _feedResponse(
+          'Saved books',
+          publications: [
+            {
+              ..._book(),
+              'links': [
+                {'rel': 'alternate', 'href': '/detail', 'type': 'application/opds-publication+json'},
+              ],
+            },
+          ],
+        );
+        await cache.write(
+          cache.capture(catalog, catalog.uri)!,
+          OpdsResponse(uri: catalog.uri, bytes: source.bodyBytes, headers: source.headers),
+        );
+        await cache.write(
+          cache.capture(catalog, detailUri)!,
+          OpdsResponse(
+            uri: detailUri,
+            bytes: http.Response(
+              jsonEncode({
+                ..._book(),
+                'metadata': {'identifier': 'book-one', 'title': 'Complete title', 'description': 'Cached description'},
+              }),
+              200,
+            ).bodyBytes,
+            headers: {'content-type': 'application/opds-publication+json'},
+          ),
+        );
+      },
+      initialLocation: Uri(
+        path: '/library/catalogs/one/book',
+        queryParameters: {'feed': 'https://books.test/feed', 'publication': 'book-one'},
+      ).toString(),
+    );
+    expect(find.text('Complete title'), findsOneWidget);
+    expect(find.text('Cached description'), findsOneWidget);
+    response.completeError(http.ClientException('Offline'));
+    await _settleNetwork(tester);
+    expect(find.text('Complete title'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('details authorization failure clears the retained parent feed on back', (tester) async {
+    await _CatalogPageHarness.mount(
+      tester,
+      (uri) => uri.path == '/detail'
+          ? http.Response('Unauthorized', 401)
+          : _feedResponse(
+              'Protected books',
+              publications: [
+                {
+                  ..._book(),
+                  'links': [
+                    {'rel': 'alternate', 'href': '/detail', 'type': 'application/opds-publication+json'},
+                  ],
+                },
+              ],
+            ),
+      prepareCache: (_, _) async {},
+    );
+    await tester.tap(find.text('A book'));
+    await _settleNetwork(tester);
+    expect(find.text('Book unavailable'), findsOneWidget);
+    await tester.tap(find.byTooltip('Back to catalog'));
+    await _settleNetwork(tester);
+    expect(find.text('A book'), findsNothing);
+    expect(find.text('Could not open this catalog'), findsOneWidget);
+    expect(find.text('Retry'), findsOneWidget);
+  });
+
+  testWidgets('late parent authorization failure clears already-resolved book details', (tester) async {
+    final parentResponse = Completer<http.Response>();
+    var requests = 0;
+    await _CatalogPageHarness.mount(
+      tester,
+      (_) => ++requests == 1 ? parentResponse.future : _feedResponse('Books', publications: [_book()]),
+      prepareCache: seedCache,
+      initialLocation: Uri(
+        path: '/library/catalogs/one/book',
+        queryParameters: {'feed': 'https://books.test/feed', 'publication': 'book-one'},
+      ).toString(),
+    );
+    expect(find.text('A book'), findsOneWidget);
+    expect(find.text('Add to library'), findsOneWidget);
+    parentResponse.complete(http.Response('Unauthorized', 401));
+    await _settleNetwork(tester);
+    expect(find.text('A book'), findsNothing);
+    expect(find.text('Add to library'), findsNothing);
+    expect(find.text('Book unavailable'), findsOneWidget);
+  });
+
   testWidgets('catalog heading waits for the actual feed title', (tester) async {
     final response = Completer<http.Response>();
     await _CatalogPageHarness.mount(tester, (_) => response.future);
@@ -247,7 +591,7 @@ void main() {
       await tester.pump();
       expect(requests, 2);
       expect(tester.getTopLeft(find.text('All books')), headingPosition);
-      expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.refresh)).onPressed, isNull);
+      expect(tester.widget<IconButton>(find.byKey(const Key('opds-refresh'))).onPressed, isNull);
       refreshed.complete(http.Response('Unavailable', 503));
       await _settleNetwork(tester);
       expect(find.text('Could not open this catalog'), findsOneWidget);
@@ -385,10 +729,12 @@ void main() {
     expect(downloads.top, lessThan(heading.bottom));
     expect(find.byTooltip('Catalog home'), findsNothing);
     expect(find.text('books.test'), findsNothing);
-    final divider = tester.getRect(find.byKey(const Key('catalog-header-divider')));
-    expect(divider.left, 0);
-    expect(divider.width, 424);
-    expect(divider.top, greaterThan(heading.bottom));
+    final header = tester.getRect(find.byKey(const Key('catalog-mobile-header')));
+    expect(header.left, 0);
+    expect(header.width, 424);
+    expect(header.height, kToolbarHeight);
+    expect(heading.left, 72);
+    expect(find.byKey(const Key('catalog-header-divider')), findsNothing);
     final field = tester.getRect(find.byType(TextField));
     expect(field.contains(tester.getCenter(find.byTooltip('Search catalog'))), isTrue);
     expect(tester.getTopLeft(find.text('A book')).dy, lessThan(560));
@@ -648,10 +994,9 @@ void main() {
     await _settleNetwork(tester);
     expect(find.text('Filtered books'), findsOneWidget);
     expect(harness.requests.last, Uri.parse('https://books.test/filtered?language=en'));
-    await tester.tap(find.byTooltip('All catalogs'));
+    await tester.tap(find.byTooltip('Back'));
     await _settleNetwork(tester);
-    await tester.tap(find.text('My catalog'));
-    await _settleNetwork(tester);
+    expect(find.text('Browse books'), findsOneWidget);
     await tester.tap(find.text('View all'));
     await _settleNetwork(tester);
     expect(find.text('Full collection'), findsOneWidget);
@@ -708,7 +1053,7 @@ void main() {
     await harness.router.routeInformationProvider.didPushRouteInformation(RouteInformation(uri: homeRoute));
     await _settleNetwork(tester);
     expect(find.text('Catalog home feed'), findsOneWidget);
-    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, isEmpty);
+    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, query);
     await harness.router.routeInformationProvider.didPushRouteInformation(RouteInformation(uri: searchRoute));
     await _settleNetwork(tester);
     expect(find.text('Search results'), findsOneWidget);

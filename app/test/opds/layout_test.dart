@@ -17,6 +17,10 @@ import 'package:papyrus/opds/opds_catalog_store.dart';
 import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/opds/opds_downloads.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
+import 'package:papyrus/opds/opds_library.dart';
+import 'package:papyrus/opds/opds_resource_cache.dart';
+import 'package:papyrus/widgets/opds/opds_publication_details.dart';
+import 'package:papyrus/widgets/book_details/book_details_tab_rail.dart';
 import 'package:papyrus/opds/opds_models.dart';
 import 'package:papyrus/pages/catalog_book_page.dart';
 import 'package:papyrus/pages/catalogs_page.dart';
@@ -43,7 +47,7 @@ final _boundary = GlobalKey();
 
 ThemeData _captureTheme(ThemeData theme) {
   if (_fontDirectory.isEmpty) return theme;
-  // Explicit button styles omit a font family in the app. Flutter's test
+  // Explicit component styles omit a font family in the app. Flutter's test
   // fallback is Ahem rather than the platform font, so resolve it for captures.
   ButtonStyle? font(ButtonStyle? style) => style?.copyWith(
     textStyle: WidgetStateProperty.resolveWith(
@@ -51,9 +55,13 @@ ThemeData _captureTheme(ThemeData theme) {
     ),
   );
   return theme.copyWith(
+    appBarTheme: theme.appBarTheme.copyWith(
+      titleTextStyle: theme.appBarTheme.titleTextStyle?.copyWith(fontFamily: 'Roboto'),
+    ),
     textButtonTheme: TextButtonThemeData(style: font(theme.textButtonTheme.style)),
     outlinedButtonTheme: OutlinedButtonThemeData(style: font(theme.outlinedButtonTheme.style)),
     elevatedButtonTheme: ElevatedButtonThemeData(style: font(theme.elevatedButtonTheme.style)),
+    chipTheme: theme.chipTheme.copyWith(labelStyle: theme.chipTheme.labelStyle?.copyWith(fontFamily: 'Roboto')),
   );
 }
 
@@ -121,16 +129,22 @@ void main() {
         final store = OpdsCatalogStore(await SharedPreferences.getInstance(), secrets: MemorySecrets());
         await store.save(
           'local--guest',
-          OpdsCatalog(id: 'gutenberg', name: 'Project Gutenberg', uri: Uri.parse('https://books.test/feed')),
+          OpdsCatalog(id: 'gutenberg', name: 'Project Gutenberg', uri: Uri.parse('https://www.gutenberg.org/feed')),
         );
         await store.save(
           'local--guest',
           OpdsCatalog(id: 'standard', name: 'Standard Ebooks', uri: Uri.parse('https://standard.test/opds')),
         );
-        final catalogs = OpdsCatalogs(store)..setScope('local--guest');
+        final dataStore = DataStore();
+        final opdsLibrary = OpdsLibrary(await SharedPreferences.getInstance(), dataStore: dataStore);
+        final cache = OpdsResourceCache(await SharedPreferences.getInstance());
+        final catalogs = OpdsCatalogs(store, library: opdsLibrary, cache: cache)..setScope('local--guest');
         final cover = File('assets/images/book_placeholder.jpg').readAsBytesSync();
+        var offline = false;
         final gateway = OpdsHttpClient(
+          cache: cache,
           clientFactory: () => MockRelayClient((request) async {
+            if (offline) throw http.ClientException('Offline');
             if (request.url.path.endsWith('.jpg')) {
               return http.Response.bytes(cover, 200, headers: {'content-type': 'image/jpeg'});
             }
@@ -178,8 +192,12 @@ void main() {
                         'author': author,
                         'language': 'English',
                         'publisher': 'Project Gutenberg',
+                        'subject': ['Fiction', 'Courtship', 'England — Social life and customs'],
                         'description':
-                            'A classic novel, available to add to your Papyrus library.\n\nThis edition preserves the original text and includes illustrations and notes.',
+                            'Title: $title\n\nSummary: A classic novel, available to add to your Papyrus library.\n\n'
+                            'This edition preserves the original text and includes illustrations and notes.\n\n'
+                            'Language: English\n\nPublished: 1813\n\nRights: Public domain in the USA.\n\n'
+                            'Credits: Prepared by volunteers.\n\nNote: Additional catalog information is preserved here.',
                       },
                       if (id != 'frankenstein')
                         'images': [
@@ -213,6 +231,7 @@ void main() {
           }),
         );
         final downloads = OpdsDownloads(
+          library: opdsLibrary,
           httpClient: gateway,
           captureImport: () => BookImportSession(
             process: (_, _) async => const BookImportResult(
@@ -225,11 +244,18 @@ void main() {
             ),
             deleteFile: (_) async {},
             isCurrent: () => true,
-            commit: (_, _) async =>
-                Book(id: 'review-book', title: 'Pride and Prejudice', author: 'Jane Austen', addedAt: DateTime(2026)),
+            commit: (_, _) async {
+              final book = Book(
+                id: 'review-book',
+                title: 'Pride and Prejudice',
+                author: 'Jane Austen',
+                addedAt: DateTime(2026),
+              );
+              dataStore.replaceBooksFromSync([book]);
+              return book;
+            },
           ),
         );
-        final dataStore = DataStore();
         final sidebar = SidebarProvider();
         final library = LibraryProvider();
         final reference = Book(
@@ -308,6 +334,8 @@ void main() {
           router.dispose();
           catalogs.dispose();
           downloads.dispose();
+          opdsLibrary.dispose();
+          cache.dispose();
           dataStore.dispose();
           sidebar.dispose();
           library.dispose();
@@ -315,6 +343,8 @@ void main() {
         final label = '$name-${width.toInt()}-${scale.toInt()}x';
         await _snapshot(tester, '$label-sources');
         if (width < 840) {
+          expect(tester.getSize(find.byKey(const Key('catalog-mobile-header'))).height, kToolbarHeight);
+          expect(find.byKey(const Key('catalog-header-divider')), findsNothing);
           expect(find.byTooltip('Catalog options'), findsNothing);
           for (final (direction, action) in [(1.0, 'edit'), (-1.0, 'delete')]) {
             final sourceRect = tester.getRect(find.byType(CatalogSourceTile).first);
@@ -350,6 +380,13 @@ void main() {
         }
         await tester.tap(find.text('Project Gutenberg'));
         await _snapshot(tester, '$label-feed');
+        offline = true;
+        await tester.tap(find.byTooltip('Refresh catalog'));
+        await _snapshot(tester, '$label-cached-feed');
+        expect(find.text('Showing saved content. Could not refresh this catalog.'), findsOneWidget);
+        offline = false;
+        await tester.tap(find.text('Retry'));
+        await _settle(tester);
         expect(find.byType(FloatingActionButton), findsNothing);
         expect(
           find.text('Popular books'),
@@ -384,6 +421,25 @@ void main() {
         await tester.pumpAndSettle();
         await tester.tap(find.text('Pride and Prejudice'));
         await _snapshot(tester, '$label-details');
+        if (width < 840) {
+          final header = find.byKey(const Key('catalog-book-mobile-header'));
+          expect(tester.getSize(header).height, kToolbarHeight);
+          expect(find.byKey(const Key('catalog-book-header-divider')), findsNothing);
+          final rail = find.byType(BookDetailsTabRail);
+          await tester.dragFrom(Offset(width / 2, 700), const Offset(0, -1600));
+          await tester.pumpAndSettle();
+          expect(tester.getRect(rail).left, 0);
+          expect(tester.getRect(rail).width, width);
+          expect(tester.getTopLeft(rail).dy, tester.getBottomLeft(header).dy);
+          await _snapshot(tester, '$label-details-scrolled');
+        }
+        expect(find.text('Details'), findsOneWidget);
+        await tester.ensureVisible(find.text('Description'));
+        await _snapshot(tester, '$label-details-content');
+        if (find.byType(NestedScrollView).evaluate().isNotEmpty) {
+          await tester.dragFrom(Offset(width / 2, 200), const Offset(0, 2500));
+          await tester.pumpAndSettle();
+        }
         await tester.ensureVisible(find.text('Add to library'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Add to library'));
@@ -400,23 +456,22 @@ void main() {
         }
         await tester.tap(find.text('Close'));
         await tester.pumpAndSettle();
+        final selected = tester.widget<OpdsPublicationDetails>(find.byType(OpdsPublicationDetails)).publication;
         await tester.tap(find.byTooltip('Downloads'));
         await _snapshot(tester, '$label-downloads');
-        final reviewLink = OpdsLink(
-          uri: Uri.parse('https://books.test/review.epub'),
-          type: 'application/epub+zip',
-          rels: ['download'],
-        );
-        await tester.runAsync(
-          () => downloads.start(
-            catalogs.catalogs.first,
-            OpdsPublication(id: 'review-book', title: 'Pride and Prejudice', links: [reviewLink]),
-            reviewLink,
-          ),
-        );
+        final reviewLink = selected.links.firstWhere(OpdsDownloads.supports);
+        final transfer = downloads.start(catalogs.catalogs.first, selected, reviewLink);
+        await _settle(tester);
+        await transfer;
         await _snapshot(tester, '$label-downloads-complete');
         expect(find.text('Added to library'), findsOneWidget);
+        expect(find.descendant(of: find.byType(BottomSheet), matching: find.text('Open book')), findsOneWidget);
+        await tester.tap(find.text('Close'));
+        await _snapshot(tester, '$label-owned-details');
+        expect(find.text('In library'), findsNothing);
         expect(find.text('Open book'), findsOneWidget);
+        await tester.tap(find.text('Download options'));
+        await _snapshot(tester, '$label-owned-formats');
         await tester.tap(find.text('Close'));
         router.go('/library/catalogs');
         await _settle(tester);

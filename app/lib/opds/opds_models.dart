@@ -96,9 +96,14 @@ class OpdsPublication {
     this.publisher,
     this.language,
     this.isbn,
+    this.published,
+    this.rights,
+    this.numberOfPages,
+    List<String> subjects = const [],
     List<OpdsLink> links = const [],
     List<OpdsLink> images = const [],
-  }) : authors = List.unmodifiable(authors),
+  }) : subjects = List.unmodifiable(subjects),
+       authors = List.unmodifiable(authors),
        links = List.unmodifiable(links),
        images = List.unmodifiable(images);
 
@@ -109,8 +114,18 @@ class OpdsPublication {
   final String? publisher;
   final String? language;
   final String? isbn;
+  final String? published;
+  final String? rights;
+  final int? numberOfPages;
+  final List<String> subjects;
   final List<OpdsLink> links;
   final List<OpdsLink> images;
+
+  /// Prefer a full cover over a thumbnail regardless of feed link ordering.
+  OpdsLink? get coverLink =>
+      images.where((image) => image.hasRel('http://opds-spec.org/image')).firstOrNull ??
+      images.where((image) => !image.hasRel('http://opds-spec.org/image/thumbnail')).firstOrNull ??
+      images.firstOrNull;
 
   OpdsLink? get detailLink {
     for (final link in links) {
