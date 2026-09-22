@@ -102,31 +102,12 @@ cd ../client/app
 flutter run -d chrome --web-hostname papyrus.localhost --web-port 3000 --dart-define-from-file=.dart_defines
 ```
 
-Web hot restart (`R` in the Flutter terminal) performs a full browser refresh at
-the current URL. This releases the previous Dart runtime's database listeners
-and workers before starting the app again. Browser storage is retained; ordinary
-hot reload (`r`) still uses Flutter's normal behavior. After changing
-`web/flutter_bootstrap.js`, refresh the browser once to load the new bootstrap.
-
-The bootstrap uses Flutter's documented
-[`onEntrypointLoaded` hook](https://docs.flutter.dev/platform-integration/web/initialization#the-onentrypointloaded-callback),
-which runs on cold startup and hot restart. Its regression checks run with
-`node --test test/web/flutter_bootstrap_test.cjs` from `app/`.
-
-Authenticated books use `papyrus-account.db` and synchronize through
-PowerSync. Guest mode uses the separate local-only `papyrus-guest.db`; guest
-books remain on that device and are not merged into an account.
-
 For local web auth links, add these entries to `/etc/hosts`:
 
 ```text
 127.0.0.1 papyrus.localhost
 ::1 papyrus.localhost
 ```
-
-See
-[`server/docs/flutter-auth-integration.md`](../server/docs/flutter-auth-integration.md)
-for the full integration guide.
 
 ## Documentation
 
