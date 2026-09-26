@@ -62,6 +62,9 @@ Many reading applications offer partial solutions but fall short on essential fe
 
 ### Installation
 
+> [!IMPORTANT]
+> For instructions on setting up the full development environment on your platform, see [PapyrusReader/papyrus](https://github.com/PapyrusReader/papyrus).
+
 1. **Clone the repository**
 
    ```bash
