@@ -336,6 +336,37 @@ void main() {
       }
     });
 
+    testWidgets('shows a nonfavorite heart only while the mouse hovers over the book', (tester) async {
+      var favoriteTaps = 0;
+      final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await pointer.addPointer(location: const Offset(790, 590));
+      addTearDown(pointer.removePointer);
+      await tester.pumpWidget(buildCard(onToggleFavorite: (_) => favoriteTaps++));
+      expect(find.byIcon(Icons.favorite_border), findsNothing);
+
+      await pointer.moveTo(tester.getCenter(find.byType(BookCard)));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.favorite_border), findsOneWidget);
+      await tester.tap(find.byIcon(Icons.favorite_border));
+      expect(favoriteTaps, 1);
+
+      await pointer.moveTo(const Offset(790, 590));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.favorite_border), findsNothing);
+    });
+
+    testWidgets('keeps a favorited heart visible after the mouse leaves', (tester) async {
+      final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await pointer.addPointer(location: const Offset(790, 590));
+      addTearDown(pointer.removePointer);
+      await tester.pumpWidget(buildCard(isFavorite: true));
+      await pointer.moveTo(tester.getCenter(find.byType(BookCard)));
+      await tester.pumpAndSettle();
+      await pointer.moveTo(const Offset(790, 590));
+      await tester.pumpAndSettle();
+      expect(find.byIcon(Icons.favorite), findsOneWidget);
+    });
+
     testWidgets('shows unfilled heart when not favorite', (tester) async {
       await tester.pumpWidget(buildCard(isFavorite: false));
       expect(find.byIcon(Icons.favorite_border), findsOneWidget);

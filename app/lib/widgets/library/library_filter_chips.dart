@@ -12,6 +12,7 @@ import 'package:papyrus/utils/book_language.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_motion_control.dart';
+import 'package:papyrus/widgets/library/library_view_sheet.dart';
 
 class _ChipEntry {
   final String id;
@@ -307,10 +308,6 @@ class LibraryFilterChips extends StatelessWidget {
     ),
   ];
 
-  static final List<_SelectionOption<LibraryViewMode>> _viewModeOptions = [
-    for (final option in LibraryViewMode.values) _SelectionOption<LibraryViewMode>(value: option, label: option.label),
-  ];
-
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<LibraryProvider>();
@@ -367,7 +364,6 @@ class LibraryFilterChips extends StatelessWidget {
     );
     final selectedSort = _sortOptions.firstWhere((option) => option.value == provider.sortOption);
     final selectedFavorite = _favoriteOptions.firstWhere((option) => option.value == provider.favoriteFilter);
-    final selectedViewMode = _viewModeOptions.firstWhere((option) => option.value == provider.viewMode);
 
     final chips = <_ChipEntry>[
       _ChipEntry(
@@ -529,20 +525,14 @@ class LibraryFilterChips extends StatelessWidget {
       _ChipEntry(
         id: 'view-mode',
         defaultOrder: 8,
-        isActive: provider.viewMode != LibraryViewMode.smallGrid,
+        isActive: provider.viewMode != LibraryViewMode.grid,
         child: _DropdownFilterChip(
-          label: selectedViewMode.label,
+          label: provider.viewMode.label,
           semanticLabel: 'View mode',
-          icon: Icons.grid_on,
-          isSelected: provider.viewMode != LibraryViewMode.smallGrid,
+          icon: provider.viewMode == LibraryViewMode.grid ? Icons.grid_view : Icons.view_list,
+          isSelected: provider.viewMode != LibraryViewMode.grid,
           tooltip: 'Change view mode',
-          onPressed: () => _selectSingle<LibraryViewMode>(
-            context: context,
-            title: 'View mode',
-            options: _viewModeOptions,
-            selectedValue: provider.viewMode,
-            onSelected: provider.setViewMode,
-          ),
+          onPressed: () => showLibraryViewSheet(context, provider, onChanged: onLibraryFilterTapped),
         ),
       ),
     ];

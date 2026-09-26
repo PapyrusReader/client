@@ -46,7 +46,7 @@ void main() {
       expect(find.text('Format'), findsOneWidget);
       expect(find.text('Topic'), findsOneWidget);
       expect(find.text('Shelf'), findsOneWidget);
-      expect(find.text(LibraryViewMode.smallGrid.label), findsOneWidget);
+      expect(find.text(LibraryViewMode.grid.label), findsOneWidget);
     });
 
     testWidgets('uses a horizontal list with fixed height', (tester) async {
@@ -86,7 +86,7 @@ void main() {
     testWidgets('view selection sheet updates the shared view mode', (tester) async {
       await pumpChips(tester);
 
-      await tester.tap(find.text(LibraryViewMode.smallGrid.label));
+      await tester.tap(find.text(LibraryViewMode.grid.label));
       await tester.pumpAndSettle();
       expect(find.text('View mode'), findsOneWidget);
 
@@ -94,6 +94,23 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(libraryProvider.viewMode, LibraryViewMode.list);
+    });
+
+    testWidgets('grid size can be adjusted in increments and retained across list view', (tester) async {
+      await pumpChips(tester);
+      await tester.tap(find.text(LibraryViewMode.grid.label));
+      await tester.pumpAndSettle();
+      expect(find.byType(Slider), findsOneWidget);
+      final originalSize = tester.widget<Slider>(find.byType(Slider)).value;
+      await tester.tap(find.byTooltip('Larger covers'));
+      await tester.pumpAndSettle();
+      expect(tester.widget<Slider>(find.byType(Slider)).value, originalSize + 20);
+      await tester.tap(find.text('List').last);
+      await tester.pumpAndSettle();
+      expect(find.byType(Slider), findsNothing);
+      await tester.tap(find.text('Grid').last);
+      await tester.pumpAndSettle();
+      expect(tester.widget<Slider>(find.byType(Slider)).value, originalSize + 20);
     });
 
     testWidgets('Clear all resets filters, sort, and view', (tester) async {
@@ -107,7 +124,7 @@ void main() {
 
       expect(libraryProvider.filters.isEmpty, isTrue);
       expect(libraryProvider.sortOption, LibrarySortOption.dateAddedNewest);
-      expect(libraryProvider.viewMode, LibraryViewMode.smallGrid);
+      expect(libraryProvider.viewMode, LibraryViewMode.grid);
     });
   });
 }

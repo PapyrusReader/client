@@ -712,7 +712,7 @@ class _LibraryPageState extends State<LibraryPage> {
           onPressed: widget.isShelfView ? () {} : () => _showAddBook(downloadsProvider),
           icon: const Icon(Icons.add),
           label: Text(widget.isShelfView ? 'Add to shelf' : 'Add book'),
-          style: FilledButton.styleFrom(minimumSize: Size(0, controlHeight)),
+          style: FilledButton.styleFrom(minimumSize: Size(0, controlHeight), visualDensity: VisualDensity.standard),
         ),
       ],
     );

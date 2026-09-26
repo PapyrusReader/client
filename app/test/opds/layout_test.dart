@@ -295,7 +295,7 @@ void main() {
                         BookHeader(book: reference, isDesktop: width >= 1280),
                         const SizedBox(height: 24),
                         Expanded(
-                          child: BookGrid(books: [reference], libraryViewMode: LibraryViewMode.smallGrid),
+                          child: BookGrid(books: [reference], libraryViewMode: LibraryViewMode.grid),
                         ),
                       ],
                     ),

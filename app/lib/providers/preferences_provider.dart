@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/models/book_grid_size.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Provider for user preferences persisted via SharedPreferences.
@@ -28,6 +29,7 @@ class PreferencesProvider extends ChangeNotifier {
 
   // Library
   static const _keyDefaultViewMode = 'default_view_mode';
+  static const _keyGridItemWidth = 'library_grid_item_width';
   static const _keyDefaultSortOrder = 'default_sort_order';
   static const _keyMetadataSource = 'metadata_source';
   static const _keyAnnotationExportFormat = 'annotation_export_format';
@@ -143,6 +145,15 @@ class PreferencesProvider extends ChangeNotifier {
   }
 
   // -- Library --------------------------------------------------------------
+
+  double get gridItemWidth => BookGridSize.normalize(_prefs.getDouble(_keyGridItemWidth) ?? BookGridSize.defaultWidth);
+
+  set gridItemWidth(double value) {
+    final normalized = BookGridSize.normalize(value);
+    if (gridItemWidth == normalized) return;
+    _prefs.setDouble(_keyGridItemWidth, normalized);
+    notifyListeners();
+  }
 
   /// Library view mode: 'grid', 'list', or 'compact'.
   String get defaultViewMode => _prefs.getString(_keyDefaultViewMode) ?? 'grid';

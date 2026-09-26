@@ -1,26 +1,32 @@
 import 'package:flutter/foundation.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/book.dart';
+import 'package:papyrus/models/book_grid_size.dart';
 import 'package:papyrus/models/library_filters.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/providers/enums/library_sort_option.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/utils/book_language.dart';
 
 class LibraryProvider extends ChangeNotifier {
   final LibraryProvider? _favoriteDelegate;
   final DataStore? _dataStore;
+  final PreferencesProvider? _preferences;
 
-  LibraryProvider({LibraryProvider? favoriteDelegate, DataStore? dataStore})
+  LibraryProvider({LibraryProvider? favoriteDelegate, DataStore? dataStore, PreferencesProvider? preferences})
     : _favoriteDelegate = favoriteDelegate,
-      _dataStore = dataStore {
+      _dataStore = dataStore,
+      _preferences = preferences {
     _favoriteDelegate?.addListener(_onFavoriteDelegateChanged);
     _dataStore?.addListener(_onFavoriteDelegateChanged);
+    _preferences?.addListener(_onFavoriteDelegateChanged);
   }
 
   String _searchQuery = '';
   LibraryFilters _filters = LibraryFilters();
-  LibraryViewMode _viewMode = LibraryViewMode.smallGrid;
+  LibraryViewMode _viewMode = LibraryViewMode.grid;
+  double _gridItemWidth = BookGridSize.defaultWidth;
   LibrarySortOption _sortOption = LibrarySortOption.dateAddedNewest;
 
   // Selection mode state
@@ -42,6 +48,21 @@ class LibraryProvider extends ChangeNotifier {
 
   /// Current view mode (grid or list).
   LibraryViewMode get viewMode => _viewMode;
+
+  double get gridItemWidth => _preferences?.gridItemWidth ?? _favoriteDelegate?.gridItemWidth ?? _gridItemWidth;
+
+  void setGridItemWidth(double width) {
+    final normalized = BookGridSize.normalize(width);
+    if (gridItemWidth == normalized) return;
+    if (_preferences != null) {
+      _preferences.gridItemWidth = normalized;
+    } else if (_favoriteDelegate != null) {
+      _favoriteDelegate.setGridItemWidth(normalized);
+    } else {
+      _gridItemWidth = normalized;
+      notifyListeners();
+    }
+  }
 
   /// Current sort option.
   LibrarySortOption get sortOption => _sortOption;
@@ -72,17 +93,7 @@ class LibraryProvider extends ChangeNotifier {
       return;
     }
 
-    switch (mode) {
-      case LibraryViewMode.smallGrid:
-        _viewMode = LibraryViewMode.smallGrid;
-        break;
-      case LibraryViewMode.largeGrid:
-        _viewMode = LibraryViewMode.largeGrid;
-        break;
-      case LibraryViewMode.list:
-        _viewMode = LibraryViewMode.list;
-        break;
-    }
+    _viewMode = mode;
 
     notifyListeners();
   }
@@ -139,7 +150,7 @@ class LibraryProvider extends ChangeNotifier {
 
   void resetQuickFilters() {
     final hasChanges =
-        !_filters.isEmpty || _sortOption != LibrarySortOption.dateAddedNewest || _viewMode != LibraryViewMode.smallGrid;
+        !_filters.isEmpty || _sortOption != LibrarySortOption.dateAddedNewest || _viewMode != LibraryViewMode.grid;
 
     if (!hasChanges) {
       return;
@@ -147,7 +158,7 @@ class LibraryProvider extends ChangeNotifier {
 
     _filters = LibraryFilters();
     _sortOption = LibrarySortOption.dateAddedNewest;
-    _viewMode = LibraryViewMode.smallGrid;
+    _viewMode = LibraryViewMode.grid;
     notifyListeners();
   }
 
@@ -403,6 +414,7 @@ class LibraryProvider extends ChangeNotifier {
   void dispose() {
     _favoriteDelegate?.removeListener(_onFavoriteDelegateChanged);
     _dataStore?.removeListener(_onFavoriteDelegateChanged);
+    _preferences?.removeListener(_onFavoriteDelegateChanged);
     super.dispose();
   }
 }

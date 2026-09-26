@@ -37,12 +37,16 @@ class BookGrid extends StatelessWidget {
     this.onAcquisitionSelectionToggle,
   });
 
-  BookGridLayout _resolveGridLayout({required double width, required LibraryViewMode viewMode}) {
+  BookGridLayout _resolveGridLayout({
+    required double width,
+    required LibraryViewMode viewMode,
+    required double itemWidth,
+  }) {
     if (viewMode == LibraryViewMode.list) {
       throw ArgumentError('List mode does not use a grid layout');
     }
 
-    return bookGridLayout(width, large: viewMode == LibraryViewMode.largeGrid);
+    return bookGridLayout(width, itemWidth: itemWidth);
   }
 
   @override
@@ -91,12 +95,17 @@ class BookGrid extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final layout = _resolveGridLayout(width: constraints.maxWidth, viewMode: libraryViewMode);
+        final gridPadding = padding ?? const EdgeInsets.only(left: Spacing.md, right: Spacing.md, bottom: Spacing.md);
+        final layout = _resolveGridLayout(
+          width: constraints.maxWidth - gridPadding.horizontal,
+          viewMode: libraryViewMode,
+          itemWidth: libraryProvider.gridItemWidth,
+        );
         return MediaQuery.removePadding(
           context: context,
           removeTop: true,
           child: GridView.builder(
-            padding: padding ?? const EdgeInsets.only(left: Spacing.md, right: Spacing.md, bottom: Spacing.md),
+            padding: gridPadding,
             // Flutter 3.41 compatibility; replaced by scrollCacheExtent in 3.42+.
             // ignore: deprecated_member_use
             cacheExtent: 200,

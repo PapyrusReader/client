@@ -4,6 +4,8 @@ import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/providers/enums/library_sort_option.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/providers/library_provider.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/test_helpers.dart';
 
@@ -21,7 +23,7 @@ void main() {
 
     group('initial state', () {
       test('uses the default view, sort, search, and filters', () {
-        expect(provider.viewMode, LibraryViewMode.smallGrid);
+        expect(provider.viewMode, LibraryViewMode.grid);
         expect(provider.sortOption, LibrarySortOption.dateAddedNewest);
         expect(provider.searchQuery, isEmpty);
         expect(provider.filters.isEmpty, isTrue);
@@ -30,22 +32,54 @@ void main() {
     });
 
     group('view mode', () {
-      test('sets each view mode explicitly', () {
-        provider.setViewMode(LibraryViewMode.largeGrid);
-        expect(provider.viewMode, LibraryViewMode.largeGrid);
+      test('remembers grid size across providers and shares it with shelf contents', () async {
+        SharedPreferences.setMockInitialValues({});
+        final prefs = await SharedPreferences.getInstance();
+        final preferences = PreferencesProvider(prefs);
+        final library = LibraryProvider(preferences: preferences);
+        final shelf = LibraryProvider(favoriteDelegate: library);
+        final restored = LibraryProvider(preferences: PreferencesProvider(prefs));
+        addTearDown(library.dispose);
+        addTearDown(shelf.dispose);
+        addTearDown(restored.dispose);
+        addTearDown(preferences.dispose);
 
+        shelf.setGridItemWidth(240);
+        expect(library.gridItemWidth, 240);
+        library.setViewMode(LibraryViewMode.list);
+        library.resetQuickFilters();
+        expect(library.gridItemWidth, 240);
+        expect(restored.gridItemWidth, 240);
+      });
+
+      test('bounds and snaps grid size, ignoring unchanged values', () {
+        var notifications = 0;
+        provider.addListener(() => notifications++);
+        provider.setGridItemWidth(160);
+        expect(notifications, 0);
+        provider.setGridItemWidth(173);
+        expect(provider.gridItemWidth, 180);
+        provider.setGridItemWidth(-1);
+        expect(provider.gridItemWidth, 120);
+        provider.setGridItemWidth(1000);
+        expect(provider.gridItemWidth, 320);
+        provider.setGridItemWidth(double.nan);
+        expect(provider.gridItemWidth, 160);
+      });
+
+      test('sets each view mode explicitly', () {
         provider.setViewMode(LibraryViewMode.list);
         expect(provider.viewMode, LibraryViewMode.list);
 
-        provider.setViewMode(LibraryViewMode.smallGrid);
-        expect(provider.viewMode, LibraryViewMode.smallGrid);
+        provider.setViewMode(LibraryViewMode.grid);
+        expect(provider.viewMode, LibraryViewMode.grid);
       });
 
       test('does not notify when the view mode is unchanged', () {
         var notifications = 0;
         provider.addListener(() => notifications++);
 
-        provider.setViewMode(LibraryViewMode.smallGrid);
+        provider.setViewMode(LibraryViewMode.grid);
 
         expect(notifications, 0);
       });
@@ -107,7 +141,7 @@ void main() {
 
         expect(provider.filters.isEmpty, isTrue);
         expect(provider.sortOption, LibrarySortOption.dateAddedNewest);
-        expect(provider.viewMode, LibraryViewMode.smallGrid);
+        expect(provider.viewMode, LibraryViewMode.grid);
       });
     });
 

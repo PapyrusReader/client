@@ -1,17 +1,13 @@
+import 'dart:math' as math;
+
+import 'package:papyrus/models/book_grid_size.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 
 /// Shared library and catalog density, measured inside the app shell.
 typedef BookGridLayout = ({int crossAxisCount, double spacing, double childAspectRatio});
 
-BookGridLayout bookGridLayout(double width, {bool large = false}) {
-  if (width >= Breakpoints.desktopLarge) {
-    return (crossAxisCount: large ? 4 : 6, spacing: Spacing.md, childAspectRatio: 0.55);
-  }
-  if (width >= Breakpoints.desktopSmall) {
-    return (crossAxisCount: large ? 3 : 5, spacing: Spacing.md, childAspectRatio: 0.55);
-  }
-  if (width >= Breakpoints.tablet) {
-    return (crossAxisCount: large ? 3 : 4, spacing: Spacing.sm + 4, childAspectRatio: 0.55);
-  }
-  return (crossAxisCount: 2, spacing: Spacing.sm, childAspectRatio: 0.58);
+BookGridLayout bookGridLayout(double width, {double itemWidth = BookGridSize.defaultWidth}) {
+  final spacing = width >= Breakpoints.tablet ? Spacing.md : Spacing.sm;
+  final columns = math.max(1, ((width + spacing) / (BookGridSize.normalize(itemWidth) + spacing)).floor());
+  return (crossAxisCount: columns, spacing: spacing, childAspectRatio: 0.55);
 }

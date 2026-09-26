@@ -52,6 +52,20 @@ class BookCard extends StatefulWidget {
 class _BookCardState extends State<BookCard> {
   bool _isHovered = false;
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.mouseTracker.addListener(_onMouseConnectionChanged);
+  }
+
+  void _onMouseConnectionChanged() => setState(() {});
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.mouseTracker.removeListener(_onMouseConnectionChanged);
+    super.dispose();
+  }
+
   bool get _isDesktop => MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
 
   @override
@@ -94,7 +108,9 @@ class _BookCardState extends State<BookCard> {
                       // Selection tint overlay
                       if (inSelection && widget.isSelected)
                         Container(color: colorScheme.primary.withValues(alpha: 0.15)),
-                      if (!inSelection && widget.acquisitionJob == null)
+                      if (!inSelection &&
+                          widget.acquisitionJob == null &&
+                          (widget.isFavorite || _isHovered || !WidgetsBinding.instance.mouseTracker.mouseIsConnected))
                         Positioned(
                           top: Spacing.xs,
                           left: Spacing.xs,

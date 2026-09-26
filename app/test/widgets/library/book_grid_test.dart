@@ -28,7 +28,7 @@ void main() {
                   create: (_) => LibraryProvider(),
                   child: BookGrid(
                     books: [_book(id: 'one', title: 'A book')],
-                    libraryViewMode: LibraryViewMode.smallGrid,
+                    libraryViewMode: LibraryViewMode.grid,
                   ),
                 ),
               ),
@@ -351,13 +351,36 @@ void main() {
   });
 
   group('BookGrid responsiveness', () {
+    testWidgets('resizing covers changes density without dropping books or overflowing a narrow grid', (tester) async {
+      final provider = LibraryProvider();
+      addTearDown(provider.dispose);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(1800, 1000);
+      addTearDown(tester.view.reset);
+      final books = List.generate(8, (index) => _book(id: 'book-$index', title: 'A book with a long title $index'));
+      await tester.pumpWidget(_buildGrid(books: books, libraryProvider: provider, screenSize: const Size(1800, 1000)));
+      final initialWidth = tester.getSize(_bookCard('book-0')).width;
+      provider.setGridItemWidth(240);
+      await tester.pumpAndSettle();
+      expect(tester.getSize(_bookCard('book-0')).width, greaterThan(initialWidth));
+      expect(find.byType(BookCard), findsNWidgets(8));
+
+      for (final width in [120.0, 320.0]) {
+        provider.setGridItemWidth(width);
+        await tester.pumpWidget(_buildGrid(books: books, libraryProvider: provider, screenSize: const Size(280, 800)));
+        await tester.pumpAndSettle();
+        expect(tester.getSize(_bookCard('book-0')).width, lessThanOrEqualTo(280));
+        expect(tester.takeException(), isNull);
+      }
+    });
+
     testWidgets('preserves responsive columns and matching item widths', (tester) async {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
       final book = _book(id: 'book-1', title: 'Book');
       final orphan = _job(id: 'job-1', bookId: null, title: 'Orphan');
 
-      for (final (width, columns) in const [(400.0, 2), (700.0, 4), (900.0, 5), (1300.0, 6)]) {
+      for (final (width, columns) in const [(400.0, 2), (700.0, 3), (900.0, 5), (1300.0, 7)]) {
         tester.view.physicalSize = Size(width, 800);
         await tester.pumpWidget(_buildGrid(books: [book], placeholderJobs: [orphan], screenSize: Size(width, 800)));
 
@@ -400,7 +423,7 @@ Widget _buildGrid({
             child: Scaffold(
               body: BookGrid(
                 books: books,
-                libraryViewMode: LibraryViewMode.smallGrid,
+                libraryViewMode: LibraryViewMode.grid,
                 onBookTap: onBookTap,
                 acquisitionJobsByBookId: acquisitionJobsByBookId,
                 placeholderJobs: placeholderJobs,
