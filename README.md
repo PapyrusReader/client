@@ -169,3 +169,4 @@ See [PapyrusReader/docs](https://github.com/PapyrusReader/docs).
 | [reader](https://github.com/PapyrusReader/reader) | Book file viewer library |
 | [website](https://github.com/PapyrusReader/website) | Landing page |
 | [docs](https://github.com/PapyrusReader/docs) | Documentation |
+| [papyrus](https://github.com/PapyrusReader/papyrus) | Development workspace |
