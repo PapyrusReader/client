@@ -62,6 +62,9 @@ Many reading applications offer partial solutions but fall short on essential fe
 
 ### Installation
 
+> [!IMPORTANT]
+> For instructions on setting up the full development environment on your platform, see [PapyrusReader/papyrus](https://github.com/PapyrusReader/papyrus).
+
 1. **Clone the repository**
 
    ```bash
@@ -169,3 +172,4 @@ See [PapyrusReader/docs](https://github.com/PapyrusReader/docs).
 | [reader](https://github.com/PapyrusReader/reader) | Book file viewer library |
 | [website](https://github.com/PapyrusReader/website) | Landing page |
 | [docs](https://github.com/PapyrusReader/docs) | Documentation |
+| [papyrus](https://github.com/PapyrusReader/papyrus) | Development workspace |
