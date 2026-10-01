@@ -129,7 +129,7 @@ See [PapyrusReader/docs](https://github.com/PapyrusReader/docs).
 
 ## Contributing
 
-Join the [Papyrus Slack community](https://join.slack.com/t/papyrus-crew/shared_invite/zt-4btcyuevl-RVRivB9rreOiri4SQhVxdQ) to meet contributors, ask questions, and discuss development across the PapyrusReader repositories. Start in `#all-papyrus`, introduce yourself in `#introductions`, and collaborate in `#papyrus-dev`. Please follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+Join the [Papyrus Slack community](https://join.slack.com/t/papyrus-crew/shared_invite/zt-4btcyuevl-RVRivB9rreOiri4SQhVxdQ) to meet contributors, ask questions, and discuss development across the PapyrusReader repositories. Start in `#announcements`, introduce yourself in `#introductions`, and collaborate in `#development`. Please follow our [Code of Conduct](CODE_OF_CONDUCT.md).
 
 Keep actionable bug reports and technical decisions in GitHub issues and pull requests so they remain easy to find.
 
