@@ -5,6 +5,7 @@
   <p><strong>A cross-platform book management application</strong></p>
 
   <p>
+    <a href="https://join.slack.com/t/papyrus-crew/shared_invite/zt-4btcyuevl-RVRivB9rreOiri4SQhVxdQ"><img src="https://img.shields.io/badge/Slack-Join%20the%20community-4A154B?logo=slack&logoColor=white" alt="Join the Papyrus community on Slack"/></a>
     <a href="https://trello.com/invite/b/681367b2ba91db4e40b0cfea/ATTI5156837607437467bd3d646f933528054D126F02/papyrus"><img src="https://img.shields.io/badge/Trello-blue?logo=trello&logoColor=white" alt="Trello"/></a>
     <a href="https://papyrusreader.github.io/docs/"><img src="https://img.shields.io/badge/Documentation-darkslateblue?logo=gitbook&logoColor=white" alt="Documentation"/></a>
     <a href="https://codecov.io/gh/Eoic/Papyrus"><img src="https://codecov.io/gh/Eoic/Papyrus/branch/master/graph/badge.svg" alt="Coverage"/></a>
@@ -127,6 +128,10 @@ See [PapyrusReader/docs](https://github.com/PapyrusReader/docs).
 | File storage | Multiple (e.g., Google Drive, S3, [OPFS](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system), self-hosted)  |
 
 ## Contributing
+
+Join the [Papyrus Slack community](https://join.slack.com/t/papyrus-crew/shared_invite/zt-4btcyuevl-RVRivB9rreOiri4SQhVxdQ) to meet contributors, ask questions, and discuss development across the PapyrusReader repositories. Start in `#all-papyrus`, introduce yourself in `#introductions`, and collaborate in `#papyrus-dev`. Please follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+
+Keep actionable bug reports and technical decisions in GitHub issues and pull requests so they remain easy to find.
 
 ### Setup
 
