@@ -1,5 +1,3 @@
-import 'dart:typed_data';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
@@ -26,8 +24,7 @@ class ReaderPage extends StatefulWidget {
 
 class _ReaderPageState extends State<ReaderPage> {
   Book? _book;
-  Uint8List? _bytes;
-  ReaderFormat? _format;
+  ReaderDocument? _document;
   ReaderLocator? _initialLocator;
   ReaderPreferences? _initialPreferences;
   ReaderSession? _session;
@@ -86,9 +83,14 @@ class _ReaderPageState extends State<ReaderPage> {
 
       setState(() {
         _book = book;
-        _bytes = bytes;
-        _format = format;
-        _initialLocator = ReaderBookAdapter.restoreLocator(book!);
+        _document = ReaderDocument(
+          id: book!.id,
+          format: format,
+          title: book.title,
+          author: book.author,
+          loadBytes: () async => bytes,
+        );
+        _initialLocator = ReaderBookAdapter.restoreLocator(book);
         _initialPreferences = preferences;
         _session = session;
       });
@@ -120,21 +122,17 @@ class _ReaderPageState extends State<ReaderPage> {
     }
 
     final book = _book;
-    final bytes = _bytes;
-    final format = _format;
+    final document = _document;
     final preferences = _initialPreferences;
-    if (book == null || bytes == null || format == null || preferences == null) {
-      return const Scaffold(body: Center(child: AppCircularProgressIndicator()));
+    if (book == null || document == null || preferences == null) {
+      return Scaffold(
+        appBar: AppBar(leading: BackButton(onPressed: _close)),
+        body: const Center(child: AppCircularProgressIndicator()),
+      );
     }
 
     return PapyrusReader(
-      document: ReaderDocument(
-        id: book.id,
-        format: format,
-        title: book.title,
-        author: book.author,
-        loadBytes: () async => bytes,
-      ),
+      document: document,
       initialLocator: _initialLocator,
       initialPreferences: preferences,
       onLocatorChanged: _session!.updateLocator,
