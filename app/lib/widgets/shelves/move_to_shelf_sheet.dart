@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:async';
 
@@ -11,7 +12,6 @@ import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/text_utils.dart';
 import 'package:papyrus/widgets/input/search_field.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/widgets/shelves/add_shelf_sheet.dart';
 import 'package:provider/provider.dart';
@@ -44,6 +44,7 @@ class MoveToShelfSheet extends StatefulWidget {
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => MoveToShelfSheet(book: book, onSave: onSave),
     );
@@ -59,6 +60,7 @@ class MoveToShelfSheet extends StatefulWidget {
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => MoveToShelfSheet(bulkBookIds: bookIds, onSave: onSave),
     );
@@ -98,123 +100,114 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> with PersistentSave
     final textTheme = Theme.of(context).textTheme;
     final dataStore = context.watch<DataStore>();
     final shelves = dataStore.shelves;
+    final filtered = shelves.where((item) => item.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+    final mobile = MediaQuery.sizeOf(context).width < Breakpoints.tablet;
+    final shortViewport = MediaQuery.sizeOf(context).height - MediaQuery.viewInsetsOf(context).bottom < 400;
+    Widget buildSheet(ScrollController? scrollController) => AppBottomSheet(
+      avoidKeyboard: false,
+      expandBody: !mobile && shelves.isNotEmpty,
+      expandOnScroll: shelves.isNotEmpty,
+      scrollable: shelves.isEmpty,
+      contentPadding: EdgeInsets.zero,
+      header: Row(
+        children: [
+          // Book cover or bulk icon
+          if (!widget.isBulkMode) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: SizedBox(width: 40, height: 60, child: _buildCover(context)),
+            ),
 
-    return DraggableScrollableSheet(
-      minChildSize: 0.4,
-      maxChildSize: 0.9,
-      expand: false,
-      builder: (context, scrollController) => Padding(
-        padding: const EdgeInsets.only(left: Spacing.lg, right: Spacing.lg, top: Spacing.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle
-            const BottomSheetHandle(),
-            const SizedBox(height: Spacing.lg),
-
-            // Header with book info
-            Row(
+            SizedBox(width: Spacing.sm + Spacing.xs),
+          ],
+          // const SizedBox(width: Spacing.md),
+          // Title
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Book cover or bulk icon
+                Text(
+                  widget.isBulkMode
+                      ? 'Add ${widget.bulkBookIds!.length} ${maybePluralize(widget.bulkBookIds!.length, "book")} to shelves'
+                      : 'Add to shelves',
+                  style: textTheme.titleLarge,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 if (!widget.isBulkMode) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: SizedBox(width: 40, height: 60, child: _buildCover(context)),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.book!.title,
+                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-
-                  SizedBox(width: Spacing.sm + Spacing.xs),
                 ],
-                // const SizedBox(width: Spacing.md),
-                // Title
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.isBulkMode
-                            ? 'Add ${widget.bulkBookIds!.length} ${maybePluralize(widget.bulkBookIds!.length, "book")} to shelves'
-                            : 'Add to shelves',
-                        style: textTheme.titleLarge,
-                      ),
-                      if (!widget.isBulkMode) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.book!.title,
-                          style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                // Create new shelf button
-                IconButton.filledTonal(
-                  onPressed: _showCreateShelfSheet,
-                  icon: const Icon(Icons.add),
-                  tooltip: 'Create new shelf',
-                ),
               ],
             ),
-            const SizedBox(height: Spacing.md),
-
-            // Search field
-            SearchField(
-              controller: _searchController,
-              hintText: 'Search shelves...',
-              onChanged: (value) => setState(() => _searchQuery = value),
-            ),
-            const SizedBox(height: Spacing.md),
-
-            // Shelf list
-            Expanded(
-              child: shelves.isEmpty
-                  ? _buildEmptyState()
-                  : Builder(
-                      builder: (context) {
-                        final filteredShelves = _searchQuery.isEmpty
-                            ? shelves
-                            : shelves
-                                  .where(
-                                    (searchString) =>
-                                        searchString.name.toLowerCase().contains(_searchQuery.toLowerCase()),
-                                  )
-                                  .toList();
-
-                        if (filteredShelves.isEmpty && _searchQuery.isNotEmpty) {
-                          return Center(
-                            child: Text(
-                              'No shelves found',
-                              style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                            ),
-                          );
-                        }
-
-                        return ListView.builder(
-                          controller: scrollController,
-                          itemCount: filteredShelves.length,
-                          itemBuilder: (context, index) => _buildShelfTile(context, filteredShelves[index]),
-                        );
-                      },
-                    ),
-            ),
-
-            // Action buttons
-            Padding(
-              padding: EdgeInsets.only(top: Spacing.md, bottom: MediaQuery.of(context).viewInsets.bottom + Spacing.md),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                  const SizedBox(width: Spacing.md),
-                  FilledButton(onPressed: isSaving ? null : _onSave, child: const Text('Save')),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+          // Create new shelf button
+          IconButton.filledTonal(
+            onPressed: _showCreateShelfSheet,
+            icon: const Icon(Icons.add),
+            tooltip: 'Create new shelf',
+          ),
+        ],
       ),
+      footer: BottomSheetFormActions(
+        onCancel: isSaving ? null : () => Navigator.pop(context),
+        onSave: isSaving ? null : _onSave,
+      ),
+      body: shelves.isEmpty
+          ? _buildEmptyState(context)
+          : CustomScrollView(
+              controller: scrollController,
+              shrinkWrap: mobile,
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.all(Spacing.lg),
+                  sliver: SliverToBoxAdapter(
+                    child: SearchField(
+                      controller: _searchController,
+                      hintText: 'Search shelves...',
+                      onChanged: (value) => setState(() => _searchQuery = value),
+                    ),
+                  ),
+                ),
+                if (filtered.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Text(
+                        'No shelves found',
+                        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
+                    sliver: SliverList.builder(
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) => _buildShelfTile(context, filtered[index]),
+                    ),
+                  ),
+              ],
+            ),
+    );
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: mobile || shelves.isEmpty
+          ? buildSheet(null)
+          : DraggableScrollableSheet(
+              initialChildSize: shortViewport
+                  ? 0.9
+                  : (MediaQuery.sizeOf(context).width < Breakpoints.tablet ? 0.8 : 0.5),
+              minChildSize: shortViewport ? 0.85 : 0.4,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) => buildSheet(scrollController),
+            ),
     );
   }
 
@@ -229,10 +222,19 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> with PersistentSave
     return CoverImage(bookId: book.id, imageUrl: book.coverURL, mediaId: book.coverMediaId, placeholder: placeholder);
   }
 
-  Widget _buildEmptyState() {
-    return const SizedBox(
+  Widget _buildEmptyState(BuildContext context) {
+    final compact =
+        MediaQuery.sizeOf(context).height - MediaQuery.viewInsetsOf(context).bottom < 400 ||
+        MediaQuery.textScalerOf(context).scale(16) > 20;
+    return SizedBox(
       width: double.infinity,
-      child: EmptyState(icon: Icons.shelves, title: 'No shelves yet', subtitle: 'Tap + to create a shelf'),
+      child: EmptyState(
+        iconSize: compact ? 32 : 64,
+        padding: EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: compact ? Spacing.sm : Spacing.md),
+        icon: Icons.shelves,
+        title: 'No shelves yet',
+        subtitle: 'Tap + to create a shelf',
+      ),
     );
   }
 

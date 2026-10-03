@@ -88,7 +88,7 @@ class BookImportController extends ChangeNotifier {
   int get successCount => _items.where((item) => item.status == BookImportBatchStatus.added).length;
   int get failureCount => _items.length - successCount;
 
-  Future<void> browse() async {
+  Future<void> browse({bool append = false}) async {
     if (_disposed || _isPicking) return;
     _update(() {
       _isPicking = true;
@@ -97,7 +97,7 @@ class BookImportController extends ChangeNotifier {
     try {
       final selectedFiles = await _pickFiles();
       if (_disposed || selectedFiles.isEmpty) return;
-      _update(() => _files = List.unmodifiable(selectedFiles));
+      _update(() => _files = List.unmodifiable([if (append) ..._files, ...selectedFiles]));
     } catch (_) {
       if (_disposed) return;
       _update(() => _pickerError = 'Could not open the selected files. Please try again.');

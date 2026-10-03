@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:papyrus/widgets/shared/app_drawer.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/data/data_store.dart';
@@ -5,7 +6,6 @@ import 'package:papyrus/models/shelf.dart';
 import 'package:papyrus/providers/shelves_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:go_router/go_router.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/widgets/library/library_drawer.dart';
 import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/widgets/shelves/add_shelf_sheet.dart';
@@ -374,43 +374,37 @@ class _ShelvesPageState extends State<ShelvesPage> {
       context: context,
       useRootNavigator: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
-      builder: (context) => SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              // Handle
-              const BottomSheetHandle(),
-              const SizedBox(height: Spacing.md),
-              // Shelf name
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
-                child: Text(
-                  shelf.name,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w600),
-                ),
-              ),
-              const SizedBox(height: Spacing.md),
-              // Options
-              ListTile(
-                leading: const Icon(Icons.edit_outlined),
-                title: const Text('Edit shelf'),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _showEditShelfSheet(context, shelf);
-                },
-              ),
-              ListTile(
-                leading: Icon(Icons.delete_outlined, color: colorScheme.error),
-                title: Text('Delete shelf', style: TextStyle(color: colorScheme.error)),
-                onTap: () {
-                  Navigator.of(context).pop();
-                  _confirmDeleteShelf(context, shelf);
-                },
-              ),
-            ],
-          ),
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (context) => AppBottomSheet(
+        header: Text(
+          shelf.name,
+          style: Theme.of(context).textTheme.titleLarge,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        body: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Options
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Edit shelf'),
+              onTap: () {
+                Navigator.of(context).pop();
+                _showEditShelfSheet(context, shelf);
+              },
+            ),
+            ListTile(
+              leading: Icon(Icons.delete_outlined, color: colorScheme.error),
+              title: Text('Delete shelf', style: TextStyle(color: colorScheme.error)),
+              onTap: () {
+                Navigator.of(context).pop();
+                _confirmDeleteShelf(context, shelf);
+              },
+            ),
+          ],
         ),
       ),
     );

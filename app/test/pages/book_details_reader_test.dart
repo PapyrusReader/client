@@ -3,14 +3,106 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/book.dart';
+import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/pages/book_details_page.dart';
 import 'package:papyrus/widgets/book_details/book_cover_image.dart';
+import 'package:papyrus/widgets/book_details/book_details_scroll_view.dart';
 import 'package:papyrus/widgets/book_details/book_details_tab_rail.dart';
 import 'package:provider/provider.dart';
 
 import '../helpers/test_helpers.dart';
 
 void main() {
+  testWidgets('book details scroll when the header leaves less room than the tabs need', (tester) async {
+    const railKey = ValueKey('details tabs');
+    const bodyKey = ValueKey('details body');
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SizedBox(
+            height: 500,
+            child: BookDetailsScrollView(
+              header: const SizedBox(height: 476, child: Text('Book header')),
+              rail: const PreferredSize(
+                preferredSize: Size.fromHeight(48),
+                child: SizedBox(key: railKey, height: 48, child: Text('Details tabs')),
+              ),
+              body: ListView(key: bodyKey, children: const [Text('Book content'), SizedBox(height: 1000)]),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.dragFrom(const Offset(200, 450), const Offset(0, -500));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(find.byKey(railKey)).dy, 0);
+    expect(tester.getTopLeft(find.byKey(bodyKey)).dy, 48);
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final (size, textScale) in [
+    (const Size(375, 667), 1.0),
+    (const Size(320, 568), 1.0),
+    (const Size(375, 667), 1.5),
+  ]) {
+    testWidgets('mobile book details fit $size at text scale $textScale with bottom navigation', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final book = buildTestBook(
+        title: "Alice's Adventures in Wonderland",
+        author: 'Lewis Carroll',
+        isPhysical: true,
+        currentPage: 2,
+        pageCount: 98,
+        description: List.filled(40, 'A long book description.').join('\n\n'),
+      );
+      final dataStore = DataStore()..loadData(books: [book]);
+      addTearDown(dataStore.dispose);
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: dataStore,
+          child: MaterialApp(
+            theme: AppTheme.dark,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: BookDetailsPage(id: book.id),
+              bottomNavigationBar: NavigationBar(
+                destinations: const [
+                  NavigationDestination(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+                  NavigationDestination(icon: Icon(Icons.book), label: 'Library'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+
+      final rail = find.byType(BookDetailsTabRail);
+      final appBarBottom = tester.getBottomLeft(find.byType(AppBar)).dy;
+      final navigationTop = tester.getTopLeft(find.byType(NavigationBar)).dy;
+      await tester.dragFrom(Offset(size.width / 2, navigationTop - 30), const Offset(0, -900));
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(rail).dy, appBarBottom);
+      expect(tester.getBottomLeft(rail).dy, lessThan(navigationTop));
+      await tester.drag(rail, const Offset(-800, 0));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Notes (0)'));
+      await tester.pumpAndSettle();
+      expect(find.text('No notes yet'), findsOneWidget);
+      expect(tester.getTopLeft(find.text('No notes yet')).dy, greaterThanOrEqualTo(tester.getBottomLeft(rail).dy));
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('mobile library tabs stay pinned and remain interactive after scrolling', (tester) async {
     tester.view.physicalSize = const Size(424, 900);
     tester.view.devicePixelRatio = 1;

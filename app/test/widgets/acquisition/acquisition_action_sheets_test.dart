@@ -30,7 +30,7 @@ void main() {
 
     await tester.tap(find.text('Open commands'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
     await tester.pumpAndSettle();
 
     expect(find.text('command: null'), findsOneWidget);
@@ -45,14 +45,14 @@ void main() {
     await tester.pumpAndSettle();
 
     final sheet = find.byKey(const Key('acquisition-arr-ids-sheet'));
-    final animatedPadding = find.descendant(of: sheet, matching: find.byType(AnimatedPadding));
+    final keyboardPadding = find.descendant(of: sheet, matching: find.byType(Padding)).first;
     final keyboardInset = tester.view.viewInsets.bottom / tester.view.devicePixelRatio;
     expect(sheet, findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
-    expect(animatedPadding, findsOneWidget);
-    expect(tester.widget<AnimatedPadding>(animatedPadding).padding, EdgeInsets.only(bottom: keyboardInset));
+    expect(keyboardPadding, findsOneWidget);
+    expect(tester.widget<Padding>(keyboardPadding).padding, EdgeInsets.only(bottom: keyboardInset));
     expect(find.text('Run Readarr command'), findsOneWidget);
-    expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);
+    expect(find.widgetWithText(OutlinedButton, 'Cancel'), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Run'), findsOneWidget);
     expect(find.text('IDs'), findsOneWidget);
     expect(find.text('Comma-separated IDs from the Arr application'), findsOneWidget);
@@ -71,7 +71,7 @@ void main() {
 
     await tester.tap(find.text('Open IDs'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
     await tester.pumpAndSettle();
 
     expect(find.text('ids: null'), findsOneWidget);

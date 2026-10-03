@@ -1,8 +1,8 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/add_book/add_physical_book_sheet.dart';
 import 'package:papyrus/widgets/add_book/book_import_sheet.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
 /// Choice sheet for selecting digital import, physical entry, or optional online search.
@@ -34,10 +34,7 @@ class AddBookChoiceSheet extends StatefulWidget {
       builder: (sheetContext) {
         sheetCompleted = ModalRoute.of<_AddBookChoice>(sheetContext)?.completed;
 
-        return Padding(
-          padding: const EdgeInsets.only(left: Spacing.lg, right: Spacing.lg, top: Spacing.md, bottom: Spacing.lg),
-          child: AddBookChoiceSheet(callerContext: context, onFindOnline: onFindOnline),
-        );
+        return AddBookChoiceSheet(callerContext: context, onFindOnline: onFindOnline);
       },
     );
 
@@ -80,39 +77,36 @@ class _AddBookChoiceSheetState extends State<AddBookChoiceSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const BottomSheetHandle(),
-        const SizedBox(height: Spacing.lg),
-        Text('Add book', style: textTheme.headlineSmall),
-        const SizedBox(height: Spacing.lg),
-        _ChoiceOption(
-          icon: Icons.upload_file,
-          title: 'Import digital books',
-          subtitle: 'EPUB, PDF, AZW3, MOBI, CBZ/CBR',
-          onTap: () => _select(_AddBookChoice.importDigital),
-        ),
-        const SizedBox(height: Spacing.sm),
-        _ChoiceOption(
-          icon: Icons.menu_book,
-          title: 'Add physical book',
-          subtitle: 'Enter details manually',
-          onTap: () => _select(_AddBookChoice.addPhysical),
-        ),
-        if (widget.onFindOnline != null) ...[
+    return AppBottomSheet(
+      title: 'Add book',
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _ChoiceOption(
+            icon: Icons.upload_file,
+            title: 'Import digital books',
+            subtitle: 'EPUB, PDF, AZW3, MOBI, CBZ/CBR',
+            onTap: () => _select(_AddBookChoice.importDigital),
+          ),
           const SizedBox(height: Spacing.sm),
           _ChoiceOption(
-            icon: Icons.travel_explore_outlined,
-            title: 'Find books online',
-            subtitle: 'Search connected book sources',
-            onTap: () => _select(_AddBookChoice.findOnline),
+            icon: Icons.menu_book,
+            title: 'Add physical book',
+            subtitle: 'Enter details manually',
+            onTap: () => _select(_AddBookChoice.addPhysical),
           ),
+          if (widget.onFindOnline != null) ...[
+            const SizedBox(height: Spacing.sm),
+            _ChoiceOption(
+              icon: Icons.travel_explore_outlined,
+              title: 'Find books online',
+              subtitle: 'Search connected book sources',
+              onTap: () => _select(_AddBookChoice.findOnline),
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

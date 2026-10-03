@@ -98,6 +98,7 @@ class AppearanceSettingsSection extends StatelessWidget {
 
     showProfilePickerSheet(
       context,
+      title: 'Theme',
       items: const [('Light', 'light'), ('Dark', 'dark'), ('E-ink', 'eink'), ('System', 'system')],
       selected: prefs.themeModePref,
       onSelected: (value) => prefs.themeModePref = value,

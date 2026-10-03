@@ -1,11 +1,10 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'dart:async';
 
 import 'package:papyrus/widgets/shared/persistent_save.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
 // =============================================================================
@@ -29,6 +28,7 @@ class AnnotationNoteSheet extends StatefulWidget {
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
       ),
@@ -57,49 +57,30 @@ class _AnnotationNoteSheetState extends State<AnnotationNoteSheet> with Persiste
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(Spacing.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const BottomSheetHandle(),
-              const SizedBox(height: Spacing.md),
-              BottomSheetHeader(
-                title: 'Edit note',
-                onCancel: () => Navigator.pop(context),
-                canSave: !isSaving,
-                canCancel: !isSaving,
-                onSave: () async {
-                  final text = _controller.text.trim();
-                  final saved = await persist(() => widget.onSave?.call(text));
-                  if (saved && context.mounted) Navigator.pop(context, text);
-                },
-              ),
-              const SizedBox(height: Spacing.md),
-              const Divider(height: 1),
-              const SizedBox(height: Spacing.md),
-
-              // Note field
-              TextField(
-                controller: _controller,
-                maxLines: 4,
-                maxLength: 500,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Note',
-                  hintText: 'Add a note...',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-              ),
-            ],
-          ),
+    return AppBottomSheet(
+      title: 'Edit note',
+      onClose: () => Navigator.pop(context),
+      canClose: !isSaving,
+      footer: BottomSheetFormActions(
+        onCancel: isSaving ? null : () => Navigator.pop(context),
+        onSave: isSaving
+            ? null
+            : () async {
+                final text = _controller.text.trim();
+                final saved = await persist(() => widget.onSave?.call(text));
+                if (saved && context.mounted) Navigator.pop(context, text);
+              },
+      ),
+      body: TextField(
+        controller: _controller,
+        maxLines: 4,
+        maxLength: 500,
+        autofocus: true,
+        decoration: const InputDecoration(
+          labelText: 'Note',
+          hintText: 'Add a note...',
+          border: OutlineInputBorder(),
+          alignLabelWithHint: true,
         ),
       ),
     );

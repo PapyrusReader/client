@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/models/book.dart';
@@ -133,11 +132,10 @@ void main() {
     expect(title.left, lessThan(close.left));
     expect(footer.top, greaterThan(tester.getBottomLeft(find.byKey(const Key('opds-name'))).dy));
     expect(tester.getTopLeft(find.text('Save')).dy, greaterThan(footer.top));
-    final cancel = tester.renderObject<RenderParagraph>(find.text('Cancel'));
-    final oneLine = TextPainter(text: cancel.text, textDirection: cancel.textDirection, textScaler: cancel.textScaler)
-      ..layout();
-    expect(cancel.size.height, closeTo(oneLine.height, .1));
-    oneLine.dispose();
+    final cancel = find.widgetWithText(OutlinedButton, 'Cancel');
+    final save = find.widgetWithText(FilledButton, 'Save');
+    expect(tester.getTopLeft(cancel).dy, tester.getTopLeft(save).dy);
+    expect(tester.getSize(cancel).height, tester.getSize(save).height);
     tester.view.viewInsets = const FakeViewPadding(bottom: 300);
     await tester.pumpAndSettle();
     for (final label in ['Cancel', 'Save']) {
@@ -209,7 +207,7 @@ void main() {
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Saving…')).onPressed, isNull);
-    expect(tester.widget<TextButton>(find.widgetWithText(TextButton, 'Cancel')).onPressed, isNull);
+    expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Cancel')).onPressed, isNull);
     expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.close)).onPressed, isNull);
     await tester.tapAt(const Offset(10, 10));
     await tester.drag(find.byType(BottomSheetHandle), const Offset(0, 400));

@@ -1,10 +1,9 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/bookmark.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 import 'package:papyrus/widgets/shared/persistent_save.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
@@ -26,6 +25,8 @@ class BookmarkActionSheet extends StatelessWidget {
     return showModalBottomSheet<BookmarkAction>(
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (context) => BookmarkActionSheet(bookmark: bookmark),
     );
   }
@@ -33,53 +34,40 @@ class BookmarkActionSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    return AppBottomSheet(
+      header: Text(
+        bookmark.displayLocation,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      contentPadding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Edit note action
+          ListTile(
+            leading: Icon(Icons.edit_outlined, color: colorScheme.onSurface),
+            title: const Text('Edit note'),
+            onTap: () => Navigator.of(context).pop(BookmarkAction.editNote),
+          ),
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const BottomSheetHandle(),
-            const SizedBox(height: Spacing.md),
+          // Change color action
+          ListTile(
+            leading: Icon(Icons.palette_outlined, color: colorScheme.onSurface),
+            title: const Text('Change color'),
+            onTap: () => Navigator.of(context).pop(BookmarkAction.changeColor),
+          ),
 
-            // Bookmark location
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
-              child: Text(
-                bookmark.displayLocation,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(height: Spacing.sm),
-            const Divider(),
+          // Delete action
+          ListTile(
+            leading: Icon(Icons.delete_outline, color: colorScheme.error),
+            title: Text('Delete bookmark', style: TextStyle(color: colorScheme.error)),
+            onTap: () => Navigator.of(context).pop(BookmarkAction.delete),
+          ),
 
-            // Edit note action
-            ListTile(
-              leading: Icon(Icons.edit_outlined, color: colorScheme.onSurface),
-              title: const Text('Edit note'),
-              onTap: () => Navigator.of(context).pop(BookmarkAction.editNote),
-            ),
-
-            // Change color action
-            ListTile(
-              leading: Icon(Icons.palette_outlined, color: colorScheme.onSurface),
-              title: const Text('Change color'),
-              onTap: () => Navigator.of(context).pop(BookmarkAction.changeColor),
-            ),
-
-            // Delete action
-            ListTile(
-              leading: Icon(Icons.delete_outline, color: colorScheme.error),
-              title: Text('Delete bookmark', style: TextStyle(color: colorScheme.error)),
-              onTap: () => Navigator.of(context).pop(BookmarkAction.delete),
-            ),
-
-            const SizedBox(height: Spacing.sm),
-          ],
-        ),
+          const SizedBox(height: Spacing.sm),
+        ],
       ),
     );
   }
@@ -121,6 +109,7 @@ class BookmarkNoteSheet extends StatefulWidget {
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       useRootNavigator: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
@@ -150,49 +139,30 @@ class _BookmarkNoteSheetState extends State<BookmarkNoteSheet> with PersistentSa
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(Spacing.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const BottomSheetHandle(),
-              const SizedBox(height: Spacing.md),
-              BottomSheetHeader(
-                title: 'Edit note',
-                onCancel: () => Navigator.pop(context),
-                canSave: !isSaving,
-                canCancel: !isSaving,
-                onSave: () async {
-                  final text = _controller.text.trim();
-                  final saved = await persist(() => widget.onSave?.call(text));
-                  if (saved && context.mounted) Navigator.pop(context, text);
-                },
-              ),
-              const SizedBox(height: Spacing.md),
-              const Divider(height: 1),
-              const SizedBox(height: Spacing.md),
-
-              // Note field
-              TextField(
-                controller: _controller,
-                maxLines: 4,
-                maxLength: 500,
-                autofocus: true,
-                decoration: const InputDecoration(
-                  labelText: 'Note',
-                  hintText: 'Add a note...',
-                  border: OutlineInputBorder(),
-                  alignLabelWithHint: true,
-                ),
-              ),
-            ],
-          ),
+    return AppBottomSheet(
+      title: 'Edit note',
+      onClose: () => Navigator.pop(context),
+      canClose: !isSaving,
+      footer: BottomSheetFormActions(
+        onCancel: isSaving ? null : () => Navigator.pop(context),
+        onSave: isSaving
+            ? null
+            : () async {
+                final text = _controller.text.trim();
+                final saved = await persist(() => widget.onSave?.call(text));
+                if (saved && context.mounted) Navigator.pop(context, text);
+              },
+      ),
+      body: TextField(
+        controller: _controller,
+        maxLines: 4,
+        maxLength: 500,
+        autofocus: true,
+        decoration: const InputDecoration(
+          labelText: 'Note',
+          hintText: 'Add a note...',
+          border: OutlineInputBorder(),
+          alignLabelWithHint: true,
         ),
       ),
     );
@@ -222,6 +192,8 @@ class BookmarkColorSheet extends StatefulWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
       ),
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (context) => BookmarkColorSheet(bookmark: bookmark, onSave: onSave),
     );
   }
@@ -234,78 +206,68 @@ class _BookmarkColorSheetState extends State<BookmarkColorSheet> with Persistent
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    return AppBottomSheet(
+      header: Text('Change color', style: Theme.of(context).textTheme.titleMedium),
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Color grid
+          Wrap(
+            spacing: Spacing.md,
+            runSpacing: Spacing.md,
+            children: Bookmark.availableColors.map((hex) {
+              final isSelected = hex == widget.bookmark.colorHex;
+              final color = Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(Spacing.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const BottomSheetHandle(),
-            const SizedBox(height: Spacing.md),
-
-            // Title
-            Text('Change color', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: Spacing.lg),
-
-            // Color grid
-            Wrap(
-              spacing: Spacing.md,
-              runSpacing: Spacing.md,
-              children: Bookmark.availableColors.map((hex) {
-                final isSelected = hex == widget.bookmark.colorHex;
-                final color = Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
-
-                return GestureDetector(
-                  onTap: isSaving
-                      ? null
-                      : () async {
-                          final saved = await persist(() => widget.onSave?.call(hex));
-                          if (saved && context.mounted) Navigator.pop(context, hex);
-                        },
-                  child: Container(
-                    width: 48,
-                    height: 48,
-                    decoration: BoxDecoration(
-                      color: color,
-                      shape: BoxShape.circle,
-                      border: isSelected ? Border.all(color: colorScheme.onSurface, width: 2) : null,
-                    ),
-                    child: isSelected ? Icon(Icons.check, color: colorScheme.surface, size: IconSizes.action) : null,
+              return GestureDetector(
+                onTap: isSaving
+                    ? null
+                    : () async {
+                        final saved = await persist(() => widget.onSave?.call(hex));
+                        if (saved && context.mounted) Navigator.pop(context, hex);
+                      },
+                child: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                    border: isSelected ? Border.all(color: colorScheme.onSurface, width: 2) : null,
                   ),
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: Spacing.lg),
+                  child: isSelected ? Icon(Icons.check, color: colorScheme.surface, size: IconSizes.action) : null,
+                ),
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: Spacing.lg),
 
-            // Color names legend
-            Wrap(
-              spacing: Spacing.md,
-              runSpacing: Spacing.xs,
-              children: Bookmark.availableColors.map((hex) {
-                final name = _colorNames[hex] ?? 'Unknown';
-                final color = Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
+          // Color names legend
+          Wrap(
+            spacing: Spacing.md,
+            runSpacing: Spacing.xs,
+            children: Bookmark.availableColors.map((hex) {
+              final name = _colorNames[hex] ?? 'Unknown';
+              final color = Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
 
-                return Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Container(
-                      width: 8,
-                      height: 8,
-                      decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-                    ),
-                    const SizedBox(width: Spacing.xs),
-                    Text(
-                      name,
-                      style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-            const SizedBox(height: Spacing.md),
-          ],
-        ),
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                  ),
+                  const SizedBox(width: Spacing.xs),
+                  Text(
+                    name,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                  ),
+                ],
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: Spacing.md),
+        ],
       ),
     );
   }

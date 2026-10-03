@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 
 /// Common tab rail for local and catalog book details.
-class BookDetailsTabRail extends StatelessWidget {
+class BookDetailsTabRail extends StatelessWidget implements PreferredSizeWidget {
   const BookDetailsTabRail({super.key, this.controller, required this.tabs});
 
   final TabController? controller;
   final List<Widget> tabs;
+
+  @override
+  Size get preferredSize => TabBar(tabs: tabs).preferredSize;
 
   @override
   Widget build(BuildContext context) => TabBar(

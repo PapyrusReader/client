@@ -193,12 +193,12 @@ void main() {
     expect(find.text('dropped.epub'), findsOneWidget);
     expect(find.byType(BookImportDropZone), findsNothing);
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Reset'));
+    await tester.tap(find.widgetWithText(TextButton, 'Reset'));
     await tester.pump();
     await tester.tap(find.text('Browse files'));
     await tester.pump();
     expect(find.text('selected.epub'), findsOneWidget);
-    expect(find.widgetWithText(FilledButton, 'Import 1 book'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Import'), findsOneWidget);
     expect(observer.pushCount, initialPushCount + 1);
   });
 

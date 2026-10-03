@@ -1,9 +1,8 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
 /// Bottom sheet for manually updating reading progress of a physical book.
@@ -23,6 +22,7 @@ class UpdateProgressSheet extends StatefulWidget {
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
       ),
@@ -78,31 +78,11 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
 
   @override
   Widget build(BuildContext context) {
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(Spacing.md),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              const BottomSheetHandle(),
-              const SizedBox(height: Spacing.md),
-              BottomSheetHeader(title: 'Update progress', onCancel: () => Navigator.of(context).pop(), onSave: _save),
-              const SizedBox(height: Spacing.md),
-              const Divider(height: 1),
-              const SizedBox(height: Spacing.md),
-
-              if (_hasPageCount) _buildPageInput(context) else _buildSlider(),
-
-              const SizedBox(height: Spacing.md),
-            ],
-          ),
-        ),
-      ),
+    return AppBottomSheet(
+      title: 'Update progress',
+      onClose: () => Navigator.of(context).pop(),
+      footer: BottomSheetFormActions(onCancel: () => Navigator.of(context).pop(), onSave: _save),
+      body: _hasPageCount ? _buildPageInput(context) : _buildSlider(),
     );
   }
 
@@ -112,8 +92,10 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
     return Column(
       children: [
         // Page input row
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: Spacing.sm,
+          runSpacing: Spacing.sm,
           children: [
             const Text('Page'),
             const SizedBox(width: Spacing.sm),

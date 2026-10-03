@@ -1,9 +1,11 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
 /// Displays a modal bottom sheet picker for profile preferences.
 void showProfilePickerSheet(
   BuildContext context, {
+  required String title,
   required List<(String label, String value)> items,
   required String selected,
   required ValueChanged<String> onSelected,
@@ -11,8 +13,12 @@ void showProfilePickerSheet(
   showModalBottomSheet(
     sheetAnimationStyle: AppMotion.animationStyle(context),
     context: context,
-    builder: (sheetContext) => SafeArea(
-      child: Column(
+    isScrollControlled: true,
+    useSafeArea: true,
+    builder: (sheetContext) => AppBottomSheet(
+      header: Text(title, style: Theme.of(sheetContext).textTheme.titleMedium),
+      contentPadding: EdgeInsets.zero,
+      body: Column(
         mainAxisSize: MainAxisSize.min,
         children: items.map((item) {
           final colorScheme = Theme.of(sheetContext).colorScheme;

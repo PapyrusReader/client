@@ -1,7 +1,8 @@
+import 'package:papyrus/widgets/shared/sheet_choice_buttons.dart';
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/reading_goal.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_date_picker.dart';
 import 'package:papyrus/widgets/shared/app_motion_control.dart';
@@ -45,6 +46,7 @@ class AddGoalSheet extends StatefulWidget {
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => AddGoalSheet(onCreate: onCreate),
     );
@@ -75,177 +77,157 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-
-    return Padding(
-      padding: EdgeInsets.only(
-        left: Spacing.lg,
-        right: Spacing.lg,
-        top: Spacing.md,
-        bottom: MediaQuery.of(context).viewInsets.bottom + Spacing.lg,
+    return AppBottomSheet(
+      title: 'Create new goal',
+      onClose: () => Navigator.of(context).pop(),
+      footer: BottomSheetFormActions(
+        onCancel: () => Navigator.of(context).pop(),
+        onSave: _onCreate,
+        saveLabel: 'Create goal',
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle
-            const BottomSheetHandle(),
-            const SizedBox(height: Spacing.lg),
-            // Title
-            Text('Create new goal', style: textTheme.headlineSmall),
-            const SizedBox(height: Spacing.lg),
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Schedule type selection
+          Text('Goal type', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+          const SizedBox(height: Spacing.sm),
+          SheetChoiceButtons<GoalScheduleType>(
+            segments: const [
+              ButtonSegment(
+                value: GoalScheduleType.recurring,
+                label: Text('Recurring'),
+                icon: Icon(Icons.repeat, size: 18),
+              ),
+              ButtonSegment(
+                value: GoalScheduleType.oneOff,
+                label: Text('One-off'),
+                icon: Icon(Icons.looks_one, size: 18),
+              ),
+              ButtonSegment(
+                value: GoalScheduleType.custom,
+                label: Text('Custom'),
+                icon: Icon(Icons.date_range, size: 18),
+              ),
+            ],
+            selected: {_scheduleType},
+            onSelectionChanged: (selected) {
+              setState(() => _scheduleType = selected.first);
+            },
+          ),
+          const SizedBox(height: Spacing.md),
 
-            // Schedule type selection
-            Text('Goal type', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const SizedBox(height: Spacing.sm),
-            SegmentedButton<GoalScheduleType>(
-              segments: const [
-                ButtonSegment(
-                  value: GoalScheduleType.recurring,
-                  label: Text('Recurring'),
-                  icon: Icon(Icons.repeat, size: 18),
-                ),
-                ButtonSegment(
-                  value: GoalScheduleType.oneOff,
-                  label: Text('One-off'),
-                  icon: Icon(Icons.looks_one, size: 18),
-                ),
-                ButtonSegment(
-                  value: GoalScheduleType.custom,
-                  label: Text('Custom'),
-                  icon: Icon(Icons.date_range, size: 18),
+          // Description of selected type
+          Container(
+            padding: const EdgeInsets.all(Spacing.sm),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.info_outline, size: 16, color: colorScheme.onSurfaceVariant),
+                const SizedBox(width: Spacing.sm),
+                Expanded(
+                  child: Text(
+                    _getScheduleDescription(),
+                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                  ),
                 ),
               ],
-              selected: {_scheduleType},
-              onSelectionChanged: (selected) {
-                setState(() => _scheduleType = selected.first);
-              },
-              style: const ButtonStyle(visualDensity: VisualDensity.compact),
             ),
-            const SizedBox(height: Spacing.md),
+          ),
+          const SizedBox(height: Spacing.lg),
 
-            // Description of selected type
-            Container(
-              padding: const EdgeInsets.all(Spacing.sm),
-              decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(AppRadius.sm),
-              ),
-              child: Row(
-                children: [
-                  Icon(Icons.info_outline, size: 16, color: colorScheme.onSurfaceVariant),
-                  const SizedBox(width: Spacing.sm),
-                  Expanded(
-                    child: Text(
-                      _getScheduleDescription(),
-                      style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                    ),
-                  ),
-                ],
-              ),
+          // What to track
+          Text('What to track', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+          const SizedBox(height: Spacing.sm),
+          DropdownButtonFormField<GoalType>(
+            isExpanded: true,
+            initialValue: _selectedType,
+            decoration: InputDecoration(
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
             ),
-            const SizedBox(height: Spacing.lg),
+            items: GoalType.values.map((type) {
+              return DropdownMenuItem(
+                value: type,
+                child: Text(_getTypeLabel(type), maxLines: 1, overflow: TextOverflow.ellipsis),
+              );
+            }).toList(),
+            onChanged: (value) {
+              if (value != null) {
+                setState(() {
+                  _selectedType = value;
+                  _targetController.text = _getDefaultTarget(value);
+                  if (value == GoalType.minutes) _durationMinutes = 30;
+                });
+              }
+            },
+          ),
+          const SizedBox(height: Spacing.lg),
 
-            // What to track
-            Text('What to track', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const SizedBox(height: Spacing.sm),
-            DropdownButtonFormField<GoalType>(
-              initialValue: _selectedType,
+          // Target
+          Text('Target', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+          const SizedBox(height: Spacing.sm),
+          if (_selectedType == GoalType.minutes)
+            _buildDurationPicker(colorScheme, textTheme)
+          else
+            TextFormField(
+              controller: _targetController,
+              keyboardType: TextInputType.number,
               decoration: InputDecoration(
                 border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
                 contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                suffixText: _getTypeSuffix(_selectedType),
               ),
-              items: GoalType.values.map((type) {
-                return DropdownMenuItem(value: type, child: Text(_getTypeLabel(type)));
+            ),
+          const SizedBox(height: Spacing.lg),
+
+          // Period selection (for recurring and one-off)
+          if (_scheduleType != GoalScheduleType.custom) ...[
+            Text('Time period', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+            const SizedBox(height: Spacing.sm),
+            SheetChoiceButtons<GoalPeriod>(
+              segments: [GoalPeriod.daily, GoalPeriod.weekly, GoalPeriod.monthly, GoalPeriod.yearly].map((period) {
+                return ButtonSegment(value: period, label: Text(_getPeriodLabel(period)));
               }).toList(),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedType = value;
-                    _targetController.text = _getDefaultTarget(value);
-                    if (value == GoalType.minutes) _durationMinutes = 30;
-                  });
-                }
+              selected: {_selectedPeriod},
+              onSelectionChanged: (selected) {
+                setState(() => _selectedPeriod = selected.first);
               },
             ),
             const SizedBox(height: Spacing.lg),
-
-            // Target
-            Text('Target', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const SizedBox(height: Spacing.sm),
-            if (_selectedType == GoalType.minutes)
-              _buildDurationPicker(colorScheme, textTheme)
-            else
-              TextFormField(
-                controller: _targetController,
-                keyboardType: TextInputType.number,
-                decoration: InputDecoration(
-                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-                  suffixText: _getTypeSuffix(_selectedType),
-                ),
-              ),
-            const SizedBox(height: Spacing.lg),
-
-            // Period selection (for recurring and one-off)
-            if (_scheduleType != GoalScheduleType.custom) ...[
-              Text('Time period', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-              const SizedBox(height: Spacing.sm),
-              SegmentedButton<GoalPeriod>(
-                segments: [GoalPeriod.daily, GoalPeriod.weekly, GoalPeriod.monthly, GoalPeriod.yearly].map((period) {
-                  return ButtonSegment(value: period, label: Text(_getPeriodLabel(period)));
-                }).toList(),
-                selected: {_selectedPeriod},
-                onSelectionChanged: (selected) {
-                  setState(() => _selectedPeriod = selected.first);
-                },
-                style: const ButtonStyle(visualDensity: VisualDensity.compact),
-              ),
-              const SizedBox(height: Spacing.lg),
-            ],
-
-            // Custom date range picker
-            if (_scheduleType == GoalScheduleType.custom) ...[
-              Text('Date range', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-              const SizedBox(height: Spacing.sm),
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildDateButton(
-                      context,
-                      label: 'Start',
-                      date: _startDate,
-                      onTap: () => _pickStartDate(context),
-                    ),
-                  ),
-                  const SizedBox(width: Spacing.md),
-                  Expanded(
-                    child: _buildDateButton(context, label: 'End', date: _endDate, onTap: () => _pickEndDate(context)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: Spacing.sm),
-              Text(
-                '${_daysBetween()} days total',
-                style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: Spacing.lg),
-            ],
-
-            // Create button
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _onCreate,
-                child: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: Spacing.sm),
-                  child: Text('Create goal'),
-                ),
-              ),
-            ),
-            const SizedBox(height: Spacing.md),
           ],
-        ),
+
+          // Custom date range picker
+          if (_scheduleType == GoalScheduleType.custom) ...[
+            Text('Date range', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+            const SizedBox(height: Spacing.sm),
+            Row(
+              children: [
+                Expanded(
+                  child: _buildDateButton(
+                    context,
+                    label: 'Start',
+                    date: _startDate,
+                    onTap: () => _pickStartDate(context),
+                  ),
+                ),
+                const SizedBox(width: Spacing.md),
+                Expanded(
+                  child: _buildDateButton(context, label: 'End', date: _endDate, onTap: () => _pickEndDate(context)),
+                ),
+              ],
+            ),
+            const SizedBox(height: Spacing.sm),
+            Text(
+              '${_daysBetween()} days total',
+              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+            ),
+            const SizedBox(height: Spacing.lg),
+          ],
+        ],
       ),
     );
   }

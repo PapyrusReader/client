@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -337,16 +338,16 @@ class StorageSyncSettingsSection extends StatelessWidget {
     showModalBottomSheet(
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Consumer<SyncSettingsProvider>(
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => AppBottomSheet(
+        header: Text('Sync servers', style: Theme.of(sheetContext).textTheme.titleMedium),
+        contentPadding: EdgeInsets.zero,
+        body: Consumer<SyncSettingsProvider>(
           builder: (context, settings, _) {
-            return ListView(
-              shrinkWrap: true,
+            return Column(
+              mainAxisSize: MainAxisSize.min,
               children: [
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, Spacing.sm),
-                  child: Text('Sync servers', style: Theme.of(context).textTheme.titleMedium),
-                ),
                 ListTile(
                   leading: Icon(
                     settings.activeServerId == SyncSettingsProvider.officialServerId
@@ -480,8 +481,12 @@ class StorageSyncSettingsSection extends StatelessWidget {
     showModalBottomSheet(
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => AppBottomSheet(
+        header: Text('Offline backup', style: Theme.of(sheetContext).textTheme.titleMedium),
+        contentPadding: EdgeInsets.zero,
+        body: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(

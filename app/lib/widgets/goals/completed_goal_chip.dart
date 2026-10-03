@@ -1,7 +1,8 @@
+import 'package:papyrus/widgets/shared/bottom_sheet_actions.dart';
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/reading_goal.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
 /// Card displaying a completed goal with details.
@@ -207,6 +208,8 @@ class CompletedGoalChip extends StatelessWidget {
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (context) => _CompletedGoalDetailsSheet(goal: goal, onDelete: onDelete),
     );
   }
@@ -277,40 +280,44 @@ class _CompletedGoalDetailsSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(Spacing.lg),
-      child: Column(
+    return AppBottomSheet(
+      header: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(color: colorScheme.tertiaryContainer, shape: BoxShape.circle),
+            child: Icon(Icons.emoji_events, size: 24, color: colorScheme.onTertiaryContainer),
+          ),
+          const SizedBox(width: Spacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('Goal completed!', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                Text(goal.description, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+              ],
+            ),
+          ),
+        ],
+      ),
+      footer: BottomSheetActions(
+        primary: OutlinedButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            _showDeleteConfirmation(context);
+          },
+          style: OutlinedButton.styleFrom(
+            foregroundColor: colorScheme.error,
+            side: BorderSide(color: colorScheme.error),
+          ),
+          child: const Text('Delete goal'),
+        ),
+      ),
+      body: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Handle
-          const BottomSheetHandle(),
-          const SizedBox(height: Spacing.lg),
-
-          // Header with success indicator
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(color: colorScheme.tertiaryContainer, shape: BoxShape.circle),
-                child: Icon(Icons.emoji_events, size: 24, color: colorScheme.onTertiaryContainer),
-              ),
-              const SizedBox(width: Spacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Goal completed!', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                    Text(goal.description, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Spacing.xl),
-
           // Stats grid
           Container(
             padding: const EdgeInsets.all(Spacing.md),
@@ -351,25 +358,6 @@ class _CompletedGoalDetailsSheet extends StatelessWidget {
             ),
           ),
           const SizedBox(height: Spacing.lg),
-
-          // Delete button
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              onPressed: () {
-                Navigator.of(context).pop();
-                _showDeleteConfirmation(context);
-              },
-              icon: const Icon(Icons.delete_outline),
-              label: const Text('Delete goal'),
-              style: OutlinedButton.styleFrom(
-                foregroundColor: colorScheme.error,
-                side: BorderSide(color: colorScheme.error),
-                padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
-              ),
-            ),
-          ),
-          const SizedBox(height: Spacing.md),
         ],
       ),
     );
@@ -390,10 +378,13 @@ class _CompletedGoalDetailsSheet extends StatelessWidget {
         Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: Spacing.sm),
         Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-        const Spacer(),
-        Text(
-          value,
-          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: valueColor),
+        const SizedBox(width: Spacing.sm),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: valueColor),
+          ),
         ),
       ],
     );

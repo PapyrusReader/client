@@ -1,8 +1,8 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/tag.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/widgets/topics/add_topic_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
@@ -22,6 +22,8 @@ class TopicDetailSheet extends StatelessWidget {
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (context) => TopicDetailSheet(tag: tag),
     );
   }
@@ -32,82 +34,68 @@ class TopicDetailSheet extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final dataStore = context.watch<DataStore>();
     final bookCount = dataStore.getBookCountForTag(tag.id);
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle
-            const Padding(
-              padding: EdgeInsets.only(bottom: Spacing.md),
-              child: BottomSheetHandle(),
-            ),
-            // Topic header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
-              child: Row(
-                children: [
-                  Container(
-                    width: 12,
-                    height: 12,
-                    decoration: BoxDecoration(color: tag.color, shape: BoxShape.circle),
+    return AppBottomSheet(
+      header: Row(
+        children: [
+          Container(
+            width: 12,
+            height: 12,
+            decoration: BoxDecoration(color: tag.color, shape: BoxShape.circle),
+          ),
+          const SizedBox(width: Spacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(tag.name, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+                if (tag.description != null && tag.description!.isNotEmpty)
+                  Text(
+                    tag.description!,
+                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: Spacing.sm),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(tag.name, style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-                        if (tag.description != null && tag.description!.isNotEmpty)
-                          Text(
-                            tag.description!,
-                            style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                      ],
-                    ),
-                  ),
-                  // Book count badge
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: colorScheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(AppRadius.full),
-                    ),
-                    child: Text(
-                      '$bookCount ${bookCount == 1 ? 'book' : 'books'}',
-                      style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                    ),
-                  ),
-                ],
-              ),
+              ],
             ),
-            const SizedBox(height: Spacing.sm),
-            const Divider(height: 1),
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: const Text('Edit topic'),
-              onTap: () {
-                Navigator.pop(context);
-                _editTag(context);
-              },
+          ),
+          // Book count badge
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+            decoration: BoxDecoration(
+              color: colorScheme.surfaceContainerHighest,
+              borderRadius: BorderRadius.circular(AppRadius.full),
             ),
-            ListTile(
-              leading: Icon(Icons.delete_outline, color: colorScheme.error),
-              title: Text('Delete topic', style: TextStyle(color: colorScheme.error)),
-              subtitle: bookCount > 0
-                  ? Text('Will be removed from $bookCount ${bookCount == 1 ? 'book' : 'books'}')
-                  : null,
-              onTap: () {
-                Navigator.pop(context);
-                _confirmDeleteTag(context, bookCount);
-              },
+            child: Text(
+              '$bookCount ${bookCount == 1 ? 'book' : 'books'}',
+              style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
-          ],
-        ),
+          ),
+        ],
+      ),
+      contentPadding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          ListTile(
+            leading: const Icon(Icons.edit_outlined),
+            title: const Text('Edit topic'),
+            onTap: () {
+              Navigator.pop(context);
+              _editTag(context);
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.delete_outline, color: colorScheme.error),
+            title: Text('Delete topic', style: TextStyle(color: colorScheme.error)),
+            subtitle: bookCount > 0
+                ? Text('Will be removed from $bookCount ${bookCount == 1 ? 'book' : 'books'}')
+                : null,
+            onTap: () {
+              Navigator.pop(context);
+              _confirmDeleteTag(context, bookCount);
+            },
+          ),
+        ],
       ),
     );
   }

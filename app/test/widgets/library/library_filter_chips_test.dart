@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/models/library_filters.dart';
+import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/providers/enums/library_sort_option.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
@@ -82,6 +85,36 @@ void main() {
 
       expect(libraryProvider.favoriteFilter, FavoriteFilter.favorites);
     });
+
+    for (final category in ['Favorites', 'Format']) {
+      testWidgets('$category short mobile sheet retains normal header spacing', (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = const Size(400, 693);
+        addTearDown(tester.view.reset);
+        final store = DataStore()..loadData(books: createTestBooks().take(2).toList());
+        addTearDown(store.dispose);
+        await tester.pumpWidget(
+          createTestApp(
+            libraryProvider: libraryProvider,
+            dataStore: store,
+            screenSize: const Size(400, 693),
+            child: const LibraryFilterChips(),
+          ),
+        );
+        await tester.scrollUntilVisible(find.text(category), 150, scrollable: find.byType(Scrollable));
+        await Scrollable.ensureVisible(tester.element(find.text(category)), alignment: .5);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(category));
+        await tester.pumpAndSettle();
+        final header = find.byKey(const Key('bottom-sheet-header'));
+        final title = find.text(category == 'Format' ? 'Formats' : 'Favorite state');
+        final handle = find.byType(BottomSheetHandle);
+        expect(tester.getTopLeft(handle).dy - tester.getTopLeft(header).dy, Spacing.md);
+        expect(tester.getTopLeft(title).dy - tester.getBottomRight(handle).dy, Spacing.lg);
+        expect(tester.getBottomRight(header).dy - tester.getBottomRight(title).dy, Spacing.md);
+        expect(tester.takeException(), isNull);
+      });
+    }
 
     testWidgets('view selection sheet updates the shared view mode', (tester) async {
       await pumpChips(tester);

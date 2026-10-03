@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
@@ -24,8 +25,9 @@ class BookContextMenu {
     showModalBottomSheet(
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
-      useRootNavigator: true,
       isScrollControlled: true,
+      useSafeArea: true,
+      useRootNavigator: true,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
       ),
@@ -99,167 +101,149 @@ class _BookContextBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.all(Spacing.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Drag handle
-            Center(
-              child: Container(
-                width: 32,
-                height: 4,
-                decoration: BoxDecoration(color: colorScheme.outline, borderRadius: BorderRadius.circular(2)),
-              ),
-            ),
-            const SizedBox(height: Spacing.md),
-
-            // Book info header
-            Row(
+    return AppBottomSheet(
+      header: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: SizedBox(width: 48, height: 72, child: _buildCover(context)),
+          ),
+          const SizedBox(width: Spacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppRadius.sm),
-                  child: SizedBox(width: 48, height: 72, child: _buildCover(context)),
+                Text(
+                  book.title,
+                  style: Theme.of(context).textTheme.titleMedium,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
-                const SizedBox(width: Spacing.md),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        book.title,
-                        style: Theme.of(context).textTheme.titleMedium,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                      Text(
-                        book.author,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                      ),
-                    ],
-                  ),
+                Text(
+                  book.author,
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
+          ),
+        ],
+      ),
+      contentPadding: const EdgeInsets.all(Spacing.md),
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // Select action
+          _BottomSheetItem(
+            icon: Icons.checklist,
+            label: 'Select',
+            onTap: () {
+              Navigator.pop(context);
+              onSelect?.call();
+            },
+          ),
+          const Divider(),
 
-            const SizedBox(height: Spacing.md),
-            const Divider(),
+          // Action items
+          _BottomSheetItem(
+            icon: isFavorite ? Icons.favorite : Icons.favorite_border,
+            label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
+            iconColor: isFavorite ? colorScheme.error : null,
+            onTap: () {
+              Navigator.pop(context);
+              onFavoriteToggle?.call();
+            },
+          ),
+          _BottomSheetItem(
+            icon: Icons.edit_outlined,
+            label: 'Edit details',
+            onTap: () {
+              Navigator.pop(context);
+              onEdit?.call();
+            },
+          ),
+          _BottomSheetItem(
+            icon: Icons.folder_outlined,
+            label: 'Move to shelf',
+            onTap: () {
+              Navigator.pop(context);
+              onMoveToShelf?.call();
+            },
+          ),
+          _BottomSheetItem(
+            icon: Icons.label_outline,
+            label: 'Manage topics',
+            onTap: () {
+              Navigator.pop(context);
+              onManageTopics?.call();
+            },
+          ),
 
-            // Select action
-            _BottomSheetItem(
-              icon: Icons.checklist,
-              label: 'Select',
-              onTap: () {
-                Navigator.pop(context);
-                onSelect?.call();
-              },
-            ),
-            const Divider(),
+          const Divider(),
 
-            // Action items
-            _BottomSheetItem(
-              icon: isFavorite ? Icons.favorite : Icons.favorite_border,
-              label: isFavorite ? 'Remove from favorites' : 'Add to favorites',
-              iconColor: isFavorite ? colorScheme.error : null,
-              onTap: () {
-                Navigator.pop(context);
-                onFavoriteToggle?.call();
-              },
+          // Reading status section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+            child: Text(
+              'Reading status',
+              style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant),
             ),
-            _BottomSheetItem(
-              icon: Icons.edit_outlined,
-              label: 'Edit details',
-              onTap: () {
-                Navigator.pop(context);
-                onEdit?.call();
-              },
-            ),
-            _BottomSheetItem(
-              icon: Icons.folder_outlined,
-              label: 'Move to shelf',
-              onTap: () {
-                Navigator.pop(context);
-                onMoveToShelf?.call();
-              },
-            ),
-            _BottomSheetItem(
-              icon: Icons.label_outline,
-              label: 'Manage topics',
-              onTap: () {
-                Navigator.pop(context);
-                onManageTopics?.call();
-              },
-            ),
+          ),
+          _BottomSheetItem(
+            icon: Icons.auto_stories,
+            label: 'Reading',
+            isSelected: book.readingStatus == LibraryReadingStatus.inProgress,
+            onTap: () {
+              Navigator.pop(context);
+              onStatusChange?.call(LibraryReadingStatus.inProgress);
+            },
+          ),
+          _BottomSheetItem(
+            icon: Icons.check_circle_outline,
+            label: 'Completed',
+            isSelected: book.readingStatus == LibraryReadingStatus.completed,
+            onTap: () {
+              Navigator.pop(context);
+              onStatusChange?.call(LibraryReadingStatus.completed);
+            },
+          ),
+          _BottomSheetItem(
+            icon: Icons.bookmark_outline,
+            label: 'Unread',
+            isSelected: book.readingStatus == LibraryReadingStatus.unread,
+            onTap: () {
+              Navigator.pop(context);
+              onStatusChange?.call(LibraryReadingStatus.unread);
+            },
+          ),
 
-            const Divider(),
+          const Divider(),
 
-            // Reading status section
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-              child: Text(
-                'Reading status',
-                style: Theme.of(context).textTheme.labelMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-              ),
-            ),
+          if (!book.isPhysical)
             _BottomSheetItem(
-              icon: Icons.auto_stories,
-              label: 'Reading',
-              isSelected: book.readingStatus == LibraryReadingStatus.inProgress,
+              icon: Icons.file_download_outlined,
+              label: 'Download',
               onTap: () {
                 Navigator.pop(context);
-                onStatusChange?.call(LibraryReadingStatus.inProgress);
+                onDownload?.call();
               },
             ),
-            _BottomSheetItem(
-              icon: Icons.check_circle_outline,
-              label: 'Completed',
-              isSelected: book.readingStatus == LibraryReadingStatus.completed,
-              onTap: () {
-                Navigator.pop(context);
-                onStatusChange?.call(LibraryReadingStatus.completed);
-              },
-            ),
-            _BottomSheetItem(
-              icon: Icons.bookmark_outline,
-              label: 'Unread',
-              isSelected: book.readingStatus == LibraryReadingStatus.unread,
-              onTap: () {
-                Navigator.pop(context);
-                onStatusChange?.call(LibraryReadingStatus.unread);
-              },
-            ),
+          _BottomSheetItem(
+            icon: Icons.delete_outline,
+            label: 'Delete',
+            isDestructive: true,
+            onTap: () {
+              Navigator.pop(context);
+              // Use a post-frame callback to ensure context is valid
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (!context.mounted) return;
+                BookContextMenu._confirmDelete(context, book, onDelete);
+              });
+            },
+          ),
 
-            const Divider(),
-
-            if (!book.isPhysical)
-              _BottomSheetItem(
-                icon: Icons.file_download_outlined,
-                label: 'Download',
-                onTap: () {
-                  Navigator.pop(context);
-                  onDownload?.call();
-                },
-              ),
-            _BottomSheetItem(
-              icon: Icons.delete_outline,
-              label: 'Delete',
-              isDestructive: true,
-              onTap: () {
-                Navigator.pop(context);
-                // Use a post-frame callback to ensure context is valid
-                WidgetsBinding.instance.addPostFrameCallback((_) {
-                  if (!context.mounted) return;
-                  BookContextMenu._confirmDelete(context, book, onDelete);
-                });
-              },
-            ),
-
-            const SizedBox(height: Spacing.md),
-          ],
-        ),
+          const SizedBox(height: Spacing.md),
+        ],
       ),
     );
   }

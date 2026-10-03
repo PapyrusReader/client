@@ -21,6 +21,9 @@ class EmptyState extends StatelessWidget {
   /// The size of the icon. Defaults to 64.
   final double iconSize;
 
+  /// Space around the message; sheets can use less vertical padding.
+  final EdgeInsetsGeometry padding;
+
   const EmptyState({
     super.key,
     required this.icon,
@@ -28,6 +31,7 @@ class EmptyState extends StatelessWidget {
     this.subtitle,
     this.action,
     this.iconSize = 64,
+    this.padding = const EdgeInsets.all(Spacing.xl),
   });
 
   @override
@@ -36,8 +40,9 @@ class EmptyState extends StatelessWidget {
 
     return Center(
       child: Padding(
-        padding: const EdgeInsets.all(Spacing.xl),
+        padding: padding,
         child: Column(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, size: iconSize, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),

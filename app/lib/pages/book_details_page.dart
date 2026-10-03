@@ -255,7 +255,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
     );
   }
 
-  Widget _buildTabRail(BookDetailsProvider provider) {
+  BookDetailsTabRail _buildTabRail(BookDetailsProvider provider) {
     return BookDetailsTabRail(
       controller: _tabController,
       tabs: [

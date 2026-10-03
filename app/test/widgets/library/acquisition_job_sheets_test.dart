@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -57,8 +58,8 @@ void main() {
     );
 
     final content = find.byKey(const Key('acquisition-job-details-content'));
-    final padding = tester.widget<Padding>(content);
-    expect(padding.padding, const EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.lg, Spacing.lg));
+    expect(find.descendant(of: content, matching: find.byType(AppBottomSheet)), findsOneWidget);
+
     expect(tester.getSize(find.byType(BottomSheet)).height, lessThan(900));
 
     semantics.dispose();

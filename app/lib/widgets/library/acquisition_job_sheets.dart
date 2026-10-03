@@ -1,10 +1,11 @@
+import 'package:papyrus/widgets/shared/bottom_sheet_actions.dart';
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/providers/acquisition_downloads_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/library/acquisition_confirmation_dialog.dart';
 import 'package:papyrus/widgets/library/acquisition_status_text.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
@@ -21,15 +22,12 @@ Future<void> showAcquisitionJobDetailsSheet({
     isScrollControlled: true,
     showDragHandle: false,
     shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
-    builder: (sheetContext) => SingleChildScrollView(
-      child: Padding(
-        key: const Key('acquisition-job-details-content'),
-        padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.lg, Spacing.lg),
-        child: _LiveAcquisitionJobDetailsContent(
-          provider: provider,
-          fallbackJob: job,
-          onAction: (action) => Navigator.of(sheetContext).pop(action),
-        ),
+    builder: (sheetContext) => KeyedSubtree(
+      key: const Key('acquisition-job-details-content'),
+      child: _LiveAcquisitionJobDetailsContent(
+        provider: provider,
+        fallbackJob: job,
+        onAction: (action) => Navigator.of(sheetContext).pop(action),
       ),
     ),
   );
@@ -171,63 +169,54 @@ class _AcquisitionJobDetailsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        const BottomSheetHandle(),
-        const SizedBox(height: Spacing.md),
-        Semantics(
-          key: const Key('acquisition-job-details-title'),
-          header: true,
-          child: Text(job.title, style: textTheme.headlineSmall),
-        ),
-        const SizedBox(height: Spacing.sm),
-        Text(acquisitionStatusLabel(job), style: textTheme.bodyMedium),
-        if (job.progress case final progress?) ...[
-          const SizedBox(height: Spacing.md),
-          AppLinearProgressIndicator(value: progress),
-        ],
-        if (job.downloadedBytes != null || job.totalBytes != null) ...[
+    return AppBottomSheet(
+      header: Semantics(
+        key: const Key('acquisition-job-details-title'),
+        header: true,
+        child: Text(job.title, style: textTheme.headlineSmall),
+      ),
+      footer: actionsEnabled && (job.canCancel || job.canRetryImport)
+          ? BottomSheetActions(
+              primary: FilledButton(
+                onPressed: () => onAction(job.canCancel ? const _CancelJob() : const _RetryImport()),
+                child: Text(job.canCancel ? 'Cancel' : 'Retry import'),
+              ),
+            )
+          : null,
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
           const SizedBox(height: Spacing.sm),
-          Text('${formatBytes(job.downloadedBytes)} of ${formatBytes(job.totalBytes)}', style: textTheme.bodyMedium),
+          Text(acquisitionStatusLabel(job), style: textTheme.bodyMedium),
+          if (job.progress case final progress?) ...[
+            const SizedBox(height: Spacing.md),
+            AppLinearProgressIndicator(value: progress),
+          ],
+          if (job.downloadedBytes != null || job.totalBytes != null) ...[
+            const SizedBox(height: Spacing.sm),
+            Text('${formatBytes(job.downloadedBytes)} of ${formatBytes(job.totalBytes)}', style: textTheme.bodyMedium),
+          ],
+          if (job.downloadSpeedBytesPerSecond case final speed?) ...[
+            const SizedBox(height: Spacing.xs),
+            Text(formatSpeed(speed), style: textTheme.bodyMedium),
+          ],
+          if (job.etaSeconds case final eta?) ...[
+            const SizedBox(height: Spacing.xs),
+            Text(formatEta(eta), style: textTheme.bodyMedium),
+          ],
+          if (job.selectedFilePath case final path?) ...[
+            const SizedBox(height: Spacing.xs),
+            Text(_fileName(path), style: textTheme.bodyMedium),
+          ],
+          if (fileChoices case final choices?) ...[
+            const SizedBox(height: Spacing.lg),
+            Semantics(header: true, child: Text('Select file', style: textTheme.titleMedium)),
+            const SizedBox(height: Spacing.sm),
+            choices,
+          ],
         ],
-        if (job.downloadSpeedBytesPerSecond case final speed?) ...[
-          const SizedBox(height: Spacing.xs),
-          Text(formatSpeed(speed), style: textTheme.bodyMedium),
-        ],
-        if (job.etaSeconds case final eta?) ...[
-          const SizedBox(height: Spacing.xs),
-          Text(formatEta(eta), style: textTheme.bodyMedium),
-        ],
-        if (job.selectedFilePath case final path?) ...[
-          const SizedBox(height: Spacing.xs),
-          Text(_fileName(path), style: textTheme.bodyMedium),
-        ],
-        if (fileChoices case final choices?) ...[
-          const SizedBox(height: Spacing.lg),
-          Semantics(header: true, child: Text('Select file', style: textTheme.titleMedium)),
-          const SizedBox(height: Spacing.sm),
-          choices,
-        ],
-        if (actionsEnabled && job.canCancel) ...[
-          const SizedBox(height: Spacing.lg),
-          FilledButton.icon(
-            onPressed: () => onAction(const _CancelJob()),
-            icon: const Icon(Icons.stop_circle_outlined),
-            label: const Text('Cancel'),
-          ),
-        ],
-        if (actionsEnabled && job.canRetryImport) ...[
-          const SizedBox(height: Spacing.lg),
-          FilledButton.icon(
-            onPressed: () => onAction(const _RetryImport()),
-            icon: const Icon(Icons.refresh),
-            label: const Text('Retry import'),
-          ),
-        ],
-      ],
+      ),
     );
   }
 }

@@ -9,8 +9,159 @@ import 'package:papyrus/widgets/add_book/book_import_sheet.dart';
 import 'package:papyrus/services/book_import_result.dart';
 import 'package:papyrus/widgets/add_book/book_import_drop_zone.dart';
 import 'package:papyrus/widgets/add_book/book_import_item_card.dart';
+import 'package:papyrus/widgets/add_book/book_import_sheet_sections.dart';
+import 'package:papyrus/themes/app_theme.dart';
+import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 
 void main() {
+  testWidgets('mobile footer actions share a row and stay fixed while selecting more files', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(390, 844);
+    addTearDown(tester.view.reset);
+    var picks = 0;
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: ThemeData(platform: TargetPlatform.android),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => BookImportSheet.show(
+                context,
+                pickFiles: () async {
+                  picks++;
+                  return List.generate(
+                    12,
+                    (i) => SelectedBookFile(name: 'batch-$picks-$i.epub', bytes: Uint8List.fromList([1])),
+                  );
+                },
+                processor: (_, _) async => throw StateError('Selection must not start import'),
+                deleteBookFile: (_) async {},
+                committer: (_, _) async => throw StateError('Selection must not commit'),
+              ),
+              child: const Text('Open import'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open import'));
+    await tester.pumpAndSettle();
+    expect(find.byType(ExpandableBottomSheet), findsOneWidget);
+    expect(tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet)).maxChildSize, lessThan(.8));
+    final footer = find.byKey(const Key('add-book-sheet-footer'));
+    final browse = find.widgetWithText(OutlinedButton, 'Browse files');
+    final cancel = find.widgetWithText(OutlinedButton, 'Cancel');
+    final initialImport = find.widgetWithText(FilledButton, 'Import');
+    expect(tester.getSize(initialImport).height, greaterThanOrEqualTo(50));
+    expect(tester.getSize(cancel).height, tester.getSize(initialImport).height);
+    expect(tester.getTopLeft(cancel).dy, tester.getTopLeft(initialImport).dy);
+    expect(tester.getTopLeft(initialImport).dx - tester.getTopRight(cancel).dx, 8);
+    final primaryShape = tester
+        .widget<FilledButton>(initialImport)
+        .defaultStyleOf(tester.element(initialImport))
+        .shape!
+        .resolve({});
+    final secondaryShape = OutlinedButtonTheme.of(tester.element(cancel)).style!.shape!.resolve({});
+    expect(primaryShape, secondaryShape);
+    expect(primaryShape, isA<StadiumBorder>());
+    expect(tester.widget<FilledButton>(initialImport).onPressed, isNull);
+    expect(find.descendant(of: browse, matching: find.byType(Icon)), findsNothing);
+    expect(find.text('Drag and drop book files here'), findsNothing);
+    await tester.tap(browse);
+    await tester.pumpAndSettle();
+    final import = find.widgetWithText(FilledButton, 'Import');
+    expect(find.text('12 files selected'), findsOneWidget);
+    expect(tester.widget<FilledButton>(import).onPressed, isNotNull);
+    expect(tester.getTopLeft(import).dy, tester.getTopLeft(cancel).dy);
+    expect(find.descendant(of: import, matching: find.byType(Icon)), findsNothing);
+    await tester.tap(find.text('Add files'));
+    await tester.pumpAndSettle();
+    expect(find.text('Import'), findsOneWidget);
+    expect(find.text('24 files selected'), findsOneWidget);
+    expect(tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet)).maxChildSize, 1);
+    final footerTop = tester.getTopLeft(footer).dy;
+    await tester.drag(find.byType(ListView), const Offset(0, -500));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(footer).dy, footerTop);
+    expect(tester.getTopLeft(find.byKey(const Key('add-book-sheet-header'))).dy, closeTo(0, 1));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('import selection fits a narrow screen with large text', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 568);
+    addTearDown(tester.view.reset);
+    final files = [
+      SelectedBookFile(name: 'a-long-book-filename.epub', bytes: Uint8List.fromList([1])),
+    ];
+    await tester.pumpWidget(
+      MaterialApp(
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(2)),
+          child: child!,
+        ),
+        home: Scaffold(
+          body: BookImportSelectingSection(
+            files: files,
+            readableFiles: files,
+            isPicking: false,
+            onBrowse: () {},
+            onDroppedFiles: (_, {feedback}) {},
+            onRemoveFile: (_) {},
+            onClearSelection: () {},
+            onStartImport: () {},
+            onClose: () {},
+          ),
+        ),
+      ),
+    );
+    expect(tester.takeException(), isNull);
+    expect(find.text('Import'), findsOneWidget);
+    expect(tester.getSize(find.byTooltip('Remove a-long-book-filename.epub')).width, greaterThanOrEqualTo(48));
+  });
+
+  testWidgets('desktop selection retains browse in the body and matching footer actions', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark.copyWith(platform: TargetPlatform.windows),
+        home: Scaffold(
+          body: BookImportSelectingSection(
+            files: const [],
+            readableFiles: const [],
+            isPicking: false,
+            onBrowse: () {},
+            onDroppedFiles: (_, {feedback}) {},
+            onRemoveFile: (_) {},
+            onClearSelection: () {},
+            onStartImport: () {},
+            onClose: () {},
+          ),
+        ),
+      ),
+    );
+    final browse = find.widgetWithText(OutlinedButton, 'Browse files');
+    final cancel = find.widgetWithText(OutlinedButton, 'Cancel');
+    final import = find.widgetWithText(FilledButton, 'Import');
+    expect(find.text('Browse files'), findsOneWidget);
+    expect(tester.getTopLeft(cancel).dx, lessThan(tester.getTopLeft(import).dx));
+    expect(tester.getTopLeft(import).dx - tester.getTopRight(cancel).dx, 16);
+    final cancelPadding = OutlinedButtonTheme.of(tester.element(cancel)).style!.padding!.resolve({});
+    final importPadding = FilledButtonTheme.of(tester.element(import)).style!.padding!.resolve({});
+    expect(cancelPadding, const EdgeInsets.symmetric(horizontal: 24, vertical: 8));
+    expect(importPadding, cancelPadding);
+    expect(tester.getSize(cancel).height, tester.getSize(import).height);
+    expect(tester.getSize(import).height, greaterThanOrEqualTo(50));
+    expect(tester.getSize(cancel).width, lessThan(160));
+    expect(tester.getSize(import).width, lessThan(280));
+    final footer = find.byKey(const Key('add-book-sheet-footer'));
+    expect(tester.getTopRight(import).dx, tester.getTopRight(footer).dx - 16);
+    final secondaryShape = OutlinedButtonTheme.of(tester.element(cancel)).style!.shape!.resolve({});
+    expect(secondaryShape, isA<StadiumBorder>());
+    expect(find.descendant(of: browse, matching: find.byType(Icon)), findsNothing);
+    expect(find.text('Drag and drop book files here'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('route back waits for late processing and temporary file cleanup', (tester) async {
     await tester.binding.setSurfaceSize(const Size(800, 1200));
     addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -46,7 +197,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Browse files'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Import 1 book'));
+    await tester.tap(find.text('Import'));
     await tester.pump();
     await navigator.currentState!.maybePop();
     await tester.pump();
@@ -134,6 +285,49 @@ void main() {
 
     expect(find.text('Choose book files'), findsOneWidget);
     expect(find.text('Drag and drop book files here'), findsNothing);
+    expect(find.byIcon(Icons.cloud_upload_outlined), findsNothing);
+    expect(find.byType(DropTarget), findsNothing);
+  });
+
+  testWidgets('compact desktop browser uses the mobile file picker without clipping its button', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(375, 667);
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    var browseCount = 0;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark.copyWith(platform: TargetPlatform.windows),
+        home: Scaffold(
+          body: Padding(
+            padding: const EdgeInsets.all(24),
+            child: SizedBox(
+              height: 180,
+              child: BookImportDropZone(
+                isPicking: false,
+                onBrowse: () => browseCount++,
+                onDroppedFiles: (_, {feedback}) {},
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    expect(find.text('Choose book files'), findsOneWidget);
+    expect(find.text('Drag and drop book files here'), findsNothing);
+    expect(find.byIcon(Icons.cloud_upload_outlined), findsNothing);
+    expect(find.byType(DropTarget), findsNothing);
+    final button = find.widgetWithText(OutlinedButton, 'Browse files');
+    final pickerRect = tester.getRect(find.byType(BookImportDropZone));
+    final buttonRect = tester.getRect(button);
+    expect(buttonRect.top, greaterThanOrEqualTo(pickerRect.top));
+    expect(buttonRect.bottom, lessThanOrEqualTo(pickerRect.bottom));
+    expect(buttonRect.height, greaterThanOrEqualTo(50));
+    await tester.tap(button);
+    expect(browseCount, 1);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('drop zone reads supported files and reports skipped files', (tester) async {

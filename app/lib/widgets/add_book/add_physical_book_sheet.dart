@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 import 'package:intl/intl.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/book.dart';
@@ -8,6 +9,7 @@ import 'package:papyrus/services/metadata_service.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/image_utils.dart';
 import 'package:papyrus/widgets/add_book/add_book_sheet_scaffold.dart';
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:papyrus/widgets/add_book/isbn_scanner_dialog.dart';
 import 'package:papyrus/widgets/book_edit/cover_image_picker.dart';
 import 'package:papyrus/widgets/book_form/book_date_field.dart';
@@ -31,14 +33,22 @@ class AddPhysicalBookSheet extends StatelessWidget {
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       useRootNavigator: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
-      builder: (context) => DraggableScrollableSheet(
-        initialChildSize: 0.9,
-        minChildSize: 0.5,
-        maxChildSize: 0.95,
-        expand: false,
-        builder: (context, scrollController) => _PhysicalBookContent(scrollController: scrollController),
+      builder: (context) => Padding(
+        padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        child: MediaQuery.sizeOf(context).width < Breakpoints.tablet
+            ? ExpandableBottomSheet(
+                builder: (context, controller) => _PhysicalBookContent(scrollController: controller),
+              )
+            : DraggableScrollableSheet(
+                initialChildSize: 0.9,
+                minChildSize: 0.5,
+                maxChildSize: 0.95,
+                expand: false,
+                builder: (context, scrollController) => _PhysicalBookContent(scrollController: scrollController),
+              ),
       ),
     );
   }
@@ -270,55 +280,51 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: Form(
-        key: _formKey,
-        child: AddBookSheetScaffold(
-          title: 'Add physical book',
-          onClose: () => Navigator.of(context).pop(),
-          body: ListView(
-            controller: widget.scrollController,
-            padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
-            children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Card(
-                    margin: const EdgeInsets.only(bottom: Spacing.xs),
-                    child: Padding(
-                      padding: const EdgeInsets.all(Spacing.md),
-                      child: CoverImagePicker(
-                        initialUrl: _coverUrl,
-                        initialBytes: _coverImageBytes,
-                        onUrlChanged: (url) => setState(() => _coverUrl = url),
-                        onFileChanged: (bytes) => setState(() {
-                          _coverImageBytes = bytes;
-                          if (bytes != null) _coverUrl = null;
-                        }),
-                        coverWidth: 240,
-                      ),
+    return Form(
+      key: _formKey,
+      child: AddBookSheetScaffold(
+        title: 'Add physical book',
+        onClose: () => Navigator.of(context).pop(),
+        body: ListView(
+          shrinkWrap: context.findAncestorWidgetOfExactType<ExpandableBottomSheet>() != null,
+          controller: widget.scrollController,
+          padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
+          children: [
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Card(
+                  margin: const EdgeInsets.only(bottom: Spacing.xs),
+                  child: Padding(
+                    padding: const EdgeInsets.all(Spacing.md),
+                    child: CoverImagePicker(
+                      initialUrl: _coverUrl,
+                      initialBytes: _coverImageBytes,
+                      onUrlChanged: (url) => setState(() => _coverUrl = url),
+                      onFileChanged: (bytes) => setState(() {
+                        _coverImageBytes = bytes;
+                        if (bytes != null) _coverUrl = null;
+                      }),
+                      coverWidth: 240,
                     ),
                   ),
+                ),
 
-                  _buildIsbnSection(),
-                  _buildBasicInfoSection(),
-                  _buildPublicationSection(),
-                  _buildIdentifiersSection(),
-                  _buildSeriesSection(),
-                  _buildPhysicalBookSection(),
-                ],
-              ),
-            ],
-          ),
-          footer: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
-            children: [
-              TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-              const SizedBox(width: Spacing.sm),
-              FilledButton(onPressed: _canSave ? _onSave : null, child: const Text('Add')),
-            ],
-          ),
+                _buildIsbnSection(),
+                _buildBasicInfoSection(),
+                _buildPublicationSection(),
+                _buildIdentifiersSection(),
+                _buildSeriesSection(),
+                _buildPhysicalBookSection(),
+              ],
+            ),
+          ],
+        ),
+        footerPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+        footer: BottomSheetFormActions(
+          onCancel: () => Navigator.of(context).pop(),
+          onSave: _canSave ? _onSave : null,
+          saveLabel: 'Add',
         ),
       ),
     );

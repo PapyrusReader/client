@@ -1,8 +1,8 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/text_utils.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
 final statusTiles = [
@@ -30,46 +30,34 @@ class BulkStatusSheet extends StatelessWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.bottomSheet)),
       ),
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (context) => BulkStatusSheet(bookCount: bookCount, onStatusSelected: onStatusSelected),
     );
   }
 
   @override
   Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    return SafeArea(
-      child: Column(
+    return AppBottomSheet(
+      header: Text(
+        'Change status for $bookCount ${maybePluralize(bookCount, "book")}',
+        style: Theme.of(context).textTheme.titleLarge,
+      ),
+      contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.md),
+      body: Column(
         mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SizedBox(height: Spacing.md),
-          const BottomSheetHandle(),
-          Padding(
-            padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg, 0),
-            child: Text(
-              'Change status for $bookCount ${maybePluralize(bookCount, "book")}',
-              style: textTheme.titleLarge,
+          for (final tile in statusTiles)
+            ListTile(
+              leading: Icon(tile.icon),
+              title: Text('Mark as ${tile.title}'),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
+              onTap: () {
+                Navigator.pop(context);
+                onStatusSelected(tile.status);
+              },
+              contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md),
             ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.md),
-            child: Column(
-              children: [
-                for (final tile in statusTiles)
-                  ListTile(
-                    leading: Icon(tile.icon),
-                    title: Text('Mark as ${tile.title}'),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(24))),
-                    onTap: () {
-                      Navigator.pop(context);
-                      onStatusSelected(tile.status);
-                    },
-                    contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-                  ),
-              ],
-            ),
-          ),
         ],
       ),
     );

@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 import 'package:flutter/services.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/add_book/book_import_batch_item.dart';
@@ -37,7 +38,8 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
-    final supportsDrop = _supportsFileDrop(theme.platform);
+    final supportsDrop = _supportsFileDrop(theme.platform) && MediaQuery.sizeOf(context).width >= Breakpoints.tablet;
+    if (!supportsDrop) return _buildFilePicker(context);
     final isActive = _isDragging || _isFocused;
     final backgroundColor = _isDragging
         ? colorScheme.primaryContainer.withValues(alpha: 0.18)
@@ -45,7 +47,6 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
         ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.35)
         : Colors.transparent;
     final borderColor = isActive ? colorScheme.primary : colorScheme.outlineVariant;
-    final instruction = supportsDrop ? 'Drag and drop book files here' : 'Choose book files';
 
     final surface = FocusableActionDetector(
       enabled: !_isBusy,
@@ -97,7 +98,11 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
                             else
                               Icon(Icons.cloud_upload_outlined, size: 48, color: colorScheme.primary),
                             const SizedBox(height: Spacing.md),
-                            Text(instruction, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
+                            Text(
+                              'Drag and drop book files here',
+                              style: theme.textTheme.titleMedium,
+                              textAlign: TextAlign.center,
+                            ),
                             const SizedBox(height: Spacing.xs),
                             Text(
                               _formats,
@@ -107,14 +112,13 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
                             const SizedBox(height: Spacing.lg),
                             SizedBox(
                               width: 176,
-                              child: OutlinedButton.icon(
+                              child: OutlinedButton(
                                 style: OutlinedButton.styleFrom(
                                   minimumSize: const Size(0, ComponentSizes.buttonHeightMobile),
-                                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+                                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
                                 ),
                                 onPressed: _isBusy ? null : widget.onBrowse,
-                                icon: const Icon(Icons.folder_open_outlined),
-                                label: const Text('Browse files', maxLines: 1),
+                                child: const Text('Browse files', maxLines: 1),
                               ),
                             ),
                           ],
@@ -130,13 +134,55 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
       ),
     );
 
-    if (!supportsDrop) return surface;
     return DropTarget(
       enable: !_isBusy,
       onDragEntered: (_) => setState(() => _isDragging = true),
       onDragExited: (_) => setState(() => _isDragging = false),
       onDragDone: _readDroppedFiles,
       child: surface,
+    );
+  }
+
+  Widget _buildFilePicker(BuildContext context) {
+    final theme = Theme.of(context);
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minHeight:
+                  context.findAncestorWidgetOfExactType<ExpandableBottomSheet>() == null && constraints.hasBoundedHeight
+                  ? constraints.maxHeight
+                  : 0,
+            ),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Choose book files', style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
+                const SizedBox(height: Spacing.sm),
+                Text(
+                  _formats,
+                  style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: Spacing.lg),
+                SizedBox(
+                  width: 176,
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(0, ComponentSizes.buttonHeightMobile),
+                      padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                    ),
+                    onPressed: _isBusy ? null : widget.onBrowse,
+                    child: const Text('Browse files', maxLines: 1),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
