@@ -7,3 +7,5 @@ landing/node_modules/
 landing/css/
 test/data/
 .idea/
+# Developer-only reader overrides; release dependencies stay Git-pinned.
+app/pubspec_overrides.yaml

@@ -61,12 +61,9 @@ void main() {
     );
     expect(processor, contains('readPendingCover: _bookImportService.getPendingCoverFile'));
 
-    final importSource = File('lib/widgets/add_book/book_import_results_sheet.dart').readAsStringSync();
+    final importSource = File('lib/widgets/add_book/book_import_sheet.dart').readAsStringSync();
     final commitStart = importSource.indexOf('static Future<Book> _commitResult(');
-    final commit = importSource.substring(
-      commitStart,
-      importSource.indexOf('/// Opens the processing step', commitStart),
-    );
+    final commit = importSource.substring(commitStart, importSource.indexOf('@override', commitStart));
     expect(commit, contains('BookImportSession.fromContext(context).commit(result, sourceFilename)'));
     final session = File('lib/services/book_import_session.dart').readAsStringSync();
     expect(session, contains('final scope = authenticated ? queue.activeScope : null;'));
@@ -84,18 +81,5 @@ void main() {
     expect(session, contains('queue.activeScope == scope'));
     expect(session, contains('accountScope: scope'));
     expect(session, isNot(contains('bytesToDataUri')));
-  });
-
-  test('import commit guard prevents repeat commits and disables mutable actions', () {
-    final source = File('lib/widgets/add_book/book_import_results_sheet.dart').readAsStringSync();
-    final addStart = source.indexOf('Future<void> _addReadyBooks()');
-    final add = source.substring(addStart, source.indexOf('Future<void> _retryCommit', addStart));
-
-    expect(add, contains('if (!_canAdd) return;'));
-    expect(add, contains('_isAdding = true'));
-    expect(add, contains('_isAdding = false'));
-    expect(source, contains('canClose: !_isClosing && !_isAdding'));
-    expect(source, contains('onPressed: _canAdd ? () => unawaited(_addReadyBooks()) : null'));
-    expect(source, contains('onRemove: _isClosing || _isAdding ? null'));
   });
 }

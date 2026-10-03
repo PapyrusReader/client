@@ -86,21 +86,3 @@ The fixtures cover public and Basic-auth catalogs in both formats, browsing, det
 The smoke suite checks that missing CORS headers on upstream redirects and book responses do not prevent relay downloads on Chrome or native platforms. The catalog at `/public/v2/blocked.json` exercises this flow.
 
 For visual fixture checks, launch the client with `--dart-define=PAPYRUS_API_BASE_URL=http://127.0.0.1:8766` and add `http://127.0.0.1:8766/public/v2/showcase.json` as a catalog. This fixture includes books, covers, sections, and long descriptions. Replace `public` with `protected` to check Basic authentication. This loopback exception exists only in the fixture server; the production backend rejects these destinations.
-
-### Relay verification — 2026-09-21
-
-- 93 Flutter OPDS tests passed, including ten native fixture network tests.
-- 30 Chrome network, relay-contract, and presentation tests passed.
-- 48 backend tests passed, including destination/deadline/cleanup coverage and health-route regression tests. Ruff and scoped mypy passed.
-- Flutter analysis and the production web build passed.
-- Chrome fetched Gutenberg's OPDS entry and a complete 558,381-byte EPUB through the actual FastAPI relay without account authentication. The client import pipeline is covered by download regression tests; this live browser check verified transport, not a full interactive app import.
-- The updated client and backend must be deployed together. No deployment was performed during this verification.
-
-### Original implementation verification — 2026-09-06
-
-- Full Flutter suite: 1,222 passed, 18 skipped (including the eight opt-in network smoke tests).
-- Real HTTP smoke suite: eight passed on the Linux Dart VM and eight passed in Chrome.
-- Flutter analysis: no issues. Formatting verification: 406 Dart files checked, no changes. Git whitespace check passed.
-- Web and Linux production builds passed.
-- Built web application: verified guest catalog browsing and EPUB download/import into the library, then entered Basic credentials through the catalog editor and browsed the protected catalog. Visually checked the redesigned desktop and phone layouts. Regression tests cover light, dark, and e-ink themes, grid/list switching, aligned covers, pagination, expandable descriptions, transfer controls, and opening the keyboard while transfers are expanded.
-- Independent specification and code reviews completed; their credential, account-transition, facet, search, response-validation, and cancellation findings were fixed and covered by regression tests.

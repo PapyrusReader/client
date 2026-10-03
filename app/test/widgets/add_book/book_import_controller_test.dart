@@ -8,6 +8,139 @@ import 'package:papyrus/widgets/add_book/book_import_batch_item.dart';
 import 'package:papyrus/widgets/add_book/book_import_controller.dart';
 
 void main() {
+  test('repeated retry and remove cannot interrupt an active commit', () async {
+    final committed = Completer<Book>();
+    var attempts = 0;
+    final deleted = <String>[];
+    final controller = BookImportController(
+      pickFiles: () async => [
+        SelectedBookFile(name: 'book.epub', bytes: Uint8List.fromList([1])),
+      ],
+      processor: (_, filename) async => _result(filename),
+      deleteBookFile: (id) async => deleted.add(id),
+      committer: (_, filename) {
+        if (++attempts == 1) throw StateError('Retry');
+        return committed.future;
+      },
+    );
+    addTearDown(controller.dispose);
+    await controller.browse();
+    controller.startImport();
+    await pumpEventQueue();
+    final id = controller.items.single.id;
+    await controller.retryItem(id);
+    await controller.retryItem(id);
+    expect(await controller.removeItem(id), BookImportRemoveResult.ignored);
+    expect(attempts, 2);
+    expect(deleted, isEmpty);
+    committed.complete(_book('book.epub'));
+    await pumpEventQueue();
+    expect(controller.successCount, 1);
+    expect(deleted, isEmpty);
+  });
+
+  test('partial commit retry preserves successful books without reprocessing', () async {
+    final commits = <String, int>{};
+    var parses = 0;
+    final controller = BookImportController(
+      pickFiles: () async => [
+        SelectedBookFile(name: 'good.epub', bytes: Uint8List.fromList([1])),
+        SelectedBookFile(name: 'retry.epub', bytes: Uint8List.fromList([2])),
+      ],
+      processor: (_, filename) async {
+        parses++;
+        return _result(filename);
+      },
+      deleteBookFile: (_) async {},
+      committer: (_, filename) async {
+        commits[filename] = (commits[filename] ?? 0) + 1;
+        if (filename == 'retry.epub' && commits[filename] == 1) throw Exception('Try again');
+        return _book(filename);
+      },
+    );
+    addTearDown(controller.dispose);
+    await controller.browse();
+    controller.startImport();
+    await pumpEventQueue();
+    expect(controller.successCount, 1);
+    await controller.retryItem(controller.items.last.id);
+    await pumpEventQueue();
+    expect(controller.successCount, 2);
+    expect(parses, 2);
+    expect(commits, {'good.epub': 1, 'retry.epub': 2});
+  });
+
+  test('close can retry temporary cleanup without repeating the import', () async {
+    var deletions = 0;
+    var parses = 0;
+    final controller = BookImportController(
+      pickFiles: () async => [
+        SelectedBookFile(name: 'book.epub', bytes: Uint8List.fromList([1])),
+      ],
+      processor: (_, filename) async {
+        parses++;
+        return _result(filename);
+      },
+      deleteBookFile: (_) async {
+        if (++deletions == 1) throw Exception('Busy');
+      },
+      committer: (_, _) async => throw Exception('Commit failed'),
+    );
+    addTearDown(controller.dispose);
+    await controller.browse();
+    controller.startImport();
+    await pumpEventQueue();
+    expect(await controller.requestClose(), BookImportCloseResult.cleanupFailed);
+    expect(await controller.requestClose(), BookImportCloseResult.closed);
+    expect(deletions, 2);
+    expect(parses, 1);
+  });
+
+  test('close and remove share in-flight temporary cleanup', () async {
+    final deletion = Completer<void>();
+    var deletions = 0;
+    final controller = BookImportController(
+      pickFiles: () async => [
+        SelectedBookFile(name: 'book.epub', bytes: Uint8List.fromList([1])),
+      ],
+      processor: (_, filename) async => _result(filename),
+      deleteBookFile: (_) async {
+        deletions++;
+        await deletion.future;
+      },
+      committer: (_, _) async => throw Exception('Commit failed'),
+    );
+    addTearDown(controller.dispose);
+    await controller.browse();
+    controller.startImport();
+    await pumpEventQueue();
+    final remove = controller.removeItem(controller.items.single.id);
+    final close = controller.requestClose();
+    await pumpEventQueue();
+    expect(deletions, 1);
+    deletion.complete();
+    expect(await remove, BookImportRemoveResult.removed);
+    expect(await close, BookImportCloseResult.closed);
+  });
+
+  test('picker cancellation preserves the previous selection', () async {
+    var picks = 0;
+    final controller = BookImportController(
+      pickFiles: () async => ++picks == 1
+          ? [
+              SelectedBookFile(name: 'book.epub', bytes: Uint8List.fromList([1])),
+            ]
+          : [],
+      processor: (_, filename) async => _result(filename),
+      deleteBookFile: (_) async {},
+      committer: (_, filename) async => _book(filename),
+    );
+    addTearDown(controller.dispose);
+    await controller.browse();
+    await controller.browse();
+    expect(controller.files.single.name, 'book.epub');
+  });
+
   test('applies dropped files with feedback', () {
     final controller = BookImportController(
       pickFiles: () async => const [],

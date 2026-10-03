@@ -8,7 +8,7 @@
     <a href="https://join.slack.com/t/papyrus-crew/shared_invite/zt-4btcyuevl-RVRivB9rreOiri4SQhVxdQ"><img src="https://img.shields.io/badge/Slack-Join%20the%20community-4A154B?logo=slack&logoColor=white" alt="Join the Papyrus community on Slack"/></a>
     <a href="https://trello.com/invite/b/681367b2ba91db4e40b0cfea/ATTI5156837607437467bd3d646f933528054D126F02/papyrus"><img src="https://img.shields.io/badge/Trello-blue?logo=trello&logoColor=white" alt="Trello"/></a>
     <a href="https://papyrusreader.github.io/docs/"><img src="https://img.shields.io/badge/Documentation-darkslateblue?logo=gitbook&logoColor=white" alt="Documentation"/></a>
-    <a href="https://codecov.io/gh/Eoic/Papyrus"><img src="https://codecov.io/gh/Eoic/Papyrus/branch/master/graph/badge.svg" alt="Coverage"/></a>
+    <a href="https://codecov.io/gh/PapyrusReader/client"><img src="https://codecov.io/gh/PapyrusReader/client/branch/master/graph/badge.svg" alt="Coverage"/></a>
     <a href="https://github.com/PapyrusReader/client/tree/master?tab=AGPL-3.0-1-ov-file"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="License"/></a>
   </p>
 </div>
@@ -17,7 +17,7 @@
 
 ## Overview
 
-Papyrus is an open-source, cross-platform application for managing and reading books. It supports both physical and digital book collections across Android, iOS, Web, Windows and Linux. The application features an integrated book reader, flexible organization tools, reading statistics, progress tracking, supports various file storage back-ends and cross-device synchronization via a self-hostable server.
+Papyrus is an open-source, cross-platform application for managing and reading books. It supports both physical and digital book collections across Android, iOS, Web, Windows and Linux. The application features an integrated book reader, flexible organization tools, reading statistics, progress tracking, uses local media caches and optional Papyrus server storage and cross-device synchronization via a self-hostable server.
 
 <div align="center">
   <img src="/public/img/library.png" alt="Papyrus library view" />
@@ -36,15 +36,20 @@ Many reading applications offer partial solutions but fall short on essential fe
 
 | Category | Features |
 |----------|----------|
-| **Reading** | Integrated viewer for EPUB, PDF, MOBI, AZW3, TXT, CBR, CBZ |
-| **Organization** | Shelves, tags, topics, custom filters, advanced search |
-| **Annotations** | Highlights, bookmarks, notes with export capabilities |
-| **Progress** | Reading time tracking, page/percentage progress, statistics |
-| **Goals** | Reading goals (books, pages, time) with streak tracking |
-| **Sync** | Cross-device synchronization via self-hostable server |
-| **Storage** | Multiple backends: self-hosted, Google Drive, WebDAV, S3 |
-| **Catalogs** | OPDS 1.2 and 2.0 browsing, keyword search, and automatic imports through the backend relay |
-| **Accessibility** | E-ink optimization, dark/light themes, customizable fonts |
+| **Reading** | EPUB/PDF reader with pagination/scrolling, appearance settings and saved positions |
+| **Organization** | Shelves, tags/topics and library filters |
+| **Annotations** | Book-level bookmarks, notes and annotations; reader text selection/export is future work |
+| **Progress** | Saved progress, reading sessions and statistics |
+| **Goals** | Reading goals and progress views |
+| **Sync** | Offline-first local library and optional self-hosted PowerSync synchronization |
+| **Storage** | Local media caches and Papyrus-managed server uploads |
+| **Catalogs** | OPDS 1.2/2.0 browsing, search and imports through the backend relay |
+| **Accessibility** | E-ink, light/dark themes and reader typography controls |
+
+The built-in reader opens EPUB and PDF. Native metadata import also accepts MOBI,
+AZW3, TXT, CBR and CBZ; these formats do not have reading engines yet. The web
+file picker currently accepts EPUB. Additional cloud storage providers and
+selection-based reader annotations remain future work.
 
 ## Supported platforms
 
@@ -59,7 +64,7 @@ Many reading applications offer partial solutions but fall short on essential fe
 
 ### Prerequisites
 
-- Flutter SDK 3.x: [Installation guide](https://flutter.dev/docs/get-started/install)
+- Flutter 3.41.2, matching the CI SDK: [installation guide](https://docs.flutter.dev/get-started/install)
 
 ### Installation
 
@@ -77,7 +82,7 @@ Many reading applications offer partial solutions but fall short on essential fe
 
    ```bash
    cd app
-   flutter pub get
+   flutter pub get --enforce-lockfile
    ```
 
 3. **Run the application**
@@ -124,8 +129,8 @@ See [PapyrusReader/docs](https://github.com/PapyrusReader/docs).
 | Frontend     | Flutter / Dart     |
 | Backend      | FastAPI / Python   |
 | Database     | PostgreSQL         |
-| Cache        | Redis              |
-| File storage | Multiple (e.g., Google Drive, S3, [OPFS](https://developer.mozilla.org/en-US/docs/Web/API/File_System_API/Origin_private_file_system), self-hosted)  |
+| Local database | SQLite / PowerSync |
+| File storage | Device cache (OPFS on web) and Papyrus server |
 
 ## Contributing
 

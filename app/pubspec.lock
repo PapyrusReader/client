@@ -90,7 +90,7 @@ packages:
     source: hosted
     version: "1.0.0"
   collection:
-    dependency: "direct main"
+    dependency: transitive
     description:
       name: collection
       sha256: "2f5709ae4d3d59dd8f7cd309b4e023046b57d8a6c82130785d2b0e5868084e76"
@@ -370,14 +370,6 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "16.3.0"
-  google_fonts:
-    dependency: "direct main"
-    description:
-      name: google_fonts
-      sha256: ba03d03bcaa2f6cb7bd920e3b5027181db75ab524f8891c8bc3aa603885b8055
-      url: "https://pub.dev"
-    source: hosted
-    version: "6.3.3"
   hooks:
     dependency: transitive
     description:
@@ -555,8 +547,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: e9f91aa1a6fd6a93494e7aeba057f6f65c6e1c18
-      resolved-ref: e9f91aa1a6fd6a93494e7aeba057f6f65c6e1c18
+      ref: c870bf4df98b01530c6b6e6ae5cd59bd5ea58cc3
+      resolved-ref: c870bf4df98b01530c6b6e6ae5cd59bd5ea58cc3
       url: "https://github.com/PapyrusReader/reader.git"
     source: git
     version: "0.0.1"
