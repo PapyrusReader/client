@@ -1,7 +1,8 @@
+import 'package:papyrus/widgets/shared/bottom_sheet_actions.dart';
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/reading_goal.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
@@ -33,6 +34,7 @@ class ActiveGoalDetailsSheet extends StatefulWidget {
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) =>
           ActiveGoalDetailsSheet(goal: goal, onUpdateProgress: onUpdateProgress, onEdit: onEdit, onDelete: onDelete),
@@ -71,51 +73,48 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-
-    return SingleChildScrollView(
-      padding: EdgeInsets.only(
-        left: Spacing.lg,
-        right: Spacing.lg,
-        top: Spacing.md,
-        bottom: MediaQuery.of(context).viewInsets.bottom + Spacing.lg,
+    return AppBottomSheet(
+      header: Row(
+        children: [
+          Container(
+            width: 48,
+            height: 48,
+            decoration: BoxDecoration(
+              color: colorScheme.primaryContainer,
+              borderRadius: BorderRadius.circular(AppRadius.md),
+            ),
+            child: Icon(_getIconForType(widget.goal.type), size: 24, color: colorScheme.onPrimaryContainer),
+          ),
+          const SizedBox(width: Spacing.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(widget.goal.description, style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
+                Text(_getGoalTypeLabel(), style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+              ],
+            ),
+          ),
+        ],
       ),
-      child: Column(
+      footer: BottomSheetActions(
+        secondary: OutlinedButton(
+          onPressed: () {
+            Navigator.of(context).pop();
+            _showDeleteConfirmation(context);
+          },
+          style: OutlinedButton.styleFrom(
+            foregroundColor: colorScheme.error,
+            side: BorderSide(color: colorScheme.error),
+          ),
+          child: const Text('Delete'),
+        ),
+        primary: FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),
+      ),
+      body: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Handle
-          const BottomSheetHandle(),
-          const SizedBox(height: Spacing.lg),
-
-          // Header
-          Row(
-            children: [
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  color: colorScheme.primaryContainer,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Icon(_getIconForType(widget.goal.type), size: 24, color: colorScheme.onPrimaryContainer),
-              ),
-              const SizedBox(width: Spacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(widget.goal.description, style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                    Text(
-                      _getGoalTypeLabel(),
-                      style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Spacing.xl),
-
           // Progress section
           _buildProgressSection(context, colorScheme, textTheme),
           const SizedBox(height: Spacing.lg),
@@ -150,41 +149,6 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
             ),
           ),
           const SizedBox(height: Spacing.xl),
-
-          // Action buttons
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: () {
-                    Navigator.of(context).pop();
-                    _showDeleteConfirmation(context);
-                  },
-                  icon: const Icon(Icons.delete_outline),
-                  label: const Text('Delete'),
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: colorScheme.error,
-                    side: BorderSide(color: colorScheme.error),
-                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
-                  ),
-                ),
-              ),
-              const SizedBox(width: Spacing.md),
-              Expanded(
-                child: FilledButton.icon(
-                  onPressed: () => Navigator.of(context).pop(),
-                  icon: const Icon(Icons.check),
-                  label: const Text('Done'),
-                  style: FilledButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: Spacing.md),
         ],
       ),
     );
@@ -418,10 +382,13 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
         Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: Spacing.sm),
         Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-        const Spacer(),
-        Text(
-          value,
-          style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: valueColor),
+        const SizedBox(width: Spacing.sm),
+        Expanded(
+          child: Text(
+            value,
+            textAlign: TextAlign.end,
+            style: textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600, color: valueColor),
+          ),
         ),
       ],
     );

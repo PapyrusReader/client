@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/book.dart';
@@ -7,7 +8,6 @@ import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/book_language.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/library/library_filter_fields.dart';
 import 'package:papyrus/widgets/shared/app_motion_control.dart';
@@ -15,7 +15,7 @@ import 'package:papyrus/widgets/shared/app_motion_control.dart';
 class LibraryAdvancedFilterSheet extends StatefulWidget {
   final LibraryProvider libraryProvider;
   final DataStore dataStore;
-  final ScrollController scrollController;
+  final ScrollController? scrollController;
   final List<Book>? sourceBooks;
   final LibraryFilterOptions? filterOptions;
 
@@ -23,7 +23,7 @@ class LibraryAdvancedFilterSheet extends StatefulWidget {
     super.key,
     required this.libraryProvider,
     required this.dataStore,
-    required this.scrollController,
+    this.scrollController,
     this.sourceBooks,
     this.filterOptions,
   });
@@ -43,6 +43,23 @@ class LibraryAdvancedFilterSheet extends StatefulWidget {
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (context) {
+        if (MediaQuery.sizeOf(context).width < Breakpoints.tablet) {
+          return DecoratedBox(
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surface,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
+            ),
+            child: ClipRRect(
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.xxl)),
+              child: LibraryAdvancedFilterSheet(
+                libraryProvider: libraryProvider,
+                dataStore: dataStore,
+                sourceBooks: sourceBooks,
+                filterOptions: filterOptions,
+              ),
+            ),
+          );
+        }
         return DraggableScrollableSheet(
           expand: false,
           initialChildSize: 0.85,
@@ -191,166 +208,132 @@ class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet>
     final hasOrganizationOptions = shelfOptions.isNotEmpty || topicOptions.isNotEmpty;
     final hasRatingOptions = availableRatings.isNotEmpty || showUnrated;
 
-    return Column(
-      children: [
-        _buildHeader(context),
-        const Divider(height: 1),
-        Expanded(
-          child: SingleChildScrollView(
-            controller: widget.scrollController,
-            padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.sm, Spacing.lg, Spacing.xl),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (hasMetadataOptions) ...[
-                  const _SectionHeader(title: 'Metadata'),
-                  if (authorOptions.isNotEmpty)
-                    _SearchableFacet<String>(
-                      label: 'Authors',
-                      options: authorOptions,
-                      selectedValues: _draft.authors,
-                      onChanged: (values) => _updateDraft(_draft.copyWith(authors: values)),
-                    ),
-                  if (languageOptions.isNotEmpty)
-                    _SearchableFacet<String>(
-                      label: 'Languages',
-                      options: languageOptions,
-                      selectedValues: _draft.languages,
-                      onChanged: (values) => _updateDraft(_draft.copyWith(languages: values)),
-                    ),
-                  if (publisherOptions.isNotEmpty)
-                    _SearchableFacet<String>(
-                      label: 'Publishers',
-                      options: publisherOptions,
-                      selectedValues: _draft.publishers,
-                      onChanged: (values) => _updateDraft(_draft.copyWith(publishers: values)),
-                    ),
-                  if (formatOptions.isNotEmpty)
-                    LibrarySmallFacet<String>(
-                      label: 'Formats',
-                      options: formatOptions,
-                      selectedValues: _draft.formats,
-                      onChanged: (values) => _updateDraft(_draft.copyWith(formats: values)),
-                    ),
-                  if (seriesOptions.isNotEmpty)
-                    _SearchableFacet<String>(
-                      label: 'Series',
-                      options: seriesOptions,
-                      selectedValues: _draft.seriesNames,
-                      onChanged: (values) => _updateDraft(_draft.copyWith(seriesNames: values)),
-                    ),
-                ],
-                if (hasOrganizationOptions) ...[
-                  _SectionHeader(title: 'Organization', dividerBefore: hasMetadataOptions),
-                  if (shelfOptions.isNotEmpty)
-                    _SearchableFacet<String>(
-                      label: 'Shelves',
-                      options: shelfOptions,
-                      selectedValues: _draft.shelfIds,
-                      onChanged: (values) => _updateDraft(_draft.copyWith(shelfIds: values)),
-                    ),
-                  if (topicOptions.isNotEmpty)
-                    _SearchableFacet<String>(
-                      label: 'Topics',
-                      options: topicOptions,
-                      selectedValues: _draft.topicIds,
-                      onChanged: (values) => _updateDraft(_draft.copyWith(topicIds: values)),
-                    ),
-                ],
-                _SectionHeader(title: 'Reading', dividerBefore: hasMetadataOptions || hasOrganizationOptions),
-                if (readingStatusOptions.isNotEmpty)
-                  LibrarySmallFacet<LibraryReadingStatus>(
-                    label: 'Reading status',
-                    showSummary: false,
-                    options: readingStatusOptions,
-                    selectedValues: _draft.statuses,
-                    onChanged: (values) => _updateDraft(_draft.copyWith(statuses: values)),
-                  ),
-                LibraryFavoriteFilterField(
-                  value: _draft.favoriteFilter,
-                  onChanged: (value) => _updateDraft(_draft.copyWith(favoriteFilter: value)),
+    return AppBottomSheet(
+      title: 'Advanced filters',
+      onClose: () => Navigator.of(context).pop(),
+      avoidKeyboard: widget.scrollController == null,
+      expandBody: widget.scrollController != null,
+      expandOnScroll: widget.scrollController == null,
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
+      footer: _buildActionBar(context),
+      body: SingleChildScrollView(
+        controller: widget.scrollController,
+        padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.sm, Spacing.lg, Spacing.xl),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (hasMetadataOptions) ...[
+              const _SectionHeader(title: 'Metadata'),
+              if (authorOptions.isNotEmpty)
+                _SearchableFacet<String>(
+                  label: 'Authors',
+                  options: authorOptions,
+                  selectedValues: _draft.authors,
+                  onChanged: (values) => _updateDraft(_draft.copyWith(authors: values)),
                 ),
-                LibraryProgressFilterField(
-                  value: _draft.progressRange,
-                  onChanged: (value) => _updateDraft(_draft.copyWith(progressRange: value)),
+              if (languageOptions.isNotEmpty)
+                _SearchableFacet<String>(
+                  label: 'Languages',
+                  options: languageOptions,
+                  selectedValues: _draft.languages,
+                  onChanged: (values) => _updateDraft(_draft.copyWith(languages: values)),
                 ),
-                if (hasRatingOptions)
-                  LibraryRatingFilterField(
-                    ratings: _draft.ratings,
-                    includeUnrated: _draft.includeUnrated,
-                    availableRatings: availableRatings,
-                    showUnrated: showUnrated,
-                    onChanged: (ratings, includeUnrated) {
-                      _updateDraft(_draft.copyWith(ratings: ratings, includeUnrated: includeUnrated));
-                    },
-                  ),
-                const _SectionHeader(title: 'Dates', dividerBefore: true),
-                LibraryDateRangeField(
-                  label: 'Publication date',
-                  value: _draft.publicationDateRange,
-                  onChanged: (value) => _updateDraft(_draft.copyWith(publicationDateRange: value)),
+              if (publisherOptions.isNotEmpty)
+                _SearchableFacet<String>(
+                  label: 'Publishers',
+                  options: publisherOptions,
+                  selectedValues: _draft.publishers,
+                  onChanged: (values) => _updateDraft(_draft.copyWith(publishers: values)),
                 ),
-                LibraryDateRangeField(
-                  label: 'Date added',
-                  value: _draft.dateAddedRange,
-                  onChanged: (value) => _updateDraft(_draft.copyWith(dateAddedRange: value)),
+              if (formatOptions.isNotEmpty)
+                LibrarySmallFacet<String>(
+                  label: 'Formats',
+                  options: formatOptions,
+                  selectedValues: _draft.formats,
+                  onChanged: (values) => _updateDraft(_draft.copyWith(formats: values)),
                 ),
-                LibraryDateRangeField(
-                  label: 'Last read',
-                  value: _draft.lastReadDateRange,
-                  onChanged: (value) => _updateDraft(_draft.copyWith(lastReadDateRange: value)),
+              if (seriesOptions.isNotEmpty)
+                _SearchableFacet<String>(
+                  label: 'Series',
+                  options: seriesOptions,
+                  selectedValues: _draft.seriesNames,
+                  onChanged: (values) => _updateDraft(_draft.copyWith(seriesNames: values)),
                 ),
-              ],
-            ),
-          ),
-        ),
-        _buildActionBar(context),
-      ],
-    );
-  }
-
-  Widget _buildHeader(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.lg, Spacing.md),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const BottomSheetHandle(),
-          const SizedBox(height: Spacing.lg),
-          Row(
-            children: [
-              Text('Advanced filters', style: Theme.of(context).textTheme.headlineSmall),
-              const Spacer(),
-              IconButton(icon: const Icon(Icons.close), tooltip: 'Close', onPressed: () => Navigator.of(context).pop()),
             ],
-          ),
-        ],
+            if (hasOrganizationOptions) ...[
+              _SectionHeader(title: 'Organization', dividerBefore: hasMetadataOptions),
+              if (shelfOptions.isNotEmpty)
+                _SearchableFacet<String>(
+                  label: 'Shelves',
+                  options: shelfOptions,
+                  selectedValues: _draft.shelfIds,
+                  onChanged: (values) => _updateDraft(_draft.copyWith(shelfIds: values)),
+                ),
+              if (topicOptions.isNotEmpty)
+                _SearchableFacet<String>(
+                  label: 'Topics',
+                  options: topicOptions,
+                  selectedValues: _draft.topicIds,
+                  onChanged: (values) => _updateDraft(_draft.copyWith(topicIds: values)),
+                ),
+            ],
+            _SectionHeader(title: 'Reading', dividerBefore: hasMetadataOptions || hasOrganizationOptions),
+            if (readingStatusOptions.isNotEmpty)
+              LibrarySmallFacet<LibraryReadingStatus>(
+                label: 'Reading status',
+                showSummary: false,
+                options: readingStatusOptions,
+                selectedValues: _draft.statuses,
+                onChanged: (values) => _updateDraft(_draft.copyWith(statuses: values)),
+              ),
+            LibraryFavoriteFilterField(
+              value: _draft.favoriteFilter,
+              onChanged: (value) => _updateDraft(_draft.copyWith(favoriteFilter: value)),
+            ),
+            LibraryProgressFilterField(
+              value: _draft.progressRange,
+              onChanged: (value) => _updateDraft(_draft.copyWith(progressRange: value)),
+            ),
+            if (hasRatingOptions)
+              LibraryRatingFilterField(
+                ratings: _draft.ratings,
+                includeUnrated: _draft.includeUnrated,
+                availableRatings: availableRatings,
+                showUnrated: showUnrated,
+                onChanged: (ratings, includeUnrated) {
+                  _updateDraft(_draft.copyWith(ratings: ratings, includeUnrated: includeUnrated));
+                },
+              ),
+            const _SectionHeader(title: 'Dates', dividerBefore: true),
+            LibraryDateRangeField(
+              label: 'Publication date',
+              value: _draft.publicationDateRange,
+              onChanged: (value) => _updateDraft(_draft.copyWith(publicationDateRange: value)),
+            ),
+            LibraryDateRangeField(
+              label: 'Date added',
+              value: _draft.dateAddedRange,
+              onChanged: (value) => _updateDraft(_draft.copyWith(dateAddedRange: value)),
+            ),
+            LibraryDateRangeField(
+              label: 'Last read',
+              value: _draft.lastReadDateRange,
+              onChanged: (value) => _updateDraft(_draft.copyWith(lastReadDateRange: value)),
+            ),
+          ],
+        ),
       ),
     );
   }
 
   Widget _buildActionBar(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final count = _matchingBookCount;
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
-      decoration: BoxDecoration(
-        color: colorScheme.surface,
-        border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
-      ),
-      child: SafeArea(
-        top: false,
-        child: Row(
-          children: [
-            TextButton(onPressed: _resetDraft, child: const Text('Reset')),
-            const Spacer(),
-            TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-            const SizedBox(width: Spacing.sm),
-            FilledButton(onPressed: _applyDraft, child: Text('Show $count ${count == 1 ? 'book' : 'books'}')),
-          ],
-        ),
-      ),
+    return BottomSheetFormActions(
+      onCancel: _resetDraft,
+      cancelLabel: 'Reset',
+      onSave: _applyDraft,
+      saveLabel: 'Show $count ${count == 1 ? 'book' : 'books'}',
     );
   }
 }

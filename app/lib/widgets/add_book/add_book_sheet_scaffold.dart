@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 
@@ -9,6 +10,7 @@ class AddBookSheetScaffold extends StatelessWidget {
   final Widget body;
   final Widget footer;
   final bool canClose;
+  final EdgeInsetsGeometry? footerPadding;
 
   const AddBookSheetScaffold({
     super.key,
@@ -17,10 +19,12 @@ class AddBookSheetScaffold extends StatelessWidget {
     required this.body,
     required this.footer,
     this.canClose = true,
+    this.footerPadding,
   });
 
   @override
   Widget build(BuildContext context) {
+    final fitContent = context.findAncestorWidgetOfExactType<ExpandableBottomSheet>() != null;
     final colorScheme = Theme.of(context).colorScheme;
 
     return LayoutBuilder(
@@ -30,6 +34,7 @@ class AddBookSheetScaffold extends StatelessWidget {
         final handleSpacing = isCompactHeight ? 0.0 : Spacing.lg;
 
         return Column(
+          mainAxisSize: fitContent ? MainAxisSize.min : MainAxisSize.max,
           children: [
             Container(
               key: const Key('add-book-sheet-header'),
@@ -63,10 +68,10 @@ class AddBookSheetScaffold extends StatelessWidget {
               ),
             ),
             const Divider(height: 1),
-            Expanded(child: body),
+            Flexible(fit: fitContent ? FlexFit.loose : FlexFit.tight, child: body),
             Container(
               key: const Key('add-book-sheet-footer'),
-              padding: EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: verticalPadding),
+              padding: footerPadding ?? EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: verticalPadding),
               decoration: BoxDecoration(
                 color: colorScheme.surface,
                 border: Border(top: BorderSide(color: colorScheme.outlineVariant)),

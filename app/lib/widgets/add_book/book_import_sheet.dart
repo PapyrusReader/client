@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/services/book_import_session.dart';
 import 'package:papyrus/services/book_import_service_stub.dart'
@@ -72,26 +73,31 @@ class BookImportSheet extends StatefulWidget {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (sheetContext) {
         final effectivePickFiles = pickFiles ?? defaultPickFiles;
+        Widget buildSheet(ScrollController scrollController) => BookImportSheet(
+          pickFiles: effectivePickFiles,
+          processor: effectiveProcessor,
+          deleteBookFile: effectiveDeleter,
+          committer: effectiveCommitter,
+          scrollController: scrollController,
+          onClose: () => Navigator.of(sheetContext).pop(),
+          onCompleted: (books) {
+            final count = books.length;
+            ScaffoldMessenger.maybeOf(context)?.showSnackBar(
+              snackBarAnimationStyle: AppMotion.animationStyle(context),
+              SnackBar(content: Text('$count ${count == 1 ? 'book' : 'books'} added to library')),
+            );
+          },
+        );
+        if (MediaQuery.sizeOf(sheetContext).width < Breakpoints.tablet) {
+          // Import dismissal must go through the session's cleanup callback.
+          return ExpandableBottomSheet(canClose: false, builder: (_, controller) => buildSheet(controller));
+        }
         return DraggableScrollableSheet(
           initialChildSize: 0.6,
           minChildSize: 0.4,
           maxChildSize: 0.95,
           expand: false,
-          builder: (_, scrollController) => BookImportSheet(
-            pickFiles: effectivePickFiles,
-            processor: effectiveProcessor,
-            deleteBookFile: effectiveDeleter,
-            committer: effectiveCommitter,
-            scrollController: scrollController,
-            onClose: () => Navigator.of(sheetContext).pop(),
-            onCompleted: (books) {
-              final count = books.length;
-              ScaffoldMessenger.maybeOf(context)?.showSnackBar(
-                snackBarAnimationStyle: AppMotion.animationStyle(context),
-                SnackBar(content: Text('$count ${count == 1 ? 'book' : 'books'} added to library')),
-              );
-            },
-          ),
+          builder: (_, controller) => buildSheet(controller),
         );
       },
     );
@@ -143,7 +149,7 @@ class _BookImportSheetState extends State<BookImportSheet> {
             isPicking: _controller.isPicking,
             pickerError: _controller.pickerError,
             scrollController: widget.scrollController,
-            onBrowse: () => unawaited(_controller.browse()),
+            onBrowse: () => unawaited(_controller.browse(append: _controller.files.isNotEmpty)),
             onDroppedFiles: _controller.applyDroppedFiles,
             onRemoveFile: _controller.removeFile,
             onClearSelection: _controller.clearSelection,

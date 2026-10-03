@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -5,7 +6,6 @@ import 'package:papyrus/widgets/shared/persistent_save.dart';
 import 'package:papyrus/models/shelf.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/color_utils.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
 /// Bottom sheet for creating or editing a shelf.
@@ -28,6 +28,7 @@ class AddShelfSheet extends StatefulWidget {
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       useRootNavigator: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => AddShelfSheet(shelf: shelf, onSave: onSave),
@@ -66,87 +67,67 @@ class _AddShelfSheetState extends State<AddShelfSheet> with PersistentSave<AddSh
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-
-    return Padding(
-      padding: EdgeInsets.only(
-        left: Spacing.lg,
-        right: Spacing.lg,
-        top: Spacing.md,
-        bottom: MediaQuery.of(context).viewInsets.bottom + Spacing.lg,
+    return AppBottomSheet(
+      title: _isEditing ? 'Edit shelf' : 'Create new shelf',
+      onClose: () => Navigator.of(context).pop(),
+      canClose: !isSaving,
+      footer: BottomSheetFormActions(
+        onCancel: isSaving ? null : () => Navigator.of(context).pop(),
+        onSave: _canSave ? _onSave : null,
+        saveLabel: _isEditing ? 'Save changes' : 'Create shelf',
       ),
-      child: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle
-            const BottomSheetHandle(),
-            const SizedBox(height: Spacing.lg),
-            // Title
-            Text(_isEditing ? 'Edit shelf' : 'Create new shelf', style: textTheme.headlineSmall),
-            const SizedBox(height: Spacing.lg),
-
-            // Name field
-            Text('Name', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const SizedBox(height: Spacing.sm),
-            TextFormField(
-              controller: _nameController,
-              autofocus: !_isEditing,
-              textCapitalization: TextCapitalization.sentences,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: 'Enter shelf name',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-              ),
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // Name field
+          Text('Name', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+          const SizedBox(height: Spacing.sm),
+          TextFormField(
+            controller: _nameController,
+            autofocus: !_isEditing,
+            textCapitalization: TextCapitalization.sentences,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: 'Enter shelf name',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+              contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
             ),
-            const SizedBox(height: Spacing.lg),
+          ),
+          const SizedBox(height: Spacing.lg),
 
-            // Description field
-            Text('Description (optional)', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const SizedBox(height: Spacing.sm),
-            TextFormField(
-              controller: _descriptionController,
-              textCapitalization: TextCapitalization.sentences,
-              maxLines: 2,
-              onChanged: (_) => setState(() {}),
-              decoration: InputDecoration(
-                hintText: 'Add a description',
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                contentPadding: const EdgeInsets.all(Spacing.md),
-              ),
+          // Description field
+          Text('Description (optional)', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+          const SizedBox(height: Spacing.sm),
+          TextFormField(
+            controller: _descriptionController,
+            textCapitalization: TextCapitalization.sentences,
+            maxLines: 2,
+            onChanged: (_) => setState(() {}),
+            decoration: InputDecoration(
+              hintText: 'Add a description',
+              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
+              contentPadding: const EdgeInsets.all(Spacing.md),
             ),
-            const SizedBox(height: Spacing.lg),
+          ),
+          const SizedBox(height: Spacing.lg),
 
-            // Color picker
-            Text('Color', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const SizedBox(height: Spacing.sm),
-            _buildColorPicker(context),
-            const SizedBox(height: Spacing.lg),
+          // Color picker
+          Text('Color', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+          const SizedBox(height: Spacing.sm),
+          _buildColorPicker(context),
+          const SizedBox(height: Spacing.lg),
 
-            // Icon picker
-            Text('Icon', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const SizedBox(height: Spacing.sm),
-            _buildIconPicker(context),
-            const SizedBox(height: Spacing.xl),
+          // Icon picker
+          Text('Icon', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+          const SizedBox(height: Spacing.sm),
+          _buildIconPicker(context),
+          const SizedBox(height: Spacing.xl),
 
-            // Preview
-            _buildPreview(context),
-            const SizedBox(height: Spacing.lg),
-
-            // Save button
-            SizedBox(
-              width: double.infinity,
-              child: FilledButton(
-                onPressed: _canSave ? _onSave : null,
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
-                  child: Text(_isEditing ? 'Save changes' : 'Create shelf'),
-                ),
-              ),
-            ),
-          ],
-        ),
+          // Preview
+          _buildPreview(context),
+          const SizedBox(height: Spacing.lg),
+        ],
       ),
     );
   }

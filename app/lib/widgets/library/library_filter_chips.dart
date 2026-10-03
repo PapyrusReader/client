@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart';
 import 'package:papyrus/data/data_store.dart';
@@ -92,31 +93,27 @@ class _SingleSelectionSheet<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _SheetTitle(title: title),
-        const Divider(height: 1),
-        Flexible(
-          child: ListView.builder(
-            shrinkWrap: true,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: options.length,
-            itemBuilder: (context, index) {
-              final option = options[index];
-              final isSelected = option.value == selectedValue;
+    return AppBottomSheet(
+      header: Text(title, style: Theme.of(context).textTheme.titleLarge),
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
+      body: ListView.builder(
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: options.length,
+        itemBuilder: (context, index) {
+          final option = options[index];
+          final isSelected = option.value == selectedValue;
 
-              return ListTile(
-                selected: isSelected,
-                leading: option.icon == null ? null : Icon(option.icon),
-                title: Text(option.label),
-                trailing: isSelected ? const Icon(Icons.check_rounded) : null,
-                onTap: () => Navigator.of(context).pop(option.value),
-              );
-            },
-          ),
-        ),
-      ],
+          return ListTile(
+            selected: isSelected,
+            leading: option.icon == null ? null : Icon(option.icon),
+            title: Text(option.label),
+            trailing: isSelected ? const Icon(Icons.check_rounded) : null,
+            onTap: () => Navigator.of(context).pop(option.value),
+          );
+        },
+      ),
     );
   }
 }
@@ -149,91 +146,66 @@ class _MultiSelectionSheetState<T> extends State<_MultiSelectionSheet<T>> {
         ? widget.options
         : widget.options.where((option) => option.label.toLowerCase().contains(normalizedQuery)).toList();
 
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        _SheetTitle(title: widget.title),
-        if (widget.searchable)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'Search ${widget.title.toLowerCase()}...',
-                prefixIcon: const Icon(Icons.search_rounded),
-                isDense: true,
+    return AppBottomSheet(
+      header: Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
+      footer: BottomSheetFormActions(
+        onCancel: () => Navigator.of(context).pop(),
+        onSave: () => Navigator.of(context).pop(Set<T>.of(_selectedValues)),
+        saveLabel: 'Apply',
+      ),
+      body: SingleChildScrollView(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (widget.searchable)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: TextField(
+                  decoration: InputDecoration(
+                    hintText: 'Search ${widget.title.toLowerCase()}...',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    isDense: true,
+                  ),
+                  onChanged: (query) => setState(() => _searchQuery = query),
+                ),
               ),
-              onChanged: (query) => setState(() => _searchQuery = query),
-            ),
-          ),
-        const Divider(height: 1),
-        Flexible(
-          child: visibleOptions.isEmpty
-              ? const Padding(padding: EdgeInsets.symmetric(horizontal: 24, vertical: 40), child: Text('No matches'))
-              : ListView.builder(
-                  shrinkWrap: true,
-                  padding: const EdgeInsets.symmetric(vertical: 8),
-                  itemCount: visibleOptions.length,
-                  itemBuilder: (context, index) {
-                    final option = visibleOptions[index];
-                    final isSelected = _selectedValues.contains(option.value);
+            if (visibleOptions.isEmpty)
+              const Padding(padding: EdgeInsets.symmetric(horizontal: 24, vertical: 40), child: Text('No matches'))
+            else
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                itemCount: visibleOptions.length,
+                itemBuilder: (context, index) {
+                  final option = visibleOptions[index];
+                  final isSelected = _selectedValues.contains(option.value);
 
-                    return AppMotionControl(
+                  return AppMotionControl(
+                    value: isSelected,
+                    builder: (focusNode) => CheckboxListTile(
+                      focusNode: focusNode,
                       value: isSelected,
-                      builder: (focusNode) => CheckboxListTile(
-                        focusNode: focusNode,
-                        value: isSelected,
-                        secondary: option.icon == null ? null : Icon(option.icon),
-                        title: Text(option.label),
-                        controlAffinity: ListTileControlAffinity.trailing,
-                        onChanged: (_) {
-                          setState(() {
-                            if (isSelected) {
-                              _selectedValues.remove(option.value);
-                            } else {
-                              _selectedValues.add(option.value);
-                            }
-                          });
-                        },
-                      ),
-                    );
-                  },
-                ),
+                      secondary: option.icon == null ? null : Icon(option.icon),
+                      title: Text(option.label),
+                      controlAffinity: ListTileControlAffinity.trailing,
+                      onChanged: (_) {
+                        setState(() {
+                          if (isSelected) {
+                            _selectedValues.remove(option.value);
+                          } else {
+                            _selectedValues.add(option.value);
+                          }
+                        });
+                      },
+                    ),
+                  );
+                },
+              ),
+          ],
         ),
-        const Divider(height: 1),
-        SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.all(16),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                TextButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Cancel')),
-                const SizedBox(width: 8),
-                FilledButton(
-                  onPressed: () => Navigator.of(context).pop(Set<T>.of(_selectedValues)),
-                  child: const Text('Apply'),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class _SheetTitle extends StatelessWidget {
-  final String title;
-
-  const _SheetTitle({required this.title});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-      child: Align(
-        alignment: Alignment.centerLeft,
-        child: Text(title, style: Theme.of(context).textTheme.titleLarge),
       ),
     );
   }
@@ -251,7 +223,7 @@ Future<T?> _showSingleSelectionSheet<T>(
     useSafeArea: true,
     useRootNavigator: true,
     isScrollControlled: true,
-    showDragHandle: true,
+    showDragHandle: false,
     builder: (_) => _SingleSelectionSheet<T>(title: title, options: options, selectedValue: selectedValue),
   );
 }
@@ -269,7 +241,7 @@ Future<Set<T>?> _showMultiSelectionSheet<T>(
     useSafeArea: true,
     useRootNavigator: true,
     isScrollControlled: true,
-    showDragHandle: true,
+    showDragHandle: false,
     builder: (_) =>
         _MultiSelectionSheet<T>(title: title, options: options, selectedValues: selectedValues, searchable: searchable),
   );

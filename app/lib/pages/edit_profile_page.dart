@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -259,9 +260,18 @@ class _EditProfilePageState extends State<EditProfilePage> {
     showModalBottomSheet(
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
-      builder: (sheetContext) => SafeArea(
-        child: Column(
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (sheetContext) => AppBottomSheet(
+        header: Text(
+          'Profile photo',
+          style: Theme.of(context).textTheme.titleLarge,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        body: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             ListTile(
               leading: const Icon(Icons.photo_library_outlined),

@@ -12,6 +12,7 @@ import 'package:papyrus/services/book_import_result.dart';
 import 'package:papyrus/services/book_import_session.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/app_theme.dart';
+import 'package:papyrus/widgets/book_details/book_details_scroll_view.dart';
 import 'package:papyrus/widgets/book_details/book_details_tab_rail.dart';
 import 'package:papyrus/widgets/opds/opds_download_panel.dart';
 import 'package:papyrus/widgets/opds/opds_feed_view.dart';
@@ -48,9 +49,11 @@ Future<void> _mount(
   Widget child, {
   required ThemeData theme,
   double width = 360,
+  double height = 900,
+  double textScale = 1,
   OpdsDownloads? downloads,
 }) async {
-  tester.view.physicalSize = Size(width, 900);
+  tester.view.physicalSize = Size(width, height);
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
@@ -60,6 +63,10 @@ Future<void> _mount(
       value: transfers,
       child: MaterialApp(
         theme: theme,
+        builder: (context, child) => MediaQuery(
+          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
+          child: child!,
+        ),
         home: AppMotionScope(
           reduceAnimations: true,
           child: Scaffold(body: SafeArea(child: child)),
@@ -116,6 +123,71 @@ Widget _panel(OpdsDownloads downloads, {ValueChanged<OpdsDownloadJob>? onRetry})
 );
 
 void main() {
+  for (final (size, textScale) in [
+    (const Size(375, 667), 1.0),
+    (const Size(320, 568), 1.0),
+    (const Size(375, 667), 1.5),
+  ]) {
+    testWidgets('catalog details fit $size at text scale $textScale with bottom navigation', (tester) async {
+      final downloads = OpdsDownloads(captureImport: _unusedSession);
+      await _mount(
+        tester,
+        Scaffold(
+          appBar: AppBar(title: const Text('Catalog header')),
+          bottomNavigationBar: NavigationBar(
+            destinations: const [
+              NavigationDestination(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+              NavigationDestination(icon: Icon(Icons.book), label: 'Library'),
+            ],
+          ),
+          body: OpdsPublicationDetails(
+            catalog: _catalog,
+            publication: _publication(
+              title: "Alice's Adventures in Wonderland",
+              description: List.filled(50, 'A long book description.').join('\n\n'),
+            ),
+            httpClient: _gateway,
+            downloads: downloads,
+            onDownload: (_) {},
+            onNavigate: (_) {},
+          ),
+        ),
+        theme: AppTheme.dark,
+        width: size.width,
+        height: size.height,
+        textScale: textScale,
+        downloads: downloads,
+      );
+      expect(tester.takeException(), isNull);
+
+      // Exercise the exact boundary that previously made the fixed tab row
+      // overflow: the header leaves less visible space than the tabs need.
+      final scrollView = tester.widget<BookDetailsScrollView>(find.byType(BookDetailsScrollView));
+      final headerHeight = tester.getSize(find.byWidget(scrollView.header)).height;
+      final appBarBottom = tester.getBottomLeft(find.byType(AppBar)).dy;
+      final navigationHeight = tester.getSize(find.byType(NavigationBar)).height;
+      tester.view.physicalSize = Size(size.width, appBarBottom + headerHeight + navigationHeight + 24);
+      await _settle(tester);
+      expect(tester.takeException(), isNull);
+      tester.view.physicalSize = size;
+      await _settle(tester);
+
+      final rail = find.byType(BookDetailsTabRail);
+      final navigationTop = tester.getTopLeft(find.byType(NavigationBar)).dy;
+      await tester.dragFrom(Offset(size.width / 2, navigationTop - 30), const Offset(0, -1000));
+      await _settle(tester);
+      expect(tester.getTopLeft(rail).dy, appBarBottom);
+      expect(tester.getBottomLeft(rail).dy, lessThan(navigationTop));
+      final contentViewport = find.descendant(
+        of: find.byType(TabBarView),
+        matching: find.byType(SingleChildScrollView),
+      );
+      expect(tester.getTopLeft(contentViewport).dy, tester.getBottomLeft(rail).dy);
+      expect(tester.getBottomLeft(contentViewport).dy, navigationTop);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   for (final width in [360.0, 424.0]) {
     testWidgets('mobile $width details rail stays below the header while content scrolls', (tester) async {
       final downloads = OpdsDownloads(captureImport: _unusedSession);

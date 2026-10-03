@@ -193,6 +193,7 @@ class LibrarySettingsSection extends StatelessWidget {
 
     showProfilePickerSheet(
       context,
+      title: 'Default view mode',
       items: const [('Grid', 'grid'), ('List', 'list'), ('Compact', 'compact')],
       selected: prefs.defaultViewMode,
       onSelected: (value) => prefs.defaultViewMode = value,
@@ -204,6 +205,7 @@ class LibrarySettingsSection extends StatelessWidget {
 
     showProfilePickerSheet(
       context,
+      title: 'Default sort order',
       items: const [
         ('Title', 'title'),
         ('Author', 'author'),
@@ -221,6 +223,7 @@ class LibrarySettingsSection extends StatelessWidget {
 
     showProfilePickerSheet(
       context,
+      title: 'Metadata source',
       items: const [('Open Library', 'Open Library'), ('Google Books', 'Google Books')],
       selected: prefs.metadataSource,
       onSelected: (value) => prefs.metadataSource = value,
@@ -232,6 +235,7 @@ class LibrarySettingsSection extends StatelessWidget {
 
     showProfilePickerSheet(
       context,
+      title: 'Export format',
       items: const [('Markdown', 'Markdown'), ('PDF', 'PDF'), ('TXT', 'TXT'), ('HTML', 'HTML')],
       selected: prefs.annotationExportFormat,
       onSelected: (value) => prefs.annotationExportFormat = value,

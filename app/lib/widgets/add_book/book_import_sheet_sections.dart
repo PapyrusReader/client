@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/add_book/add_book_sheet_scaffold.dart';
 import 'package:papyrus/widgets/add_book/book_import_batch_item.dart';
 import 'package:papyrus/widgets/add_book/book_import_drop_zone.dart';
 import 'package:papyrus/widgets/add_book/book_import_item_card.dart';
+import 'package:papyrus/widgets/add_book/book_import_sheet_actions.dart';
 
 class BookImportSelectingSection extends StatelessWidget {
   const BookImportSelectingSection({
@@ -38,20 +40,16 @@ class BookImportSelectingSection extends StatelessWidget {
     final hasFiles = files.isNotEmpty;
     return AddBookSheetScaffold(
       title: 'Import books',
+      footerPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
       canClose: true,
       onClose: onClose,
       body: hasFiles ? _buildFileList(context) : _buildBrowseOnly(context),
-      footer: Row(
-        children: [
-          if (hasFiles) FilledButton(onPressed: isPicking ? null : onClearSelection, child: const Text('Reset')),
-          const Spacer(),
-          TextButton(onPressed: onClose, child: const Text('Cancel')),
-          const SizedBox(width: Spacing.sm),
-          FilledButton(
-            onPressed: readableFiles.isNotEmpty ? onStartImport : null,
-            child: Text('Import ${readableFiles.length} ${readableFiles.length == 1 ? 'book' : 'books'}'),
-          ),
-        ],
+      footer: BookImportSheetActions(
+        primary: FilledButton(
+          onPressed: !isPicking && readableFiles.isNotEmpty ? onStartImport : null,
+          child: const Text('Import'),
+        ),
+        secondary: OutlinedButton(onPressed: onClose, child: const Text('Cancel')),
       ),
     );
   }
@@ -61,9 +59,10 @@ class BookImportSelectingSection extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.all(Spacing.lg),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Expanded(
+          Flexible(
             child: BookImportDropZone(isPicking: isPicking, onBrowse: onBrowse, onDroppedFiles: onDroppedFiles),
           ),
           if (pickerError case final message?) ...[
@@ -81,6 +80,7 @@ class BookImportSelectingSection extends StatelessWidget {
   Widget _buildFileList(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     return ListView(
+      shrinkWrap: context.findAncestorWidgetOfExactType<ExpandableBottomSheet>() != null,
       controller: scrollController,
       padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
       children: [
@@ -88,9 +88,23 @@ class BookImportSelectingSection extends StatelessWidget {
           Text(message, style: TextStyle(color: colorScheme.error, fontSize: 13)),
           const SizedBox(height: Spacing.sm),
         ],
-        Text(
-          '${files.length} ${files.length == 1 ? 'file' : 'files'} selected',
-          style: Theme.of(context).textTheme.titleSmall,
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: Spacing.sm,
+          children: [
+            Text(
+              '${files.length} ${files.length == 1 ? 'file' : 'files'} selected',
+              style: Theme.of(context).textTheme.titleSmall,
+            ),
+            Wrap(
+              spacing: Spacing.sm,
+              children: [
+                TextButton(onPressed: isPicking ? null : onBrowse, child: const Text('Add files')),
+                TextButton(onPressed: isPicking ? null : onClearSelection, child: const Text('Reset')),
+              ],
+            ),
+          ],
         ),
         const SizedBox(height: Spacing.sm),
         ...files.map((file) => _FileSelectCard(file: file, onRemove: () => onRemoveFile(file))),
@@ -123,9 +137,11 @@ class BookImportProcessingSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return AddBookSheetScaffold(
       title: 'Importing books',
+      footerPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
       canClose: !isClosing,
       onClose: onClose,
       body: ListView.separated(
+        shrinkWrap: context.findAncestorWidgetOfExactType<ExpandableBottomSheet>() != null,
         controller: scrollController,
         padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
         itemCount: items.length,
@@ -141,12 +157,8 @@ class BookImportProcessingSection extends StatelessWidget {
           );
         },
       ),
-      footer: OverflowBar(
-        alignment: MainAxisAlignment.end,
-        overflowAlignment: OverflowBarAlignment.end,
-        spacing: Spacing.sm,
-        overflowSpacing: Spacing.sm,
-        children: [TextButton(onPressed: isClosing || anyProcessing ? null : onClose, child: const Text('Close'))],
+      footer: BookImportSheetActions(
+        primary: OutlinedButton(onPressed: isClosing || anyProcessing ? null : onClose, child: const Text('Close')),
       ),
     );
   }
@@ -177,9 +189,11 @@ class BookImportSummarySection extends StatelessWidget {
     final hasFailures = failureCount > 0;
     return AddBookSheetScaffold(
       title: 'Import complete',
+      footerPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
       canClose: !isClosing,
       onClose: onDone,
       body: ListView(
+        shrinkWrap: context.findAncestorWidgetOfExactType<ExpandableBottomSheet>() != null,
         controller: scrollController,
         padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
         children: items
@@ -193,16 +207,11 @@ class BookImportSummarySection extends StatelessWidget {
             )
             .toList(),
       ),
-      footer: OverflowBar(
-        alignment: MainAxisAlignment.end,
-        overflowAlignment: OverflowBarAlignment.end,
-        spacing: Spacing.sm,
-        overflowSpacing: Spacing.sm,
-        children: [
-          FilledButton(onPressed: isClosing ? null : onDone, child: const Text('Done')),
-          if (hasFailures)
-            OutlinedButton(onPressed: isClosing ? null : onRetryFailed, child: Text('Retry $failureCount failed')),
-        ],
+      footer: BookImportSheetActions(
+        primary: FilledButton(onPressed: isClosing ? null : onDone, child: const Text('Done')),
+        secondary: hasFailures
+            ? OutlinedButton(onPressed: isClosing ? null : onRetryFailed, child: Text('Retry $failureCount failed'))
+            : null,
       ),
     );
   }
@@ -264,7 +273,10 @@ class _FileSelectCard extends StatelessWidget {
             tooltip: 'Remove ${file.name}',
             onPressed: onRemove,
             icon: const Icon(Icons.close, size: 20),
-            visualDensity: VisualDensity.compact,
+            constraints: const BoxConstraints(
+              minWidth: TouchTargets.mobileRecommended,
+              minHeight: TouchTargets.mobileRecommended,
+            ),
           ),
         ],
       ),

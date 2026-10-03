@@ -39,6 +39,7 @@ void main() {
     final deleteTop = tester.getTopLeft(find.text('Delete')).dy;
     expect(downloadTop, lessThan(deleteTop));
 
+    await tester.ensureVisible(find.text('Download'));
     await tester.tap(find.text('Download'));
     await tester.pumpAndSettle();
 

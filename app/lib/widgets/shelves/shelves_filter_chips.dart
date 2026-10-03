@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/providers/shelves_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -103,40 +104,30 @@ class _SingleSelectionSheet<T> extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Padding(
-          padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
-          child: Align(
-            alignment: Alignment.centerLeft,
-            child: Text(title, style: Theme.of(context).textTheme.titleLarge),
-          ),
-        ),
-        const Divider(height: 1),
-        Flexible(
-          child: ListView.builder(
-            shrinkWrap: true,
-            padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: options.length,
-            itemBuilder: (context, index) {
-              final option = options[index];
-              final isSelected = option.value == selectedValue;
+    return AppBottomSheet(
+      header: Text(title, style: Theme.of(context).textTheme.titleLarge),
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
+      body: ListView.builder(
+        shrinkWrap: true,
+        padding: const EdgeInsets.symmetric(vertical: 8),
+        itemCount: options.length,
+        itemBuilder: (context, index) {
+          final option = options[index];
+          final isSelected = option.value == selectedValue;
 
-              return Semantics(
-                selected: isSelected,
-                child: ListTile(
-                  selected: isSelected,
-                  leading: option.icon == null ? null : Icon(option.icon),
-                  title: Text(option.label),
-                  trailing: isSelected ? const Icon(Icons.check_rounded) : null,
-                  onTap: () => Navigator.of(context).pop(option.value),
-                ),
-              );
-            },
-          ),
-        ),
-      ],
+          return Semantics(
+            selected: isSelected,
+            child: ListTile(
+              selected: isSelected,
+              leading: option.icon == null ? null : Icon(option.icon),
+              title: Text(option.label),
+              trailing: isSelected ? const Icon(Icons.check_rounded) : null,
+              onTap: () => Navigator.of(context).pop(option.value),
+            ),
+          );
+        },
+      ),
     );
   }
 }
@@ -153,7 +144,7 @@ Future<T?> _showSingleSelectionSheet<T>(
     useSafeArea: true,
     useRootNavigator: true,
     isScrollControlled: true,
-    showDragHandle: true,
+    showDragHandle: false,
     builder: (_) => _SingleSelectionSheet<T>(title: title, options: options, selectedValue: selectedValue),
   );
 }

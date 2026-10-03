@@ -263,6 +263,7 @@ class ReadingSettingsSection extends StatelessWidget {
 
     showProfilePickerSheet(
       context,
+      title: 'Font',
       items: const [
         ('Georgia', 'Georgia'),
         ('Literata', 'Literata'),
@@ -282,6 +283,7 @@ class ReadingSettingsSection extends StatelessWidget {
 
     showProfilePickerSheet(
       context,
+      title: 'Line spacing',
       items: const [('Compact', 'compact'), ('Normal', 'normal'), ('Relaxed', 'relaxed')],
       selected: prefs.lineSpacing,
       onSelected: (value) => prefs.lineSpacing = value,
@@ -293,6 +295,7 @@ class ReadingSettingsSection extends StatelessWidget {
 
     showProfilePickerSheet(
       context,
+      title: 'Reading mode',
       items: const [('Paginated', 'paginated'), ('Continuous scroll', 'scroll')],
       selected: prefs.readingMode,
       onSelected: (value) => prefs.readingMode = value,

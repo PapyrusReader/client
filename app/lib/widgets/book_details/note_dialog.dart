@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'dart:async';
 
 import 'package:uuid/uuid.dart';
@@ -5,8 +6,6 @@ import 'package:papyrus/widgets/shared/persistent_save.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/note.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_motion_control.dart';
 
@@ -38,9 +37,7 @@ class NoteDialog extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return const SizedBox.shrink();
-  }
+  Widget build(BuildContext context) => const SizedBox.shrink();
 }
 
 /// Bottom sheet implementation for adding/editing notes.
@@ -128,164 +125,131 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> with PersistentSave<
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final bottomInset = MediaQuery.of(context).viewInsets.bottom;
-
-    return Padding(
-      padding: EdgeInsets.only(bottom: bottomInset),
-      child: ConstrainedBox(
-        constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.85),
-        child: Container(
-          key: const Key('note-bottom-sheet'),
-          decoration: BoxDecoration(
-            color: colorScheme.surface,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(AppRadius.lg)),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, 0),
+    return AppBottomSheet(
+      key: const Key('note-bottom-sheet'),
+      title: isEditing ? 'Edit note' : 'New note',
+      onClose: () => Navigator.of(context).pop(),
+      canClose: !isSaving,
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
+      footer: BottomSheetFormActions(
+        onCancel: isSaving ? null : () => Navigator.of(context).pop(),
+        onSave: isSaving ? null : _save,
+      ),
+      body: Form(
+        key: _formKey,
+        child: CustomScrollView(
+          key: const Key('note-form-scroll'),
+          scrollBehavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+          shrinkWrap: true,
+          slivers: [
+            SliverPadding(
+              padding: const EdgeInsets.all(Spacing.md),
+              sliver: SliverToBoxAdapter(
                 child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const BottomSheetHandle(),
-                    const SizedBox(height: Spacing.md),
-                    BottomSheetHeader(
-                      title: isEditing ? 'Edit note' : 'New note',
-                      onCancel: () => Navigator.of(context).pop(),
-                      onSave: _save,
-                      canSave: !isSaving,
-                      canCancel: !isSaving,
+                    // Title field
+                    TextFormField(
+                      controller: _titleController,
+                      focusNode: _titleFocusNode,
+                      decoration: const InputDecoration(
+                        labelText: 'Title',
+                        hintText: 'Enter note title',
+                        border: OutlineInputBorder(),
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter a title';
+                        }
+                        return null;
+                      },
                     ),
                   ],
                 ),
               ),
-              const SizedBox(height: Spacing.md),
-              const Divider(height: 1),
+            ),
 
-              // Form
-              Flexible(
-                fit: FlexFit.loose,
-                child: Form(
-                  key: _formKey,
-                  child: CustomScrollView(
-                    key: const Key('note-form-scroll'),
-                    scrollBehavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
-                    shrinkWrap: true,
-                    slivers: [
-                      SliverPadding(
-                        padding: const EdgeInsets.all(Spacing.md),
-                        sliver: SliverToBoxAdapter(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Title field
-                              TextFormField(
-                                controller: _titleController,
-                                focusNode: _titleFocusNode,
-                                decoration: const InputDecoration(
-                                  labelText: 'Title',
-                                  hintText: 'Enter note title',
-                                  border: OutlineInputBorder(),
-                                ),
-                                textCapitalization: TextCapitalization.sentences,
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return 'Please enter a title';
-                                  }
-                                  return null;
-                                },
-                              ),
-                            ],
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
+              sliver: SliverToBoxAdapter(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    TextFormField(
+                      key: const Key('note-content-field'),
+                      controller: _contentController,
+                      decoration: const InputDecoration(
+                        labelText: 'Content',
+                        hintText: 'Write your note...',
+                        border: OutlineInputBorder(),
+                        alignLabelWithHint: true,
+                      ),
+                      textCapitalization: TextCapitalization.sentences,
+                      minLines: 8,
+                      maxLines: 12,
+                      textAlignVertical: TextAlignVertical.top,
+                      validator: (value) {
+                        if (value == null || value.trim().isEmpty) {
+                          return 'Please enter some content';
+                        }
+                        return null;
+                      },
+                    ),
+                    const SizedBox(height: Spacing.md),
+
+                    // Tag input
+                    Row(
+                      children: [
+                        Expanded(
+                          child: TextField(
+                            controller: _tagController,
+                            decoration: const InputDecoration(
+                              labelText: 'Tags',
+                              hintText: 'Add a tag...',
+                              border: OutlineInputBorder(),
+                              isDense: true,
+                            ),
+                            textInputAction: TextInputAction.done,
+                            onSubmitted: (_) => _addTag(),
                           ),
                         ),
+                        const SizedBox(width: Spacing.sm),
+                        IconButton.filled(onPressed: _addTag, icon: const Icon(Icons.add)),
+                      ],
+                    ),
+
+                    // Tags display
+                    const SizedBox(height: Spacing.sm),
+                    if (_tags.isNotEmpty)
+                      Wrap(
+                        spacing: Spacing.xs,
+                        runSpacing: Spacing.xs,
+                        children: _tags.map((tag) {
+                          return AppMotionControl(
+                            value: null,
+                            builder: (focusNode) => Chip(
+                              focusNode: focusNode,
+                              chipAnimationStyle: appChipAnimationStyle(context),
+                              label: Text(tag),
+                              deleteIcon: const Icon(Icons.close, size: 18),
+                              onDeleted: () => _removeTag(tag),
+                              visualDensity: VisualDensity.compact,
+                            ),
+                          );
+                        }).toList(),
+                      )
+                    else
+                      Text(
+                        'Tags will appear here',
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                       ),
-
-                      SliverPadding(
-                        padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
-                        sliver: SliverToBoxAdapter(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              TextFormField(
-                                key: const Key('note-content-field'),
-                                controller: _contentController,
-                                decoration: const InputDecoration(
-                                  labelText: 'Content',
-                                  hintText: 'Write your note...',
-                                  border: OutlineInputBorder(),
-                                  alignLabelWithHint: true,
-                                ),
-                                textCapitalization: TextCapitalization.sentences,
-                                minLines: 8,
-                                maxLines: 12,
-                                textAlignVertical: TextAlignVertical.top,
-                                validator: (value) {
-                                  if (value == null || value.trim().isEmpty) {
-                                    return 'Please enter some content';
-                                  }
-                                  return null;
-                                },
-                              ),
-                              const SizedBox(height: Spacing.md),
-
-                              // Tag input
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: TextField(
-                                      controller: _tagController,
-                                      decoration: const InputDecoration(
-                                        labelText: 'Tags',
-                                        hintText: 'Add a tag...',
-                                        border: OutlineInputBorder(),
-                                        isDense: true,
-                                      ),
-                                      textInputAction: TextInputAction.done,
-                                      onSubmitted: (_) => _addTag(),
-                                    ),
-                                  ),
-                                  const SizedBox(width: Spacing.sm),
-                                  IconButton.filled(onPressed: _addTag, icon: const Icon(Icons.add)),
-                                ],
-                              ),
-
-                              // Tags display
-                              const SizedBox(height: Spacing.sm),
-                              if (_tags.isNotEmpty)
-                                Wrap(
-                                  spacing: Spacing.xs,
-                                  runSpacing: Spacing.xs,
-                                  children: _tags.map((tag) {
-                                    return AppMotionControl(
-                                      value: null,
-                                      builder: (focusNode) => Chip(
-                                        focusNode: focusNode,
-                                        chipAnimationStyle: appChipAnimationStyle(context),
-                                        label: Text(tag),
-                                        deleteIcon: const Icon(Icons.close, size: 18),
-                                        onDeleted: () => _removeTag(tag),
-                                        visualDensity: VisualDensity.compact,
-                                      ),
-                                    );
-                                  }).toList(),
-                                )
-                              else
-                                Text(
-                                  'Tags will appear here',
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                                ),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
+                  ],
                 ),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );

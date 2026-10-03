@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -17,6 +18,8 @@ class AnnotationActionSheet extends StatelessWidget {
     return showModalBottomSheet<AnnotationAction>(
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
       builder: (context) => AnnotationActionSheet(annotation: annotation),
     );
   }
@@ -24,51 +27,33 @@ class AnnotationActionSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    return AppBottomSheet(
+      header: Text(
+        annotation.location.shortLocation,
+        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+      ),
+      contentPadding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+      body: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          // Edit annotation action
+          ListTile(
+            leading: Icon(Icons.edit_outlined, color: colorScheme.onSurface),
+            title: const Text('Edit annotation'),
+            onTap: () => Navigator.of(context).pop(AnnotationAction.edit),
+          ),
 
-    return SafeArea(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Handle
-            Container(
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(color: colorScheme.outlineVariant, borderRadius: BorderRadius.circular(2)),
-            ),
-            const SizedBox(height: Spacing.md),
+          // Delete action
+          ListTile(
+            leading: Icon(Icons.delete_outline, color: colorScheme.error),
+            title: Text('Delete annotation', style: TextStyle(color: colorScheme.error)),
+            onTap: () => Navigator.of(context).pop(AnnotationAction.delete),
+          ),
 
-            // Annotation location
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
-              child: Text(
-                annotation.location.shortLocation,
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(height: Spacing.sm),
-            const Divider(),
-
-            // Edit annotation action
-            ListTile(
-              leading: Icon(Icons.edit_outlined, color: colorScheme.onSurface),
-              title: const Text('Edit annotation'),
-              onTap: () => Navigator.of(context).pop(AnnotationAction.edit),
-            ),
-
-            // Delete action
-            ListTile(
-              leading: Icon(Icons.delete_outline, color: colorScheme.error),
-              title: Text('Delete annotation', style: TextStyle(color: colorScheme.error)),
-              onTap: () => Navigator.of(context).pop(AnnotationAction.delete),
-            ),
-
-            const SizedBox(height: Spacing.sm),
-          ],
-        ),
+          const SizedBox(height: Spacing.sm),
+        ],
       ),
     );
   }

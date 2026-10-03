@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:async';
 
@@ -11,7 +12,6 @@ import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/text_utils.dart';
 import 'package:papyrus/widgets/input/search_field.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/widgets/topics/add_topic_sheet.dart';
 import 'package:provider/provider.dart';
@@ -44,6 +44,7 @@ class ManageTopicsSheet extends StatefulWidget {
       context: context,
       useRootNavigator: true,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => ManageTopicsSheet(book: book, onSave: onSave),
     );
@@ -59,6 +60,7 @@ class ManageTopicsSheet extends StatefulWidget {
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
       isScrollControlled: true,
+      useSafeArea: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (context) => ManageTopicsSheet(bulkBookIds: bookIds, onSave: onSave),
     );
@@ -98,116 +100,112 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
     final textTheme = Theme.of(context).textTheme;
     final dataStore = context.watch<DataStore>();
     final tags = dataStore.tags;
-
-    return DraggableScrollableSheet(
-      minChildSize: 0.4,
-      maxChildSize: 0.9,
-      expand: false,
-      builder: (context, scrollController) => Padding(
-        padding: const EdgeInsets.only(left: Spacing.lg, right: Spacing.lg, top: Spacing.md),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // Handle
-            const BottomSheetHandle(),
-            const SizedBox(height: Spacing.lg),
-
-            // Header with book info
-            Row(
+    final filtered = tags.where((item) => item.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
+    final mobile = MediaQuery.sizeOf(context).width < Breakpoints.tablet;
+    final shortViewport = MediaQuery.sizeOf(context).height - MediaQuery.viewInsetsOf(context).bottom < 400;
+    Widget buildSheet(ScrollController? scrollController) => AppBottomSheet(
+      avoidKeyboard: false,
+      expandBody: !mobile && tags.isNotEmpty,
+      expandOnScroll: tags.isNotEmpty,
+      scrollable: tags.isEmpty,
+      contentPadding: EdgeInsets.zero,
+      header: Row(
+        children: [
+          // Book cover or bulk icon
+          if (!widget.isBulkMode) ...[
+            ClipRRect(
+              borderRadius: BorderRadius.circular(AppRadius.sm),
+              child: SizedBox(width: 40, height: 60, child: _buildCover(context)),
+            ),
+            const SizedBox(width: Spacing.sm + Spacing.xs),
+          ],
+          // Title
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Book cover or bulk icon
+                Text(
+                  widget.isBulkMode
+                      ? 'Add topics to ${widget.bulkBookIds!.length} ${maybePluralize(widget.bulkBookIds!.length, "topic")}'
+                      : 'Manage topics',
+                  style: textTheme.titleLarge,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 if (!widget.isBulkMode) ...[
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(AppRadius.sm),
-                    child: SizedBox(width: 40, height: 60, child: _buildCover(context)),
+                  const SizedBox(height: 2),
+                  Text(
+                    widget.book!.title,
+                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
-                  const SizedBox(width: Spacing.sm + Spacing.xs),
                 ],
-                // Title
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.isBulkMode
-                            ? 'Add topics to ${widget.bulkBookIds!.length} ${maybePluralize(widget.bulkBookIds!.length, "topic")}'
-                            : 'Manage topics',
-                        style: textTheme.titleLarge,
-                      ),
-                      if (!widget.isBulkMode) ...[
-                        const SizedBox(height: 2),
-                        Text(
-                          widget.book!.title,
-                          style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ],
-                    ],
-                  ),
-                ),
-                // Create new topic button
-                IconButton.filledTonal(
-                  onPressed: _showCreateTopicSheet,
-                  icon: const Icon(Icons.add),
-                  tooltip: 'Create new topic',
-                ),
               ],
             ),
-            const SizedBox(height: Spacing.md),
-
-            // Search field
-            SearchField(
-              controller: _searchController,
-              hintText: 'Search topics...',
-              onChanged: (value) => setState(() => _searchQuery = value),
-            ),
-            const SizedBox(height: Spacing.md),
-
-            // Topic list
-            Expanded(
-              child: tags.isEmpty
-                  ? _buildEmptyState(context)
-                  : Builder(
-                      builder: (context) {
-                        final filteredTags = _searchQuery.isEmpty
-                            ? tags
-                            : tags.where((t) => t.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
-
-                        if (filteredTags.isEmpty && _searchQuery.isNotEmpty) {
-                          return Center(
-                            child: Text(
-                              'No topics found',
-                              style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                            ),
-                          );
-                        }
-
-                        return ListView.builder(
-                          controller: scrollController,
-                          itemCount: filteredTags.length,
-                          itemBuilder: (context, index) => _buildTagTile(context, filteredTags[index]),
-                        );
-                      },
-                    ),
-            ),
-
-            // Action buttons
-            Padding(
-              padding: EdgeInsets.only(top: Spacing.md, bottom: MediaQuery.of(context).viewInsets.bottom + Spacing.md),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-                  const SizedBox(width: Spacing.md),
-                  FilledButton(onPressed: isSaving ? null : _onSave, child: const Text('Save')),
-                ],
-              ),
-            ),
-          ],
-        ),
+          ),
+          // Create new topic button
+          IconButton.filledTonal(
+            onPressed: _showCreateTopicSheet,
+            icon: const Icon(Icons.add),
+            tooltip: 'Create new topic',
+          ),
+        ],
       ),
+      footer: BottomSheetFormActions(
+        onCancel: isSaving ? null : () => Navigator.pop(context),
+        onSave: isSaving ? null : _onSave,
+      ),
+      body: tags.isEmpty
+          ? _buildEmptyState(context)
+          : CustomScrollView(
+              controller: scrollController,
+              shrinkWrap: mobile,
+              slivers: [
+                SliverPadding(
+                  padding: const EdgeInsets.all(Spacing.lg),
+                  sliver: SliverToBoxAdapter(
+                    child: SearchField(
+                      controller: _searchController,
+                      hintText: 'Search topics...',
+                      onChanged: (value) => setState(() => _searchQuery = value),
+                    ),
+                  ),
+                ),
+                if (filtered.isEmpty)
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Center(
+                      child: Text(
+                        'No topics found',
+                        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                      ),
+                    ),
+                  )
+                else
+                  SliverPadding(
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
+                    sliver: SliverList.builder(
+                      itemCount: filtered.length,
+                      itemBuilder: (context, index) => _buildTagTile(context, filtered[index]),
+                    ),
+                  ),
+              ],
+            ),
+    );
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: mobile || tags.isEmpty
+          ? buildSheet(null)
+          : DraggableScrollableSheet(
+              initialChildSize: shortViewport
+                  ? 0.9
+                  : (MediaQuery.sizeOf(context).width < Breakpoints.tablet ? 0.8 : 0.5),
+              minChildSize: shortViewport ? 0.85 : 0.4,
+              maxChildSize: 0.9,
+              expand: false,
+              builder: (context, scrollController) => buildSheet(scrollController),
+            ),
     );
   }
 
@@ -223,9 +221,18 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    return const SizedBox(
+    final compact =
+        MediaQuery.sizeOf(context).height - MediaQuery.viewInsetsOf(context).bottom < 400 ||
+        MediaQuery.textScalerOf(context).scale(16) > 20;
+    return SizedBox(
       width: double.infinity,
-      child: EmptyState(icon: Icons.label_outline, title: 'No topics yet', subtitle: 'Tap + to create a topic'),
+      child: EmptyState(
+        iconSize: compact ? 32 : 64,
+        padding: EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: compact ? Spacing.sm : Spacing.md),
+        icon: Icons.label_outline,
+        title: 'No topics yet',
+        subtitle: 'Tap + to create a topic',
+      ),
     );
   }
 

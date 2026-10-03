@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:papyrus/widgets/shared/app_drawer.dart';
 import 'dart:async';
 
@@ -30,7 +31,6 @@ import 'package:papyrus/widgets/library/selection_header.dart';
 import 'package:papyrus/widgets/search/library_search_bar.dart';
 import 'package:papyrus/widgets/add_book/add_book_choice_sheet.dart';
 import 'package:papyrus/widgets/shared/empty_state.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
@@ -444,16 +444,18 @@ class _LibraryPageState extends State<LibraryPage> {
       useSafeArea: true,
       showDragHandle: false,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
-      builder: (sheetContext) => Padding(
-        padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.lg, Spacing.lg),
-        child: Column(
+      isScrollControlled: true,
+      builder: (sheetContext) => AppBottomSheet(
+        header: Text(
+          'Download with',
+          style: Theme.of(context).textTheme.titleLarge,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+        body: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            const BottomSheetHandle(),
-            const SizedBox(height: Spacing.md),
-            Text('Download with', style: Theme.of(sheetContext).textTheme.headlineSmall),
-            const SizedBox(height: Spacing.sm),
             for (final client in clients)
               ListTile(
                 contentPadding: EdgeInsets.zero,
