@@ -1,13 +1,74 @@
 import 'dart:typed_data';
+import 'dart:async';
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/widgets/add_book/book_import_batch_item.dart';
+import 'package:papyrus/widgets/add_book/book_import_sheet.dart';
+import 'package:papyrus/services/book_import_result.dart';
 import 'package:papyrus/widgets/add_book/book_import_drop_zone.dart';
 import 'package:papyrus/widgets/add_book/book_import_item_card.dart';
 
 void main() {
+  testWidgets('route back waits for late processing and temporary file cleanup', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(800, 1200));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final processed = Completer<BookImportResult>();
+    final deleted = Completer<void>();
+    final deletions = <String>[];
+    final navigator = GlobalKey<NavigatorState>();
+    await tester.pumpWidget(
+      MaterialApp(
+        navigatorKey: navigator,
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => BookImportSheet.show(
+                context,
+                pickFiles: () async => [
+                  SelectedBookFile(name: 'book.epub', bytes: Uint8List.fromList([1])),
+                ],
+                processor: (_, _) => processed.future,
+                deleteBookFile: (id) async {
+                  deletions.add(id);
+                  await deleted.future;
+                },
+                committer: (_, _) async => throw StateError('Closed imports must not commit'),
+              ),
+              child: const Text('Open import'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open import'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Browse files'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Import 1 book'));
+    await tester.pump();
+    await navigator.currentState!.maybePop();
+    await tester.pump();
+    expect(find.byType(BookImportSheet), findsOneWidget);
+    processed.complete(
+      const BookImportResult(
+        bookId: 'temporary',
+        title: 'Book',
+        author: 'Author',
+        fileSize: 1,
+        fileHash: 'hash',
+        fileExtension: 'epub',
+      ),
+    );
+    await tester.pump();
+    expect(deletions, ['temporary']);
+    expect(find.byType(BookImportSheet), findsOneWidget);
+    deleted.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(BookImportSheet), findsNothing);
+  });
+
   testWidgets('drop zone fills its body and shows desktop guidance', (tester) async {
     var browseCount = 0;
 

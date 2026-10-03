@@ -9,15 +9,8 @@ import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/book_language.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/themes/app_motion.dart';
-import 'package:papyrus/widgets/shared/app_date_picker.dart';
+import 'package:papyrus/widgets/library/library_filter_fields.dart';
 import 'package:papyrus/widgets/shared/app_motion_control.dart';
-
-bool _isEinkTheme(ThemeData theme) {
-  final border = theme.inputDecorationTheme.border;
-  return border is OutlineInputBorder &&
-      border.borderRadius == BorderRadius.zero &&
-      border.borderSide.width >= BorderWidths.einkDefault;
-}
 
 class LibraryAdvancedFilterSheet extends StatefulWidget {
   final LibraryProvider libraryProvider;
@@ -233,7 +226,7 @@ class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet>
                       onChanged: (values) => _updateDraft(_draft.copyWith(publishers: values)),
                     ),
                   if (formatOptions.isNotEmpty)
-                    _SmallFacet<String>(
+                    LibrarySmallFacet<String>(
                       label: 'Formats',
                       options: formatOptions,
                       selectedValues: _draft.formats,
@@ -266,23 +259,23 @@ class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet>
                 ],
                 _SectionHeader(title: 'Reading', dividerBefore: hasMetadataOptions || hasOrganizationOptions),
                 if (readingStatusOptions.isNotEmpty)
-                  _SmallFacet<LibraryReadingStatus>(
+                  LibrarySmallFacet<LibraryReadingStatus>(
                     label: 'Reading status',
                     showSummary: false,
                     options: readingStatusOptions,
                     selectedValues: _draft.statuses,
                     onChanged: (values) => _updateDraft(_draft.copyWith(statuses: values)),
                   ),
-                _FavoriteFilterField(
+                LibraryFavoriteFilterField(
                   value: _draft.favoriteFilter,
                   onChanged: (value) => _updateDraft(_draft.copyWith(favoriteFilter: value)),
                 ),
-                _ProgressFilterField(
+                LibraryProgressFilterField(
                   value: _draft.progressRange,
                   onChanged: (value) => _updateDraft(_draft.copyWith(progressRange: value)),
                 ),
                 if (hasRatingOptions)
-                  _RatingFilterField(
+                  LibraryRatingFilterField(
                     ratings: _draft.ratings,
                     includeUnrated: _draft.includeUnrated,
                     availableRatings: availableRatings,
@@ -292,17 +285,17 @@ class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet>
                     },
                   ),
                 const _SectionHeader(title: 'Dates', dividerBefore: true),
-                _DateRangeField(
+                LibraryDateRangeField(
                   label: 'Publication date',
                   value: _draft.publicationDateRange,
                   onChanged: (value) => _updateDraft(_draft.copyWith(publicationDateRange: value)),
                 ),
-                _DateRangeField(
+                LibraryDateRangeField(
                   label: 'Date added',
                   value: _draft.dateAddedRange,
                   onChanged: (value) => _updateDraft(_draft.copyWith(dateAddedRange: value)),
                 ),
-                _DateRangeField(
+                LibraryDateRangeField(
                   label: 'Last read',
                   value: _draft.lastReadDateRange,
                   onChanged: (value) => _updateDraft(_draft.copyWith(lastReadDateRange: value)),
@@ -458,7 +451,7 @@ class _SearchableFacetState<T> extends State<_SearchableFacet<T>> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final inputDecorationTheme = theme.inputDecorationTheme;
-    final isEink = _isEinkTheme(theme);
+    final isEink = isLibraryFilterEinkTheme(theme);
     final borderRadius = BorderRadius.circular(isEink ? AppRadius.none : AppRadius.lg);
     final headerBorderRadius = _isExpanded
         ? BorderRadius.vertical(top: Radius.circular(isEink ? AppRadius.none : AppRadius.lg))
@@ -655,402 +648,6 @@ class _FacetOptionRow extends StatelessWidget {
                 ],
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ControlGroup extends StatelessWidget {
-  final String label;
-  final String? summary;
-  final Widget child;
-
-  const _ControlGroup({required this.label, this.summary, required this.child});
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.baseline,
-            textBaseline: TextBaseline.alphabetic,
-            children: [
-              Text(label, style: theme.textTheme.titleSmall),
-              if (summary != null) ...[
-                const SizedBox(width: Spacing.sm),
-                Text(summary!, style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-              ],
-            ],
-          ),
-          const SizedBox(height: Spacing.sm),
-          child,
-        ],
-      ),
-    );
-  }
-}
-
-Widget _selectionChip(
-  BuildContext context, {
-  required String label,
-  required bool isSelected,
-  required VoidCallback onSelected,
-}) {
-  final theme = Theme.of(context);
-  final colorScheme = theme.colorScheme;
-  final isEink = _isEinkTheme(theme);
-
-  return AppMotionControl(
-    value: null,
-    builder: (focusNode) => FilterChip(
-      focusNode: focusNode,
-      chipAnimationStyle: appChipAnimationStyle(context),
-      label: Text(label),
-      selected: isSelected,
-      showCheckmark: true,
-      checkmarkColor: colorScheme.onSecondaryContainer,
-      side: BorderSide(
-        color: isSelected ? Colors.transparent : colorScheme.outlineVariant,
-        width: isEink ? BorderWidths.einkDefault : BorderWidths.thin,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(isEink ? AppRadius.none : AppRadius.md)),
-      backgroundColor: Colors.transparent,
-      selectedColor: colorScheme.secondaryContainer,
-      labelStyle: theme.textTheme.labelLarge?.copyWith(
-        color: isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant,
-      ),
-      visualDensity: VisualDensity.compact,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      onSelected: (_) => onSelected(),
-    ),
-  );
-}
-
-class _SmallFacet<T> extends StatelessWidget {
-  final String label;
-  final bool showSummary;
-  final List<LibraryFilterOption<T>> options;
-  final Set<T> selectedValues;
-  final ValueChanged<Set<T>> onChanged;
-
-  const _SmallFacet({
-    required this.label,
-    this.showSummary = true,
-    required this.options,
-    required this.selectedValues,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _ControlGroup(
-      label: label,
-      summary: showSummary ? (selectedValues.isEmpty ? 'Any' : '${selectedValues.length} selected') : null,
-      child: Wrap(
-        spacing: Spacing.xs,
-        runSpacing: Spacing.xs,
-        children: [
-          for (final option in options)
-            Builder(
-              builder: (context) {
-                final isSelected = selectedValues.contains(option.value);
-                return _selectionChip(
-                  context,
-                  label: option.label,
-                  isSelected: isSelected,
-                  onSelected: () {
-                    final values = Set<T>.of(selectedValues);
-                    if (!values.add(option.value)) {
-                      values.remove(option.value);
-                    }
-                    onChanged(values);
-                  },
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FavoriteFilterField extends StatelessWidget {
-  final FavoriteFilter value;
-  final ValueChanged<FavoriteFilter> onChanged;
-
-  const _FavoriteFilterField({required this.value, required this.onChanged});
-
-  @override
-  Widget build(BuildContext context) {
-    Widget choiceChip(String label, FavoriteFilter filter) {
-      final isSelected = value == filter;
-      return _selectionChip(context, label: label, isSelected: isSelected, onSelected: () => onChanged(filter));
-    }
-
-    return _ControlGroup(
-      label: 'Favorite state',
-      child: Wrap(
-        spacing: Spacing.xs,
-        runSpacing: Spacing.xs,
-        children: [
-          choiceChip('Any', FavoriteFilter.any),
-          choiceChip('Favorites', FavoriteFilter.favorites),
-          choiceChip('Not favorites', FavoriteFilter.notFavorites),
-        ],
-      ),
-    );
-  }
-}
-
-class _ProgressFilterField extends StatefulWidget {
-  final LibraryProgressRange? value;
-  final ValueChanged<LibraryProgressRange?> onChanged;
-
-  const _ProgressFilterField({required this.value, required this.onChanged});
-
-  @override
-  State<_ProgressFilterField> createState() => _ProgressFilterFieldState();
-}
-
-class _ProgressFilterFieldState extends State<_ProgressFilterField> {
-  RangeValues get _values {
-    final value = widget.value;
-    return value == null ? const RangeValues(0, 100) : RangeValues(value.start * 100, value.end * 100);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isEnabled = widget.value != null;
-    final values = _values;
-    final summary = isEnabled ? '${values.start.round()}% – ${values.end.round()}%' : 'Any';
-
-    void toggleEnabled() {
-      widget.onChanged(isEnabled ? null : const LibraryProgressRange(0, 1));
-    }
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Column(
-        children: [
-          Semantics(
-            container: true,
-            toggled: isEnabled,
-            label: 'Progress percentage, $summary',
-            onTap: toggleEnabled,
-            excludeSemantics: true,
-            child: Material(
-              type: MaterialType.transparency,
-              child: InkWell(
-                excludeFromSemantics: true,
-                onTap: toggleEnabled,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: 48),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('Progress percentage', style: theme.textTheme.titleSmall),
-                            const SizedBox(height: 2),
-                            Text(
-                              summary,
-                              style: theme.textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                            ),
-                          ],
-                        ),
-                      ),
-                      ExcludeFocus(
-                        child: ExcludeSemantics(
-                          child: IgnorePointer(
-                            child: AppMotionControl(
-                              value: isEnabled,
-                              builder: (focusNode) =>
-                                  Switch(focusNode: focusNode, value: isEnabled, onChanged: (_) => toggleEnabled()),
-                            ),
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-            ),
-          ),
-          if (isEnabled)
-            Padding(
-              padding: const EdgeInsets.only(top: Spacing.sm),
-              child: RangeSlider(
-                values: values,
-                min: 0,
-                max: 100,
-                padding: EdgeInsets.zero,
-                divisions: 20,
-                labels: RangeLabels('${values.start.round()}%', '${values.end.round()}%'),
-                onChanged: (range) {
-                  widget.onChanged(LibraryProgressRange(range.start / 100, range.end / 100));
-                },
-              ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _RatingFilterField extends StatelessWidget {
-  final Set<int> ratings;
-  final bool includeUnrated;
-  final List<int> availableRatings;
-  final bool showUnrated;
-  final void Function(Set<int> ratings, bool includeUnrated) onChanged;
-
-  const _RatingFilterField({
-    required this.ratings,
-    required this.includeUnrated,
-    required this.availableRatings,
-    required this.showUnrated,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return _ControlGroup(
-      label: 'Rating',
-      child: Wrap(
-        spacing: Spacing.xs,
-        runSpacing: Spacing.xs,
-        children: [
-          if (showUnrated)
-            _selectionChip(
-              context,
-              label: 'Unrated',
-              isSelected: includeUnrated,
-              onSelected: () => onChanged(ratings, !includeUnrated),
-            ),
-          for (final rating in availableRatings)
-            Builder(
-              builder: (context) {
-                final isSelected = ratings.contains(rating);
-                return _selectionChip(
-                  context,
-                  label: List.filled(rating, '★').join(),
-                  isSelected: isSelected,
-                  onSelected: () {
-                    final values = Set<int>.of(ratings);
-                    if (!values.add(rating)) {
-                      values.remove(rating);
-                    }
-                    onChanged(values, includeUnrated);
-                  },
-                );
-              },
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class _DateRangeField extends StatelessWidget {
-  final String label;
-  final LibraryDateRange? value;
-  final ValueChanged<LibraryDateRange?> onChanged;
-
-  const _DateRangeField({required this.label, required this.value, required this.onChanged});
-
-  Future<void> _pickRange(BuildContext context) async {
-    final now = DateTime.now();
-    final selectedRange = await showAppDateRangePicker(
-      context: context,
-      firstDate: DateTime(1000),
-      lastDate: DateTime(now.year + 10, 12, 31),
-      initialDateRange: value == null ? null : DateTimeRange(start: value!.start, end: value!.end),
-    );
-
-    if (selectedRange != null) {
-      onChanged(LibraryDateRange(selectedRange.start, selectedRange.end));
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final colorScheme = theme.colorScheme;
-    final isEink = _isEinkTheme(theme);
-    final localizations = MaterialLocalizations.of(context);
-    final value = this.value;
-    final summary = value == null
-        ? 'Any'
-        : '${localizations.formatCompactDate(value.start)} – ${localizations.formatCompactDate(value.end)}';
-    final borderRadius = BorderRadius.circular(isEink ? AppRadius.none : AppRadius.sm);
-    final pickerBorderRadius = value == null
-        ? borderRadius
-        : BorderRadius.horizontal(left: Radius.circular(isEink ? AppRadius.none : AppRadius.sm));
-
-    void pickRange() {
-      _pickRange(context);
-    }
-
-    return _ControlGroup(
-      label: label,
-      child: Material(
-        color: Colors.transparent,
-        shape: RoundedRectangleBorder(
-          borderRadius: borderRadius,
-          side: BorderSide(
-            color: colorScheme.outlineVariant,
-            width: isEink ? BorderWidths.einkDefault : BorderWidths.thin,
-          ),
-        ),
-        clipBehavior: Clip.antiAlias,
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: 54),
-          child: Row(
-            children: [
-              Expanded(
-                child: Semantics(
-                  button: true,
-                  label: 'Select $label, $summary',
-                  onTap: pickRange,
-                  excludeSemantics: true,
-                  child: InkWell(
-                    borderRadius: pickerBorderRadius,
-                    excludeFromSemantics: true,
-                    onTap: pickRange,
-                    child: ConstrainedBox(
-                      constraints: const BoxConstraints(minHeight: 54),
-                      child: Padding(
-                        padding: const EdgeInsets.only(left: Spacing.md),
-                        child: Row(
-                          children: [
-                            Expanded(child: Text(summary)),
-                            if (value == null) const Icon(Icons.chevron_right_rounded),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ),
-                ),
-              ),
-              if (value != null)
-                IconButton(
-                  icon: const Icon(Icons.clear_rounded),
-                  tooltip: 'Clear $label',
-                  onPressed: () => onChanged(null),
-                ),
-            ],
           ),
         ),
       ),
