@@ -136,13 +136,17 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 ### Setup
 
 1. Fork and clone the repository
-2. Install git hooks for code quality checks:
+2. Install dependencies from `app/` using the Flutter version in CI (currently 3.41.2):
 
    ```bash
-   ./scripts/setup-hooks.sh
+   cd app
+   flutter pub get --enforce-lockfile
    ```
 
-   This installs a pre-commit hook that runs `dart format` and `dart analyze` before each commit.
+   When using the full Papyrus workspace, run `tools/papyrus sdk` and
+   `tools/papyrus deps client` from its root. The workspace includes pinned SDK
+   wrappers, VS Code check/test tasks, project skills, and Dart MCP integration.
+   See its [development tooling guide](https://github.com/PapyrusReader/papyrus/blob/master/DEVELOPMENT.md).
 
 ### Development workflow
 
@@ -155,9 +159,10 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 2. Make your changes and ensure quality checks pass:
 
    ```bash
-   dart format .
-   dart analyze
+   dart format --output=none --set-exit-if-changed .
+   flutter analyze --no-fatal-warnings --no-fatal-infos
    flutter test
+   node --test test/web/flutter_bootstrap_test.cjs
    ```
 
 3. Commit your changes and push:
