@@ -75,19 +75,6 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    if (_isSigningIn) {
-      return SizedBox(
-        height: ComponentSizes.buttonHeightMobile,
-        child: Center(
-          child: SizedBox(
-            width: 24,
-            height: 24,
-            child: AppCircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.primary),
-          ),
-        ),
-      );
-    }
-
     return OutlinedButton(
       style: OutlinedButton.styleFrom(
         minimumSize: const Size.fromHeight(ComponentSizes.buttonHeightMobile),
@@ -95,12 +82,21 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.googleButton)),
         padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.buttonPaddingVertical),
       ),
-      onPressed: _handleSignIn,
+      onPressed: _isSigningIn ? null : _handleSignIn,
       child: Row(
         mainAxisSize: MainAxisSize.max,
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          const Image(image: AssetImage('assets/images/google_logo.png'), height: 24.0),
+          SizedBox.square(
+            dimension: 24,
+            child: _isSigningIn
+                ? AppCircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: theme.colorScheme.primary,
+                    semanticsLabel: 'Signing in with Google',
+                  )
+                : const Image(image: AssetImage('assets/images/google_logo.png'), fit: BoxFit.contain),
+          ),
           const SizedBox(width: Spacing.sm),
           Flexible(
             child: Text(
