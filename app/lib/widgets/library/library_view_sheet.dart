@@ -15,6 +15,29 @@ Future<void> showLibraryViewSheet(
   required double availableWidth,
   VoidCallback? onChanged,
 }) {
+  return showGridViewSheet(
+    context,
+    state: provider,
+    viewMode: () => provider.viewMode,
+    gridItemWidth: () => provider.gridItemWidth,
+    setViewMode: provider.setViewMode,
+    setGridItemWidth: provider.setGridItemWidth,
+    availableWidth: availableWidth,
+    onChanged: onChanged,
+  );
+}
+
+/// Shared grid/list and column controls for Library collections.
+Future<void> showGridViewSheet(
+  BuildContext context, {
+  required Listenable state,
+  required LibraryViewMode Function() viewMode,
+  required double Function() gridItemWidth,
+  required ValueChanged<LibraryViewMode> setViewMode,
+  required ValueChanged<double> setGridItemWidth,
+  required double availableWidth,
+  VoidCallback? onChanged,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     useRootNavigator: true,
@@ -23,9 +46,9 @@ Future<void> showLibraryViewSheet(
     showDragHandle: false,
     sheetAnimationStyle: AppMotion.animationStyle(context),
     builder: (context) => AnimatedBuilder(
-      animation: provider,
+      animation: state,
       builder: (context, _) {
-        final columns = bookGridLayout(availableWidth, itemWidth: provider.gridItemWidth).crossAxisCount;
+        final columns = bookGridLayout(availableWidth, itemWidth: gridItemWidth()).crossAxisCount;
         final options = bookGridSizeOptions(availableWidth);
 
         return AppBottomSheet(
@@ -42,13 +65,13 @@ Future<void> showLibraryViewSheet(
                   ButtonSegment(value: LibraryViewMode.grid, icon: Icon(Icons.grid_view), label: Text('Grid')),
                   ButtonSegment(value: LibraryViewMode.list, icon: Icon(Icons.view_list), label: Text('List')),
                 ],
-                selected: {provider.viewMode},
+                selected: {viewMode()},
                 onSelectionChanged: (selection) {
-                  provider.setViewMode(selection.single);
+                  setViewMode(selection.single);
                   onChanged?.call();
                 },
               ),
-              if (provider.viewMode == LibraryViewMode.grid) ...[
+              if (viewMode() == LibraryViewMode.grid) ...[
                 const SizedBox(height: 24),
                 Text('Columns', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 8),
@@ -65,7 +88,7 @@ Future<void> showLibraryViewSheet(
                           label: Text('${option.columns} ${option.columns == 1 ? 'column' : 'columns'}'),
                           selected: columns == option.columns,
                           onSelected: (_) {
-                            provider.setGridItemWidth(option.preferredWidth);
+                            setGridItemWidth(option.preferredWidth);
                             onChanged?.call();
                           },
                         ),

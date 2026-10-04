@@ -3,9 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/models/shelf.dart';
-
-/// View mode for displaying shelves.
-enum ShelvesViewMode { smallGrid, largeGrid, list }
+import 'package:papyrus/models/book_grid_size.dart';
+import 'package:papyrus/providers/enums/library_view_mode.dart';
 
 /// Filter options for shelf occupancy.
 enum ShelfContentsFilter { all, withBooks, empty }
@@ -26,7 +25,8 @@ class ShelvesProvider extends ChangeNotifier {
   String? _error;
 
   // Shelf collection controls
-  ShelvesViewMode _viewMode = ShelvesViewMode.smallGrid;
+  LibraryViewMode _viewMode = LibraryViewMode.grid;
+  double _gridItemWidth = BookGridSize.defaultWidth;
   ShelfContentsFilter _contentsFilter = ShelfContentsFilter.all;
   ShelfTypeFilter _typeFilter = ShelfTypeFilter.all;
 
@@ -71,19 +71,26 @@ class ShelvesProvider extends ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get error => _error;
 
-  ShelvesViewMode get viewMode => _viewMode;
+  LibraryViewMode get viewMode => _viewMode;
   ShelfContentsFilter get contentsFilter => _contentsFilter;
   ShelfTypeFilter get typeFilter => _typeFilter;
-  bool get isSmallGridView => _viewMode == ShelvesViewMode.smallGrid;
-  bool get isLargeGridView => _viewMode == ShelvesViewMode.largeGrid;
-  bool get isListView => _viewMode == ShelvesViewMode.list;
+  double get gridItemWidth => _gridItemWidth;
+
+  void setGridItemWidth(double width) {
+    final normalized = BookGridSize.normalize(width);
+    if (_gridItemWidth == normalized) return;
+    _gridItemWidth = normalized;
+    notifyListeners();
+  }
+
+  bool get isListView => _viewMode == LibraryViewMode.list;
 
   bool get hasActiveShelfControls =>
       _contentsFilter != ShelfContentsFilter.all ||
       _typeFilter != ShelfTypeFilter.all ||
       _shelfSortOption != ShelfSortOption.name ||
       !_shelfSortAscending ||
-      _viewMode != ShelvesViewMode.smallGrid;
+      _viewMode != LibraryViewMode.grid;
 
   /// Get all shelves, filtered and sorted according to current settings.
   List<Shelf> get shelves {
@@ -174,7 +181,7 @@ class ShelvesProvider extends ChangeNotifier {
   }
 
   /// Sets the view mode.
-  void setViewMode(ShelvesViewMode mode) {
+  void setViewMode(LibraryViewMode mode) {
     if (_viewMode != mode) {
       _viewMode = mode;
       notifyListeners();
@@ -212,7 +219,7 @@ class ShelvesProvider extends ChangeNotifier {
     _typeFilter = ShelfTypeFilter.all;
     _shelfSortOption = ShelfSortOption.name;
     _shelfSortAscending = true;
-    _viewMode = ShelvesViewMode.smallGrid;
+    _viewMode = LibraryViewMode.grid;
     notifyListeners();
   }
 

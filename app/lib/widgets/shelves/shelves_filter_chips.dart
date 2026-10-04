@@ -1,6 +1,8 @@
 import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/providers/shelves_provider.dart';
+import 'package:papyrus/providers/enums/library_view_mode.dart';
+import 'package:papyrus/widgets/library/library_view_sheet.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
@@ -177,21 +179,17 @@ class ShelvesFilterChips extends StatelessWidget {
     _SelectionOption(value: (option: ShelfSortOption.dateModified, ascending: true), label: 'Date modified (oldest)'),
   ];
 
-  static const List<_SelectionOption<ShelvesViewMode>> _viewOptions = [
-    _SelectionOption(value: ShelvesViewMode.smallGrid, label: 'Small grid'),
-    _SelectionOption(value: ShelvesViewMode.largeGrid, label: 'Large grid'),
-    _SelectionOption(value: ShelvesViewMode.list, label: 'List'),
-  ];
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      LayoutBuilder(builder: (context, constraints) => _buildChips(context, constraints));
+
+  Widget _buildChips(BuildContext context, BoxConstraints constraints) {
     final isEink = _isEinkTheme(Theme.of(context));
     final provider = context.watch<ShelvesProvider>();
     final selectedContents = _optionFor(_contentsOptions, provider.contentsFilter);
     final selectedType = _optionFor(_typeOptions, provider.typeFilter);
     final selectedSortValue = (option: provider.shelfSortOption, ascending: provider.shelfSortAscending);
     final selectedSort = _optionFor(_sortOptions, selectedSortValue);
-    final selectedView = _optionFor(_viewOptions, provider.viewMode);
 
     final chips = <_ChipEntry>[
       _ChipEntry(
@@ -254,19 +252,21 @@ class ShelvesFilterChips extends StatelessWidget {
       _ChipEntry(
         id: 'view',
         defaultOrder: 3,
-        isActive: provider.viewMode != ShelvesViewMode.smallGrid,
+        isActive: provider.viewMode != LibraryViewMode.grid,
         child: _DropdownFilterChip(
-          label: selectedView.label,
+          label: provider.viewMode.label,
           semanticLabel: 'View mode',
-          icon: Icons.grid_on,
-          isSelected: provider.viewMode != ShelvesViewMode.smallGrid,
+          icon: provider.viewMode == LibraryViewMode.grid ? Icons.grid_view : Icons.view_list,
+          isSelected: provider.viewMode != LibraryViewMode.grid,
           tooltip: 'Change view mode',
-          onPressed: () => _selectSingle<ShelvesViewMode>(
-            context: context,
-            title: 'View mode',
-            options: _viewOptions,
-            selectedValue: provider.viewMode,
-            onSelected: provider.setViewMode,
+          onPressed: () => showGridViewSheet(
+            context,
+            state: provider,
+            viewMode: () => provider.viewMode,
+            gridItemWidth: () => provider.gridItemWidth,
+            setViewMode: provider.setViewMode,
+            setGridItemWidth: provider.setGridItemWidth,
+            availableWidth: constraints.maxWidth - 2 * (horizontalPadding ?? Spacing.md),
           ),
         ),
       ),

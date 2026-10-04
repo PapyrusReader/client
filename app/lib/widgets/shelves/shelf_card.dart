@@ -60,6 +60,7 @@ class _ShelfCardState extends State<ShelfCard> {
     final shelfColor = widget.shelf.color ?? colorScheme.primary;
 
     return Card(
+      margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       elevation: AppElevation.level1,
       child: InkWell(
@@ -113,6 +114,8 @@ class _ShelfCardState extends State<ShelfCard> {
                   const SizedBox(height: 2),
                   Text(
                     widget.shelf.bookCountLabel,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
                   ),
                 ],
@@ -229,22 +232,30 @@ class _ShelfCardState extends State<ShelfCard> {
   Widget _buildCoverPlaceholder(ColorScheme colorScheme, String title) {
     return Container(
       color: colorScheme.surfaceContainerHighest,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.menu_book, size: IconSizes.display, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
-          const SizedBox(height: Spacing.xs),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
-            child: Text(
-              title,
-              style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showTitle = constraints.maxWidth >= 120 && constraints.maxHeight >= 160;
+          final iconSize = (constraints.biggest.shortestSide * 0.5).clamp(0.0, IconSizes.display);
+          return Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.menu_book, size: iconSize, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
+              if (showTitle) ...[
+                const SizedBox(height: Spacing.xs),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+                  child: Text(
+                    title,
+                    style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
+                    textAlign: TextAlign.center,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ],
+          );
+        },
       ),
     );
   }
@@ -281,7 +292,7 @@ class _ShelfCardState extends State<ShelfCard> {
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
         child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+          padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
           decoration: BoxDecoration(
             border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
           ),
