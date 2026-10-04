@@ -26,13 +26,13 @@ release runbook for merge order.
 
 ## Configure GitHub before the first build
 
-Create a GitHub **environment named `release`** in the client repository. Restrict
-it to `master`; optionally require a reviewer. Configure these environment variables:
+The client GitHub **environment named `release`** is restricted to `master`.
+Its public endpoint variables use the registered `papyrus-reader.com` domain:
 
-| Variable | Example (replace with domains you control) |
+| Variable | Release value |
 | --- | --- |
-| `PAPYRUS_API_BASE_URL` | `https://api.your-domain` |
-| `POWERSYNC_SERVICE_URL` | `https://sync.your-domain` |
+| `PAPYRUS_API_BASE_URL` | `https://api.papyrus-reader.com` |
+| `POWERSYNC_SERVICE_URL` | `https://sync.papyrus-reader.com` |
 
 Use origins without `/v1`: the client adds the API prefix. HTTP, private addresses,
 localhost and placeholder endpoints are rejected. These addresses are public
