@@ -145,14 +145,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.0.2"
+  dbus:
+    dependency: transitive
+    description:
+      name: dbus
+      sha256: a48d5da28e89bd02196e80d81ed8d7954923d00a0f4a68cc20b575038f023383
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.7.15"
   desktop_drop:
     dependency: "direct main"
     description:
       name: desktop_drop
-      sha256: "8b07a8b4db47e0768c2a3a9433eb29160478be5f80905643fc0f79a4ae188e1e"
+      sha256: "47ded09c85909edfed644fd4cbb5051b040d0aed5c79e7e062ea4b3b7156dbe4"
       url: "https://pub.dev"
     source: hosted
-    version: "0.8.0"
+    version: "0.8.4"
   desktop_webview_window:
     dependency: transitive
     description:
@@ -547,8 +555,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: c870bf4df98b01530c6b6e6ae5cd59bd5ea58cc3
-      resolved-ref: c870bf4df98b01530c6b6e6ae5cd59bd5ea58cc3
+      ref: 7992c8b518fcb900f941217a7ea8455d001c1aea
+      resolved-ref: 7992c8b518fcb900f941217a7ea8455d001c1aea
       url: "https://github.com/PapyrusReader/reader.git"
     source: git
     version: "0.0.1"
@@ -992,10 +1000,9 @@ packages:
   unrar_file:
     dependency: "direct main"
     description:
-      name: unrar_file
-      sha256: "3560f36828f6050ddb904912b0a5f64a4cb4fd80aa9fd50cb55037e105c9c184"
-      url: "https://pub.dev"
-    source: hosted
+      path: "../packages/unrar_file"
+      relative: true
+    source: path
     version: "1.1.0"
   url_launcher:
     dependency: transitive

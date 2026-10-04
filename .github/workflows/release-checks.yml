@@ -1,0 +1,21 @@
+name: Release configuration checks
+
+on:
+  pull_request:
+    paths: ['tools/**', '.github/workflows/**', 'app/pubspec.yaml', 'app/android/**', 'packages/**']
+  push:
+    branches: [master]
+    paths: ['tools/**', '.github/workflows/**', 'app/pubspec.yaml', 'app/android/**', 'packages/**']
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: python -m unittest discover -s tools/tests -v
