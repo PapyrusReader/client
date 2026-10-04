@@ -95,7 +95,7 @@ class _DesktopWelcomeContent extends StatelessWidget {
 
     return Center(
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 540),
+        constraints: const BoxConstraints(maxWidth: 500),
         child: Container(
           padding: EdgeInsets.symmetric(
             horizontal: isShortDesktop ? Spacing.lg : Spacing.xl,
