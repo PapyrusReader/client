@@ -92,6 +92,10 @@ void main() {
           tester.getRect(formCard).right,
           layout.screen.width - layout.width + math.min(layout.width, 1120) - Spacing.lg,
         );
+        final searchField = find.ancestor(of: find.text('Search'), matching: find.byType(TextFormField)).first;
+        final saveButton = find.widgetWithText(FilledButton, 'Save');
+        expect(tester.getRect(saveButton).right, tester.getRect(searchField).right);
+        expect(find.ancestor(of: saveButton, matching: find.byType(SingleChildScrollView)), findsNothing);
         expect(find.widgetWithText(OutlinedButton, 'Upload'), findsOneWidget);
         expect(find.widgetWithText(OutlinedButton, 'URL'), findsOneWidget);
       });

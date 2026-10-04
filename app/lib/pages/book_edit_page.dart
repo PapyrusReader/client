@@ -36,6 +36,7 @@ class BookEditPage extends StatefulWidget {
 }
 
 class _BookEditPageState extends State<BookEditPage> {
+  static const double _desktopContentMaxWidth = 1120;
   static const double _desktopCoverPaneWidth = ComponentSizes.bookCoverWidthDesktop;
   static const double _minimumDesktopFormPaneWidth = 420;
   // Section cards already inset their contents by Spacing.md.
@@ -235,9 +236,9 @@ class _BookEditPageState extends State<BookEditPage> {
 
     return ConstrainedBox(
       key: const Key('book-edit-desktop-header'),
-      constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight),
+      constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight, maxWidth: _desktopContentMaxWidth),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+        padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.sm, Spacing.lg + Spacing.md, Spacing.sm),
         child: Row(
           children: [
             IconButton(
@@ -277,7 +278,7 @@ class _BookEditPageState extends State<BookEditPage> {
     return Align(
       alignment: Alignment.topLeft,
       child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1120),
+        constraints: const BoxConstraints(maxWidth: _desktopContentMaxWidth),
         child: LayoutBuilder(
           builder: (context, constraints) {
             final showSideBySide = constraints.maxWidth >= _desktopPaneBreakpoint;
