@@ -855,7 +855,8 @@ class _LibraryPageState extends State<LibraryPage> {
 
     final horizontalPadding = libraryPageHorizontalPadding(context);
     return BookGrid(
-      padding: EdgeInsets.only(left: horizontalPadding, right: horizontalPadding, bottom: Spacing.md),
+      // Match the list row's vertical inset without adding padding to list mode.
+      padding: EdgeInsets.only(top: Spacing.sm, left: horizontalPadding, right: horizontalPadding, bottom: Spacing.md),
       books: visibleBooks,
       libraryViewMode: libraryProvider.viewMode,
       acquisitionJobsByBookId: _linkedJobsByBookId(acquisitionView.selectableJobs),

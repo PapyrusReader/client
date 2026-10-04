@@ -7,6 +7,7 @@ import 'package:papyrus/providers/acquisition_downloads_provider.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
+import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/library/acquisition_placeholder_card.dart';
 import 'package:papyrus/widgets/library/acquisition_placeholder_list_item.dart';
@@ -14,6 +15,7 @@ import 'package:papyrus/widgets/library/book_card.dart';
 import 'package:papyrus/widgets/library/book_grid_layout.dart';
 import 'package:papyrus/widgets/library/book_list_item.dart';
 import 'package:papyrus/widgets/library/library_page_header.dart';
+import 'package:papyrus/widgets/library/library_filter_chips.dart';
 import 'package:provider/provider.dart';
 
 import '../helpers/test_helpers.dart';
@@ -94,6 +96,11 @@ void main() {
           final covers = find.descendant(of: find.byType(BookCard), matching: find.byType(CoverImage));
           final first = tester.getRect(covers.first);
           expect(first.left, closeTo(search.left, .001), reason: '${option.columns} columns');
+          expect(
+            first.top - tester.getRect(find.byType(LibraryFilterChips)).bottom,
+            closeTo(Spacing.sm, .001),
+            reason: 'Grid covers need the same top inset as list thumbnails at every density',
+          );
           final row = covers
               .evaluate()
               .map((element) => tester.getRect(find.byWidget(element.widget)))
@@ -121,7 +128,13 @@ void main() {
         await tester.pumpAndSettle();
         final firstRow = find.byType(BookListItem).first;
         final firstCover = find.descendant(of: firstRow, matching: find.byType(CoverImage));
+        final rowContent = find.descendant(of: firstRow, matching: find.byType(Row)).first;
         expect(tester.getRect(firstCover).left, closeTo(search.left, .001));
+        expect(
+          tester.getRect(rowContent).top - tester.getRect(find.byType(LibraryFilterChips)).bottom,
+          closeTo(Spacing.sm, .001),
+          reason: 'List rows retain their own vertical padding',
+        );
         expect(tester.getRect(firstRow).right, closeTo(toolbar.right, .001));
         await tester.drag(
           find.descendant(of: find.byType(LibraryPage), matching: find.byType(ListView)).last,
