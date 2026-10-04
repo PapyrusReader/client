@@ -5,11 +5,13 @@ on:
     branches: [master, main]
     paths:
       - 'app/**'
+      - 'packages/**'
       - '.github/workflows/**'
   pull_request:
     branches: [master, main]
     paths:
       - 'app/**'
+      - 'packages/**'
       - '.github/workflows/**'
   workflow_dispatch:
 

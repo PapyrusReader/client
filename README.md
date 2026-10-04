@@ -188,3 +188,9 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 | [website](https://github.com/PapyrusReader/website) | Landing page |
 | [docs](https://github.com/PapyrusReader/docs) | Documentation |
 | [papyrus](https://github.com/PapyrusReader/papyrus) | Development workspace |
+
+## Google Play testing builds
+
+See [the release guide](docs/RELEASING.md) for signed Android App Bundles,
+version-triggered GitHub builds, required endpoint/signing settings and the first
+internal testing upload.

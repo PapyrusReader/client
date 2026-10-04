@@ -1,0 +1,22 @@
+group 'com.syed.unrar_file'
+version '1.0'
+
+apply plugin: 'com.android.library'
+
+android {
+    namespace 'com.syed.unrar_file'
+    compileSdk 36
+
+    defaultConfig {
+        minSdkVersion 24
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_11
+        targetCompatibility JavaVersion.VERSION_11
+    }
+}
+
+dependencies {
+    implementation 'com.github.junrar:junrar:7.4.0'
+}

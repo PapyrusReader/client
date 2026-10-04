@@ -22,17 +22,18 @@ dependencies:
   http: ^1.2.0
   http_parser: ^4.0.2
   file_picker: ^8.0.0+1
-  desktop_drop: ^0.8.0
+  desktop_drop: ^0.8.4
   cached_network_image: ^3.3.1
   papyrus_reader:
     git:
       url: https://github.com/PapyrusReader/reader.git
-      ref: c870bf4df98b01530c6b6e6ae5cd59bd5ea58cc3
+      ref: 7992c8b518fcb900f941217a7ea8455d001c1aea
   epub_pro: ^5.6.0
   syncfusion_flutter_pdf: ^32.2.3
   dart_mobi: ^1.0.2
   archive: ^4.0.7
-  unrar_file: ^1.1.0
+  unrar_file:
+    path: ../packages/unrar_file
   xml: ^6.6.1
   image: ^4.7.2
   path: ^1.9.1
