@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/shelf.dart';
 import 'package:papyrus/providers/shelves_provider.dart';
+import 'package:papyrus/providers/enums/library_view_mode.dart';
+import 'package:papyrus/widgets/library/book_grid_layout.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/widgets/library/library_drawer.dart';
@@ -195,49 +197,29 @@ class _ShelvesPageState extends State<ShelvesPage> {
     if (shelves.isEmpty) {
       return _buildNoResultsState(context);
     }
-    if (provider.viewMode == ShelvesViewMode.list) {
+    if (provider.viewMode == LibraryViewMode.list) {
       return _buildShelfList(context, shelves);
     }
-    return _buildShelfGrid(context, shelves, provider.viewMode);
+    return _buildShelfGrid(context, shelves, provider.gridItemWidth);
   }
 
-  Widget _buildShelfGrid(BuildContext context, List<Shelf> shelves, ShelvesViewMode viewMode) {
-    final isLargeGrid = viewMode == ShelvesViewMode.largeGrid;
-
+  Widget _buildShelfGrid(BuildContext context, List<Shelf> shelves, double itemWidth) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final width = constraints.maxWidth;
-
-        // Match book-card proportions for visual consistency.
-        int crossAxisCount;
-        double spacing;
-        double childAspectRatio;
-
-        if (width >= Breakpoints.desktopLarge) {
-          crossAxisCount = isLargeGrid ? 4 : 6;
-          spacing = Spacing.md;
-          childAspectRatio = 0.55;
-        } else if (width >= Breakpoints.desktopSmall) {
-          crossAxisCount = isLargeGrid ? 3 : 5;
-          spacing = Spacing.md;
-          childAspectRatio = 0.55;
-        } else if (width >= Breakpoints.tablet) {
-          crossAxisCount = isLargeGrid ? 3 : 4;
-          spacing = Spacing.sm + 4;
-          childAspectRatio = 0.55;
-        } else {
-          crossAxisCount = 2;
-          spacing = Spacing.sm;
-          childAspectRatio = 0.58;
-        }
+        final horizontalPadding = libraryPageHorizontalPadding(context);
+        final layout = bookGridLayout(constraints.maxWidth - horizontalPadding * 2, itemWidth: itemWidth);
+        final textTheme = Theme.of(context).textTheme;
+        final scaler = MediaQuery.textScalerOf(context);
+        double lineHeight(TextStyle? style) => scaler.scale(style?.fontSize ?? 14) * (style?.height ?? 1);
+        final metadataHeight = lineHeight(textTheme.titleSmall) + lineHeight(textTheme.bodySmall) + Spacing.sm * 2 + 2;
 
         return GridView.builder(
-          padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
+          padding: EdgeInsets.fromLTRB(horizontalPadding, Spacing.sm, horizontalPadding, Spacing.md),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            mainAxisSpacing: spacing,
-            crossAxisSpacing: spacing,
-            childAspectRatio: childAspectRatio,
+            crossAxisCount: layout.crossAxisCount,
+            mainAxisSpacing: layout.spacing,
+            crossAxisSpacing: layout.spacing,
+            mainAxisExtent: layout.itemWidth * 1.5 + metadataHeight,
           ),
           itemCount: shelves.length,
           itemBuilder: (context, index) {
@@ -256,7 +238,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
 
   Widget _buildShelfList(BuildContext context, List<Shelf> shelves) {
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+      padding: EdgeInsets.symmetric(horizontal: libraryPageHorizontalPadding(context)),
       itemCount: shelves.length,
       itemBuilder: (context, index) {
         final shelf = shelves[index];
