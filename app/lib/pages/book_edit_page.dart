@@ -38,8 +38,10 @@ class BookEditPage extends StatefulWidget {
 class _BookEditPageState extends State<BookEditPage> {
   static const double _desktopCoverPaneWidth = ComponentSizes.bookCoverWidthDesktop;
   static const double _minimumDesktopFormPaneWidth = 420;
+  // Section cards already inset their contents by Spacing.md.
+  static const double _desktopPaneGap = Spacing.xl - Spacing.md;
   static const double _desktopPaneBreakpoint =
-      _desktopCoverPaneWidth + Spacing.xl + _minimumDesktopFormPaneWidth + (Spacing.lg * 2);
+      _desktopCoverPaneWidth + _desktopPaneGap + _minimumDesktopFormPaneWidth + (Spacing.lg * 2);
 
   late BookEditProvider _provider;
   final _formKey = GlobalKey<FormState>();
@@ -282,7 +284,7 @@ class _BookEditPageState extends State<BookEditPage> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _buildDesktopCoverPane(context, provider),
-                    const SizedBox(width: Spacing.xl),
+                    const SizedBox(width: _desktopPaneGap),
                     Expanded(child: _buildDesktopFormPane(context, provider)),
                   ],
                 )
@@ -307,7 +309,11 @@ class _BookEditPageState extends State<BookEditPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSectionCard(title: 'Fetch metadata', children: [_buildMetadataSection(context, provider)]),
+        _buildSectionCard(
+          title: 'Fetch metadata',
+          padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
+          children: [_buildMetadataSection(context, provider)],
+        ),
         ..._buildFormSections(context, provider, skipMetadata: true),
       ],
     );
@@ -453,11 +459,15 @@ class _BookEditPageState extends State<BookEditPage> {
   // SECTION CARD
   // ============================================================================
 
-  Widget _buildSectionCard({required String title, required List<Widget> children}) {
+  Widget _buildSectionCard({
+    required String title,
+    required List<Widget> children,
+    EdgeInsetsGeometry padding = const EdgeInsets.all(Spacing.md),
+  }) {
     return Card(
       margin: const EdgeInsets.only(bottom: Spacing.xs),
       child: Padding(
-        padding: const EdgeInsets.all(Spacing.md),
+        padding: padding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
