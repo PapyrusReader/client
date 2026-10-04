@@ -44,12 +44,14 @@ void main() {
         addTearDown(restored.dispose);
         addTearDown(preferences.dispose);
 
-        shelf.setGridItemWidth(240);
-        expect(library.gridItemWidth, 240);
-        library.setViewMode(LibraryViewMode.list);
-        library.resetQuickFilters();
-        expect(library.gridItemWidth, 240);
-        expect(restored.gridItemWidth, 240);
+        for (final width in [240.0, 80.0]) {
+          shelf.setGridItemWidth(width);
+          expect(library.gridItemWidth, width);
+          library.setViewMode(LibraryViewMode.list);
+          library.resetQuickFilters();
+          expect(library.gridItemWidth, width);
+          expect(restored.gridItemWidth, width);
+        }
       });
 
       test('bounds and snaps grid size, ignoring unchanged values', () {
@@ -60,7 +62,7 @@ void main() {
         provider.setGridItemWidth(173);
         expect(provider.gridItemWidth, 180);
         provider.setGridItemWidth(-1);
-        expect(provider.gridItemWidth, 120);
+        expect(provider.gridItemWidth, 60);
         provider.setGridItemWidth(1000);
         expect(provider.gridItemWidth, 320);
         provider.setGridItemWidth(double.nan);

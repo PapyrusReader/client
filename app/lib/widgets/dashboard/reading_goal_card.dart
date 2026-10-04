@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/models/reading_goal.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -117,30 +118,17 @@ class ReadingGoalCard extends StatelessWidget {
   /// Builds the empty state when no reading goals are set.
   Widget _buildEmptyState(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
     return Container(
-      padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.flag_outlined, size: 40, color: colorScheme.onSurfaceVariant),
-          const SizedBox(height: Spacing.md),
-          Text('No reading goals set', style: textTheme.titleMedium, textAlign: TextAlign.center),
-          const SizedBox(height: Spacing.xs),
-          Text(
-            'Set a goal to track your progress',
-            style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: Spacing.md),
-          TextButton(onPressed: () => context.go('/goals'), child: const Text('Set a goal')),
-        ],
+      child: EmptyState.compact(
+        icon: Icons.flag_outlined,
+        title: 'No reading goals set',
+        subtitle: 'Set a goal to track your progress',
+        action: EmptyStateAction(label: 'Set a goal', onPressed: () => context.go('/goals')),
       ),
     );
   }

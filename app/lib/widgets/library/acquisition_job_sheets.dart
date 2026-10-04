@@ -1,6 +1,7 @@
 import 'package:papyrus/widgets/shared/bottom_sheet_actions.dart';
 import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/providers/acquisition_downloads_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -282,7 +283,7 @@ class _AcquisitionFileChoicesState extends State<_AcquisitionFileChoices> {
         final supportedFiles = result.files.where((candidate) => candidate.supported).toList();
 
         if (supportedFiles.isEmpty) {
-          return Text('No supported book files found.', style: textTheme.bodyMedium);
+          return const EmptyState.compact(icon: Icons.menu_book_outlined, title: 'No supported book files found.');
         }
 
         return Column(

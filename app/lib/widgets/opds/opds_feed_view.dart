@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -161,20 +162,10 @@ class OpdsFeedView extends StatelessWidget {
                       ],
                       if (feed.navigation.isEmpty && feed.publications.isEmpty && feed.groups.isEmpty)
                         SliverToBoxAdapter(
-                          child: Padding(
-                            padding: const EdgeInsets.symmetric(vertical: Spacing.xxl),
-                            child: Column(
-                              children: [
-                                Icon(Icons.search_off, size: 48, color: colors.onSurfaceVariant),
-                                const SizedBox(height: Spacing.md),
-                                Text('No books or sections found.', style: text.titleMedium),
-                                if (query.isNotEmpty)
-                                  const Padding(
-                                    padding: EdgeInsets.only(top: Spacing.sm),
-                                    child: Text('Try another title, author, or keyword.'),
-                                  ),
-                              ],
-                            ),
+                          child: EmptyState(
+                            icon: Icons.search_off,
+                            title: 'No books or sections found.',
+                            subtitle: query.isNotEmpty ? 'Try another title, author, or keyword.' : null,
                           ),
                         ),
                       if (feed.previousLink != null || feed.nextLink != null)

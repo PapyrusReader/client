@@ -49,7 +49,8 @@ class AcquisitionPlaceholderListItem extends StatelessWidget {
             child: InkWell(
               onTap: effectiveTap,
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                // The list owns the horizontal page gutter.
+                padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
                 decoration: BoxDecoration(
                   border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
                 ),

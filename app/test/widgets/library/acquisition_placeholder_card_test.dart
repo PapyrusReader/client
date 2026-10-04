@@ -320,8 +320,8 @@ void _expectCardParity(WidgetTester tester, ThemeData theme) {
   expect(bookMaterial.elevation, theme.cardTheme.elevation);
   expect(placeholderMaterial.elevation, theme.cardTheme.elevation);
   expect(placeholderMaterial.clipBehavior, bookMaterial.clipBehavior);
-  expect(bookMargin.padding, theme.cardTheme.margin);
-  expect(placeholderMargin.padding, theme.cardTheme.margin);
+  expect(bookMargin.padding, EdgeInsets.zero);
+  expect(placeholderMargin.padding, EdgeInsets.zero);
   expect(_selectionTint(bookRoot, selectionColor), findsOneWidget);
   expect(_selectionTint(placeholderRoot, selectionColor), findsOneWidget);
 }

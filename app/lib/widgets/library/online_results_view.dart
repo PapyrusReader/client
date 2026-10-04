@@ -55,7 +55,7 @@ class OnlineResultsView extends StatelessWidget {
         icon: Icons.cloud_off_outlined,
         title: 'Unable to search connected sources',
         subtitle: error,
-        action: FilledButton.icon(onPressed: onRetry, icon: const Icon(Icons.refresh), label: const Text('Try again')),
+        action: EmptyStateAction(onPressed: onRetry, icon: Icons.refresh, label: 'Try again'),
       );
     }
 

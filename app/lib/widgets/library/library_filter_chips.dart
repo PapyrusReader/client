@@ -281,7 +281,10 @@ class LibraryFilterChips extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) =>
+      LayoutBuilder(builder: (context, constraints) => _buildChips(context, constraints.maxWidth));
+
+  Widget _buildChips(BuildContext context, double availableWidth) {
     final provider = context.watch<LibraryProvider>();
     final dataStore = context.watch<DataStore>();
     final filterOptions = this.filterOptions ?? LibraryFilterOptions.fromDataStore(dataStore);
@@ -504,7 +507,12 @@ class LibraryFilterChips extends StatelessWidget {
           icon: provider.viewMode == LibraryViewMode.grid ? Icons.grid_view : Icons.view_list,
           isSelected: provider.viewMode != LibraryViewMode.grid,
           tooltip: 'Change view mode',
-          onPressed: () => showLibraryViewSheet(context, provider, onChanged: onLibraryFilterTapped),
+          onPressed: () => showLibraryViewSheet(
+            context,
+            provider,
+            availableWidth: availableWidth - 2 * (horizontalPadding ?? 16),
+            onChanged: onLibraryFilterTapped,
+          ),
         ),
       ),
     ];

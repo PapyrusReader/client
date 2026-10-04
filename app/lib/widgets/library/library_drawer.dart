@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/shell/nav_item_count.dart';
+import 'package:provider/provider.dart';
 
 /// Navigation drawer for the library section on mobile.
 ///
 /// Provides navigation to the different library sub-sections:
-/// Books, Shelves, Topics, Bookmarks, Annotations, and Notes.
+/// Books, Shelves, Catalogs, Bookmarks, Annotations, and Notes.
 class LibraryDrawer extends StatelessWidget {
   /// The current route path, used to determine which item is selected.
   final String currentPath;
@@ -16,6 +20,8 @@ class LibraryDrawer extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final dataStore = context.watch<DataStore?>();
+    final catalogs = context.watch<OpdsCatalogs?>();
 
     return Drawer(
       child: SafeArea(
@@ -30,13 +36,15 @@ class LibraryDrawer extends StatelessWidget {
             Divider(height: 1, color: colorScheme.outlineVariant),
             const SizedBox(height: Spacing.sm),
             // Navigation items with horizontal padding for rounded corners
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
-              child: Column(
+            Expanded(
+              child: ListView(
+                primary: false,
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
                 children: [
                   _DrawerNavItem(
                     icon: Icons.book,
                     label: 'Books',
+                    count: dataStore?.books.length ?? 0,
                     isSelected: currentPath == '/library' || currentPath == '/library/books',
                     onTap: () {
                       Navigator.of(context).pop();
@@ -46,6 +54,7 @@ class LibraryDrawer extends StatelessWidget {
                   _DrawerNavItem(
                     icon: Icons.shelves,
                     label: 'Shelves',
+                    count: dataStore?.shelves.length ?? 0,
                     isSelected: currentPath.startsWith('/library/shelves'),
                     onTap: () {
                       Navigator.of(context).pop();
@@ -55,6 +64,7 @@ class LibraryDrawer extends StatelessWidget {
                   _DrawerNavItem(
                     icon: Icons.public,
                     label: 'Catalogs',
+                    count: catalogs?.catalogs.length ?? 0,
                     isSelected: currentPath.startsWith('/library/catalogs'),
                     onTap: () {
                       Navigator.of(context).pop();
@@ -64,6 +74,7 @@ class LibraryDrawer extends StatelessWidget {
                   _DrawerNavItem(
                     icon: Icons.bookmark,
                     label: 'Bookmarks',
+                    count: dataStore?.bookmarks.length ?? 0,
                     isSelected: currentPath == '/library/bookmarks',
                     onTap: () {
                       Navigator.of(context).pop();
@@ -73,6 +84,7 @@ class LibraryDrawer extends StatelessWidget {
                   _DrawerNavItem(
                     icon: Icons.format_quote,
                     label: 'Annotations',
+                    count: dataStore?.annotations.length ?? 0,
                     isSelected: currentPath == '/library/annotations',
                     onTap: () {
                       Navigator.of(context).pop();
@@ -82,6 +94,7 @@ class LibraryDrawer extends StatelessWidget {
                   _DrawerNavItem(
                     icon: Icons.note,
                     label: 'Notes',
+                    count: dataStore?.notes.length ?? 0,
                     isSelected: currentPath == '/library/notes',
                     onTap: () {
                       Navigator.of(context).pop();
@@ -103,9 +116,16 @@ class _DrawerNavItem extends StatelessWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
+  final int count;
   final VoidCallback onTap;
 
-  const _DrawerNavItem({required this.icon, required this.label, this.isSelected = false, required this.onTap});
+  const _DrawerNavItem({
+    required this.icon,
+    required this.label,
+    this.isSelected = false,
+    this.count = 0,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -122,6 +142,7 @@ class _DrawerNavItem extends StatelessWidget {
         ),
       ),
       selected: isSelected,
+      trailing: count > 0 ? NavItemCount(count: count, selected: isSelected) : null,
       selectedTileColor: colorScheme.primaryContainer.withValues(alpha: 0.3),
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.full)),
       contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md),

@@ -28,6 +28,7 @@ class BookCard extends StatefulWidget {
   final AcquisitionJob? acquisitionJob;
   final BookAccountStatus? accountStatus;
   final BookDeviceStatus? deviceStatus;
+  final bool compact;
 
   const BookCard({
     super.key,
@@ -43,6 +44,7 @@ class BookCard extends StatefulWidget {
     this.acquisitionJob,
     this.accountStatus,
     this.deviceStatus,
+    this.compact = false,
   });
 
   @override
@@ -92,6 +94,8 @@ class _BookCardState extends State<BookCard> {
                 showBookContextMenu(context: context, book: widget.book, position: details.globalPosition);
               },
         child: Card(
+          // The collection owns page gutters and spacing between cards.
+          margin: EdgeInsets.zero,
           clipBehavior: Clip.antiAlias,
           color: isUnavailable ? colorScheme.surfaceContainerLow : null,
           child: InkWell(
@@ -163,18 +167,30 @@ class _BookCardState extends State<BookCard> {
                           bottom: Spacing.xs,
                           left: Spacing.xs,
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            // Icon badges match the account badge's 24px footprint.
+                            padding: widget.compact
+                                ? const EdgeInsets.all(5)
+                                : const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
                               color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
                               borderRadius: BorderRadius.circular(AppRadius.sm),
                             ),
-                            child: Text(
-                              widget.book.formatLabel,
-                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                color: colorScheme.onSurfaceVariant,
-                                fontWeight: FontWeight.w600,
-                              ),
-                            ),
+                            child: widget.compact
+                                ? Tooltip(
+                                    message: widget.book.formatLabel,
+                                    child: Icon(
+                                      widget.book.isPhysical ? Icons.menu_book_outlined : Icons.description_outlined,
+                                      size: 14,
+                                      color: colorScheme.onSurfaceVariant,
+                                    ),
+                                  )
+                                : Text(
+                                    widget.book.formatLabel,
+                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                      color: colorScheme.onSurfaceVariant,
+                                      fontWeight: FontWeight.w600,
+                                    ),
+                                  ),
                           ),
                         ),
                       if (widget.acquisitionJob == null)
@@ -232,7 +248,7 @@ class _BookCardState extends State<BookCard> {
                   ),
                 // Title and author
                 Padding(
-                  padding: const EdgeInsets.all(Spacing.sm),
+                  padding: EdgeInsets.all(widget.compact ? Spacing.xs : Spacing.sm),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -350,6 +366,18 @@ class _BookCardState extends State<BookCard> {
 
   Widget _buildPlaceholder(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+    if (widget.compact) {
+      return ColoredBox(
+        color: colorScheme.surfaceContainerHighest,
+        child: Center(
+          child: Icon(
+            Icons.menu_book,
+            size: IconSizes.medium,
+            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
+          ),
+        ),
+      );
+    }
 
     return Container(
       color: colorScheme.surfaceContainerHighest,

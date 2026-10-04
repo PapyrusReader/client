@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/models/note.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book_details/empty_notes_state.dart';
@@ -110,7 +111,7 @@ class _BookNotesState extends State<BookNotes> {
     final isDesktop = screenWidth >= Breakpoints.desktopSmall;
 
     if (widget.notes.isEmpty) {
-      return SingleChildScrollView(child: EmptyNotesState(onAddNote: widget.onAddNote));
+      return EmptyNotesState(onAddNote: widget.onAddNote);
     }
 
     if (isDesktop) return _buildDesktopLayout(context);
@@ -118,7 +119,6 @@ class _BookNotesState extends State<BookNotes> {
   }
 
   Widget _buildDesktopLayout(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final filtered = _filteredAndSortedNotes;
 
     return Column(
@@ -126,7 +126,7 @@ class _BookNotesState extends State<BookNotes> {
         _buildDesktopHeader(),
         Expanded(
           child: filtered.isEmpty
-              ? _buildNoResultsState(context, colorScheme)
+              ? _buildNoResultsState()
               : _buildNotesList(
                   filtered,
                   padding: const EdgeInsets.only(top: Spacing.sm, bottom: Spacing.md),
@@ -161,7 +161,6 @@ class _BookNotesState extends State<BookNotes> {
   }
 
   Widget _buildMobileLayout(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final filtered = _filteredAndSortedNotes;
 
     return Column(
@@ -169,7 +168,7 @@ class _BookNotesState extends State<BookNotes> {
         _buildMobileHeader(),
         Expanded(
           child: filtered.isEmpty
-              ? _buildNoResultsState(context, colorScheme)
+              ? _buildNoResultsState()
               : _buildNotesList(
                   filtered,
                   padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
@@ -255,30 +254,7 @@ class _BookNotesState extends State<BookNotes> {
   }
 
   /// Empty state shown when search yields no results.
-  Widget _buildNoResultsState(BuildContext context, ColorScheme colorScheme) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Spacing.xl, vertical: Spacing.xxl),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.search_off, size: 48, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
-              const SizedBox(height: Spacing.md),
-              Text(
-                'No notes found',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: Spacing.xs),
-              Text(
-                'Try a different search term',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
+  Widget _buildNoResultsState() {
+    return const EmptyState(icon: Icons.search_off, title: 'No notes found', subtitle: 'Try a different search term');
   }
 }

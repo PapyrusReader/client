@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/themes/app_theme.dart';
+import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/pages/book_details_page.dart';
 import 'package:papyrus/widgets/book_details/book_cover_image.dart';
 import 'package:papyrus/widgets/book_details/book_details_scroll_view.dart';
@@ -98,6 +99,7 @@ void main() {
       await tester.tap(find.text('Notes (0)'));
       await tester.pumpAndSettle();
       expect(find.text('No notes yet'), findsOneWidget);
+      expect(tester.getTopLeft(find.byIcon(Icons.note_outlined)).dy, tester.getBottomLeft(rail).dy + Spacing.xl);
       expect(tester.getTopLeft(find.text('No notes yet')).dy, greaterThanOrEqualTo(tester.getBottomLeft(rail).dy));
       expect(tester.takeException(), isNull);
     });

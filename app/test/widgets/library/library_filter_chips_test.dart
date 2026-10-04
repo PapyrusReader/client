@@ -9,6 +9,7 @@ import 'package:papyrus/providers/enums/library_sort_option.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/widgets/library/library_filter_chips.dart';
+import 'package:papyrus/widgets/library/book_grid_layout.dart';
 
 import '../../helpers/test_helpers.dart';
 
@@ -129,22 +130,66 @@ void main() {
       expect(libraryProvider.viewMode, LibraryViewMode.list);
     });
 
-    testWidgets('grid size can be adjusted in increments and retained across list view', (tester) async {
+    testWidgets('column choices retain the selected density across list view', (tester) async {
       await pumpChips(tester);
       await tester.tap(find.text(LibraryViewMode.grid.label));
       await tester.pumpAndSettle();
-      expect(find.byType(Slider), findsOneWidget);
-      final originalSize = tester.widget<Slider>(find.byType(Slider)).value;
-      await tester.tap(find.byTooltip('Larger covers'));
+      expect(find.byType(Slider), findsNothing);
+      await tester.tap(find.text('6 columns'));
       await tester.pumpAndSettle();
-      expect(tester.widget<Slider>(find.byType(Slider)).value, originalSize + 20);
+      final selectedSize = libraryProvider.gridItemWidth;
+      expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '6 columns')).selected, isTrue);
       await tester.tap(find.text('List').last);
       await tester.pumpAndSettle();
-      expect(find.byType(Slider), findsNothing);
+      expect(find.text('Columns'), findsNothing);
       await tester.tap(find.text('Grid').last);
       await tester.pumpAndSettle();
-      expect(tester.widget<Slider>(find.byType(Slider)).value, originalSize + 20);
+      expect(libraryProvider.gridItemWidth, selectedSize);
+      expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '6 columns')).selected, isTrue);
     });
+
+    for (final layout in [
+      (screenWidth: 1800.0, contentWidth: 500.0, padding: 24.0, scale: 1.0),
+      (screenWidth: 400.0, contentWidth: 400.0, padding: 16.0, scale: 2.0),
+    ]) {
+      testWidgets('column choices use content width ${layout.contentWidth} at text scale ${layout.scale}', (
+        tester,
+      ) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = Size(layout.screenWidth, 1000);
+        addTearDown(tester.view.reset);
+        await tester.pumpWidget(
+          createTestApp(
+            libraryProvider: libraryProvider,
+            screenSize: Size(layout.screenWidth, 1000),
+            child: MediaQuery(
+              data: MediaQueryData(size: Size(layout.screenWidth, 1000), textScaler: TextScaler.linear(layout.scale)),
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: layout.contentWidth,
+                  child: LibraryFilterChips(horizontalPadding: layout.padding),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.scrollUntilVisible(find.text('Grid'), 300, scrollable: find.byType(Scrollable));
+        await Scrollable.ensureVisible(tester.element(find.byTooltip('Change view mode')), alignment: .5);
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Grid'));
+        await tester.pumpAndSettle();
+        expect(find.text('View mode'), findsOneWidget);
+        final options = bookGridSizeOptions(layout.contentWidth - 2 * layout.padding);
+        final choices = tester
+            .widgetList<ChoiceChip>(find.byType(ChoiceChip))
+            .where((chip) => (chip.label as Text).data!.contains('column'));
+        expect(choices.map((chip) => (chip.label as Text).data), [
+          for (final option in options) '${option.columns} ${option.columns == 1 ? 'column' : 'columns'}',
+        ]);
+        expect(tester.takeException(), isNull);
+      });
+    }
 
     testWidgets('Clear all resets filters, sort, and view', (tester) async {
       libraryProvider.setStatusFilters({LibraryReadingStatus.inProgress});

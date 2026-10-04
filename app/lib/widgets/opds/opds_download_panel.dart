@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/opds/opds_downloads.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -58,10 +59,7 @@ class _DownloadsList extends StatelessWidget {
     builder: (context, _) {
       final jobs = downloads.jobs;
       if (jobs.isEmpty) {
-        return const Padding(
-          padding: EdgeInsets.symmetric(vertical: Spacing.xl),
-          child: Text('No downloads yet'),
-        );
+        return const EmptyState.compact(icon: Icons.downloading_outlined, title: 'No downloads yet');
       }
       return ListView.separated(
         shrinkWrap: true,

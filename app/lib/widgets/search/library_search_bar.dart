@@ -7,6 +7,7 @@ class LibrarySearchBar extends StatefulWidget {
   final VoidCallback? onFilterTap;
   final int activeFilterCount;
   final String initialQuery;
+  final Widget? leading;
 
   const LibrarySearchBar({
     super.key,
@@ -14,6 +15,7 @@ class LibrarySearchBar extends StatefulWidget {
     this.onFilterTap,
     this.activeFilterCount = 0,
     this.initialQuery = '',
+    this.leading,
   });
 
   @override
@@ -110,7 +112,7 @@ class _LibrarySearchBarState extends State<LibrarySearchBar> {
       focusNode: _focusNode,
       decoration: InputDecoration(
         hintText: 'Search books...',
-        prefixIcon: const Icon(Icons.search),
+        prefixIcon: widget.leading ?? const Icon(Icons.search),
         suffixIcon: _controller.text.isEmpty && widget.onFilterTap == null
             ? null
             : Row(

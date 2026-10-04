@@ -12,6 +12,7 @@ class AcquisitionPlaceholderCard extends StatefulWidget {
   final bool isSelected;
   final VoidCallback? onSelectToggle;
   final VoidCallback? onEnterSelectionMode;
+  final bool compact;
 
   const AcquisitionPlaceholderCard({
     super.key,
@@ -21,6 +22,7 @@ class AcquisitionPlaceholderCard extends StatefulWidget {
     this.isSelected = false,
     this.onSelectToggle,
     this.onEnterSelectionMode,
+    this.compact = false,
   });
 
   @override
@@ -59,6 +61,8 @@ class _AcquisitionPlaceholderCardState extends State<AcquisitionPlaceholderCard>
               child: GestureDetector(
                 onLongPress: effectiveLongPress,
                 child: Card(
+                  // The collection owns page gutters and spacing between cards.
+                  margin: EdgeInsets.zero,
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     onTap: effectiveTap,
@@ -73,7 +77,7 @@ class _AcquisitionPlaceholderCardState extends State<AcquisitionPlaceholderCard>
                                 color: colorScheme.surfaceContainerHighest,
                                 child: Icon(
                                   Icons.menu_book_outlined,
-                                  size: IconSizes.display,
+                                  size: widget.compact ? IconSizes.medium : IconSizes.display,
                                   color: colorScheme.onSurfaceVariant.withValues(alpha: 0.55),
                                 ),
                               ),
@@ -110,7 +114,7 @@ class _AcquisitionPlaceholderCardState extends State<AcquisitionPlaceholderCard>
                             minHeight: 3,
                           ),
                         Padding(
-                          padding: const EdgeInsets.all(Spacing.sm),
+                          padding: EdgeInsets.all(widget.compact ? Spacing.xs : Spacing.sm),
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [

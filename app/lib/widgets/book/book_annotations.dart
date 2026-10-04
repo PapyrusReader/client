@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book_details/annotation_card.dart';
@@ -121,9 +122,7 @@ class _BookAnnotationsState extends State<BookAnnotations> {
     final isDesktop = screenWidth >= Breakpoints.desktopSmall;
 
     if (widget.annotations.isEmpty) {
-      return SingleChildScrollView(
-        child: EmptyAnnotationsState(isPhysical: widget.isPhysical, onAddAnnotation: widget.onAddAnnotation),
-      );
+      return EmptyAnnotationsState(isPhysical: widget.isPhysical, onAddAnnotation: widget.onAddAnnotation);
     }
 
     if (isDesktop) return _buildDesktopLayout(context);
@@ -131,7 +130,6 @@ class _BookAnnotationsState extends State<BookAnnotations> {
   }
 
   Widget _buildDesktopLayout(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final filtered = _filteredAndSortedAnnotations;
 
     return Column(
@@ -139,7 +137,7 @@ class _BookAnnotationsState extends State<BookAnnotations> {
         _buildHeader(isDesktop: true),
         Expanded(
           child: filtered.isEmpty
-              ? _buildNoResultsState(context, colorScheme)
+              ? _buildNoResultsState()
               : _buildAnnotationsList(
                   filtered,
                   padding: const EdgeInsets.only(top: Spacing.sm, bottom: Spacing.md),
@@ -152,7 +150,6 @@ class _BookAnnotationsState extends State<BookAnnotations> {
   }
 
   Widget _buildMobileLayout(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final filtered = _filteredAndSortedAnnotations;
 
     return Column(
@@ -160,7 +157,7 @@ class _BookAnnotationsState extends State<BookAnnotations> {
         _buildHeader(),
         Expanded(
           child: filtered.isEmpty
-              ? _buildNoResultsState(context, colorScheme)
+              ? _buildNoResultsState()
               : _buildAnnotationsList(
                   filtered,
                   padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
@@ -255,30 +252,11 @@ class _BookAnnotationsState extends State<BookAnnotations> {
   }
 
   /// Empty state shown when search yields no results.
-  Widget _buildNoResultsState(BuildContext context, ColorScheme colorScheme) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Spacing.xl, vertical: Spacing.xxl),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.search_off, size: 48, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
-              const SizedBox(height: Spacing.md),
-              Text(
-                'No annotations found',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: Spacing.xs),
-              Text(
-                'Try a different search term',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
+  Widget _buildNoResultsState() {
+    return const EmptyState(
+      icon: Icons.search_off,
+      title: 'No annotations found',
+      subtitle: 'Try a different search term',
     );
   }
 }

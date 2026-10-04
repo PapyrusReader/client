@@ -10,6 +10,7 @@ import 'package:papyrus/widgets/book_details/note_action_sheet.dart';
 import 'package:papyrus/widgets/book_details/note_card.dart';
 import 'package:papyrus/widgets/book_details/note_dialog.dart';
 import 'package:papyrus/widgets/library/library_drawer.dart';
+import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
@@ -77,27 +78,20 @@ class _NotesPageState extends State<NotesPage> {
     return Scaffold(
       key: _scaffoldKey,
       drawerEnableOpenDragGesture: !AppMotion.disabled(context),
-      drawer: const LibraryDrawer(currentPath: '/library/notes'),
+      drawer: AppDrawerScope.maybeOf(context) == null ? const LibraryDrawer(currentPath: '/library/notes') : null,
       body: SafeArea(
         child: Column(
           children: [
-            // Row 1: Menu + Search + Sort
             Padding(
-              padding: const EdgeInsets.only(top: Spacing.md, left: Spacing.md, right: Spacing.md),
-              child: Row(
-                children: [
-                  IconButton(
-                    icon: const Icon(Icons.menu),
-                    onPressed: () {
-                      openAppDrawer(context, _scaffoldKey.currentState);
-                    },
-                    tooltip: 'Library sections',
-                  ),
-                  const SizedBox(width: Spacing.xs),
-                  Expanded(child: _buildSearchField(provider)),
-                  const SizedBox(width: Spacing.sm),
-                  _buildSortButton(provider),
-                ],
+              padding: EdgeInsets.only(
+                top: Spacing.md,
+                left: libraryPageHorizontalPadding(context),
+                right: libraryPageHorizontalPadding(context),
+              ),
+              child: LibraryMobileToolbar(
+                onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
+                searchBuilder: (leading) => _buildSearchField(provider, leading: leading),
+                actions: [_buildSortButton(provider)],
               ),
             ),
             const SizedBox(height: Spacing.md),
@@ -124,16 +118,14 @@ class _NotesPageState extends State<NotesPage> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header row
+          // Collection controls
           Container(
-            padding: const EdgeInsets.only(top: Spacing.lg, left: Spacing.lg, right: Spacing.lg),
-            child: Row(
-              children: [
-                Expanded(child: _buildSearchField(provider)),
-                const SizedBox(width: Spacing.md),
-                _buildSortButton(provider),
-              ],
+            padding: EdgeInsets.only(
+              top: Spacing.lg,
+              left: libraryPageHorizontalPadding(context),
+              right: libraryPageHorizontalPadding(context),
             ),
+            child: LibraryToolbar(search: _buildSearchField(provider), actions: [_buildSortButton(provider)]),
           ),
           const SizedBox(height: Spacing.md),
 
@@ -151,13 +143,13 @@ class _NotesPageState extends State<NotesPage> {
   // SHARED WIDGETS
   // ============================================================================
 
-  Widget _buildSearchField(NotesProvider provider) {
+  Widget _buildSearchField(NotesProvider provider, {Widget? leading}) {
     return TextField(
       controller: _searchController,
       onChanged: provider.setSearchQuery,
       decoration: InputDecoration(
         hintText: 'Search notes...',
-        prefixIcon: const Icon(Icons.search),
+        prefixIcon: leading ?? const Icon(Icons.search),
         suffixIcon: _searchController.text.isNotEmpty
             ? IconButton(
                 icon: const Icon(Icons.clear),
@@ -208,7 +200,7 @@ class _NotesPageState extends State<NotesPage> {
       height: 40,
       child: ListView(
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+        padding: EdgeInsets.symmetric(horizontal: libraryPageHorizontalPadding(context)),
         children: [
           // Clear chip (shown when filters are active)
           if (provider.activeTags.isNotEmpty) ...[
@@ -261,12 +253,12 @@ class _NotesPageState extends State<NotesPage> {
         icon: Icons.search_off,
         title: 'No notes found',
         subtitle: 'Try adjusting your search or filters',
-        action: TextButton(
+        action: EmptyStateAction(
           onPressed: () {
             _searchController.clear();
             provider.clearAllFilters();
           },
-          child: const Text('Clear filters'),
+          label: 'Clear filters',
         ),
       );
     }
@@ -314,7 +306,7 @@ class _NotesPageState extends State<NotesPage> {
     }
 
     return ListView(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+      padding: EdgeInsets.symmetric(horizontal: libraryPageHorizontalPadding(context)),
       children: items,
     );
   }

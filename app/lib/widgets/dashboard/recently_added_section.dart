@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -143,19 +144,7 @@ class RecentlyAddedSection extends StatelessWidget {
 
   /// Builds the empty state when no books have been added recently.
   Widget _buildEmptyState(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
-      padding: const EdgeInsets.all(Spacing.lg),
-      child: Column(
-        children: [
-          Icon(Icons.library_books_outlined, size: 40, color: colorScheme.onSurfaceVariant),
-          const SizedBox(height: Spacing.sm),
-          Text('No books added recently', style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-        ],
-      ),
-    );
+    return const EmptyState.compact(icon: Icons.library_books_outlined, title: 'No books added recently');
   }
 
   // ============================================================================

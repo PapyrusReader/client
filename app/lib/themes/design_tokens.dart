@@ -123,6 +123,8 @@ class ComponentSizes {
   static const double buttonHeightMobile = 50.0;
   static const double buttonHeightDesktop = 56.0;
   static const double buttonHeightEink = 64.0;
+  static const double emptyStateActionWidth = 180.0;
+  static const double emptyStateContentWidth = 440.0;
   static const double buttonMinWidth = 64.0;
 
   // Inputs

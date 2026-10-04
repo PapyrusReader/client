@@ -2,12 +2,19 @@ import 'package:papyrus/widgets/shared/sheet_choice_buttons.dart';
 import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_actions.dart';
 import 'package:flutter/material.dart';
-import 'package:papyrus/models/book_grid_size.dart';
+import 'package:papyrus/widgets/library/book_grid_layout.dart';
+import 'package:papyrus/widgets/shared/app_motion_control.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
+import 'package:papyrus/themes/design_tokens.dart';
 
-Future<void> showLibraryViewSheet(BuildContext context, LibraryProvider provider, {VoidCallback? onChanged}) {
+Future<void> showLibraryViewSheet(
+  BuildContext context,
+  LibraryProvider provider, {
+  required double availableWidth,
+  VoidCallback? onChanged,
+}) {
   return showModalBottomSheet<void>(
     context: context,
     useRootNavigator: true,
@@ -18,11 +25,8 @@ Future<void> showLibraryViewSheet(BuildContext context, LibraryProvider provider
     builder: (context) => AnimatedBuilder(
       animation: provider,
       builder: (context, _) {
-        final width = provider.gridItemWidth;
-        void resize(double value) {
-          provider.setGridItemWidth(value);
-          onChanged?.call();
-        }
+        final columns = bookGridLayout(availableWidth, itemWidth: provider.gridItemWidth).crossAxisCount;
+        final options = bookGridSizeOptions(availableWidth);
 
         return AppBottomSheet(
           header: Text('View mode', style: Theme.of(context).textTheme.titleLarge),
@@ -46,31 +50,26 @@ Future<void> showLibraryViewSheet(BuildContext context, LibraryProvider provider
               ),
               if (provider.viewMode == LibraryViewMode.grid) ...[
                 const SizedBox(height: 24),
-                Text('Cover size', style: Theme.of(context).textTheme.titleSmall),
+                Text('Columns', style: Theme.of(context).textTheme.titleSmall),
                 const SizedBox(height: 8),
-                Row(
+                Wrap(
+                  spacing: Spacing.sm,
+                  runSpacing: Spacing.sm,
                   children: [
-                    IconButton(
-                      tooltip: 'Smaller covers',
-                      onPressed: width > BookGridSize.minimum ? () => resize(width - BookGridSize.step) : null,
-                      icon: const Icon(Icons.remove),
-                    ),
-                    Expanded(
-                      child: Slider(
-                        value: width,
-                        min: BookGridSize.minimum,
-                        max: BookGridSize.maximum,
-                        divisions: ((BookGridSize.maximum - BookGridSize.minimum) / BookGridSize.step).round(),
-                        semanticFormatterCallback: (value) =>
-                            'Cover size ${((value - BookGridSize.minimum) / BookGridSize.step).round() + 1} of 11',
-                        onChanged: resize,
+                    for (final option in options)
+                      AppMotionControl(
+                        value: columns == option.columns,
+                        builder: (focusNode) => ChoiceChip(
+                          focusNode: focusNode,
+                          chipAnimationStyle: appChipAnimationStyle(context),
+                          label: Text('${option.columns} ${option.columns == 1 ? 'column' : 'columns'}'),
+                          selected: columns == option.columns,
+                          onSelected: (_) {
+                            provider.setGridItemWidth(option.preferredWidth);
+                            onChanged?.call();
+                          },
+                        ),
                       ),
-                    ),
-                    IconButton(
-                      tooltip: 'Larger covers',
-                      onPressed: width < BookGridSize.maximum ? () => resize(width + BookGridSize.step) : null,
-                      icon: const Icon(Icons.add),
-                    ),
                   ],
                 ),
               ],
