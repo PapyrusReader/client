@@ -19,6 +19,7 @@ import 'package:papyrus/widgets/library/book_card.dart';
 import 'package:papyrus/widgets/library/book_grid.dart';
 import 'package:papyrus/widgets/library/book_list_item.dart';
 import 'package:papyrus/widgets/library/library_filter_chips.dart';
+import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/library/online_books_header.dart';
 import 'package:papyrus/widgets/library/online_results_view.dart';
 import 'package:papyrus/widgets/library/selection_header.dart';
@@ -1464,6 +1465,9 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(find.text('Add book'), findsOneWidget);
+        expect(find.text('Books'), findsNothing);
+        expect(find.descendant(of: find.byType(LibraryToolbar), matching: find.text('Add book')), findsOneWidget);
+        expect(tester.getCenter(find.byType(LibrarySearchBar)).dy, tester.getCenter(find.byType(LibraryAddButton)).dy);
       });
 
       testWidgets('does not render FAB on desktop', (tester) async {
@@ -1714,7 +1718,7 @@ void main() {
         await tester.pumpAndSettle();
 
         // Drawer should be open - verify drawer items are visible
-        expect(find.text('Books'), findsOneWidget);
+        expect(find.descendant(of: find.byType(Drawer), matching: find.text('Books')), findsOneWidget);
         expect(find.text('Shelves'), findsOneWidget);
       });
     });

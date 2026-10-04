@@ -96,7 +96,8 @@ class _BookListItemState extends State<BookListItem> {
           child: InkWell(
             onTap: onTap,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+              // The list owns the horizontal page gutter.
+              padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
               decoration: BoxDecoration(
                 border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
               ),
@@ -209,18 +210,24 @@ class _BookListItemState extends State<BookListItem> {
                           BookAccountStatusBadge(status: status),
                           const SizedBox(width: Spacing.sm),
                         ],
-                        // Format badge
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: colorScheme.surfaceContainerHighest,
-                            borderRadius: BorderRadius.circular(AppRadius.sm),
-                          ),
-                          child: Text(
-                            widget.book.formatLabel,
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: colorScheme.onSurfaceVariant,
-                              fontWeight: FontWeight.w600,
+                        // Bound the badge so enlarged text leaves room for book info.
+                        Tooltip(
+                          message: widget.book.formatLabel,
+                          child: Container(
+                            constraints: const BoxConstraints(maxWidth: 96),
+                            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                            decoration: BoxDecoration(
+                              color: colorScheme.surfaceContainerHighest,
+                              borderRadius: BorderRadius.circular(AppRadius.sm),
+                            ),
+                            child: Text(
+                              widget.book.formatLabel,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                color: colorScheme.onSurfaceVariant,
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ),
                         ),

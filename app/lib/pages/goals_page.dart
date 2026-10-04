@@ -289,11 +289,7 @@ class _GoalsPageState extends State<GoalsPage> {
       icon: Icons.flag_outlined,
       title: 'No goals yet',
       subtitle: 'Create your first reading goal to track your progress',
-      action: FilledButton.icon(
-        onPressed: () => _showAddGoalSheet(context),
-        icon: const Icon(Icons.add),
-        label: const Text('Create goal'),
-      ),
+      action: EmptyStateAction(onPressed: () => _showAddGoalSheet(context), icon: Icons.add, label: 'Create goal'),
     );
   }
 

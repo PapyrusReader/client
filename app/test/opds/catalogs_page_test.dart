@@ -15,6 +15,7 @@ import 'package:papyrus/pages/catalogs_page.dart';
 import 'package:papyrus/pages/catalog_book_page.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/app_theme.dart';
+import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/opds/catalog_source_tile.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 import 'package:provider/provider.dart';
@@ -605,13 +606,16 @@ void main() {
     });
   }
 
-  testWidgets('mobile catalog home uses a FAB and keeps Downloads in the title row', (tester) async {
+  testWidgets('mobile catalog home keeps menu, Downloads and FAB without a title header', (tester) async {
     await _CatalogPageHarness.mount(tester, (_) => _feedResponse('Books'), initialLocation: '/library/catalogs');
     tester.view.physicalSize = const Size(424, 951);
     await _settleNetwork(tester);
     expect(find.byType(FloatingActionButton), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Add catalog'), findsNothing);
-    expect(tester.getTopLeft(find.byTooltip('Downloads')).dy, lessThan(tester.getBottomLeft(find.text('Catalogs')).dy));
+    expect(find.text('Catalogs'), findsNothing);
+    expect(find.byType(LibraryPageHeader), findsNothing);
+    expect(tester.getTopLeft(find.byType(LibraryMobileToolbar)).dy, 16);
+    expect(tester.getCenter(find.byTooltip('Downloads')).dy, tester.getCenter(find.byTooltip('Library sections')).dy);
     await tester.tap(find.byTooltip('Add catalog'));
     await tester.pumpAndSettle();
     expect(find.byType(BottomSheet), findsOneWidget);
@@ -635,6 +639,13 @@ void main() {
     await _settleNetwork(tester);
     await tester.drag(find.byType(ListView), const Offset(0, -2000));
     await tester.pumpAndSettle();
+    final scrollable = tester.state<ScrollableState>(
+      find.descendant(of: find.byType(ListView), matching: find.byType(Scrollable)),
+    );
+    // Lazy rows can revise the estimated extent during a long drag.
+    scrollable.position.jumpTo(scrollable.position.maxScrollExtent);
+    await tester.pumpAndSettle();
+    expect(tester.widget<CatalogSourceTile>(find.byType(CatalogSourceTile).last).catalog.name, 'Source 11');
     expect(
       tester.getBottomRight(find.byType(CatalogSourceTile).last).dy,
       lessThan(tester.getTopLeft(find.byType(FloatingActionButton)).dy),
@@ -1234,6 +1245,11 @@ void main() {
       );
       await tester.pumpAndSettle();
       expect(find.text('No catalogs yet'), findsOneWidget);
+      if (width >= 840) {
+        expect(find.text('Catalogs'), findsNothing);
+        expect(find.byKey(const Key('catalog-header-divider')), findsNothing);
+        expect(find.byType(LibraryToolbar), findsOneWidget);
+      }
       await tester.tap(find.text('Add catalog').first);
       await tester.pumpAndSettle();
       await tester.enterText(find.byKey(const Key('opds-name')), 'My catalog');

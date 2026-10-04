@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/providers/statistics_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -341,12 +342,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
       return StatSectionCard(
         title: 'Books by genre',
         isDesktop: isDesktop,
-        child: Center(
-          child: Text(
-            'No genre data available',
-            style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-          ),
-        ),
+        child: const EmptyState.compact(icon: Icons.category_outlined, title: 'No genre data available'),
       );
     }
 

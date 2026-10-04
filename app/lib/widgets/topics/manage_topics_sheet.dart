@@ -175,11 +175,10 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
                 if (filtered.isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(
-                      child: Text(
-                        'No topics found',
-                        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                      ),
+                    child: const EmptyState.compact(
+                      icon: Icons.search_off,
+                      title: 'No topics found',
+                      subtitle: 'Try a different search term',
                     ),
                   )
                 else

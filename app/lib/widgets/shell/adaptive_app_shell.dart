@@ -4,9 +4,10 @@ import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/library/library_drawer.dart';
+import 'package:papyrus/widgets/shared/app_drawer.dart';
 import 'package:papyrus/widgets/shell/desktop_sidebar.dart';
 import 'package:papyrus/widgets/shell/mobile_bottom_nav.dart';
-import 'package:papyrus/widgets/shell/nav_item_count.dart';
 import 'package:provider/provider.dart';
 
 /// Navigation item for the app shell.
@@ -142,59 +143,22 @@ class AdaptiveAppShell extends StatelessWidget {
   }
 
   Widget _buildMobileShell(BuildContext context, List<AppShellNavItem> navItems) {
-    final currentPath = GoRouterState.of(context).uri.toString();
+    final currentPath = GoRouterState.of(context).uri.path;
     final isInLibrary = currentPath.startsWith('/library');
 
     return Scaffold(
-      body: child,
+      body: isInLibrary
+          ? Builder(
+              builder: (context) => AppDrawerScope(scaffold: Scaffold.of(context), child: child),
+            )
+          : child,
       bottomNavigationBar: MobileBottomNav(
         items: navItems,
         currentPath: currentPath,
         onNavigate: (path) => context.go(path),
       ),
       drawerEnableOpenDragGesture: !AppMotion.disabled(context),
-      drawer: isInLibrary ? _buildLibraryDrawer(context, navItems) : null,
-    );
-  }
-
-  Widget _buildLibraryDrawer(BuildContext context, List<AppShellNavItem> navItems) {
-    final currentPath = GoRouterState.of(context).uri.toString();
-    final libraryItem = navItems.firstWhere((item) => item.path == '/library');
-    final children = libraryItem.children ?? [];
-
-    return Drawer(
-      child: SafeArea(
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.all(Spacing.md),
-              child: Text('Library', style: Theme.of(context).textTheme.headlineSmall),
-            ),
-            const Divider(height: 1),
-            Expanded(
-              child: ListView.builder(
-                itemCount: children.length,
-                itemBuilder: (context, index) {
-                  final item = children[index];
-                  final isSelected = currentPath.startsWith(item.path);
-
-                  return ListTile(
-                    leading: Icon(isSelected ? item.selectedIcon ?? item.icon : item.icon),
-                    title: Text(item.label),
-                    trailing: (item.count ?? 0) > 0 ? NavItemCount(count: item.count!, selected: isSelected) : null,
-                    selected: isSelected,
-                    onTap: () {
-                      Navigator.of(context).pop();
-                      context.go(item.path);
-                    },
-                  );
-                },
-              ),
-            ),
-          ],
-        ),
-      ),
+      drawer: isInLibrary ? LibraryDrawer(currentPath: currentPath) : null,
     );
   }
 }

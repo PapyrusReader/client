@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -137,30 +138,17 @@ class ContinueReadingCard extends StatelessWidget {
   /// Builds the empty state when no book is currently being read.
   Widget _buildEmptyState(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
     return Container(
-      padding: const EdgeInsets.all(Spacing.md),
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(AppRadius.lg),
         border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
       ),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.menu_book_outlined, size: 48, color: colorScheme.onSurfaceVariant),
-          const SizedBox(height: Spacing.md),
-          Text('No book in progress', style: textTheme.titleMedium, textAlign: TextAlign.center),
-          const SizedBox(height: Spacing.xs),
-          Text(
-            'Start reading from your library',
-            style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-            textAlign: TextAlign.center,
-          ),
-          const SizedBox(height: Spacing.md),
-          TextButton(onPressed: () => context.go('/library'), child: const Text('Browse library')),
-        ],
+      child: EmptyState.compact(
+        icon: Icons.menu_book_outlined,
+        title: 'No book in progress',
+        subtitle: 'Start reading from your library',
+        action: EmptyStateAction(label: 'Browse library', onPressed: () => context.go('/library')),
       ),
     );
   }

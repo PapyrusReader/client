@@ -3,6 +3,7 @@ import 'dart:ui' show SemanticsAction;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/widgets/acquisition/acquisition_settings_section.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
 import 'package:papyrus/widgets/settings/settings_section.dart';
@@ -27,7 +28,7 @@ void main() {
     expect(find.text('No sources configured'), findsOneWidget);
   });
 
-  testWidgets('empty message aligns with the title and uses the compact vertical gap', (tester) async {
+  testWidgets('empty section centers the shared message below its header', (tester) async {
     await pump(
       tester,
       AcquisitionSettingsSection(
@@ -37,11 +38,14 @@ void main() {
       ),
     );
 
-    final titleBounds = tester.getRect(find.text('Download clients'));
-    final emptyBounds = tester.getRect(find.text('No download clients configured'));
+    final headerBounds = tester.getRect(find.text('Download clients'));
+    final messageBounds = tester.getRect(find.text('No download clients configured'));
+    final cardBounds = tester.getRect(find.byType(SettingsCard));
 
-    expect(emptyBounds.left, titleBounds.left);
-    expect(emptyBounds.top - titleBounds.bottom, Spacing.sm);
+    expect(find.byType(EmptyState), findsOneWidget);
+    expect(messageBounds.center.dx, cardBounds.center.dx);
+    expect(messageBounds.top, greaterThan(headerBounds.bottom));
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('section Add invokes its callback', (tester) async {

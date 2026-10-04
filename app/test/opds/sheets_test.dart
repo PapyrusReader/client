@@ -98,6 +98,80 @@ Future<void> _mountDownloads(WidgetTester tester, OpdsDownloads downloads, Value
 }
 
 void main() {
+  testWidgets('catalog editor backdrop covers the sidebar and blocks its actions while saving', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 1000);
+    addTearDown(tester.view.reset);
+    SharedPreferences.setMockInitialValues({});
+    final store = _PendingStore(await SharedPreferences.getInstance());
+    final catalogs = OpdsCatalogs(store)..setScope('local--guest');
+    var sidebarTaps = 0;
+    final router = GoRouter(
+      routes: [
+        ShellRoute(
+          builder: (_, _, child) => Scaffold(
+            body: Row(
+              children: [
+                SizedBox(
+                  width: 280,
+                  child: Align(
+                    alignment: Alignment.topCenter,
+                    child: TextButton(onPressed: () => sidebarTaps++, child: const Text('Sidebar action')),
+                  ),
+                ),
+                Expanded(child: AppMotionScope(reduceAnimations: true, child: child)),
+              ],
+            ),
+          ),
+          routes: [
+            GoRoute(
+              path: '/',
+              builder: (context, _) => Center(
+                child: TextButton(
+                  onPressed: () => CatalogEditor.show(context, catalogs: catalogs),
+                  child: const Text('Open editor'),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      router.dispose();
+      catalogs.dispose();
+    });
+    await tester.pumpWidget(MaterialApp.router(theme: AppTheme.light, routerConfig: router));
+    await tester.pumpAndSettle();
+    final sidebarPosition = tester.getCenter(find.text('Sidebar action'));
+    await tester.tap(find.text('Open editor'));
+    await tester.pumpAndSettle();
+
+    expect(AppMotion.disabled(tester.element(find.byType(CatalogEditor))), isTrue);
+    final barrier = tester.getRect(find.byWidgetPredicate((widget) => widget is ModalBarrier && widget.color != null));
+    expect(barrier.left, 0);
+    expect(barrier.width, 1200);
+    await tester.enterText(find.byKey(const Key('opds-name')), 'My catalog');
+    await tester.enterText(find.byKey(const Key('opds-url')), 'https://books.test/feed');
+    await tester.tap(find.text('Save'));
+    await tester.pumpAndSettle();
+    await tester.tapAt(sidebarPosition);
+    await tester.pumpAndSettle();
+    expect(sidebarTaps, 0);
+    expect(find.byType(BottomSheet), findsOneWidget);
+
+    store.finish.completeError(const OpdsException('Save failed.'));
+    await tester.pumpAndSettle();
+    await tester.tapAt(sidebarPosition);
+    await tester.pumpAndSettle();
+    expect(sidebarTaps, 0);
+    expect(find.byType(BottomSheet), findsNothing);
+    await tester.tap(find.text('Sidebar action'));
+    expect(sidebarTaps, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('narrow catalog footer keeps enlarged actions reachable above the keyboard', (tester) async {
     tester.view.physicalSize = const Size(360, 640);
     tester.view.devicePixelRatio = 1;

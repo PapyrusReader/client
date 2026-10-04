@@ -17,8 +17,10 @@ import 'package:papyrus/widgets/opds/catalog_source_tile.dart';
 import 'package:papyrus/widgets/opds/opds_feed_view.dart';
 import 'package:papyrus/widgets/opds/opds_download_panel.dart';
 import 'package:papyrus/widgets/opds/opds_download_actions.dart';
-import 'package:papyrus/widgets/opds/opds_mobile_header.dart';
+import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
+import 'package:papyrus/widgets/shared/app_drawer.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:provider/provider.dart';
 
 class CatalogsPage extends StatefulWidget {
@@ -202,18 +204,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
           final content = Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall)
-                _header(catalogs, catalog)
-              else ...[
-                ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight),
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-                    child: _header(catalogs, catalog),
-                  ),
-                ),
-                const Divider(key: Key('catalog-header-divider'), height: 1),
-              ],
+              _header(catalogs, catalog),
               Expanded(child: body),
             ],
           );
@@ -239,7 +230,6 @@ class _CatalogsPageState extends State<CatalogsPage> {
   }
 
   Widget _header(OpdsCatalogs catalogs, OpdsCatalog? catalog) {
-    final theme = Theme.of(context);
     final mobile = MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
     final downloads = context.watch<OpdsDownloads>();
     final downloadsButton = OpdsDownloadsButton(
@@ -248,16 +238,20 @@ class _CatalogsPageState extends State<CatalogsPage> {
       onRetry: (job) => unawaited(retryOpdsDownload(context, job)),
     );
     if (mobile) {
-      return OpdsMobileHeader(
+      if (widget.catalogId == null) {
+        return Padding(
+          padding: const EdgeInsets.only(top: Spacing.md, left: Spacing.md, right: Spacing.md),
+          child: LibraryMobileToolbar(
+            onMenuPressed: () => openAppDrawer(context, Scaffold.maybeOf(context)),
+            actions: [downloadsButton],
+          ),
+        );
+      }
+      return LibraryPageHeader(
+        compact: true,
         key: const Key('catalog-mobile-header'),
         title: catalog?.name ?? 'Catalogs',
-        leading: widget.catalogId != null
-            ? IconButton(tooltip: 'Back', icon: const BackButtonIcon(), onPressed: () => _back(catalog))
-            : IconButton(
-                tooltip: 'Library sections',
-                icon: const Icon(Icons.menu),
-                onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
-              ),
+        leading: IconButton(tooltip: 'Back', icon: const BackButtonIcon(), onPressed: () => _back(catalog)),
         actions: [
           downloadsButton,
           if (catalog != null)
@@ -269,67 +263,30 @@ class _CatalogsPageState extends State<CatalogsPage> {
         ],
       );
     }
-    if (widget.catalogId != null) {
-      return Row(
-        children: [
-          IconButton(tooltip: 'Back', icon: const Icon(Icons.arrow_back), onPressed: () => _back(catalog)),
-          const SizedBox(width: Spacing.sm),
-          Expanded(
-            child: Text(
-              catalog?.name ?? 'Catalogs',
-              style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          downloadsButton,
-          if (catalog != null)
-            IconButton(
-              tooltip: 'Edit catalog',
-              onPressed: () => _edit(catalogs, catalog),
-              icon: const Icon(Icons.settings_outlined),
-            ),
-        ],
+    if (widget.catalogId == null) {
+      return Padding(
+        padding: const EdgeInsets.only(top: Spacing.lg, left: Spacing.lg, right: Spacing.lg),
+        child: LibraryToolbar(
+          actions: [
+            downloadsButton,
+            LibraryAddButton(label: 'Add catalog', onPressed: catalogs.scope == null ? null : () => _edit(catalogs)),
+          ],
+        ),
       );
     }
-    final heading = Row(
-      children: [
-        Expanded(
-          child: Text('Catalogs', style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
-        ),
-      ],
-    );
-    final actions = Wrap(
-      spacing: Spacing.xs,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
+    return LibraryPageHeader(
+      title: catalog?.name ?? 'Catalogs',
+      dividerKey: const Key('catalog-header-divider'),
+      leading: IconButton(tooltip: 'Back', icon: const Icon(Icons.arrow_back), onPressed: () => _back(catalog)),
+      actions: [
         downloadsButton,
-        FilledButton.icon(
-          onPressed: catalogs.scope == null ? null : () => _edit(catalogs),
-          icon: const Icon(Icons.add),
-          label: const Text('Add catalog'),
-        ),
+        if (catalog != null)
+          IconButton(
+            tooltip: 'Edit catalog',
+            onPressed: () => _edit(catalogs, catalog),
+            icon: const Icon(Icons.settings_outlined),
+          ),
       ],
-    );
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        return constraints.maxWidth < Breakpoints.tablet || MediaQuery.textScalerOf(context).scale(1) > 1.4
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  heading,
-                  const SizedBox(height: Spacing.md),
-                  Align(alignment: Alignment.centerRight, child: actions),
-                ],
-              )
-            : Row(
-                children: [
-                  Expanded(child: heading),
-                  const SizedBox(width: Spacing.md),
-                  actions,
-                ],
-              );
-      },
     );
   }
 
@@ -357,6 +314,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
         'No catalogs yet',
         detail: 'Connect an OPDS catalog to explore its collection and add books to your library.',
         action: 'Add catalog',
+        actionIcon: Icons.add,
         onAction: () => _edit(catalogs),
       );
     }
@@ -447,40 +405,12 @@ class _CatalogsPageState extends State<CatalogsPage> {
     String? detail,
     required String action,
     required VoidCallback onAction,
+    IconData? actionIcon,
     IconData icon = Icons.local_library_outlined,
-  }) => Center(
-    child: SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.all(Spacing.lg),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 440),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(icon, size: 56, color: Theme.of(context).colorScheme.onSurfaceVariant),
-              const SizedBox(height: Spacing.lg),
-              Text(title, textAlign: TextAlign.center, style: Theme.of(context).textTheme.titleLarge),
-              if (detail != null)
-                Padding(
-                  padding: const EdgeInsets.only(top: Spacing.sm),
-                  child: Text(
-                    detail,
-                    textAlign: TextAlign.center,
-                    style: Theme.of(
-                      context,
-                    ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                  ),
-                ),
-              const SizedBox(height: Spacing.lg),
-              FilledButton(
-                onPressed: onAction,
-                style: FilledButton.styleFrom(minimumSize: const Size(0, 44)),
-                child: Text(action),
-              ),
-            ],
-          ),
-        ),
-      ),
-    ),
+  }) => EmptyState(
+    icon: icon,
+    title: title,
+    subtitle: detail,
+    action: EmptyStateAction(label: action, icon: actionIcon, onPressed: onAction),
   );
 }

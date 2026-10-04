@@ -21,6 +21,7 @@ class CatalogEditor extends StatefulWidget {
       await showGuardedModalBottomSheet<void>(
         context: context,
         busy: busy,
+        useRootNavigator: true,
         shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.lg))),
         builder: (_) => CatalogEditor._(catalogs: catalogs, catalog: catalog, busy: busy),
       );

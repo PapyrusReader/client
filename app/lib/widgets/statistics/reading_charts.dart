@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/models/daily_activity.dart';
 import 'package:papyrus/providers/statistics_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -385,16 +386,9 @@ class ReadingTimeBarChart extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
+    return SizedBox(
       height: isDesktop ? 200 : 160,
-      alignment: Alignment.center,
-      child: Text(
-        'No reading data for this period',
-        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-      ),
+      child: const EmptyState.compact(icon: Icons.bar_chart_outlined, title: 'No reading data for this period'),
     );
   }
 }
@@ -609,16 +603,9 @@ class PagesReadLineChart extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
+    return SizedBox(
       height: isDesktop ? 200 : 160,
-      alignment: Alignment.center,
-      child: Text(
-        'No reading data for this period',
-        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-      ),
+      child: const EmptyState.compact(icon: Icons.bar_chart_outlined, title: 'No reading data for this period'),
     );
   }
 }
@@ -751,16 +738,9 @@ class BooksPerMonthChart extends StatelessWidget {
   }
 
   Widget _buildEmptyState(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Container(
+    return SizedBox(
       height: isDesktop ? 200 : 160,
-      alignment: Alignment.center,
-      child: Text(
-        'No books read data available',
-        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-      ),
+      child: const EmptyState.compact(icon: Icons.bar_chart_outlined, title: 'No books read data available'),
     );
   }
 }

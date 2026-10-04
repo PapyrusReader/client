@@ -39,12 +39,14 @@ void main() {
       bool showProgress = true,
       bool isSelectionMode = false,
       bool isSelected = false,
+      bool compact = false,
       AcquisitionJob? acquisitionJob,
       BookAccountStatus? accountStatus,
       BookDeviceStatus? deviceStatus,
       Size cardSize = const Size(200, 300),
       Size screenSize = const Size(400, 800),
       ThemeData? theme,
+      TextScaler textScaler = TextScaler.noScaling,
     }) {
       final card = SizedBox(
         width: cardSize.width,
@@ -59,6 +61,7 @@ void main() {
           showProgress: showProgress,
           isSelectionMode: isSelectionMode,
           isSelected: isSelected,
+          compact: compact,
           acquisitionJob: acquisitionJob,
           accountStatus: accountStatus,
           deviceStatus: deviceStatus,
@@ -72,7 +75,7 @@ void main() {
       return MaterialApp(
         theme: theme,
         home: MediaQuery(
-          data: MediaQueryData(size: screenSize),
+          data: MediaQueryData(size: screenSize, textScaler: textScaler),
           child: Scaffold(
             body: Align(alignment: Alignment.topLeft, child: card),
           ),
@@ -116,6 +119,62 @@ void main() {
       await tester.pumpWidget(buildCard(book: physicalBook));
       expect(find.text('Physical'), findsOneWidget);
     });
+
+    testWidgets('compact physical card preserves format and saved status without overlapping badges', (tester) async {
+      var opened = false;
+      await tester.pumpWidget(
+        buildCard(
+          book: testBook.copyWith(isPhysical: true),
+          compact: true,
+          cardSize: const Size(66, 200),
+          accountStatus: BookAccountStatus.saved,
+          onTap: () => opened = true,
+        ),
+      );
+      expect(find.byTooltip('Physical'), findsOneWidget);
+      expect(find.byTooltip('Saved'), findsOneWidget);
+      expect(tester.getRect(find.byTooltip('Physical')).overlaps(tester.getRect(find.byTooltip('Saved'))), isFalse);
+      expect(find.text('J.R.R. Tolkien'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byType(BookCard));
+      expect(opened, isTrue);
+    });
+
+    for (final theme in [AppTheme.dark, AppTheme.eink]) {
+      for (final physical in [true, false]) {
+        for (final width in [66.0, 88.0]) {
+          testWidgets('compact format and account icons align at $width, physical $physical, ${theme.brightness}', (
+            tester,
+          ) async {
+            final book = testBook.copyWith(isPhysical: physical);
+            await tester.pumpWidget(
+              buildCard(
+                book: book,
+                compact: true,
+                cardSize: Size(width, 240),
+                accountStatus: BookAccountStatus.saved,
+                theme: theme,
+                textScaler: const TextScaler.linear(2),
+              ),
+            );
+            final formatIcon = find.byIcon(physical ? Icons.menu_book_outlined : Icons.description_outlined);
+            final accountIcon = find.byIcon(Icons.cloud_done_outlined);
+            final formatSurface = find.ancestor(of: formatIcon, matching: find.byType(Container)).first;
+            final accountSurface = find.ancestor(of: accountIcon, matching: find.byType(Container)).first;
+            final formatRect = tester.getRect(formatSurface);
+            final accountRect = tester.getRect(accountSurface);
+            expect(formatRect.size, accountRect.size);
+            expect(tester.getCenter(formatIcon).dy, tester.getCenter(accountIcon).dy);
+            expect(tester.getCenter(formatIcon), formatRect.center);
+            expect(tester.getCenter(accountIcon), accountRect.center);
+            expect(formatRect.bottom, accountRect.bottom);
+            expect(formatRect.overlaps(accountRect), isFalse);
+            expect(find.byTooltip(book.formatLabel), findsOneWidget);
+            expect(tester.takeException(), isNull);
+          });
+        }
+      }
+    }
 
     testWidgets('shows progress bar when progress > 0', (tester) async {
       await tester.pumpWidget(buildCard());

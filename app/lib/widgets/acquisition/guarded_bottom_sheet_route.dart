@@ -7,17 +7,19 @@ Future<T?> showGuardedModalBottomSheet<T>({
   required ValueListenable<bool> busy,
   required WidgetBuilder builder,
   required ShapeBorder shape,
+  bool useRootNavigator = false,
 }) {
   assert(debugCheckHasMediaQuery(context));
   assert(debugCheckHasMaterialLocalizations(context));
 
-  final navigator = Navigator.of(context);
+  final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
   final localizations = MaterialLocalizations.of(context);
+  final reduceAnimations = AppMotion.disabled(context);
 
   return navigator.push(
     _GuardedModalBottomSheetRoute<T>(
       busy: busy,
-      builder: builder,
+      builder: (sheetContext) => AppMotionScope(reduceAnimations: reduceAnimations, child: builder(sheetContext)),
       capturedThemes: InheritedTheme.capture(from: context, to: navigator.context),
       barrierLabel: localizations.scrimLabel,
       barrierOnTapHint: localizations.scrimOnTapHint(localizations.bottomSheetLabel),

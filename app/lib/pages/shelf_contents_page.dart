@@ -44,10 +44,10 @@ class ShelfContentsPage extends StatelessWidget {
             icon: Icons.shelves,
             title: 'Shelf not found',
             subtitle: 'This shelf may have been deleted',
-            action: FilledButton.icon(
+            action: EmptyStateAction(
               onPressed: () => context.go('/library/shelves'),
-              icon: const Icon(Icons.arrow_back),
-              label: const Text('Back to shelves'),
+              icon: Icons.arrow_back,
+              label: 'Back to shelves',
             ),
           ),
         ),

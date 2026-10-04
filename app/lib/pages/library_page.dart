@@ -25,6 +25,7 @@ import 'package:papyrus/widgets/library/acquisition_placeholder_list_item.dart';
 import 'package:papyrus/widgets/library/library_drawer.dart';
 import 'package:papyrus/widgets/library/library_advanced_filter_sheet.dart';
 import 'package:papyrus/widgets/library/library_filter_chips.dart';
+import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/library/online_books_header.dart';
 import 'package:papyrus/widgets/library/online_results_view.dart';
 import 'package:papyrus/widgets/library/selection_header.dart';
@@ -36,8 +37,8 @@ import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
 /// Main library page with responsive layouts for all platforms.
-/// - Mobile: AppBar with search, filter chips, 2-column grid, FAB
-/// - Desktop: Header row, filter chips, 5-column grid or list view
+/// - Mobile: Menu and search toolbar, filter chips, 2-column grid, FAB
+/// - Desktop: Search and actions toolbar, filter chips, grid or list view
 class LibraryPage extends StatefulWidget {
   final Shelf? shelf;
   final VoidCallback? onBack;
@@ -205,12 +206,16 @@ class _LibraryPageState extends State<LibraryPage> {
     return Scaffold(
       key: _scaffoldKey,
       drawerEnableOpenDragGesture: !AppMotion.disabled(context),
-      drawer: widget.isShelfView ? null : const LibraryDrawer(),
+      drawer: widget.isShelfView || AppDrawerScope.maybeOf(context) != null ? null : const LibraryDrawer(),
       body: SafeArea(
         child: Column(
           children: [
             Padding(
-              padding: const EdgeInsets.only(top: Spacing.md, left: Spacing.md, right: Spacing.md),
+              padding: EdgeInsets.only(
+                top: Spacing.md,
+                left: libraryPageHorizontalPadding(context),
+                right: libraryPageHorizontalPadding(context),
+              ),
               child: isOnline
                   ? _buildOnlineHeader(downloadsProvider)
                   : hasJobSelection
@@ -280,16 +285,9 @@ class _LibraryPageState extends State<LibraryPage> {
 
   Widget _buildMobileLocalHeader(LibraryProvider libraryProvider) {
     if (!widget.isShelfView) {
-      return Row(
-        children: [
-          IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
-            tooltip: 'Library sections',
-          ),
-          const SizedBox(width: Spacing.xs),
-          Expanded(child: _buildSearchBar(libraryProvider)),
-        ],
+      return LibraryMobileToolbar(
+        onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
+        searchBuilder: (leading) => _buildSearchBar(libraryProvider, leading: leading),
       );
     }
 
@@ -302,8 +300,9 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  Widget _buildSearchBar(LibraryProvider libraryProvider) {
+  Widget _buildSearchBar(LibraryProvider libraryProvider, {Widget? leading}) {
     return LibrarySearchBar(
+      leading: leading,
       initialQuery: libraryProvider.searchQuery,
       activeFilterCount: libraryProvider.activeFilterCount,
       onFilterTap: _showAdvancedFilters,
@@ -601,7 +600,6 @@ class _LibraryPageState extends State<LibraryPage> {
     AcquisitionDownloadsProvider? downloadsProvider,
     bool isLoading,
   ) {
-    const double controlHeight = 40.0;
     final isOnline =
         !widget.isShelfView && _presentationMode == _BooksPresentationMode.online && downloadsProvider != null;
     final isBookSelection = libraryProvider.isSelectionMode;
@@ -644,7 +642,11 @@ class _LibraryPageState extends State<LibraryPage> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Container(
-                padding: const EdgeInsets.only(top: Spacing.lg, left: Spacing.lg, right: Spacing.lg),
+                padding: EdgeInsets.only(
+                  top: Spacing.lg,
+                  left: libraryPageHorizontalPadding(context),
+                  right: libraryPageHorizontalPadding(context),
+                ),
                 child: isOnline
                     ? _buildOnlineHeader(downloadsProvider)
                     : hasJobSelection
@@ -662,7 +664,7 @@ class _LibraryPageState extends State<LibraryPage> {
                         onDeselectAll: libraryProvider.deselectAll,
                         actions: buildBulkActionBar(context, libraryProvider),
                       )
-                    : _buildDesktopLocalHeader(libraryProvider, downloadsProvider, controlHeight),
+                    : _buildDesktopLocalHeader(libraryProvider, downloadsProvider),
               ),
               if (!isOnline)
                 Column(
@@ -701,33 +703,25 @@ class _LibraryPageState extends State<LibraryPage> {
     );
   }
 
-  Widget _buildDesktopLocalHeader(
-    LibraryProvider libraryProvider,
-    AcquisitionDownloadsProvider? downloadsProvider,
-    double controlHeight,
-  ) {
-    final searchAndAction = Row(
-      children: [
-        Expanded(child: _buildSearchBar(libraryProvider)),
-        const SizedBox(width: Spacing.md),
-        FilledButton.icon(
+  Widget _buildDesktopLocalHeader(LibraryProvider libraryProvider, AcquisitionDownloadsProvider? downloadsProvider) {
+    final toolbar = LibraryToolbar(
+      search: _buildSearchBar(libraryProvider),
+      actions: [
+        LibraryAddButton(
+          label: widget.isShelfView ? 'Add to shelf' : 'Add book',
           onPressed: widget.isShelfView ? () {} : () => _showAddBook(downloadsProvider),
-          icon: const Icon(Icons.add),
-          label: Text(widget.isShelfView ? 'Add to shelf' : 'Add book'),
-          style: FilledButton.styleFrom(minimumSize: Size(0, controlHeight), visualDensity: VisualDensity.standard),
         ),
       ],
     );
-
     if (!widget.isShelfView) {
-      return searchAndAction;
+      return toolbar;
     }
 
     return Column(
       children: [
         _buildShelfIdentity(context, showBack: true, compact: false),
         const SizedBox(height: Spacing.md),
-        searchAndAction,
+        toolbar,
       ],
     );
   }
@@ -859,7 +853,9 @@ class _LibraryPageState extends State<LibraryPage> {
       );
     }
 
+    final horizontalPadding = libraryPageHorizontalPadding(context);
     return BookGrid(
+      padding: EdgeInsets.only(left: horizontalPadding, right: horizontalPadding, bottom: Spacing.md),
       books: visibleBooks,
       libraryViewMode: libraryProvider.viewMode,
       acquisitionJobsByBookId: _linkedJobsByBookId(acquisitionView.selectableJobs),
@@ -970,7 +966,7 @@ class _LibraryPageState extends State<LibraryPage> {
     final isSelectionMode = libraryProvider.isSelectionMode;
 
     return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+      padding: EdgeInsets.symmetric(horizontal: libraryPageHorizontalPadding(context)),
       itemCount: books.length + placeholderJobs.length,
       itemBuilder: (context, index) {
         if (index >= books.length) {
@@ -1033,7 +1029,7 @@ class _LibraryPageState extends State<LibraryPage> {
           icon: Icons.menu_book_outlined,
           title: 'No books in this shelf',
           subtitle: 'Add books from your library to organize them here',
-          action: FilledButton(onPressed: () {}, child: const Text('Add to shelf')),
+          action: EmptyStateAction(onPressed: () {}, label: 'Add to shelf'),
         );
       }
 
@@ -1050,9 +1046,9 @@ class _LibraryPageState extends State<LibraryPage> {
         title: 'No books found',
         subtitle: 'No books in your library match “$query”.',
         action: downloadsProvider?.isManagedAcquisitionReady == true
-            ? FilledButton(
+            ? EmptyStateAction(
                 onPressed: () => _enterOnlineMode(downloadsProvider!, initialQuery: query, submitImmediately: true),
-                child: Text('Search online for “$query”'),
+                label: 'Search online for “$query”',
               )
             : null,
       );
@@ -1062,7 +1058,7 @@ class _LibraryPageState extends State<LibraryPage> {
       icon: Icons.library_books_outlined,
       title: 'No books found',
       subtitle: 'Try adjusting your filters or add some books',
-      action: FilledButton(onPressed: () => _showAddBook(downloadsProvider), child: const Text('Add book')),
+      action: EmptyStateAction(label: 'Add book', icon: Icons.add, onPressed: () => _showAddBook(downloadsProvider)),
     );
   }
 }

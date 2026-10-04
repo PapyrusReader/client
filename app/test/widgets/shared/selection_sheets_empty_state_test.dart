@@ -91,8 +91,9 @@ void main() {
             find.text(topics ? 'Tap + to create a topic' : 'Tap + to create a shelf').hitTestable(),
             findsOneWidget,
           );
-          final scroll = tester.state<ScrollableState>(find.byType(Scrollable));
-          expect(scroll.position.maxScrollExtent, 0);
+          for (final scroll in tester.stateList<ScrollableState>(find.byType(Scrollable))) {
+            expect(scroll.position.maxScrollExtent, 0);
+          }
         },
       );
     }

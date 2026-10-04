@@ -32,6 +32,7 @@ import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/book_details/book_header.dart';
 import 'package:papyrus/widgets/library/book_grid.dart';
+import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/opds/catalog_source_tile.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
@@ -343,7 +344,9 @@ void main() {
         final label = '$name-${width.toInt()}-${scale.toInt()}x';
         await _snapshot(tester, '$label-sources');
         if (width < 840) {
-          expect(tester.getSize(find.byKey(const Key('catalog-mobile-header'))).height, kToolbarHeight);
+          expect(find.byKey(const Key('catalog-mobile-header')), findsNothing);
+          expect(find.byType(LibraryMobileToolbar), findsOneWidget);
+          expect(find.byTooltip('Library sections').hitTestable(), findsOneWidget);
           expect(find.byKey(const Key('catalog-header-divider')), findsNothing);
           expect(find.byTooltip('Catalog options'), findsNothing);
           for (final (direction, action) in [(1.0, 'edit'), (-1.0, 'delete')]) {
@@ -371,8 +374,8 @@ void main() {
             lessThan(tester.getTopLeft(find.byType(NavigationBar)).dy),
           );
           expect(
-            tester.getTopLeft(find.byTooltip('Downloads')).dy,
-            lessThan(tester.getBottomLeft(find.text('Catalogs').last).dy),
+            tester.getCenter(find.byTooltip('Downloads')).dy,
+            tester.getCenter(find.byTooltip('Library sections')).dy,
           );
         } else {
           expect(find.byType(FloatingActionButton), findsNothing);
@@ -380,6 +383,10 @@ void main() {
         }
         await tester.tap(find.text('Project Gutenberg'));
         await _snapshot(tester, '$label-feed');
+        if (width < 840) {
+          expect(find.byKey(const Key('catalog-mobile-header')), findsOneWidget);
+          expect(find.byTooltip('Back').hitTestable(), findsOneWidget);
+        }
         offline = true;
         await tester.tap(find.byTooltip('Refresh catalog'));
         await _snapshot(tester, '$label-cached-feed');

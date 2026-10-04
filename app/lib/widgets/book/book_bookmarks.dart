@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/models/bookmark.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book_details/empty_bookmarks_state.dart';
@@ -89,9 +90,7 @@ class _BookBookmarksState extends State<BookBookmarks> {
     final isDesktop = screenWidth >= Breakpoints.desktopSmall;
 
     if (widget.bookmarks.isEmpty) {
-      return SingleChildScrollView(
-        child: EmptyBookmarksState(isPhysical: widget.isPhysical, onAddBookmark: widget.onAddBookmark),
-      );
+      return EmptyBookmarksState(isPhysical: widget.isPhysical, onAddBookmark: widget.onAddBookmark);
     }
 
     if (isDesktop) return _buildDesktopLayout(context);
@@ -99,7 +98,6 @@ class _BookBookmarksState extends State<BookBookmarks> {
   }
 
   Widget _buildDesktopLayout(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final filtered = _filteredAndSortedBookmarks;
 
     return Column(
@@ -107,7 +105,7 @@ class _BookBookmarksState extends State<BookBookmarks> {
         _buildDesktopHeader(),
         Expanded(
           child: filtered.isEmpty
-              ? _buildNoResultsState(context, colorScheme)
+              ? _buildNoResultsState()
               : _buildBookmarksList(
                   filtered,
                   padding: const EdgeInsets.only(top: Spacing.sm, bottom: Spacing.md),
@@ -148,7 +146,6 @@ class _BookBookmarksState extends State<BookBookmarks> {
   }
 
   Widget _buildMobileLayout(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
     final filtered = _filteredAndSortedBookmarks;
 
     return Column(
@@ -156,7 +153,7 @@ class _BookBookmarksState extends State<BookBookmarks> {
         _buildMobileHeader(),
         Expanded(
           child: filtered.isEmpty
-              ? _buildNoResultsState(context, colorScheme)
+              ? _buildNoResultsState()
               : _buildBookmarksList(
                   filtered,
                   padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
@@ -240,30 +237,11 @@ class _BookBookmarksState extends State<BookBookmarks> {
     );
   }
 
-  Widget _buildNoResultsState(BuildContext context, ColorScheme colorScheme) {
-    return SingleChildScrollView(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Spacing.xl, vertical: Spacing.xxl),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(Icons.search_off, size: 48, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
-              const SizedBox(height: Spacing.md),
-              Text(
-                'No bookmarks found',
-                style: Theme.of(context).textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-              ),
-              const SizedBox(height: Spacing.xs),
-              Text(
-                'Try a different search term',
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                textAlign: TextAlign.center,
-              ),
-            ],
-          ),
-        ),
-      ),
+  Widget _buildNoResultsState() {
+    return const EmptyState(
+      icon: Icons.search_off,
+      title: 'No bookmarks found',
+      subtitle: 'Try a different search term',
     );
   }
 }

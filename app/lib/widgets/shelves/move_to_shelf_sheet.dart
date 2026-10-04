@@ -177,11 +177,10 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> with PersistentSave
                 if (filtered.isEmpty)
                   SliverFillRemaining(
                     hasScrollBody: false,
-                    child: Center(
-                      child: Text(
-                        'No shelves found',
-                        style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                      ),
+                    child: const EmptyState.compact(
+                      icon: Icons.search_off,
+                      title: 'No shelves found',
+                      subtitle: 'Try a different search term',
                     ),
                   )
                 else

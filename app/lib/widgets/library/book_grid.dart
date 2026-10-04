@@ -4,6 +4,7 @@ import 'package:papyrus/utils/book_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/models/book.dart';
+import 'package:papyrus/models/book_grid_size.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/providers/book_storage_status_controller.dart';
@@ -52,6 +53,20 @@ class BookGrid extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final libraryProvider = context.watch<LibraryProvider>();
+    final textTheme = Theme.of(context).textTheme;
+    final textScaler = MediaQuery.textScalerOf(context);
+    // Reserve space for scaled metadata and the two-line cover placeholder.
+    // Otherwise the smallest fitted covers can overflow with larger text.
+    final additionalTextHeight =
+        [
+          (style: textTheme.titleSmall, lines: 2),
+          (style: textTheme.bodySmall, lines: 3),
+          (style: textTheme.labelSmall, lines: 1),
+        ].fold(0.0, (height, entry) {
+          final fontSize = entry.style?.fontSize ?? 14;
+          final increase = (textScaler.scale(fontSize) - fontSize).clamp(0.0, double.infinity);
+          return height + increase * (entry.style?.height ?? 1) * entry.lines;
+        });
     final storageStatusController = context.watch<BookStorageStatusController?>();
     final bookIds = books.map((book) => book.id).toSet();
     final placeholderJobsByBookId = <String, AcquisitionJob>{};
@@ -101,6 +116,18 @@ class BookGrid extends StatelessWidget {
           viewMode: libraryViewMode,
           itemWidth: libraryProvider.gridItemWidth,
         );
+        final compact = layout.itemWidth < BookGridSize.regularMinimum;
+        double lineHeight(TextStyle? style) => (style?.fontSize ?? 14) * (style?.height ?? 1);
+        // Small covers still need room for titles, authors and download details.
+        final compactMetadataHeight =
+            lineHeight(textTheme.titleSmall) * 2 +
+            lineHeight(textTheme.bodySmall) +
+            lineHeight(textTheme.labelSmall) +
+            Spacing.xs * 2 +
+            7;
+        final itemHeight = compact
+            ? layout.itemWidth * 1.5 + compactMetadataHeight + additionalTextHeight
+            : layout.itemWidth / layout.childAspectRatio + additionalTextHeight;
         return MediaQuery.removePadding(
           context: context,
           removeTop: true,
@@ -110,6 +137,7 @@ class BookGrid extends StatelessWidget {
             // ignore: deprecated_member_use
             cacheExtent: 200,
             gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+              mainAxisExtent: itemHeight,
               crossAxisCount: layout.crossAxisCount,
               mainAxisSpacing: layout.spacing,
               crossAxisSpacing: layout.spacing,
@@ -122,6 +150,7 @@ class BookGrid extends StatelessWidget {
                 final canSelect = job.status != AcquisitionJobStatus.completed;
 
                 return AcquisitionPlaceholderCard(
+                  compact: compact,
                   job: job,
                   onTap: onAcquisitionTap == null ? null : () => onAcquisitionTap!(job),
                   isSelectionMode: canSelect && selectedAcquisitionJobIds.isNotEmpty,
@@ -143,6 +172,7 @@ class BookGrid extends StatelessWidget {
               }
 
               return BookCard(
+                compact: compact,
                 book: book,
                 isFavorite: isFavorite,
                 onToggleFavorite: job == null ? (current) => toggleBookFavorite(context, book.id, current) : null,
