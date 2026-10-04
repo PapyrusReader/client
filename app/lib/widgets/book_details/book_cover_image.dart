@@ -98,7 +98,7 @@ class CoverImagePreview extends StatelessWidget {
   _CoverDimensions _getDimensions() {
     switch (size) {
       case BookCoverSize.large:
-        return const _CoverDimensions(240, 360);
+        return const _CoverDimensions(ComponentSizes.bookCoverWidthDesktop, ComponentSizes.bookCoverHeightDesktop);
       case BookCoverSize.medium:
         return const _CoverDimensions(180, 270);
       case BookCoverSize.gridThumbnail:

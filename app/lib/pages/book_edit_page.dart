@@ -36,7 +36,7 @@ class BookEditPage extends StatefulWidget {
 }
 
 class _BookEditPageState extends State<BookEditPage> {
-  static const double _desktopCoverPaneWidth = 280;
+  static const double _desktopCoverPaneWidth = ComponentSizes.bookCoverWidthDesktop;
   static const double _minimumDesktopFormPaneWidth = 420;
   static const double _desktopPaneBreakpoint =
       _desktopCoverPaneWidth + Spacing.xl + _minimumDesktopFormPaneWidth + (Spacing.lg * 2);
@@ -231,28 +231,25 @@ class _BookEditPageState extends State<BookEditPage> {
   Widget _buildDesktopPageHeader(BuildContext context, BookEditProvider provider) {
     final textTheme = Theme.of(context).textTheme;
 
-    return SizedBox(
+    return ConstrainedBox(
       key: const Key('book-edit-desktop-header'),
-      height: ComponentSizes.appBarHeight,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1120),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-          child: Row(
-            children: [
-              IconButton(
-                tooltip: 'Back to book details',
-                onPressed: () => _handleCancel(context),
-                icon: const Icon(Icons.arrow_back),
-              ),
-              const SizedBox(width: Spacing.sm),
-              Expanded(
-                child: Text('Edit book', style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
-              ),
-              const SizedBox(width: Spacing.lg),
-              FilledButton(onPressed: provider.canSave ? () => _handleSave(context) : null, child: const Text('Save')),
-            ],
-          ),
+      constraints: const BoxConstraints(minHeight: ComponentSizes.appBarHeight),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+        child: Row(
+          children: [
+            IconButton(
+              tooltip: 'Back to book details',
+              onPressed: () => _handleCancel(context),
+              icon: const Icon(Icons.arrow_back),
+            ),
+            const SizedBox(width: Spacing.sm),
+            Expanded(
+              child: Text('Edit book', style: textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w600)),
+            ),
+            const SizedBox(width: Spacing.lg),
+            FilledButton(onPressed: provider.canSave ? () => _handleSave(context) : null, child: const Text('Save')),
+          ],
         ),
       ),
     );
@@ -275,46 +272,35 @@ class _BookEditPageState extends State<BookEditPage> {
   }
 
   Widget _buildDesktopLayout(BuildContext context, BookEditProvider provider) {
-    return Align(
-      alignment: Alignment.topLeft,
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1120),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final showSideBySide = constraints.maxWidth >= _desktopPaneBreakpoint;
-
-            return SingleChildScrollView(
-              padding: const EdgeInsets.all(Spacing.lg),
-              child: showSideBySide
-                  ? Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _buildDesktopCoverPane(context, provider),
-                        const SizedBox(width: Spacing.xl),
-                        Expanded(child: _buildDesktopFormPane(context, provider)),
-                      ],
-                    )
-                  : Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Center(child: _buildDesktopCoverPane(context, provider)),
-                        const SizedBox(height: Spacing.xl),
-                        _buildDesktopFormPane(context, provider),
-                      ],
-                    ),
-            );
-          },
-        ),
-      ),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final showSideBySide = constraints.maxWidth >= _desktopPaneBreakpoint;
+        return SingleChildScrollView(
+          padding: const EdgeInsets.all(Spacing.lg),
+          child: showSideBySide
+              ? Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildDesktopCoverPane(context, provider),
+                    const SizedBox(width: Spacing.xl),
+                    Expanded(child: _buildDesktopFormPane(context, provider)),
+                  ],
+                )
+              : Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Align(alignment: Alignment.centerLeft, child: _buildDesktopCoverPane(context, provider)),
+                    const SizedBox(height: Spacing.xl),
+                    _buildDesktopFormPane(context, provider),
+                  ],
+                ),
+        );
+      },
     );
   }
 
   Widget _buildDesktopCoverPane(BuildContext context, BookEditProvider provider) {
-    return SizedBox(width: _desktopCoverPaneWidth, child: _buildDesktopCoverCard(context, provider));
-  }
-
-  Widget _buildDesktopCoverCard(BuildContext context, BookEditProvider provider) {
-    return _buildSectionCard(title: 'Cover', children: [_buildCoverSection(context, provider, isDesktop: true)]);
+    return SizedBox(width: _desktopCoverPaneWidth, child: _buildCoverSection(context, provider, isDesktop: true));
   }
 
   Widget _buildDesktopFormPane(BuildContext context, BookEditProvider provider) {
@@ -573,7 +559,7 @@ class _BookEditPageState extends State<BookEditPage> {
       initialUrl: provider.editedBook?.coverUrl,
       initialBytes: provider.coverImageBytes,
       isDesktop: isDesktop,
-      coverWidth: isDesktop ? 240 : null,
+      coverWidth: isDesktop ? _desktopCoverPaneWidth : null,
       onUrlChanged: (url) => _provider.updateCoverUrl(url),
       onFileChanged: (bytes) => _provider.updateCoverFromFile(bytes),
     );

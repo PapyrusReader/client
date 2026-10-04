@@ -54,8 +54,8 @@ void main() {
       expect(tester.getSize(header).height, ComponentSizes.appBarHeight);
       expect(find.descendant(of: header, matching: find.text('Frankenstein; or, The Modern Prometheus')), findsNothing);
 
-      final coverHeading = tester.getTopLeft(find.text('Cover'));
-      expect(coverHeading.dx, lessThan(80));
+      expect(find.text('Cover'), findsNothing);
+      expect(tester.getTopLeft(find.byType(CoverImagePicker)).dx, Spacing.lg);
 
       final saveButton = find.widgetWithText(FilledButton, 'Save');
       expect(find.ancestor(of: saveButton, matching: find.byType(SingleChildScrollView)), findsNothing);
@@ -64,12 +64,15 @@ void main() {
     testWidgets('desktop keeps the cover beside metadata and form sections', (tester) async {
       await pumpPage(tester, size: const Size(1400, 1000));
 
-      final coverHeading = tester.getTopLeft(find.text('Cover'));
+      final cover = tester.getTopLeft(find.byType(CoverImagePicker));
       final metadataHeading = tester.getTopLeft(find.text('Fetch metadata'));
       final formHeading = tester.getTopLeft(find.text('Basic information'));
 
-      expect(metadataHeading.dx, greaterThan(coverHeading.dx));
-      expect((metadataHeading.dy - coverHeading.dy).abs(), lessThan(4));
+      expect(metadataHeading.dx, greaterThan(cover.dx));
+      expect(
+        tester.getTopLeft(find.ancestor(of: find.text('Fetch metadata'), matching: find.byType(Card)).first).dy,
+        cover.dy,
+      );
       expect(formHeading.dx, closeTo(metadataHeading.dx, 1));
       expect(formHeading.dy, greaterThan(metadataHeading.dy));
     });
@@ -77,30 +80,33 @@ void main() {
     testWidgets('intermediate desktop keeps panes side by side while paired fields stack', (tester) async {
       await pumpPage(tester, size: const Size(1000, 1200), contentWidth: 800);
 
-      final coverHeading = tester.getTopLeft(find.text('Cover'));
+      final cover = tester.getTopLeft(find.byType(CoverImagePicker));
       final metadataHeading = tester.getTopLeft(find.text('Fetch metadata'));
       final publisher = tester.getTopLeft(find.text('Publisher'));
       final language = tester.getTopLeft(find.text('Language'));
 
-      expect(metadataHeading.dx, greaterThan(coverHeading.dx));
-      expect((metadataHeading.dy - coverHeading.dy).abs(), lessThan(4));
+      expect(metadataHeading.dx, greaterThan(cover.dx));
+      expect(
+        tester.getTopLeft(find.ancestor(of: find.text('Fetch metadata'), matching: find.byType(Card)).first).dy,
+        cover.dy,
+      );
       expect(language.dy, greaterThan(publisher.dy));
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('medium desktop centers the cover above full-width metadata and form sections', (tester) async {
+    testWidgets('medium desktop aligns the cover with the page gutter above full-width form sections', (tester) async {
       await pumpPage(tester, size: const Size(1000, 1200), contentWidth: 640);
 
-      final coverHeading = tester.getTopLeft(find.text('Cover'));
+      final cover = tester.getTopLeft(find.byType(CoverImagePicker));
       final metadataHeading = tester.getTopLeft(find.text('Fetch metadata'));
       final formHeading = tester.getTopLeft(find.text('Basic information'));
-      final coverCard = find.ancestor(of: find.text('Cover'), matching: find.byType(Card)).first;
+      final coverPreview = find.descendant(of: find.byType(CoverImagePicker), matching: find.byType(AspectRatio));
       final metadataCard = find.ancestor(of: find.text('Fetch metadata'), matching: find.byType(Card)).first;
       final formCard = find.ancestor(of: find.text('Basic information'), matching: find.byType(Card)).first;
 
-      expect(metadataHeading.dy, greaterThan(coverHeading.dy));
+      expect(metadataHeading.dy, greaterThan(cover.dy));
       expect(formHeading.dy, greaterThan(metadataHeading.dy));
-      expect(tester.getCenter(coverCard).dx, closeTo(320, 1));
+      expect(tester.getTopLeft(coverPreview).dx, Spacing.lg);
       expect(tester.getCenter(metadataCard).dx, closeTo(320, 1));
       expect(tester.getSize(metadataCard).width, closeTo(tester.getSize(formCard).width, 1));
       expect(tester.getSize(find.byType(AspectRatio).first).width, 240);

@@ -179,7 +179,8 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
         decoration: BoxDecoration(
           color: colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(AppRadius.lg),
-          border: Border.all(color: colorScheme.outlineVariant),
+          // Desktop previews occupy the same image bounds as Book details.
+          border: widget.isDesktop ? null : Border.all(color: colorScheme.outlineVariant),
           boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))],
         ),
         child: ClipRRect(borderRadius: BorderRadius.circular(AppRadius.lg), child: _buildCoverImage(context)),

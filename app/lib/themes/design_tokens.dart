@@ -156,6 +156,8 @@ class ComponentSizes {
   static const double mobileHeroHeight = 200.0;
 
   // Book covers
+  static const double bookCoverWidthDesktop = 240.0;
+  static const double bookCoverHeightDesktop = 360.0;
   static const double bookCoverWidthGrid = 120.0;
   static const double bookCoverHeightGrid = 180.0;
   static const double bookCoverWidthList = 60.0;
