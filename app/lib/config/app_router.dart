@@ -63,9 +63,7 @@ class AppRouter {
     routes: [
       GoRoute(
         path: '/',
-        builder: (BuildContext context, GoRouterState state) {
-          return const WelcomePage();
-        },
+        pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const WelcomePage()),
         routes: [
           GoRoute(
             name: 'LOGIN',
@@ -103,9 +101,10 @@ class AppRouter {
       // Main app routes (with adaptive shell)
       ShellRoute(
         navigatorKey: shellNavigatorKey,
-        builder: (context, state, child) {
-          return AdaptiveAppShell(child: child);
-        },
+        pageBuilder: (context, state, child) => NoTransitionPage(
+          key: state.pageKey,
+          child: AdaptiveAppShell(child: child),
+        ),
         routes: [
           // Dashboard
           GoRoute(
