@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/pages/book_details_page.dart';
@@ -14,6 +16,7 @@ import '../helpers/test_helpers.dart';
 void main() {
   for (final theme in [AppTheme.dark, AppTheme.eink]) {
     for (final layout in [
+      (screen: const Size(3840, 2160), width: 3560.0, scale: 1.0),
       (screen: const Size(1800, 1200), width: 1520.0, scale: 1.0),
       (screen: const Size(1200, 1200), width: 920.0, scale: 1.0),
       (screen: const Size(1000, 1200), width: 800.0, scale: 1.0),
@@ -85,7 +88,10 @@ void main() {
           expect(tester.getRect(search).left, detailsTitle.left);
         }
         final formCard = find.ancestor(of: find.text('Basic information'), matching: find.byType(Card)).first;
-        expect(tester.getRect(formCard).right, layout.screen.width - Spacing.lg);
+        expect(
+          tester.getRect(formCard).right,
+          layout.screen.width - layout.width + math.min(layout.width, 1120) - Spacing.lg,
+        );
         expect(find.widgetWithText(OutlinedButton, 'Upload'), findsOneWidget);
         expect(find.widgetWithText(OutlinedButton, 'URL'), findsOneWidget);
       });

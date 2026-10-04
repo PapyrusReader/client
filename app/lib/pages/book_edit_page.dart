@@ -274,30 +274,36 @@ class _BookEditPageState extends State<BookEditPage> {
   }
 
   Widget _buildDesktopLayout(BuildContext context, BookEditProvider provider) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final showSideBySide = constraints.maxWidth >= _desktopPaneBreakpoint;
-        return SingleChildScrollView(
-          padding: const EdgeInsets.all(Spacing.lg),
-          child: showSideBySide
-              ? Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    _buildDesktopCoverPane(context, provider),
-                    const SizedBox(width: _desktopPaneGap),
-                    Expanded(child: _buildDesktopFormPane(context, provider)),
-                  ],
-                )
-              : Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Align(alignment: Alignment.centerLeft, child: _buildDesktopCoverPane(context, provider)),
-                    const SizedBox(height: Spacing.xl),
-                    _buildDesktopFormPane(context, provider),
-                  ],
-                ),
-        );
-      },
+    return Align(
+      alignment: Alignment.topLeft,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1120),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final showSideBySide = constraints.maxWidth >= _desktopPaneBreakpoint;
+            return SingleChildScrollView(
+              padding: const EdgeInsets.all(Spacing.lg),
+              child: showSideBySide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        _buildDesktopCoverPane(context, provider),
+                        const SizedBox(width: _desktopPaneGap),
+                        Expanded(child: _buildDesktopFormPane(context, provider)),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Align(alignment: Alignment.centerLeft, child: _buildDesktopCoverPane(context, provider)),
+                        const SizedBox(height: Spacing.xl),
+                        _buildDesktopFormPane(context, provider),
+                      ],
+                    ),
+            );
+          },
+        ),
+      ),
     );
   }
 
