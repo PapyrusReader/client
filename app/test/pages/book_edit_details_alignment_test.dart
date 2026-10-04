@@ -6,6 +6,7 @@ import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/book_details/book_cover_image.dart';
+import 'package:papyrus/widgets/book_details/book_header.dart';
 import 'package:papyrus/widgets/book_edit/cover_image_picker.dart';
 
 import '../helpers/test_helpers.dart';
@@ -64,12 +65,25 @@ void main() {
         expect(reference.size, const Size(240, 360));
         expect(reference.left, layout.screen.width - layout.width + Spacing.lg);
 
+        final detailsTitle = tester.getRect(
+          find.descendant(of: find.byType(BookHeader), matching: find.text('A book')).last,
+        );
+        final detailsGap = detailsTitle.left - reference.right;
+
         await pump(const BookEditPage(id: 'book'));
         final preview = find.descendant(of: find.byType(CoverImagePicker), matching: find.byType(AspectRatio));
         final image = find.descendant(of: find.byType(CoverImagePicker), matching: find.byType(CoverImage));
         expect(tester.getRect(preview), reference);
         expect(tester.getRect(image), reference, reason: 'Compare the image itself, including any decoration inset');
         expect(find.text('Cover'), findsNothing);
+        final metadataHeading = tester.getRect(find.text('Fetch metadata'));
+        if (layout.width >= ComponentSizes.bookCoverWidthDesktop + Spacing.md + 420 + Spacing.lg * 2) {
+          expect(metadataHeading.left - reference.right, detailsGap);
+          expect(metadataHeading.top, reference.top);
+          expect(tester.getRect(find.text('Basic information')).left, detailsTitle.left);
+          final search = find.ancestor(of: find.text('Search'), matching: find.byType(TextFormField)).first;
+          expect(tester.getRect(search).left, detailsTitle.left);
+        }
         final formCard = find.ancestor(of: find.text('Basic information'), matching: find.byType(Card)).first;
         expect(tester.getRect(formCard).right, layout.screen.width - Spacing.lg);
         expect(find.widgetWithText(OutlinedButton, 'Upload'), findsOneWidget);
