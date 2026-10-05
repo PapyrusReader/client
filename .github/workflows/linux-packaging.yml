@@ -1,0 +1,38 @@
+name: Linux packaging check
+
+on:
+  pull_request:
+    paths:
+      - 'app/linux/**'
+      - 'app/pubspec.yaml'
+      - 'app/pubspec.lock'
+      - 'tools/install_linux_build_dependencies.sh'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/linux-packaging.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: linux-packaging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  linux:
+    name: Compile Linux release
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Linux dependencies
+        run: bash ../tools/install_linux_build_dependencies.sh
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          cache: true
+      - name: Install locked dependencies
+        run: flutter pub get --enforce-lockfile
+      - name: Compile Linux release
+        run: flutter build linux --release
