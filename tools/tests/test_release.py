@@ -35,6 +35,14 @@ class ReleaseGateTest(unittest.TestCase):
         with self.assertRaises(ValueError):
             gate.decide(("0.9.0", 0), first, "server")
 
+    def test_initial_version_can_be_reset_before_any_release(self) -> None:
+        for component, number in (("client", 1), ("server", 0)):
+            with self.subTest(component=component):
+                self.assertTrue(gate.decide(("0.0.1", number), ("1.0.0", number), component, published=False))
+                self.assertFalse(gate.decide(("0.0.1", number), ("0.0.1", number), component, published=False))
+                with self.assertRaises(ValueError):
+                    gate.decide(("0.0.1", number), ("1.0.0", number), component, published=True)
+
     def test_invalid_manifest_versions_are_rejected(self) -> None:
         for version in ("1.0.0", "1.0.0+0", "1.0.0+2100000001", "latest"):
             with self.assertRaises(ValueError):
@@ -113,6 +121,18 @@ class CommittedGateTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("tag=v1.0.0+2", result.stdout)
         self.assertIn("release=true", result.stdout)
+
+    def test_committed_initial_reset_requires_no_release_tags(self) -> None:
+        self.manifest.write_text("version: 0.0.1+1\n")
+        self.commit()
+        result = self.run_gate("--base", self.base)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("tag=v0.0.1+1", result.stdout)
+        self.assertIn("release=true", result.stdout)
+        self.command("tag", "v1.0.0+1", self.base)
+        result = self.run_gate("--base", self.base)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("Release version cannot decrease", result.stderr)
 
     def test_released_tag_cannot_be_reused_for_another_commit(self) -> None:
         self.command("tag", "v1.0.0+1")

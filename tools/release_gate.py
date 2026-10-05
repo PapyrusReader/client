@@ -26,9 +26,11 @@ def parse(text: str, component: str) -> tuple[str, int]:
     return version, 0
 
 
-def decide(current: tuple[str, int], previous: tuple[str, int], component: str) -> bool:
+def decide(current: tuple[str, int], previous: tuple[str, int], component: str, *, published: bool = True) -> bool:
     if current == previous:
         return False
+    if not published:
+        return True
     if tuple(map(int, current[0].split("."))) < tuple(map(int, previous[0].split("."))):
         raise ValueError("Release version cannot decrease")
     if component == "client" and current[1] <= previous[1]:
@@ -78,7 +80,10 @@ def main() -> None:
     if args.manual:
         release = True
     elif args.base and set(args.base) != {"0"}:
-        release = decide(current, parse(git("show", f"{args.base}:{path}"), args.component), args.component)
+        published = bool(git("tag", "--list", "v[0-9]*"))
+        release = decide(
+            current, parse(git("show", f"{args.base}:{path}"), args.component), args.component, published=published
+        )
     else:
         raise ValueError("A previous commit is required; use a manual build to bootstrap")
     version, number = current
