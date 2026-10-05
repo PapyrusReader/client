@@ -1,7 +1,3 @@
-## Ticket
-
-> `<Trello card link>`
-
 ## Summary
 
 > Describe the problem, what changed, and why this approach was chosen.
@@ -12,20 +8,20 @@
 
 ## UI evidence
 
-> Add screenshots or recordings, or write `-` if not applicable.
+> Add screenshots or recordings, or write `Not applicable.` if not applicable.
 
 ## Compatibility and migration
 
-> Describe breaking changes and migrations, or write `-` if not applicable.
+> Describe breaking changes and migrations, or write `Not applicable.` if not applicable.
 
 ## Notes
 
-> Add reviewer guidance, risks, or follow-up tasks, if any.
+> Add reviewer guidance, risks, or follow-up tasks, or write `Not applicable.` if none.
 
 ## Checklist
 
 - [ ] The branch, commits, and pull request title follow the repository conventions.
-- [ ] The change is complete and limited to the ticket's scope.
+- [ ] The change is complete and limited to the agreed scope.
 - [ ] Relevant tests have been added or updated.
 - [ ] Formatting, analysis, and tests pass.
 - [ ] Documentation, UI evidence, and migration notes are included where relevant.
