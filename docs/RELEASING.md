@@ -17,7 +17,7 @@ release builds. Normal PR CI continues independently. Manual dispatch on `master
 is available for the first build or a retry of an unreleased commit. Tags are
 created after builds, not used as a second build trigger. A released tag cannot
 be reused for a different commit. Client tags include the build number, e.g.
-`v1.0.0+1`. Version changes build Android, web, Linux and Windows as before; the
+`v0.0.1+1`. Version changes build Android, web, Linux and Windows as before; the
 Android artifact is now a signed AAB, which Google Play turns into device APKs.
 The Android artifact is available even if an unrelated desktop job fails.
 
@@ -84,7 +84,7 @@ an actionable message; they cannot silently use the debug certificate.
    upload key. Keep the same upload key for later releases.
 3. Configure the public API, PowerSync, SMTP and Google OAuth settings using the
    server deployment runbook. Check the endpoints from outside your local network.
-4. Dispatch Release on `master` for the initial `1.0.0+1`, download the
+4. Merge the initial `0.0.1+1` version change (or dispatch Release on `master`), download the
    `android-release` artifact, and upload `app-release.aab` to internal testing.
    The local validation bundle uses a temporary certificate and placeholder
    URLs and must **never** be submitted to Play.
