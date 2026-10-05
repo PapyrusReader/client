@@ -27,7 +27,7 @@ gradle.taskGraph.whenReady {
 }
 
 android {
-    namespace = "com.papyrus.papyrus"
+    namespace = "com.papyrus.reader"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -41,7 +41,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.papyrus.papyrus"
+        applicationId = "com.papyrus.reader"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
