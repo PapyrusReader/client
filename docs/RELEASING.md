@@ -1,6 +1,7 @@
 # Android internal testing releases
 
-Android identity is `com.papyrus.papyrus`; keep it when creating the Play Console app.
+Android identity is `com.papyrus.reader`; the first uploaded bundle establishes it
+in Play Console. Keep this identity for all subsequent uploads.
 The app name is Papyrus. The pinned Flutter 3.41.2 toolchain targets Android API 36.
 
 ## Versions and triggers
@@ -76,8 +77,9 @@ an actionable message; they cannot silently use the debug certificate.
 
 ## First Google Play upload
 
-1. Create Papyrus in Play Console, using `com.papyrus.papyrus` and the appropriate
-   account/developer details. Choose **internal testing** for the first device test.
+1. Create Papyrus in Play Console with the appropriate account/developer details.
+   The first uploaded bundle uses `com.papyrus.reader`. Choose **internal testing**
+   for the first device test.
 2. Enable Play App Signing. Google holds the app signing key; GitHub uses your
    upload key. Keep the same upload key for later releases.
 3. Configure the public API, PowerSync, SMTP and Google OAuth settings using the

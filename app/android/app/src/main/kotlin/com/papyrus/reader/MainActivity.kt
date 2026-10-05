@@ -1,4 +1,4 @@
-package com.papyrus.papyrus
+package com.papyrus.reader
 
 import io.flutter.embedding.android.FlutterActivity
 
