@@ -4,7 +4,7 @@ on:
   pull_request:
     paths: ['tools/**', '.github/workflows/**', 'app/pubspec.yaml', 'app/android/**', 'packages/**']
   push:
-    branches: [master]
+    branches: [development, master]
     paths: ['tools/**', '.github/workflows/**', 'app/pubspec.yaml', 'app/android/**', 'packages/**']
 
 permissions:

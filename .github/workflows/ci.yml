@@ -2,13 +2,13 @@ name: CI
 
 on:
   push:
-    branches: [master, main]
+    branches: [development, master, main]
     paths:
       - 'app/**'
       - 'packages/**'
       - '.github/workflows/**'
   pull_request:
-    branches: [master, main]
+    branches: [development, master, main]
     paths:
       - 'app/**'
       - 'packages/**'
