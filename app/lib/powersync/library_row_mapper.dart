@@ -16,7 +16,10 @@ class LibraryRowMapper<T> {
   const LibraryRowMapper(this.table, this.toRow, this.fromRow);
 }
 
+const trackingTableNames = ['reading_goals', 'reading_activities', 'goal_periods'];
 const libraryTableNames = [
+  ...trackingTableNames,
+  'tracking_staging',
   'books',
   'shelves',
   'tags',
@@ -99,7 +102,7 @@ Map<String, dynamic> decodeLibraryRow(Map<String, dynamic> row) => row.map((key,
   if (['is_smart', 'is_pinned', 'icon_match_text_direction'].contains(key)) {
     return MapEntry(key, value == true || value == 1);
   }
-  if (['tags', 'location'].contains(key) && value is String) {
+  if (['tags', 'location', 'payload'].contains(key) && value is String) {
     return MapEntry(key, jsonDecode(value));
   }
   return MapEntry(key, value);

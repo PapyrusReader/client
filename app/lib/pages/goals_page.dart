@@ -1,44 +1,43 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:provider/provider.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/goals/goal_progress.dart';
+import 'package:papyrus/models/book.dart';
+import 'package:papyrus/models/reading_activity.dart';
 import 'package:papyrus/models/reading_goal.dart';
 import 'package:papyrus/providers/goals_provider.dart';
+import 'package:papyrus/providers/enums/library_reading_status.dart';
+import 'package:papyrus/reader/reader_book_adapter.dart';
+import 'package:papyrus/services/book_import_service_stub.dart'
+    if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
+import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/goals/active_goal_details_sheet.dart';
 import 'package:papyrus/widgets/goals/add_goal_sheet.dart';
-import 'package:papyrus/widgets/goals/completed_goal_chip.dart';
 import 'package:papyrus/widgets/goals/goal_card.dart';
-import 'package:papyrus/widgets/statistics/stat_card.dart';
-import 'package:provider/provider.dart';
+import 'package:papyrus/widgets/goals/goal_details_sheet.dart';
+import 'package:papyrus/widgets/goals/log_reading_sheet.dart';
+import 'package:papyrus/widgets/shared/app_date_picker.dart';
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
-/// Goals page displaying reading goals with progress tracking.
-///
-/// Features a clean, unified design where all goals use consistent
-/// linear progress bars regardless of their time period.
 class GoalsPage extends StatefulWidget {
   const GoalsPage({super.key});
-
   @override
   State<GoalsPage> createState() => _GoalsPageState();
 }
 
 class _GoalsPageState extends State<GoalsPage> {
-  late GoalsProvider _provider;
-  bool _completedCollapsed = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _provider = GoalsProvider();
-  }
-
+  final _provider = GoalsProvider();
+  bool _history = false;
+  String? _filterGoal;
+  DateTimeRange? _filterDates;
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    // Connect to DataStore for persistent storage
-    final dataStore = context.read<DataStore>();
-    _provider.attach(dataStore);
+    _provider.attach(context.read<DataStore>());
   }
 
   @override
@@ -48,289 +47,413 @@ class _GoalsPageState extends State<GoalsPage> {
   }
 
   @override
-  Widget build(BuildContext context) {
-    return ChangeNotifierProvider.value(
-      value: _provider,
-      child: Consumer<GoalsProvider>(
-        builder: (context, provider, _) {
-          final screenWidth = MediaQuery.of(context).size.width;
-          final isDesktop = screenWidth >= Breakpoints.desktopSmall;
-
-          if (provider.isLoading) {
-            return _buildLoadingState(context);
-          }
-
-          if (isDesktop) {
-            return _buildDesktopLayout(context, provider);
-          }
-
-          return _buildMobileLayout(context, provider);
-        },
-      ),
-    );
-  }
-
-  // ============================================================================
-  // LOADING STATE
-  // ============================================================================
-
-  Widget _buildLoadingState(BuildContext context) {
-    return const Scaffold(body: Center(child: AppCircularProgressIndicator()));
-  }
-
-  // ============================================================================
-  // MOBILE LAYOUT
-  // ============================================================================
-
-  Widget _buildMobileLayout(BuildContext context, GoalsProvider provider) {
-    final textTheme = Theme.of(context).textTheme;
-    final hasGoals = provider.hasActiveGoals || provider.hasCompletedGoals;
-
-    return Scaffold(
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _showAddGoalSheet(context),
-        child: const Icon(Icons.add),
-      ),
+  Widget build(BuildContext context) => AnimatedBuilder(
+    animation: _provider,
+    builder: (context, _) => Scaffold(
       body: SafeArea(
-        child: hasGoals
-            ? RefreshIndicator(
-                onRefresh: provider.refresh,
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final padding = constraints.maxWidth < Breakpoints.tablet ? Spacing.md : Spacing.xl;
+            return Align(
+              alignment: Alignment.topCenter,
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: 1200),
                 child: ListView(
-                  padding: const EdgeInsets.all(Spacing.md),
+                  padding: EdgeInsets.all(padding),
                   children: [
-                    // Stats summary row
-                    if (provider.hasActiveGoals || provider.hasCompletedGoals) ...[
-                      _buildStatsRow(provider, isDesktop: false),
-                      const SizedBox(height: Spacing.lg),
-                    ],
-                    // Active goals section
-                    if (provider.hasActiveGoals) ...[
-                      Text('Active goals', style: textTheme.titleMedium),
-                      const SizedBox(height: Spacing.sm),
-                      ...provider.activeGoals.map(
-                        (goal) => Padding(
-                          padding: const EdgeInsets.only(bottom: Spacing.md),
-                          child: GoalCard(goal: goal, onTap: () => _showGoalDetails(context, goal)),
-                        ),
-                      ),
-                    ],
-                    // Completed goals section
-                    if (provider.hasCompletedGoals) ...[
-                      const SizedBox(height: Spacing.lg),
-                      _buildCompletedHeader(context, provider.completedGoals.length),
-                      const SizedBox(height: Spacing.sm),
-                      if (!_completedCollapsed) ...[
-                        Opacity(
-                          opacity: 0.6,
-                          child: Column(
-                            children: provider.completedGoals
-                                .map(
-                                  (goal) => Padding(
-                                    padding: const EdgeInsets.only(bottom: Spacing.md),
-                                    child: GoalCard(goal: goal, onTap: () => _showGoalDetails(context, goal)),
-                                  ),
-                                )
-                                .toList(),
-                          ),
-                        ),
-                      ],
-                    ],
+                    LayoutBuilder(
+                      builder: (context, box) {
+                        final actions = Wrap(
+                          spacing: Spacing.sm,
+                          runSpacing: Spacing.sm,
+                          children: [
+                            OutlinedButton.icon(
+                              style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(0, ComponentSizes.buttonHeightMobile),
+                              ),
+                              onPressed: () => LogReadingSheet.show(context, provider: _provider),
+                              icon: const Icon(Icons.edit_outlined),
+                              label: const Text('Log reading'),
+                            ),
+                            FilledButton.icon(
+                              style: FilledButton.styleFrom(
+                                minimumSize: const Size(0, ComponentSizes.buttonHeightMobile),
+                              ),
+                              onPressed: () => AddGoalSheet.show(context, provider: _provider),
+                              icon: const Icon(Icons.add),
+                              label: const Text('New goal'),
+                            ),
+                          ],
+                        );
+                        if (box.maxWidth < 520 || MediaQuery.textScalerOf(context).scale(16) > 24) {
+                          return Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Goals', style: Theme.of(context).textTheme.headlineMedium),
+                              const SizedBox(height: Spacing.md),
+                              actions,
+                            ],
+                          );
+                        }
+                        return Row(
+                          children: [
+                            Expanded(child: Text('Goals', style: Theme.of(context).textTheme.headlineMedium)),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                actions.children.first,
+                                const SizedBox(width: Spacing.sm),
+                                actions.children.last,
+                              ],
+                            ),
+                          ],
+                        );
+                      },
+                    ),
                     const SizedBox(height: Spacing.lg),
-                  ],
-                ),
-              )
-            : _buildEmptyState(context),
-      ),
-    );
-  }
-
-  // ============================================================================
-  // DESKTOP LAYOUT
-  // ============================================================================
-
-  Widget _buildDesktopLayout(BuildContext context, GoalsProvider provider) {
-    final textTheme = Theme.of(context).textTheme;
-    final hasGoals = provider.hasActiveGoals || provider.hasCompletedGoals;
-
-    return Scaffold(
-      body: SafeArea(
-        child: hasGoals
-            ? SingleChildScrollView(
-                padding: const EdgeInsets.all(Spacing.xl),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // Stats summary row
-                    if (provider.hasActiveGoals || provider.hasCompletedGoals) ...[
-                      _buildStatsRow(provider, isDesktop: true),
-                      const SizedBox(height: Spacing.lg),
-                    ],
-                    // Active goals section
-                    if (provider.hasActiveGoals) ...[
-                      Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          Text('Active goals', style: textTheme.titleMedium),
-                          FilledButton.icon(
-                            onPressed: () => _showAddGoalSheet(context),
-                            icon: const Icon(Icons.add),
-                            label: const Text('New goal'),
-                          ),
+                    Align(
+                      alignment: AlignmentDirectional.centerStart,
+                      child: SegmentedButton<bool>(
+                        segments: const [
+                          ButtonSegment(value: false, label: Text('Overview')),
+                          ButtonSegment(value: true, label: Text('History')),
                         ],
+                        selected: {_history},
+                        onSelectionChanged: (selection) => setState(() => _history = selection.first),
                       ),
-                      const SizedBox(height: Spacing.md),
-                      _buildGoalGrid(context, provider.activeGoals),
-                    ],
-                    // Completed goals section
-                    if (provider.hasCompletedGoals) ...[
-                      const SizedBox(height: Spacing.xl),
-                      _buildCompletedHeader(context, provider.completedGoals.length),
-                      const SizedBox(height: Spacing.md),
-                      if (!_completedCollapsed)
-                        Opacity(opacity: 0.6, child: _buildGoalGrid(context, provider.completedGoals)),
-                    ],
+                    ),
+                    const SizedBox(height: Spacing.xl),
+                    if (_provider.isLoading)
+                      const Center(child: AppCircularProgressIndicator())
+                    else if (_history)
+                      ..._historyContent(context)
+                    else
+                      ..._overview(context),
+                    if (_provider.error != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: Spacing.md),
+                        child: Text(_provider.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                      ),
                   ],
                 ),
-              )
-            : _buildEmptyState(context),
-      ),
-    );
-  }
-
-  Widget _buildGoalGrid(BuildContext context, List<ReadingGoal> goals) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        // Responsive columns: 1 for narrow, 2 for medium, 3 for wide
-        final crossAxisCount = _getColumnCount(constraints.maxWidth);
-
-        // Card height: header(36) + gaps(32) + progress row(20) + bar(8) + footer(16) + padding(48) = 160
-        // Adding extra padding for comfortable spacing
-        const cardHeight = 176.0;
-
-        return GridView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: crossAxisCount,
-            mainAxisSpacing: Spacing.md,
-            crossAxisSpacing: Spacing.md,
-            mainAxisExtent: cardHeight,
-          ),
-          itemCount: goals.length,
-          itemBuilder: (context, index) {
-            return GoalCard(goal: goals[index], isDesktop: true, onTap: () => _showGoalDetails(context, goals[index]));
+              ),
+            );
           },
-        );
-      },
-    );
-  }
-
-  int _getColumnCount(double width) {
-    if (width >= 1200) return 3;
-    if (width >= 600) return 2;
-    return 1;
-  }
-
-  // ============================================================================
-  // STATS & HEADERS
-  // ============================================================================
-
-  Widget _buildStatsRow(GoalsProvider provider, {required bool isDesktop}) {
-    return Row(
-      children: [
-        Expanded(
-          child: CompactStatCard(value: '${provider.activeGoals.length}', label: 'Active', isDesktop: isDesktop),
         ),
-        const SizedBox(width: Spacing.md),
-        Expanded(
-          child: CompactStatCard(value: '${provider.completedGoals.length}', label: 'Completed', isDesktop: isDesktop),
+      ),
+    ),
+  );
+
+  List<Widget> _overview(BuildContext context) {
+    final current = _provider.current;
+    final today = current
+        .where((value) => value.goal.period == GoalPeriod.daily || value.goal.type == GoalType.days)
+        .toList();
+    final longer = current.where((value) => !today.contains(value)).toList();
+    final activity = groupReadingActivities(_provider.store.effectiveReadingActivities);
+    final texts = Theme.of(context).textTheme;
+    return [
+      if (current.isEmpty) ...[
+        const EmptyState.compact(
+          icon: Icons.flag_outlined,
+          title: 'No goals yet',
+          subtitle:
+              'Choose a target that fits your reading. The reader tracks progress, and you can log physical books too.',
+          alignment: Alignment.topCenter,
         ),
-        const SizedBox(width: Spacing.md),
-        Expanded(
-          child: CompactStatCard(value: '${_getBestStreak(provider)}', label: 'Best streak', isDesktop: isDesktop),
-        ),
-      ],
-    );
-  }
-
-  int _getBestStreak(GoalsProvider provider) {
-    return provider.activeGoals
-        .where((g) => g.isDaily && g.isRecurring && g.streak > 0)
-        .fold(0, (max, g) => g.streak > max ? g.streak : max);
-  }
-
-  Widget _buildCompletedHeader(BuildContext context, int count) {
-    final textTheme = Theme.of(context).textTheme;
-    final colorScheme = Theme.of(context).colorScheme;
-
-    return InkWell(
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      onTap: () => setState(() => _completedCollapsed = !_completedCollapsed),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
-        child: Row(
+        Wrap(
+          spacing: Spacing.sm,
+          runSpacing: Spacing.sm,
           children: [
-            Text('Completed goals', style: textTheme.titleMedium),
-            const SizedBox(width: Spacing.sm),
-            Text('($count)', style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const Spacer(),
-            Icon(_completedCollapsed ? Icons.expand_more : Icons.expand_less, color: colorScheme.onSurfaceVariant),
+            for (var i = 0; i < 5; i++)
+              ActionChip(
+                label: Text(
+                  [
+                    '30 minutes daily',
+                    '5 reading days weekly',
+                    '12 books yearly',
+                    '100 pages weekly',
+                    'Finish a book',
+                  ][i],
+                ),
+                onPressed: () => AddGoalSheet.show(context, provider: _provider, preset: i),
+              ),
           ],
         ),
+      ],
+      if (today.isNotEmpty) ...[
+        Text('Today · ${DateFormat.MMMMEEEEd().format(DateTime.now())}', style: texts.titleLarge),
+        const SizedBox(height: Spacing.md),
+        _cards(context, today),
+        const SizedBox(height: Spacing.xl),
+      ],
+      if (longer.isNotEmpty) ...[
+        Text('Longer-term goals', style: texts.titleLarge),
+        const SizedBox(height: Spacing.md),
+        _cards(context, longer),
+        const SizedBox(height: Spacing.xl),
+      ],
+      if (activity.isNotEmpty) ...[
+        Text('Recent activity', style: texts.titleLarge),
+        const SizedBox(height: Spacing.sm),
+        for (final entry in activity.take(5)) ReadingActivityTile(activity: entry, provider: _provider),
+        TextButton(onPressed: () => setState(() => _history = true), child: const Text('View history')),
+      ],
+    ];
+  }
+
+  Widget _cards(BuildContext context, List<GoalProgress> goals, {bool historical = false}) => LayoutBuilder(
+    builder: (context, constraints) {
+      final columns = constraints.maxWidth >= 760 && MediaQuery.textScalerOf(context).scale(16) <= 24 ? 2 : 1;
+      final width = (constraints.maxWidth - (columns - 1) * Spacing.md) / columns;
+      return Wrap(
+        spacing: Spacing.md,
+        runSpacing: Spacing.md,
+        children: [
+          for (final progress in goals)
+            SizedBox(
+              width: width,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  GoalCard(
+                    goal: progress.goal,
+                    progress: progress,
+                    scopeLabel: _scopeLabel(progress.goal),
+                    onTap: () => GoalDetailsSheet.show(
+                      context,
+                      goal: progress.goal,
+                      provider: _provider,
+                      historical: historical ? progress : null,
+                    ),
+                    onContinue: historical ? null : () => _continueReading(progress.goal),
+                    onMenu: historical ? null : (action) => _goalAction(progress.goal, action),
+                  ),
+                  if (progress.goal.scope == GoalScope.book && progress.goal.type == GoalType.books && !historical)
+                    Padding(
+                      padding: const EdgeInsets.only(top: Spacing.sm, left: Spacing.lg),
+                      child: Text(
+                        '${((_provider.store.getBook(progress.goal.scopeId!)?.currentPosition ?? 0) * 100).round()}% through the book · Finish confirmation required',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ),
+                ],
+              ),
+            ),
+        ],
+      );
+    },
+  );
+  String _scopeLabel(ReadingGoal goal) => switch (goal.scope) {
+    GoalScope.library => 'Whole library',
+    GoalScope.book => _provider.store.getBook(goal.scopeId!)?.title ?? 'Removed book',
+    GoalScope.shelf => _provider.store.getShelf(goal.scopeId!)?.name ?? 'Removed shelf',
+  };
+  List<Widget> _historyContent(BuildContext context) {
+    final periods = _provider.history;
+    final names = <String, String>{
+      for (final record in periods) record.goal.id: record.goal.displayTitle,
+      for (final goal in _provider.store.goalDefinitions) goal.id: goal.displayTitle,
+    };
+    if (!names.containsKey(_filterGoal)) _filterGoal = null;
+    final selectedDefinition = _filterGoal == null
+        ? null
+        : _provider.store.getReadingGoal(_filterGoal!) ?? periods.where((p) => p.goal.id == _filterGoal).first.goal;
+    final activity =
+        _provider.store.readingActivities
+            .where(
+              (a) =>
+                  a.kind != 'reversal' &&
+                  (selectedDefinition == null || matchesGoal(selectedDefinition, a)) &&
+                  (_filterDates == null ||
+                      !a.endTime.isBefore(_filterDates!.start) &&
+                          a.endTime.isBefore(_filterDates!.end.copyWith(day: _filterDates!.end.day + 1))),
+            )
+            .toList()
+          ..sort((a, b) => b.endTime.compareTo(a.endTime));
+    final corrected = _provider.store.readingActivities
+        .where((a) => a.kind == 'reversal')
+        .map((a) => a.correctionOf)
+        .toSet();
+    final filtered = periods
+        .where(
+          (p) =>
+              (_filterGoal == null || p.goal.id == _filterGoal) &&
+              (_filterDates == null ||
+                  p.range.start.isBefore(_filterDates!.end.copyWith(day: _filterDates!.end.day + 1)) &&
+                      p.range.end.isAfter(_filterDates!.start)),
+        )
+        .toList();
+    final archived = _provider.store.goalDefinitions
+        .where((goal) => goal.isArchived && (_filterGoal == null || _filterGoal == goal.id))
+        .map(_provider.progress)
+        .toList();
+    return [
+      Wrap(
+        spacing: Spacing.md,
+        runSpacing: Spacing.sm,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          SizedBox(
+            width: (MediaQuery.sizeOf(context).width - Spacing.xl * 2).clamp(120, 300).toDouble(),
+            child: DropdownButtonFormField<String>(
+              key: ValueKey(_filterGoal),
+              initialValue: _filterGoal ?? '',
+              isExpanded: true,
+              decoration: const InputDecoration(labelText: 'Goal'),
+              items: [
+                const DropdownMenuItem(value: '', child: Text('All goals')),
+                for (final name in names.entries)
+                  DropdownMenuItem(
+                    value: name.key,
+                    child: Text(name.value, overflow: TextOverflow.ellipsis),
+                  ),
+              ],
+              onChanged: (value) => setState(() => _filterGoal = value == '' ? null : value),
+            ),
+          ),
+          OutlinedButton.icon(
+            onPressed: () async {
+              final dates = await showAppDateRangePicker(
+                context: context,
+                firstDate: DateTime(1900),
+                lastDate: DateTime.now(),
+                initialDateRange: _filterDates,
+              );
+              if (dates != null && mounted) setState(() => _filterDates = dates);
+            },
+            icon: const Icon(Icons.date_range_outlined),
+            label: Text(
+              _filterDates == null
+                  ? 'Filter dates'
+                  : '${DateFormat.MMMd().format(_filterDates!.start)} – ${DateFormat.MMMd().format(_filterDates!.end)}',
+            ),
+          ),
+          if (_filterDates != null)
+            TextButton(onPressed: () => setState(() => _filterDates = null), child: const Text('Clear dates')),
+        ],
       ),
-    );
+      const SizedBox(height: Spacing.xl),
+      if (filtered.isNotEmpty) ...[
+        Text('Previous periods', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: Spacing.md),
+        _cards(context, filtered, historical: true),
+        const SizedBox(height: Spacing.xl),
+      ],
+      if (archived.isNotEmpty) ...[
+        Text('Archived goals', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: Spacing.md),
+        _cards(context, archived, historical: true),
+        const SizedBox(height: Spacing.xl),
+      ],
+      Text('Reading activity', style: Theme.of(context).textTheme.titleLarge),
+      const SizedBox(height: Spacing.sm),
+      if (activity.isEmpty)
+        const EmptyState.compact(
+          icon: Icons.history_outlined,
+          title: 'No reading activity',
+          subtitle: 'Reading and manual logs will appear here.',
+          alignment: Alignment.topCenter,
+        )
+      else
+        for (final entry in [
+          ...groupReadingActivities(activity.where((entry) => !corrected.contains(entry.id))),
+          ...groupReadingActivities(activity.where((entry) => corrected.contains(entry.id))),
+        ])
+          ReadingActivityTile(activity: entry, provider: _provider, corrected: corrected.contains(entry.id)),
+    ];
   }
 
-  // ============================================================================
-  // EMPTY STATE
-  // ============================================================================
-  Widget _buildEmptyState(BuildContext context) {
-    return EmptyState(
-      icon: Icons.flag_outlined,
-      title: 'No goals yet',
-      subtitle: 'Create your first reading goal to track your progress',
-      action: EmptyStateAction(onPressed: () => _showAddGoalSheet(context), icon: Icons.add, label: 'Create goal'),
-    );
-  }
-
-  // ============================================================================
-  // ACTIONS
-  // ============================================================================
-
-  void _showAddGoalSheet(BuildContext context) {
-    AddGoalSheet.show(
-      context,
-      onCreate: (type, target, period, isRecurring, startDate, endDate) {
-        _provider.createGoal(
-          type: type,
-          target: target,
-          period: period,
-          isRecurring: isRecurring,
-          startDate: startDate,
-          endDate: endDate,
-        );
-      },
-    );
-  }
-
-  void _showGoalDetails(BuildContext context, ReadingGoal goal) {
-    if (goal.isCompleted) {
-      CompletedGoalChip.showDetailsSheet(context, goal: goal, onDelete: () => _provider.deleteGoal(goal.id));
+  Future<void> _goalAction(ReadingGoal goal, String action) async {
+    if (action == 'edit') {
+      await AddGoalSheet.show(context, provider: _provider, editing: _provider.store.getReadingGoal(goal.id));
       return;
     }
+    if (action == 'delete') {
+      await GoalDetailsSheet.show(context, goal: goal, provider: _provider);
+      return;
+    }
+    try {
+      if (action == 'pause') await _provider.pauseGoal(goal.id, goal.isActive);
+      if (action == 'archive') {
+        await _provider.archiveGoal(goal.id);
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: const Text('Goal archived'),
+              action: SnackBarAction(label: 'Undo', onPressed: () => _restore(goal)),
+            ),
+          );
+        }
+      }
+    } catch (error) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+    }
+  }
 
-    ActiveGoalDetailsSheet.show(
-      context,
-      goal: goal,
-      onUpdateProgress: (newProgress) {
-        _provider.updateGoalProgress(goal.id, newProgress);
-      },
-      onEdit: (newTarget) {
-        _provider.updateGoal(goalId: goal.id, target: newTarget);
-      },
-      onDelete: () {
-        _provider.deleteGoal(goal.id);
-      },
-    );
+  Future<void> _restore(ReadingGoal goal) => _provider.restoreGoal(goal.id);
+  Future<void> _continueReading(ReadingGoal goal) async {
+    final candidates =
+        _provider.store.books
+            .where(
+              (book) =>
+                  goal.scope == GoalScope.library ||
+                  goal.scope == GoalScope.book && book.id == goal.scopeId ||
+                  goal.scope == GoalScope.shelf && _provider.store.getShelfIdsForBook(book.id).contains(goal.scopeId),
+            )
+            .toList()
+          ..sort((a, b) => (b.lastReadAt ?? b.addedAt).compareTo(a.lastReadAt ?? a.addedAt));
+    if (candidates.isEmpty) {
+      await LogReadingSheet.show(context, provider: _provider);
+      return;
+    }
+    Book? selected;
+    final readable = candidates
+        .where(
+          (book) =>
+              !book.isPhysical &&
+              ReaderBookAdapter.formatFor(book.fileFormat) != null &&
+              book.readingStatus == LibraryReadingStatus.inProgress,
+        )
+        .toList();
+    if (readable.isNotEmpty) {
+      selected = readable.first;
+    } else if (goal.scope == GoalScope.book) {
+      selected = candidates.first;
+    } else {
+      selected = await showModalBottomSheet<Book>(
+        context: context,
+        useRootNavigator: true,
+        useSafeArea: true,
+        isScrollControlled: true,
+        sheetAnimationStyle: AppMotion.animationStyle(context),
+        builder: (context) => AppBottomSheet(
+          title: 'Choose a book',
+          onClose: () => Navigator.pop(context),
+          body: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              for (final book in candidates)
+                ListTile(
+                  title: Text(book.title),
+                  subtitle: Text(book.isPhysical ? 'Log physical-book reading' : book.author),
+                  onTap: () => Navigator.pop(context, book),
+                ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (selected == null || !mounted) return;
+    var available = selected.fileMediaId != null;
+    try {
+      available |= await context.read<BookImportService>().hasBookFile(selected.id);
+    } catch (_) {}
+    if (!mounted) return;
+    if (selected.isPhysical || ReaderBookAdapter.formatFor(selected.fileFormat) == null || !available) {
+      await LogReadingSheet.show(context, provider: _provider, book: selected);
+      return;
+    }
+    context.goNamed('BOOK_READER', pathParameters: {'bookId': selected.id});
   }
 }

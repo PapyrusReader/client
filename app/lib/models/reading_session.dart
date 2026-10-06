@@ -1,5 +1,6 @@
 /// Reading session data model for tracking reading activity.
 class ReadingSession {
+  final int? recordedSeconds;
   final String id;
   final String bookId;
   final DateTime startTime;
@@ -13,6 +14,7 @@ class ReadingSession {
 
   const ReadingSession({
     required this.id,
+    this.recordedSeconds,
     required this.bookId,
     required this.startTime,
     this.endTime,
@@ -26,6 +28,7 @@ class ReadingSession {
 
   /// Duration of the session in minutes.
   int get durationMinutes {
+    if (recordedSeconds != null) return recordedSeconds! ~/ 60;
     if (endTime == null) return 0;
     return endTime!.difference(startTime).inMinutes;
   }

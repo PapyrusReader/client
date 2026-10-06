@@ -470,12 +470,12 @@ void main() {
         expect(provider.book!.lastReadAt, isNotNull);
       });
 
-      test('sets status to completed when position >= 1.0', () async {
+      test('reaching the end keeps completion explicit', () async {
         await provider.loadBook('book-1');
 
         provider.updatePageProgress(300, 1.0);
 
-        expect(provider.book!.readingStatus, LibraryReadingStatus.completed);
+        expect(provider.book!.readingStatus, LibraryReadingStatus.inProgress);
       });
 
       test('sets status to inProgress when position > 0', () async {

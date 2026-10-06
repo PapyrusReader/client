@@ -1,4 +1,8 @@
 import 'dart:convert';
+import 'package:papyrus/data/repositories/tracking_repository.dart';
+import 'package:papyrus/models/reading_goal.dart';
+import 'package:papyrus/models/reading_activity.dart';
+import 'package:papyrus/models/goal_period_record.dart';
 
 import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/models/book.dart';
@@ -8,10 +12,13 @@ import 'package:powersync/powersync.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 
 /// A handle bound to one opened library, invalidated before a profile switch.
-class LibraryDatabase implements LibraryMembershipWriter {
+class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository {
   final PowerSyncDatabase database;
   final Future<void> Function() onWrite;
   bool active = true;
+  bool trackingSupported = false;
+  @override
+  bool get isCurrent => active;
 
   LibraryDatabase(this.database, this.onWrite);
 
@@ -152,7 +159,28 @@ class LibraryDatabase implements LibraryMembershipWriter {
     Future<List<T>> rows<T>(LibraryRowMapper<T> mapper) async => (await tx.getAll(
       'SELECT * FROM ${mapper.table}',
     )).map((row) => mapper.fromRow(Map<String, dynamic>.from(row))).toList();
+    Future<List<T>> trackingRows<T>(String table, T Function(Map<String, dynamic>) decode) async {
+      final rows = {
+        for (final row in await tx.getAll('SELECT id, payload FROM $table'))
+          row['id'] as String: jsonDecode(row['payload'] as String) as Map,
+      };
+      for (final staged in await tx.getAll(
+        'SELECT row_id, payload, deleted FROM tracking_staging WHERE table_name = ?',
+        [table],
+      )) {
+        if (staged['deleted'] == 1) {
+          rows.remove(staged['row_id']);
+        } else {
+          rows[staged['row_id'] as String] = jsonDecode(staged['payload'] as String) as Map;
+        }
+      }
+      return rows.values.map((row) => decode(Map<String, dynamic>.from(row))).toList();
+    }
+
     return LibrarySnapshot(
+      goals: await trackingRows('reading_goals', ReadingGoal.fromJson),
+      activities: await trackingRows('reading_activities', ReadingActivity.fromJson),
+      goalPeriods: await trackingRows('goal_periods', GoalPeriodRecord.fromJson),
       books: (await tx.getAll(
         'SELECT * FROM books ORDER BY added_at DESC',
       )).map((row) => PowerSyncBookMapper.fromRow(Map<String, Object?>.from(row))).toList(),
@@ -164,6 +192,109 @@ class LibraryDatabase implements LibraryMembershipWriter {
       bookShelves: await rows(bookShelfRowMapper),
       bookTags: await rows(bookTagRowMapper),
     );
+  });
+
+  Future<void> enableTracking() async {
+    final previous = trackingSupported;
+    try {
+      await write((tx) async {
+        trackingSupported = true;
+        final staged = await tx.getAll('SELECT * FROM tracking_staging ORDER BY table_name DESC');
+        for (final table in trackingTableNames) {
+          for (final row in staged.where((row) => row['table_name'] == table)) {
+            if (row['deleted'] == 1) {
+              await tx.execute('DELETE FROM $table WHERE id = ?', [row['row_id']]);
+            } else {
+              await _trackingRow(
+                tx,
+                table,
+                Map<String, dynamic>.from(jsonDecode(row['payload'] as String) as Map),
+                force: true,
+              );
+            }
+            await tx.execute('DELETE FROM tracking_staging WHERE id = ?', [row['id']]);
+          }
+        }
+      });
+    } catch (_) {
+      trackingSupported = previous;
+      rethrow;
+    }
+  }
+
+  Future<void> _trackingRow(
+    SqliteWriteContext tx,
+    String table,
+    Map<String, dynamic> payload, {
+    bool deleted = false,
+    bool force = false,
+  }) async {
+    final id = payload['id'] as String;
+    if (!trackingSupported) {
+      await tx.execute(
+        'INSERT OR REPLACE INTO tracking_staging (id, table_name, row_id, payload, deleted) VALUES (?, ?, ?, ?, ?)',
+        ['$table:$id', table, id, jsonEncode(payload), deleted ? 1 : 0],
+      );
+      return;
+    }
+    if (deleted) {
+      await tx.execute('DELETE FROM $table WHERE id = ?', [id]);
+      return;
+    }
+    final date = DateTime.now().toUtc().toIso8601String();
+    final existing = force ? await tx.getOptional('SELECT id FROM $table WHERE id = ?', [id]) : null;
+    await upsertRow(tx, table, {
+      'id': id,
+      'payload': jsonEncode(payload),
+      'created_at': date,
+      'updated_at': date,
+    }, previous: force && existing != null ? {'payload': null} : null);
+  }
+
+  @override
+  Future<void> commitTracking({
+    List<ReadingGoal> goals = const [],
+    List<ReadingActivity> activities = const [],
+    List<GoalPeriodRecord> periods = const [],
+    String? deleteGoalId,
+    Book? book,
+    Book? previousBook,
+    String? readerBookId,
+    Map<String, dynamic>? readerPatch,
+  }) => write((tx) async {
+    if (book != null) {
+      await upsertRow(
+        tx,
+        'books',
+        PowerSyncBookMapper.toRow(book),
+        previous: previousBook == null ? null : PowerSyncBookMapper.toRow(previousBook),
+      );
+    }
+    if (readerBookId != null && readerPatch != null) {
+      final row = await tx.getOptional('SELECT * FROM books WHERE id = ?', [readerBookId]);
+      if (row != null) {
+        final patch = Map<String, dynamic>.from(readerPatch);
+        final metadata = row['custom_metadata'] is String
+            ? Map<String, dynamic>.from(jsonDecode(row['custom_metadata'] as String) as Map)
+            : <String, dynamic>{};
+        final locator = patch.remove('reader_locator');
+        metadata['reader_locator'] = locator;
+        patch['custom_metadata'] = jsonEncode(metadata);
+        patch['started_at'] = row['started_at'] ?? patch['last_read_at'];
+        if (row['reading_status'] == null || row['reading_status'] == 'unread') patch['reading_status'] = 'inProgress';
+        await upsertRow(tx, 'books', {...row, ...patch});
+      }
+    }
+    for (final goal in goals) {
+      await _trackingRow(tx, 'reading_goals', goal.toJson());
+    }
+    for (final activity in activities) {
+      await _trackingRow(tx, 'reading_activities', activity.toJson());
+    }
+    for (final period in periods) {
+      await _trackingRow(tx, 'goal_periods', period.toJson());
+    }
+    if (deleteGoalId != null) await _trackingRow(tx, 'reading_goals', {'id': deleteGoalId}, deleted: true);
   });
 
   /// Expands legacy local metadata once without clearing data or the CRUD queue.

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:papyrus/reader/reading_activity_tracker.dart';
 
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/reader/reader_book_adapter.dart';
@@ -11,12 +12,14 @@ final class ReaderSession {
   ReaderSession({
     required Book book,
     required BookSaveCallback saveBook,
+    this.tracker,
     this.debounceDuration = const Duration(milliseconds: 500),
     ReaderClock? now,
   }) : _book = book,
        _saveBook = saveBook,
        _now = now ?? DateTime.now;
 
+  final ReadingActivityTracker? tracker;
   final BookSaveCallback _saveBook;
   final ReaderClock _now;
   final Duration debounceDuration;
@@ -30,17 +33,25 @@ final class ReaderSession {
     if (_disposed) return;
 
     _pendingLocator = locator;
+    tracker?.updateLocator(locator);
     _timer?.cancel();
-    _timer = Timer(debounceDuration, flush);
+    _timer = Timer(debounceDuration, () => unawaited(flush()));
   }
 
-  void flush() {
+  Future<void> flush() async {
     final locator = _pendingLocator;
-    if (locator == null) return;
+    if (locator == null) {
+      await tracker?.flush();
+      return;
+    }
 
     _timer?.cancel();
     _timer = null;
     _pendingLocator = null;
+    if (tracker != null) {
+      await tracker!.flush();
+      return;
+    }
     _book = ReaderBookAdapter.applyLocator(_book, locator, now: _now());
     _saveBook(_book);
   }
@@ -48,7 +59,8 @@ final class ReaderSession {
   void dispose() {
     if (_disposed) return;
 
-    flush();
+    unawaited(flush());
+    unawaited(tracker?.close().catchError((Object error) => tracker!.onError(error)));
     _disposed = true;
   }
 }
