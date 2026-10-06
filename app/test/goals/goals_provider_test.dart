@@ -31,6 +31,51 @@ void main() {
     await ReadingDeviceIdentity.initialize(preferences);
     expect(ReadingDeviceIdentity.current, 'installation-one');
   });
+  test('configuration replacement archives the old rules and starts at the replacement cutoff', () async {
+    var now = DateTime.utc(2026, 10, 5, 12);
+    final book = Book(id: 'book', title: 'Book', author: '', addedAt: now);
+    final store = DataStore()..loadData(books: [book]);
+    final provider = GoalsProvider(now: () => now, watchClock: false)..attach(store);
+    addTearDown(provider.dispose);
+    addTearDown(store.dispose);
+    await provider.createGoal(type: GoalType.minutes, target: 30, period: GoalPeriod.daily, timezone: 'UTC');
+    final original = store.goalDefinitions.single;
+    now = now.add(const Duration(hours: 1));
+    await provider.logReading(book: book, end: now, minutes: 10, pages: 12);
+    now = now.add(const Duration(hours: 1));
+    await expectLater(
+      provider.createGoal(
+        type: GoalType.pages,
+        target: 100,
+        period: GoalPeriod.weekly,
+        scope: GoalScope.book,
+        replaceGoalId: original.id,
+        timezone: 'UTC',
+      ),
+      throwsArgumentError,
+    );
+    expect(store.goalDefinitions.single.isArchived, isFalse);
+    await provider.createGoal(
+      type: GoalType.pages,
+      target: 100,
+      period: GoalPeriod.weekly,
+      scope: GoalScope.book,
+      scopeId: book.id,
+      replaceGoalId: original.id,
+      timezone: 'UTC',
+    );
+    final retained = store.getReadingGoal(original.id)!;
+    expect(retained.isArchived, isTrue);
+    expect(retained.type, GoalType.minutes);
+    expect(provider.progress(retained).seconds, 600);
+    expect(store.readingActivities.length, 1);
+    expect(provider.current.single.pages, 0);
+    expect(provider.current.single.goal.createdAt, now);
+    now = now.add(const Duration(hours: 1));
+    await provider.logReading(book: store.getBook(book.id)!, end: now, pages: 5);
+    expect(provider.current.single.pages, 5);
+    expect(provider.progress(retained).seconds, 600);
+  });
   test('recurrence, manual correction, deletion and completion undo retain durable history', () async {
     var now = DateTime.utc(2026, 10, 5, 12);
     final book = Book(id: 'book', title: 'Physical book', author: '', addedAt: now, isPhysical: true);

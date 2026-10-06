@@ -117,8 +117,12 @@ class GoalsProvider extends ChangeNotifier {
     String? scopeId,
     int minimumMinutes = 5,
     String? timezone,
+    String? replaceGoalId,
     TrackingRepository? repository,
   }) async {
+    final origin = repository ?? store.trackingRepository;
+    final replacing = replaceGoalId == null ? null : store.getReadingGoal(replaceGoalId);
+    if (replaceGoalId != null && replacing == null) throw StateError('This goal no longer exists.');
     if (target < 1 || minimumMinutes < 1 || minimumMinutes > 1440) throw ArgumentError('Targets must be positive.');
     if (scope != GoalScope.library && scopeId == null) throw ArgumentError('Choose a book or shelf.');
     final zone = timezone ?? await GoalCalendar.deviceTimezone();
@@ -143,7 +147,10 @@ class GoalsProvider extends ChangeNotifier {
       isRecurring: period != GoalPeriod.custom && isRecurring,
       rules: [GoalRule(at: created, target: target, title: title?.trim().isEmpty == true ? null : title)],
     );
-    await store.commitTracking(goals: [goal], repository: repository);
+    await store.commitTracking(
+      goals: [if (replacing != null) _revisedGoal(replacing, archived: true, active: false), goal],
+      repository: origin,
+    );
   }
 
   Future<void> updateGoal({
@@ -155,7 +162,23 @@ class GoalsProvider extends ChangeNotifier {
   }) async {
     final goal = store.getReadingGoal(goalId);
     if (goal == null) throw StateError('This goal no longer exists.');
-    if (type != null && type != goal.type) throw StateError('Create a replacement to change the metric.');
+    if (type != null && type != goal.type) {
+      await createGoal(
+        type: type,
+        target: target ?? goal.targetValue,
+        period: goal.period,
+        isRecurring: goal.isRecurring,
+        endDate: goal.endDate,
+        title: title ?? goal.title,
+        scope: goal.scope,
+        scopeId: goal.scopeId,
+        minimumMinutes: goal.minimumMinutes,
+        timezone: goal.timezone,
+        replaceGoalId: goalId,
+        repository: repository,
+      );
+      return;
+    }
     if (target != null && target < 1) throw ArgumentError('Target must be positive.');
     await _revise(goal, target: target, title: title, repository: repository);
   }
@@ -167,7 +190,12 @@ class GoalsProvider extends ChangeNotifier {
     bool? active,
     bool? archived,
     TrackingRepository? repository,
-  }) async {
+  }) => store.commitTracking(
+    goals: [_revisedGoal(goal, target: target, title: title, active: active, archived: archived)],
+    repository: repository,
+  );
+
+  ReadingGoal _revisedGoal(ReadingGoal goal, {int? target, String? title, bool? active, bool? archived}) {
     var at = now;
     final rules = goal.rules.isEmpty
         ? [
@@ -188,17 +216,12 @@ class GoalsProvider extends ChangeNotifier {
       active: active ?? goal.isActive,
       archived: archived ?? goal.isArchived,
     );
-    await store.commitTracking(
-      goals: [
-        goal.copyWith(
-          targetValue: rule.target,
-          title: rule.title,
-          isActive: rule.active,
-          isArchived: rule.archived,
-          rules: [...rules, rule],
-        ),
-      ],
-      repository: repository,
+    return goal.copyWith(
+      targetValue: rule.target,
+      title: rule.title,
+      isActive: rule.active,
+      isArchived: rule.archived,
+      rules: [...rules, rule],
     );
   }
 
