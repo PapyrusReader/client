@@ -281,28 +281,10 @@ class _CompletedGoalDetailsSheet extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return AppBottomSheet(
-      header: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(color: colorScheme.tertiaryContainer, shape: BoxShape.circle),
-            child: Icon(Icons.emoji_events, size: 24, color: colorScheme.onTertiaryContainer),
-          ),
-          const SizedBox(width: Spacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('Goal completed!', style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                Text(goal.description, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-              ],
-            ),
-          ),
-        ],
-      ),
+      title: 'Goal completed',
+      onClose: () => Navigator.of(context).pop(),
       footer: BottomSheetActions(
-        primary: OutlinedButton(
+        secondary: OutlinedButton(
           onPressed: () {
             Navigator.of(context).pop();
             _showDeleteConfirmation(context);
@@ -313,11 +295,14 @@ class _CompletedGoalDetailsSheet extends StatelessWidget {
           ),
           child: const Text('Delete goal'),
         ),
+        primary: FilledButton(onPressed: () => Navigator.of(context).pop(), child: const Text('Done')),
       ),
       body: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(goal.description, style: textTheme.titleMedium),
+          const SizedBox(height: Spacing.lg),
           // Stats grid
           Container(
             padding: const EdgeInsets.all(Spacing.md),
@@ -377,7 +362,9 @@ class _CompletedGoalDetailsSheet extends StatelessWidget {
       children: [
         Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: Spacing.sm),
-        Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+        Expanded(
+          child: Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+        ),
         const SizedBox(width: Spacing.sm),
         Expanded(
           child: Text(

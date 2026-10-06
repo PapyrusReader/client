@@ -57,6 +57,38 @@ void main() {
     expect(tester.getTopLeft(branding).dy, Spacing.lg);
   });
 
+  for (final keyboard in [false, true]) {
+    testWidgets('mobile auth footer stays above ${keyboard ? 'the keyboard' : 'system navigation'}', (tester) async {
+      setViewport(tester, const Size(390, 700));
+      tester.view.viewPadding = const FakeViewPadding(bottom: 48);
+      tester.view.padding = FakeViewPadding(bottom: keyboard ? 0 : 48);
+      tester.view.viewInsets = FakeViewPadding(bottom: keyboard ? 300 : 0);
+      addTearDown(tester.view.resetViewPadding);
+      addTearDown(tester.view.resetPadding);
+      addTearDown(tester.view.resetViewInsets);
+      var continued = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: MobileAuthLayout(
+            heading: 'Welcome back',
+            subtitle: 'Sign in to continue',
+            form: const SizedBox(height: 300),
+            footer: [TextButton(onPressed: () => continued = true, child: const Text('Continue offline'))],
+          ),
+        ),
+      );
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -700));
+      await tester.pumpAndSettle();
+
+      final button = find.widgetWithText(TextButton, 'Continue offline');
+      expect(tester.getRect(button).bottom, lessThanOrEqualTo(keyboard ? 400 : 652));
+      expect(tester.takeException(), isNull);
+      await tester.tap(button);
+      expect(continued, isTrue);
+    });
+  }
+
   testWidgets('desktop swap button is focused after form controls', (tester) async {
     setViewport(tester, const Size(1200, 800));
 

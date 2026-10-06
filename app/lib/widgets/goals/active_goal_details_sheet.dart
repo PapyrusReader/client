@@ -74,29 +74,8 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     return AppBottomSheet(
-      header: Row(
-        children: [
-          Container(
-            width: 48,
-            height: 48,
-            decoration: BoxDecoration(
-              color: colorScheme.primaryContainer,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Icon(_getIconForType(widget.goal.type), size: 24, color: colorScheme.onPrimaryContainer),
-          ),
-          const SizedBox(width: Spacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(widget.goal.description, style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold)),
-                Text(_getGoalTypeLabel(), style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-              ],
-            ),
-          ),
-        ],
-      ),
+      title: widget.goal.description,
+      onClose: () => Navigator.of(context).pop(),
       footer: BottomSheetActions(
         secondary: OutlinedButton(
           onPressed: () {
@@ -115,6 +94,8 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Text(_getGoalTypeLabel(), style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+          const SizedBox(height: Spacing.lg),
           // Progress section
           _buildProgressSection(context, colorScheme, textTheme),
           const SizedBox(height: Spacing.lg),
@@ -168,7 +149,9 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Progress', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+              Expanded(
+                child: Text('Progress', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+              ),
               if (!_isEditingProgress)
                 TextButton.icon(
                   onPressed: () => setState(() => _isEditingProgress = true),
@@ -289,7 +272,9 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Target', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+              Expanded(
+                child: Text('Target', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+              ),
               if (!_isEditingTarget)
                 TextButton.icon(
                   onPressed: () => setState(() => _isEditingTarget = true),
@@ -381,7 +366,9 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
       children: [
         Icon(icon, size: 20, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: Spacing.sm),
-        Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+        Expanded(
+          child: Text(label, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+        ),
         const SizedBox(width: Spacing.sm),
         Expanded(
           child: Text(
@@ -558,17 +545,6 @@ class _ActiveGoalDetailsSheetState extends State<ActiveGoalDetailsSheet> {
       'December',
     ];
     return '${months[date.month - 1]} ${date.year}';
-  }
-
-  IconData _getIconForType(GoalType type) {
-    switch (type) {
-      case GoalType.books:
-        return Icons.menu_book_outlined;
-      case GoalType.pages:
-        return Icons.article_outlined;
-      case GoalType.minutes:
-        return Icons.schedule_outlined;
-    }
   }
 
   IconData _getRecurrenceIcon() {
