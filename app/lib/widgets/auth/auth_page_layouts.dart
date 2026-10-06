@@ -32,48 +32,51 @@ class MobileAuthLayout extends StatelessWidget {
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
-      body: Column(
-        children: [
-          CompactAuthHeader(isDark: isDark, height: ComponentSizes.mobileHeroHeight),
-          Expanded(
-            child: CustomScrollView(
-              slivers: [
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        const SizedBox(height: Spacing.xl),
-                        if (showHeader) ...[
-                          // const AuthBranding(),
-                          const SizedBox(height: Spacing.md),
-                          Text(
-                            heading,
-                            style: theme.textTheme.headlineMedium?.copyWith(
-                              fontWeight: FontWeight.w600,
-                              color: theme.colorScheme.onSurface,
+      body: SafeArea(
+        top: false,
+        child: Column(
+          children: [
+            CompactAuthHeader(isDark: isDark, height: ComponentSizes.mobileHeroHeight),
+            Expanded(
+              child: CustomScrollView(
+                slivers: [
+                  SliverFillRemaining(
+                    hasScrollBody: false,
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          const SizedBox(height: Spacing.xl),
+                          if (showHeader) ...[
+                            // const AuthBranding(),
+                            const SizedBox(height: Spacing.md),
+                            Text(
+                              heading,
+                              style: theme.textTheme.headlineMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: theme.colorScheme.onSurface,
+                              ),
                             ),
-                          ),
-                          Text(
-                            subtitle,
-                            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                          ),
+                            Text(
+                              subtitle,
+                              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                            ),
+                            const SizedBox(height: Spacing.lg),
+                          ],
+                          form,
+                          const Spacer(),
+                          ...footer,
                           const SizedBox(height: Spacing.lg),
                         ],
-                        form,
-                        const Spacer(),
-                        ...footer,
-                        const SizedBox(height: Spacing.lg),
-                      ],
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }
