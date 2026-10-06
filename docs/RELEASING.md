@@ -4,6 +4,18 @@ Android identity is `com.papyrus.reader`; the first uploaded bundle establishes 
 in Play Console. Keep this identity for all subsequent uploads.
 The app name is Papyrus. The pinned Flutter 3.41.2 toolchain targets Android API 36.
 
+## Branch workflow
+
+Feature and fix PRs target the default `development` branch. Merge them without
+bumping the version. CI checks PRs and integration pushes; `development` does not
+build or publish releases.
+
+When ready to release the accumulated changes, prepare the coordinated version
+bump in a PR to `development`, then open `development` → `master`. Use **Create a
+merge commit** for this promotion and bring `master` back into `development`
+afterwards. The workspace release runbook describes the server/client merge
+order. Keep both branches; do not squash release promotions.
+
 ## Versions and triggers
 
 `app/pubspec.yaml` owns `version: MAJOR.MINOR.PATCH+BUILD`. The semantic portion
