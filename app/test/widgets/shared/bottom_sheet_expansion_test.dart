@@ -90,7 +90,7 @@ void main() {
   }
 
   final longSheets = <String, void Function(BuildContext)>{
-    'goal': (context) => AddGoalSheet.show(context, provider: goalProvider(context), initialTimezone: 'UTC'),
+    'goal': (context) => AddGoalSheet.show(context, provider: goalProvider(context), preset: 0, initialTimezone: 'UTC'),
     'physical book': (context) => AddPhysicalBookSheet.show(context),
     'shelf editor': (context) => AddShelfSheet.show(context),
     'shelf selection': (context) => MoveToShelfSheet.show(context, book: buildTestBook()),
@@ -191,7 +191,7 @@ void main() {
   testWidgets('desktop sheets keep content sizing and ordinary scrolling', (tester) async {
     await openSheet(
       tester,
-      (context) => AddGoalSheet.show(context, provider: goalProvider(context), initialTimezone: 'UTC'),
+      (context) => AddGoalSheet.show(context, provider: goalProvider(context), preset: 0, initialTimezone: 'UTC'),
       size: const Size(1280, 800),
     );
     expect(find.byType(ExpandableBottomSheet), findsNothing);

@@ -32,6 +32,43 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+  testWidgets('activity keeps recurring goal periods inspectable on a phone', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(400, 900);
+    addTearDown(tester.view.reset);
+    final now = DateTime.now().toUtc();
+    final store = DataStore()
+      ..loadData(
+        readingGoals: [
+          ReadingGoal(
+            id: 'recurring',
+            type: GoalType.minutes,
+            targetValue: 30,
+            period: GoalPeriod.daily,
+            startDate: now.subtract(const Duration(days: 3)),
+            endDate: now.subtract(const Duration(days: 2)),
+          ),
+        ],
+      );
+    addTearDown(store.dispose);
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: store,
+        child: MaterialApp(theme: AppTheme.dark, home: const GoalsPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Activity'));
+    await tester.pumpAndSettle();
+    final history = find.byKey(const Key('goal-period-history'));
+    await tester.scrollUntilVisible(history, 250, scrollable: find.byType(Scrollable).first);
+    await tester.ensureVisible(history);
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Goal history'));
+    await tester.pumpAndSettle();
+    expect(find.text('Missed'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
   for (final theme in [AppTheme.light, AppTheme.dark, AppTheme.eink]) {
     for (final size in [const Size(320, 720), const Size(768, 1024), const Size(1440, 1000)]) {
       testWidgets('active Goals supports large text at $size in ${theme.brightness}', (tester) async {
@@ -80,8 +117,13 @@ void main() {
         expect(find.text('New goal').hitTestable(), findsOneWidget);
         expect(find.text('Log reading').hitTestable(), findsOneWidget);
         if (size.width > 1000) expect(tester.getSize(find.text('Goals')).width, greaterThan(100));
-        await tester.tap(find.text('History'));
+        expect(find.text('Activity').hitTestable(), findsOneWidget);
+        await tester.tap(find.text('Activity'));
         await tester.pumpAndSettle();
+        await tester.scrollUntilVisible(find.text('Filter dates'), 200, scrollable: find.byType(Scrollable).first);
+        await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Filter dates'));
+        await tester.pumpAndSettle();
+        expect(find.text('Filter dates').hitTestable(), findsOneWidget);
         expect(tester.takeException(), isNull);
       });
     }
