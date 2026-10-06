@@ -1,51 +1,152 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:papyrus/goals/goal_calendar.dart';
+import 'package:papyrus/goals/goal_progress.dart';
 import 'package:papyrus/models/reading_goal.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
-/// Unified goal card widget displaying consistent linear progress.
-///
-/// All goals (daily, weekly, monthly, yearly) use the same layout
-/// with linear progress bars for visual consistency and scanability.
+IconData goalIcon(GoalType type) => switch (type) {
+  GoalType.books => Icons.book_outlined,
+  GoalType.pages => Icons.menu_book_outlined,
+  GoalType.minutes => Icons.schedule_outlined,
+  GoalType.days => Icons.calendar_today_outlined,
+};
+String goalCount(GoalProgress progress) =>
+    '${progress.value} / ${progress.goal.targetValue} ${progress.goal.typeLabel}';
+
 class GoalCard extends StatelessWidget {
-  /// The reading goal to display.
+  const GoalCard({
+    super.key,
+    required this.goal,
+    this.progress,
+    this.onTap,
+    this.onContinue,
+    this.onMenu,
+    this.scopeLabel,
+    this.isDesktop = false,
+  });
   final ReadingGoal goal;
-
-  /// Called when the card is tapped.
+  final GoalProgress? progress;
   final VoidCallback? onTap;
-
-  /// Whether to use desktop styling.
+  final VoidCallback? onContinue;
+  final void Function(String)? onMenu;
+  final String? scopeLabel;
   final bool isDesktop;
-
-  const GoalCard({super.key, required this.goal, this.onTap, this.isDesktop = false});
-
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return Material(
-      color: colorScheme.surfaceContainerLow,
-      borderRadius: BorderRadius.circular(AppRadius.xl),
-      child: InkWell(
-        onTap: onTap,
+    final colors = Theme.of(context).colorScheme;
+    final texts = Theme.of(context).textTheme;
+    final projected = progress?.projected ?? goal;
+    final today = GoalCalendar.midnight(DateTime.now(), goal.timezone);
+    final expired = progress?.range.end.isAfter(DateTime.now().toUtc()) == false;
+    final state = projected.isArchived
+        ? 'Archived'
+        : !projected.isActive
+        ? 'Paused'
+        : expired
+        ? projected.isCompleted
+              ? 'Achieved'
+              : 'Missed'
+        : projected.isCompleted
+        ? 'Target reached'
+        : null;
+    return Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
+      color: colors.surfaceContainerLow,
+      shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(AppRadius.xl),
-        child: Container(
-          padding: EdgeInsets.all(isDesktop ? Spacing.lg : Spacing.md),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-            border: Border.all(color: colorScheme.outlineVariant, width: 1),
-          ),
+        side: BorderSide(color: colors.outlineVariant),
+      ),
+      child: InkWell(
+        borderRadius: BorderRadius.circular(AppRadius.xl),
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(Spacing.lg),
           child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
             children: [
-              _buildHeader(context, colorScheme, textTheme),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(goalIcon(goal.type), color: colors.primary),
+                  const SizedBox(width: Spacing.sm),
+                  Expanded(child: Text(projected.displayTitle, style: texts.titleMedium)),
+                  if (onMenu != null)
+                    PopupMenuButton<String>(
+                      tooltip: 'Goal actions',
+                      onSelected: onMenu,
+                      itemBuilder: (_) => [
+                        const PopupMenuItem(value: 'edit', child: Text('Edit target')),
+                        PopupMenuItem(value: 'pause', child: Text(goal.isActive ? 'Pause' : 'Resume')),
+                        const PopupMenuItem(value: 'archive', child: Text('Archive')),
+                        const PopupMenuItem(value: 'delete', child: Text('Delete')),
+                      ],
+                    ),
+                ],
+              ),
+              const SizedBox(height: Spacing.lg),
+              Text(
+                '${projected.currentValue} / ${projected.targetValue} ${projected.typeLabel}',
+                style: texts.titleLarge,
+              ),
+              const SizedBox(height: Spacing.sm),
+              Semantics(
+                label:
+                    '${projected.displayTitle}, ${projected.currentValue} of ${projected.targetValue} ${projected.typeLabel}',
+                child: LinearProgressIndicator(
+                  value: progress?.fraction ?? projected.progress,
+                  minHeight: 6,
+                  borderRadius: BorderRadius.circular(AppRadius.full),
+                ),
+              ),
               const SizedBox(height: Spacing.md),
-              _buildProgressValues(context, colorScheme, textTheme),
-              const SizedBox(height: Spacing.sm),
-              _buildProgressBar(colorScheme),
-              const SizedBox(height: Spacing.sm),
-              _buildFooter(colorScheme, textTheme),
+              if (state != null)
+                Row(
+                  children: [
+                    Icon(
+                      projected.isCompleted
+                          ? Icons.check_circle_outline
+                          : goal.isActive
+                          ? Icons.event_outlined
+                          : Icons.pause_circle_outline,
+                      size: 18,
+                    ),
+                    const SizedBox(width: Spacing.sm),
+                    Expanded(child: Text(state, style: texts.bodyMedium)),
+                  ],
+                )
+              else
+                Text(projected.statusText, style: texts.bodyMedium),
+              const SizedBox(height: Spacing.xs),
+              Text(
+                '${scopeLabel ?? 'Whole library'} · ${goal.isRecurring ? projected.periodLabel : 'Until ${DateFormat.yMMMd().format(GoalCalendar.local(projected.endDate.subtract(const Duration(microseconds: 1)), goal.timezone))}'}${progress?.estimated == true && goal.type == GoalType.pages ? ' · Estimated pages included' : ''}',
+                style: texts.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+              ),
+              if (goal.type == GoalType.days) ...[
+                const SizedBox(height: Spacing.md),
+                if (goal.period == GoalPeriod.weekly && progress != null)
+                  Wrap(
+                    spacing: Spacing.sm,
+                    runSpacing: Spacing.sm,
+                    children: [for (var i = 0; i < 7; i++) _day(context, i, today)],
+                  ),
+                const SizedBox(height: Spacing.sm),
+                Text('${goal.minimumMinutes} minutes qualifies a day', style: texts.bodySmall),
+              ],
+              if (onContinue != null && !expired && !goal.isArchived && goal.isActive)
+                Padding(
+                  padding: const EdgeInsets.only(top: Spacing.md),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: TextButton.icon(
+                      onPressed: onContinue,
+                      icon: const Icon(Icons.play_arrow_outlined),
+                      label: const Text('Continue reading'),
+                    ),
+                  ),
+                ),
             ],
           ),
         ),
@@ -53,214 +154,30 @@ class GoalCard extends StatelessWidget {
     );
   }
 
-  // ============================================================================
-  // CARD SECTIONS
-  // ============================================================================
-
-  /// Builds the header with icon, title, and optional badges.
-  Widget _buildHeader(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
-    return Row(
-      children: [
-        Container(
-          width: 36,
-          height: 36,
-          decoration: BoxDecoration(
-            color: colorScheme.primaryContainer,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          child: Icon(_getIconForType(goal.type), size: 20, color: colorScheme.onPrimaryContainer),
+  Widget _day(BuildContext context, int index, DateTime today) {
+    final start = GoalCalendar.local(progress!.range.start, goal.timezone);
+    final localDate = GoalCalendar.dayOffset(start, index, goal.timezone);
+    final done = progress!.qualifiedDays.contains(localDate);
+    final colors = Theme.of(context).colorScheme;
+    return Tooltip(
+      message:
+          '${DateFormat.yMMMd().format(GoalCalendar.local(localDate, goal.timezone))}: ${done ? 'qualified' : 'not qualified'}',
+      child: Container(
+        padding: const EdgeInsets.all(Spacing.sm),
+        decoration: BoxDecoration(
+          color: done ? colors.secondaryContainer : colors.surface,
+          borderRadius: BorderRadius.circular(AppRadius.lg),
+          border: Border.all(color: localDate == today ? colors.primary : colors.outlineVariant),
         ),
-        const SizedBox(width: Spacing.sm),
-        Expanded(
-          child: Text(
-            goal.description,
-            style: textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(['M', 'T', 'W', 'T', 'F', 'S', 'S'][index]),
+            const SizedBox(height: Spacing.xs),
+            Icon(done ? Icons.check : Icons.remove, size: 16),
+          ],
         ),
-        if (goal.isDaily && goal.isRecurring && goal.streak > 0) ...[
-          const SizedBox(width: Spacing.sm),
-          _buildStreakBadge(colorScheme, textTheme),
-        ],
-        if (!goal.isRecurring && !goal.isCustomPeriod) ...[
-          const SizedBox(width: Spacing.sm),
-          _buildOneOffBadge(colorScheme, textTheme),
-        ],
-        if (goal.isCustomPeriod) ...[const SizedBox(width: Spacing.sm), _buildDateRangeBadge(colorScheme, textTheme)],
-        if (goal.isCompleted) ...[
-          const SizedBox(width: Spacing.sm),
-          Icon(Icons.check_circle, size: 24, color: colorScheme.tertiary),
-        ],
-      ],
-    );
-  }
-
-  /// Builds the streak badge for recurring daily goals.
-  Widget _buildStreakBadge(ColorScheme colorScheme, TextTheme textTheme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: colorScheme.tertiaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.local_fire_department, size: 14, color: colorScheme.onTertiaryContainer),
-          const SizedBox(width: 4),
-          Text(
-            '${goal.streak}',
-            style: textTheme.labelSmall?.copyWith(color: colorScheme.onTertiaryContainer, fontWeight: FontWeight.bold),
-          ),
-        ],
       ),
     );
-  }
-
-  /// Builds the date range badge for custom period goals.
-  Widget _buildDateRangeBadge(ColorScheme colorScheme, TextTheme textTheme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(Icons.date_range, size: 14, color: colorScheme.onSecondaryContainer),
-          const SizedBox(width: 4),
-          Text(
-            _formatDateRange(),
-            style: textTheme.labelSmall?.copyWith(color: colorScheme.onSecondaryContainer, fontWeight: FontWeight.w500),
-          ),
-        ],
-      ),
-    );
-  }
-
-  String _formatDateRange() {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final start = '${months[goal.startDate.month - 1]} ${goal.startDate.day}';
-    final end = '${months[goal.endDate.month - 1]} ${goal.endDate.day}';
-    return '$start - $end';
-  }
-
-  /// Builds the "One-off" badge for non-recurring goals.
-  Widget _buildOneOffBadge(ColorScheme colorScheme, TextTheme textTheme) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-      decoration: BoxDecoration(
-        color: colorScheme.secondaryContainer,
-        borderRadius: BorderRadius.circular(AppRadius.full),
-      ),
-      child: Text(
-        'One-off',
-        style: textTheme.labelSmall?.copyWith(color: colorScheme.onSecondaryContainer, fontWeight: FontWeight.w500),
-      ),
-    );
-  }
-
-  /// Builds the progress values row showing current/target and percentage.
-  Widget _buildProgressValues(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          goal.type == GoalType.minutes
-              ? '${formatDuration(goal.current)} of ${formatDuration(goal.target)}'
-              : '${goal.current} of ${goal.target} ${goal.typeLabel}',
-          style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-        ),
-        Text(
-          goal.progressLabel,
-          style: textTheme.titleMedium?.copyWith(
-            fontWeight: FontWeight.bold,
-            color: (goal.isCompleted && goal.isArchived) ? colorScheme.tertiary : colorScheme.primary,
-          ),
-        ),
-      ],
-    );
-  }
-
-  /// Builds the linear progress bar.
-  Widget _buildProgressBar(ColorScheme colorScheme) {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(AppRadius.sm),
-      child: AppLinearProgressIndicator(
-        value: goal.progress.clamp(0.0, 1.0),
-        minHeight: 8,
-        backgroundColor: colorScheme.surfaceContainerHighest,
-        color: (goal.isCompleted && goal.isArchived) ? colorScheme.tertiary : colorScheme.primary,
-      ),
-    );
-  }
-
-  /// Builds the footer with status text and time context.
-  Widget _buildFooter(ColorScheme colorScheme, TextTheme textTheme) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(
-          goal.isCompleted
-              ? (goal.isRecurring && !goal.isArchived ? "Today's goal met" : 'Completed!')
-              : goal.type == GoalType.minutes
-              ? '${formatDuration(goal.remaining)} to go'
-              : '${goal.remaining} ${goal.typeLabel} to go',
-          style: textTheme.bodySmall?.copyWith(
-            color: goal.isCompleted
-                ? (goal.isRecurring && !goal.isArchived ? colorScheme.primary : colorScheme.tertiary)
-                : colorScheme.onSurfaceVariant,
-            fontWeight: goal.isCompleted ? FontWeight.w500 : FontWeight.normal,
-          ),
-        ),
-        Text(_getTimeContext(), style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-      ],
-    );
-  }
-
-  // ============================================================================
-  // HELPERS
-  // ============================================================================
-
-  String _getTimeContext() {
-    final daysLeft = goal.endDate.difference(DateTime.now()).inDays;
-
-    switch (goal.period) {
-      case GoalPeriod.daily:
-        return 'Today';
-      case GoalPeriod.weekly:
-        return daysLeft <= 0 ? 'This week' : '$daysLeft days left';
-      case GoalPeriod.monthly:
-        return daysLeft <= 7 ? '$daysLeft days left' : 'This month';
-      case GoalPeriod.yearly:
-        return 'Ends ${_formatDate(goal.endDate)}';
-      case GoalPeriod.custom:
-        if (daysLeft <= 0) return 'Ends today';
-        if (daysLeft <= 7) return '$daysLeft days left';
-        return '${_formatShortDate(goal.startDate)} - ${_formatShortDate(goal.endDate)}';
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
-  }
-
-  String _formatShortDate(DateTime date) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${months[date.month - 1]} ${date.day}';
-  }
-
-  IconData _getIconForType(GoalType type) {
-    switch (type) {
-      case GoalType.books:
-        return Icons.menu_book_outlined;
-      case GoalType.pages:
-        return Icons.article_outlined;
-      case GoalType.minutes:
-        return Icons.schedule_outlined;
-    }
   }
 }

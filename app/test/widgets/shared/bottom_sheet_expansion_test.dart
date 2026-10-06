@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/providers/goals_provider.dart';
 import 'package:papyrus/models/library_filters.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
@@ -15,6 +16,12 @@ import 'package:papyrus/widgets/topics/manage_topics_sheet.dart';
 import 'package:provider/provider.dart';
 
 import '../../helpers/test_helpers.dart';
+
+GoalsProvider goalProvider(BuildContext context) {
+  final provider = GoalsProvider(watchClock: false)..attach(context.read<DataStore>());
+  addTearDown(provider.dispose);
+  return provider;
+}
 
 void main() {
   Future<void> openSheet(
@@ -83,7 +90,7 @@ void main() {
   }
 
   final longSheets = <String, void Function(BuildContext)>{
-    'goal': (context) => AddGoalSheet.show(context),
+    'goal': (context) => AddGoalSheet.show(context, provider: goalProvider(context), initialTimezone: 'UTC'),
     'physical book': (context) => AddPhysicalBookSheet.show(context),
     'shelf editor': (context) => AddShelfSheet.show(context),
     'shelf selection': (context) => MoveToShelfSheet.show(context, book: buildTestBook()),
@@ -182,7 +189,11 @@ void main() {
   });
 
   testWidgets('desktop sheets keep content sizing and ordinary scrolling', (tester) async {
-    await openSheet(tester, (context) => AddGoalSheet.show(context), size: const Size(1280, 800));
+    await openSheet(
+      tester,
+      (context) => AddGoalSheet.show(context, provider: goalProvider(context), initialTimezone: 'UTC'),
+      size: const Size(1280, 800),
+    );
     expect(find.byType(ExpandableBottomSheet), findsNothing);
     final header = find.byKey(const Key('bottom-sheet-header'));
     final top = tester.getTopLeft(header).dy;

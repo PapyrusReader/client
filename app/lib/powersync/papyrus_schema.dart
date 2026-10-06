@@ -124,7 +124,23 @@ const _bookTagsColumns = [
   Column.text('created_at'),
 ];
 
+const _trackingColumns = [
+  Column.text('owner_user_id'),
+  Column.text('payload'),
+  Column.text('created_at'),
+  Column.text('updated_at'),
+];
+const _stagingColumns = [
+  Column.text('table_name'),
+  Column.text('row_id'),
+  Column.text('payload'),
+  Column.integer('deleted'),
+];
 const papyrusAccountSchema = Schema([
+  Table('reading_goals', _trackingColumns),
+  Table('reading_activities', _trackingColumns),
+  Table('goal_periods', _trackingColumns),
+  Table.localOnly('tracking_staging', _stagingColumns),
   Table('books', _bookColumns, indexes: _bookIndexes),
   Table('shelves', _shelvesColumns),
   Table('tags', _tagsColumns),
@@ -137,6 +153,10 @@ const papyrusAccountSchema = Schema([
 ]);
 
 const papyrusGuestSchema = Schema([
+  Table.localOnly('reading_goals', _trackingColumns),
+  Table.localOnly('reading_activities', _trackingColumns),
+  Table.localOnly('goal_periods', _trackingColumns),
+  Table.localOnly('tracking_staging', _stagingColumns),
   Table.localOnly('books', _bookColumns, indexes: _bookIndexes),
   Table.localOnly('shelves', _shelvesColumns),
   Table.localOnly('tags', _tagsColumns),

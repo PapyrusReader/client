@@ -294,9 +294,7 @@ class BookDetailsProvider extends ChangeNotifier {
     _book = _book!.copyWith(
       currentPage: page,
       currentPosition: position.clamp(0.0, 1.0),
-      readingStatus: position >= 1.0
-          ? LibraryReadingStatus.completed
-          : position > 0
+      readingStatus: position > 0 && _book!.readingStatus == LibraryReadingStatus.unread
           ? LibraryReadingStatus.inProgress
           : _book!.readingStatus,
       lastReadAt: DateTime.now(),

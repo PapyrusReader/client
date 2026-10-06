@@ -36,6 +36,7 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   void _onDataStoreChanged() {
+    _loadActivityData();
     notifyListeners();
   }
 
@@ -83,8 +84,7 @@ class DashboardProvider extends ChangeNotifier {
     if (_dataStore == null) return 0;
     final today = DateTime.now();
     final todayStart = DateTime(today.year, today.month, today.day);
-    final todaySessions = _dataStore!.readingSessions.where((s) => s.startTime.isAfter(todayStart));
-    return todaySessions.fold(0, (sum, s) => sum + s.durationMinutes);
+    return _dataStore!.activityTotals(todayStart, DateTime(today.year, today.month, today.day + 1)).seconds ~/ 60;
   }
 
   int get weekOffset => _weekOffset;
@@ -102,7 +102,7 @@ class DashboardProvider extends ChangeNotifier {
   /// Total reading minutes from all sessions.
   int get totalReadingMinutes {
     if (_dataStore == null) return 0;
-    return _dataStore!.readingSessions.fold(0, (sum, s) => sum + s.durationMinutes);
+    return _dataStore!.activityTotals(DateTime.utc(1900), DateTime.now().toUtc()).seconds ~/ 60;
   }
 
   ActivityPeriod get activityPeriod => _activityPeriod;
@@ -159,8 +159,7 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Simulate network delay for realistic UX
-      await Future.delayed(const Duration(milliseconds: 100));
+      await _dataStore?.waitUntilLoaded();
 
       _loadActivityData();
 
@@ -243,7 +242,7 @@ class DashboardProvider extends ChangeNotifier {
 
   void _loadActivityData() {
     if (_dataStore == null) {
-      _weeklyActivity = DailyActivity.sampleWeek;
+      _weeklyActivity = [];
       return;
     }
 
@@ -255,22 +254,20 @@ class DashboardProvider extends ChangeNotifier {
     if (_dataStore == null) return [];
 
     final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1 + (-offset * 7)));
-
-    return List.generate(7, (i) {
-      final date = weekStart.add(Duration(days: i));
-      final dayStart = DateTime(date.year, date.month, date.day);
-      final dayEnd = dayStart.add(const Duration(days: 1));
-
-      // Get sessions for this day
-      final daySessions = _dataStore!.readingSessions.where(
-        (s) => s.startTime.isAfter(dayStart.subtract(const Duration(seconds: 1))) && s.startTime.isBefore(dayEnd),
+    final start = _activityPeriod == ActivityPeriod.week
+        ? DateTime(now.year, now.month, now.day - now.weekday + 1 + offset * 7)
+        : DateTime(now.year, now.month + offset);
+    final count = _activityPeriod == ActivityPeriod.week ? 7 : DateTime(start.year, start.month + 1, 0).day;
+    return List.generate(count, (i) {
+      final day = DateTime(start.year, start.month, start.day + i);
+      final end = DateTime(day.year, day.month, day.day + 1);
+      final totals = _dataStore!.activityTotals(day, end);
+      return DailyActivity(
+        date: day,
+        readingMinutes: totals.seconds ~/ 60,
+        pagesRead: totals.pages.floor(),
+        booksRead: totals.activities.where((a) => a.kind == 'completion').map((a) => a.bookId).toSet().toList(),
       );
-
-      final minutes = daySessions.fold(0, (sum, s) => sum + s.durationMinutes);
-      final pages = daySessions.fold(0, (sum, s) => sum + (s.pagesRead ?? 0));
-
-      return DailyActivity(date: date, readingMinutes: minutes, pagesRead: pages, booksRead: []);
     });
   }
 

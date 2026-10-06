@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/auth/auth_repository.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
@@ -9,8 +10,14 @@ class PapyrusPowerSyncConnector extends PowerSyncBackendConnector {
   final AuthRepository authRepository;
   final PapyrusApiConfig config;
   final Future<void> Function()? onUploadComplete;
+  final bool Function()? supportsTracking;
 
-  PapyrusPowerSyncConnector({required this.authRepository, required this.config, this.onUploadComplete});
+  PapyrusPowerSyncConnector({
+    required this.authRepository,
+    required this.config,
+    this.onUploadComplete,
+    this.supportsTracking,
+  });
 
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async {
@@ -40,7 +47,22 @@ class PapyrusPowerSyncConnector extends PowerSyncBackendConnector {
         return;
       }
 
-      final batch = powerSyncUploadBatchFromCrud(transaction.crud);
+      final deferred = supportsTracking?.call() == false
+          ? transaction.crud.where((entry) => trackingTableNames.contains(entry.table)).toList()
+          : <CrudEntry>[];
+      if (deferred.isNotEmpty) {
+        await database.writeTransaction((tx) async {
+          for (final entry in deferred) {
+            final row = await tx.getOptional('SELECT payload FROM ${entry.table} WHERE id = ?', [entry.id]);
+            final payload = row?['payload'] as String? ?? jsonEncode({'id': entry.id});
+            await tx.execute(
+              'INSERT OR REPLACE INTO tracking_staging (id, table_name, row_id, payload, deleted) VALUES (?, ?, ?, ?, ?)',
+              ['${entry.table}:${entry.id}', entry.table, entry.id, payload, row == null ? 1 : 0],
+            );
+          }
+        });
+      }
+      final batch = powerSyncUploadBatchFromCrud(transaction.crud.where((entry) => !deferred.contains(entry)).toList());
 
       if (batch.isEmpty) {
         await transaction.complete();

@@ -43,16 +43,14 @@ final class ReaderBookAdapter {
 
     final position = _totalProgression(locator);
     final page = switch (locator) {
-      EpubReaderLocator(:final spineIndex) => spineIndex + 1,
+      EpubReaderLocator() => book.currentPage,
       PdfReaderLocator(:final pageIndex) => pageIndex + 1,
     };
     final cfi = switch (locator) {
       EpubReaderLocator(:final cfi) => cfi,
       PdfReaderLocator() => null,
     };
-    final status = position >= 1
-        ? LibraryReadingStatus.completed
-        : position > 0
+    final status = book.readingStatus == LibraryReadingStatus.unread && position > 0
         ? LibraryReadingStatus.inProgress
         : book.readingStatus;
 
@@ -63,7 +61,7 @@ final class ReaderBookAdapter {
       readingStatus: status,
       customMetadata: metadata,
       startedAt: book.startedAt ?? (position > 0 ? now : null),
-      completedAt: position >= 1 ? now : book.completedAt,
+      completedAt: book.completedAt,
       lastReadAt: now,
     );
   }

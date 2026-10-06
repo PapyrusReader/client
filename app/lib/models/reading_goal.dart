@@ -1,27 +1,55 @@
-/// Formats a duration in minutes to a short human-readable string.
-///
-/// Examples: 0 → "0m", 30 → "30m", 60 → "1h", 90 → "1h 30m", 6000 → "100h"
 String formatDuration(int minutes) {
   final h = minutes ~/ 60;
   final m = minutes % 60;
   if (h == 0) return '${m}m';
-  if (m == 0) return '${h}h';
-  return '${h}h ${m}m';
+  return m == 0 ? '${h}h' : '${h}h ${m}m';
 }
 
-/// Type of reading goal.
-enum GoalType { books, pages, minutes }
+enum GoalType { books, pages, minutes, days }
 
-/// Period for the reading goal.
-enum GoalPeriod {
-  daily,
-  weekly,
-  monthly,
-  yearly,
-  custom, // User-defined date range
+enum GoalPeriod { daily, weekly, monthly, yearly, custom }
+
+enum GoalScope { library, book, shelf }
+
+String goalMetric(GoalType type) => switch (type) {
+  GoalType.books => 'books_count',
+  GoalType.pages => 'pages_count',
+  GoalType.minutes => 'reading_time',
+  GoalType.days => 'reading_days',
+};
+GoalType parseGoalMetric(String value) => switch (value) {
+  'books_count' || 'books' => GoalType.books,
+  'pages_count' || 'pages' => GoalType.pages,
+  'reading_time' || 'minutes' => GoalType.minutes,
+  'reading_days' || 'days' => GoalType.days,
+  _ => throw FormatException('Unknown goal metric: $value'),
+};
+
+/// Rule revisions retain targets and pause/archive intervals across devices.
+class GoalRule {
+  const GoalRule({required this.at, required this.target, this.title, this.active = true, this.archived = false});
+  final DateTime at;
+  final int target;
+  final String? title;
+  final bool active;
+  final bool archived;
+  Map<String, dynamic> toJson() => {
+    'at': at.toUtc().toIso8601String(),
+    'target': target,
+    'title': title,
+    'active': active,
+    'archived': archived,
+  };
+  factory GoalRule.fromJson(Map<String, dynamic> json) => GoalRule(
+    at: DateTime.parse(json['at'] as String).toUtc(),
+    target: json['target'] as int,
+    title: json['title'] as String?,
+    active: json['active'] == true,
+    archived: json['archived'] == true,
+  );
 }
 
-/// Represents a user's reading goal.
+/// Definition data is persisted; currentValue and streak are derived projections.
 class ReadingGoal {
   final String id;
   final String? title;
@@ -32,136 +60,73 @@ class ReadingGoal {
   final GoalPeriod period;
   final DateTime startDate;
   final DateTime endDate;
-
-  /// Whether this goal is currently active.
+  final DateTime createdAt;
+  final String timezone;
+  final GoalScope scope;
+  final String? scopeId;
+  final int minimumMinutes;
+  final List<GoalRule> rules;
   final bool isActive;
-
-  /// Whether this goal repeats after completion.
-  /// - true: Goal resets and repeats (e.g., "30 min daily" repeats each day)
-  /// - false: One-off goal that doesn't repeat after completion
   final bool isRecurring;
-
-  /// Current streak for recurring daily goals.
   final int streak;
-
-  /// Whether this goal is completed (archived).
   final bool isArchived;
-
-  /// Completion date for archived goals.
   final DateTime? completedAt;
-
+  final bool estimatedPages;
   const ReadingGoal({
     required this.id,
     this.title,
     this.goalDescription,
     required this.type,
     required this.targetValue,
-    required this.currentValue,
+    this.currentValue = 0,
     required this.period,
     required this.startDate,
     required this.endDate,
+    DateTime? createdAt,
+    this.timezone = 'UTC',
+    this.scope = GoalScope.library,
+    this.scopeId,
+    this.minimumMinutes = 5,
+    this.rules = const [],
     this.isActive = true,
     this.isRecurring = true,
     this.streak = 0,
     this.isArchived = false,
     this.completedAt,
-  });
-
-  // Backwards compatibility aliases
+    this.estimatedPages = false,
+  }) : createdAt = createdAt ?? startDate;
   int get target => targetValue;
   int get current => currentValue;
-
-  /// Progress as a value between 0.0 and 1.0.
-  double get progress => (currentValue / targetValue).clamp(0.0, 1.0);
-
-  /// Number of items remaining to reach the goal.
+  double get progress => targetValue == 0 ? 0 : (currentValue / targetValue).clamp(0.0, 1.0);
   int get remaining => (targetValue - currentValue).clamp(0, targetValue);
-
-  /// Whether the goal has been completed.
   bool get isCompleted => currentValue >= targetValue;
-
-  /// Progress as a percentage string.
   String get progressLabel => '${(progress * 100).round()}%';
-
-  /// Display label for the goal type.
-  String get typeLabel {
-    switch (type) {
-      case GoalType.books:
-        return 'books';
-      case GoalType.pages:
-        return 'pages';
-      case GoalType.minutes:
-        return 'minutes';
-    }
-  }
-
-  /// Display label for the period.
-  String get periodLabel {
-    switch (period) {
-      case GoalPeriod.daily:
-        return 'daily';
-      case GoalPeriod.weekly:
-        return 'this week';
-      case GoalPeriod.monthly:
-        return 'this month';
-      case GoalPeriod.yearly:
-        return 'this year';
-      case GoalPeriod.custom:
-        return _formatDateRange();
-    }
-  }
-
-  String _formatDateRange() {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    final start = '${months[startDate.month - 1]} ${startDate.day}';
-    final end = '${months[endDate.month - 1]} ${endDate.day}';
-    if (startDate.year != endDate.year) {
-      return '$start, ${startDate.year} - $end, ${endDate.year}';
-    }
-    return '$start - $end';
-  }
-
-  /// Whether this is a daily goal.
+  String get typeLabel => switch (type) {
+    GoalType.books => 'books',
+    GoalType.pages => 'pages',
+    GoalType.minutes => 'minutes',
+    GoalType.days => 'days',
+  };
+  String get periodLabel => switch (period) {
+    GoalPeriod.daily => 'daily',
+    GoalPeriod.weekly => 'this week',
+    GoalPeriod.monthly => 'this month',
+    GoalPeriod.yearly => 'this year',
+    GoalPeriod.custom => 'by ${endDate.day}/${endDate.month}/${endDate.year}',
+  };
   bool get isDaily => period == GoalPeriod.daily;
-
-  /// Whether this is a yearly goal.
   bool get isYearly => period == GoalPeriod.yearly;
-
-  /// Whether this is a custom date range goal.
   bool get isCustomPeriod => period == GoalPeriod.custom;
-
-  /// Full goal description.
-  String get description {
-    if (goalDescription != null) return goalDescription!;
-    final valueStr = type == GoalType.minutes ? formatDuration(targetValue) : '$targetValue $typeLabel';
-    if (isCustomPeriod) return 'Read $valueStr';
-    return 'Read $valueStr $periodLabel';
-  }
-
-  /// Display title for the goal.
-  String get displayTitle {
-    if (title != null) return title!;
-    return description;
-  }
-
-  /// Status text (e.g., "4 books to go").
-  String get statusText {
-    if (isCompleted) {
-      return 'Goal completed!';
-    }
-    final remainStr = type == GoalType.minutes ? formatDuration(remaining) : '$remaining $typeLabel';
-    return '$remainStr to go';
-  }
-
-  /// Recurrence label for display.
-  String get recurrenceLabel {
-    if (isCustomPeriod) {
-      return 'Custom range';
-    }
-    return isRecurring ? 'Recurring' : 'One-off';
-  }
-
-  /// Create a copy with updated fields.
+  String get description =>
+      goalDescription ??
+      (type == GoalType.days
+          ? 'Read on $targetValue days $periodLabel'
+          : 'Read ${type == GoalType.minutes ? formatDuration(targetValue) : '$targetValue $typeLabel'} $periodLabel');
+  String get displayTitle => title?.trim().isNotEmpty == true ? title! : description;
+  String get statusText => isCompleted
+      ? 'Target reached'
+      : '${type == GoalType.minutes ? formatDuration(remaining) : '$remaining $typeLabel'} to go';
+  String get recurrenceLabel => isRecurring && !isCustomPeriod ? 'Recurring' : 'One-off';
   ReadingGoal copyWith({
     String? id,
     String? title,
@@ -172,69 +137,84 @@ class ReadingGoal {
     GoalPeriod? period,
     DateTime? startDate,
     DateTime? endDate,
+    DateTime? createdAt,
+    String? timezone,
+    GoalScope? scope,
+    String? scopeId,
+    int? minimumMinutes,
+    List<GoalRule>? rules,
     bool? isActive,
     bool? isRecurring,
     int? streak,
     bool? isArchived,
     DateTime? completedAt,
-  }) {
-    return ReadingGoal(
-      id: id ?? this.id,
-      title: title ?? this.title,
-      goalDescription: goalDescription ?? this.goalDescription,
-      type: type ?? this.type,
-      targetValue: targetValue ?? this.targetValue,
-      currentValue: currentValue ?? this.currentValue,
-      period: period ?? this.period,
-      startDate: startDate ?? this.startDate,
-      endDate: endDate ?? this.endDate,
-      isActive: isActive ?? this.isActive,
-      isRecurring: isRecurring ?? this.isRecurring,
-      streak: streak ?? this.streak,
-      isArchived: isArchived ?? this.isArchived,
-      completedAt: completedAt ?? this.completedAt,
-    );
-  }
-
-  /// Convert to JSON for API/storage.
-  Map<String, dynamic> toJson() {
-    return {
-      'id': id,
-      'title': title,
-      'description': goalDescription,
-      'goal_type': type.name,
-      'target_value': targetValue,
-      'current_value': currentValue,
-      'time_period': period.name,
-      'start_date': startDate.toIso8601String(),
-      'end_date': endDate.toIso8601String(),
-      'is_active': isActive,
-      'is_recurring': isRecurring,
-      'streak': streak,
-      'is_archived': isArchived,
-      'completed_at': completedAt?.toIso8601String(),
-    };
-  }
-
-  /// Create from JSON.
-  factory ReadingGoal.fromJson(Map<String, dynamic> json) {
-    return ReadingGoal(
-      id: json['id'] as String,
-      title: json['title'] as String?,
-      goalDescription: json['description'] as String?,
-      type: GoalType.values.byName(json['goal_type'] as String),
-      targetValue: json['target_value'] as int,
-      currentValue: json['current_value'] as int,
-      period: GoalPeriod.values.byName(json['time_period'] as String),
-      startDate: DateTime.parse(json['start_date'] as String),
-      endDate: DateTime.parse(json['end_date'] as String),
-      isActive: json['is_active'] as bool? ?? true,
-      isRecurring: json['is_recurring'] as bool? ?? true,
-      streak: json['streak'] as int? ?? 0,
-      isArchived: json['is_archived'] as bool? ?? false,
-      completedAt: json['completed_at'] != null ? DateTime.parse(json['completed_at'] as String) : null,
-    );
-  }
+    bool? estimatedPages,
+  }) => ReadingGoal(
+    id: id ?? this.id,
+    title: title ?? this.title,
+    goalDescription: goalDescription ?? this.goalDescription,
+    type: type ?? this.type,
+    targetValue: targetValue ?? this.targetValue,
+    currentValue: currentValue ?? this.currentValue,
+    period: period ?? this.period,
+    startDate: startDate ?? this.startDate,
+    endDate: endDate ?? this.endDate,
+    createdAt: createdAt ?? this.createdAt,
+    timezone: timezone ?? this.timezone,
+    scope: scope ?? this.scope,
+    scopeId: scopeId ?? this.scopeId,
+    minimumMinutes: minimumMinutes ?? this.minimumMinutes,
+    rules: rules ?? this.rules,
+    isActive: isActive ?? this.isActive,
+    isRecurring: isRecurring ?? this.isRecurring,
+    streak: streak ?? this.streak,
+    isArchived: isArchived ?? this.isArchived,
+    completedAt: completedAt ?? this.completedAt,
+    estimatedPages: estimatedPages ?? this.estimatedPages,
+  );
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'description': goalDescription,
+    'goal_type': goalMetric(type),
+    'target_value': targetValue,
+    'time_period': period.name,
+    'start_date': startDate.toUtc().toIso8601String(),
+    'end_date': endDate.toUtc().toIso8601String(),
+    'created_at': createdAt.toUtc().toIso8601String(),
+    'timezone': timezone,
+    'scope': scope.name,
+    'scope_id': scopeId,
+    'minimum_minutes': minimumMinutes,
+    'rules': rules.map((rule) => rule.toJson()).toList(),
+    'is_active': isActive,
+    'is_recurring': isRecurring,
+    'is_archived': isArchived,
+  };
+  factory ReadingGoal.fromJson(Map<String, dynamic> json) => ReadingGoal(
+    id: json['id'] as String,
+    title: json['title'] as String?,
+    goalDescription: json['description'] as String?,
+    type: parseGoalMetric(json['goal_type'] as String),
+    targetValue: json['target_value'] as int,
+    currentValue: json['current_value'] as int? ?? 0,
+    period: GoalPeriod.values.byName(json['time_period'] as String),
+    startDate: DateTime.parse(json['start_date'] as String).toUtc(),
+    endDate: DateTime.parse(json['end_date'] as String).toUtc(),
+    createdAt: DateTime.parse((json['created_at'] ?? json['start_date']) as String).toUtc(),
+    timezone: json['timezone'] as String? ?? 'UTC',
+    scope: GoalScope.values.byName(json['scope'] as String? ?? 'library'),
+    scopeId: json['scope_id'] as String?,
+    minimumMinutes: json['minimum_minutes'] as int? ?? 5,
+    rules: (json['rules'] as List? ?? [])
+        .map((value) => GoalRule.fromJson(Map<String, dynamic>.from(value as Map)))
+        .toList(),
+    isActive: json['is_active'] as bool? ?? true,
+    isRecurring: json['is_recurring'] as bool? ?? true,
+    isArchived: json['is_archived'] as bool? ?? false,
+    streak: json['streak'] as int? ?? 0,
+    completedAt: json['completed_at'] != null ? DateTime.parse(json['completed_at'] as String) : null,
+  );
 
   /// Sample reading goals for backwards compatibility.
   static List<ReadingGoal> get sampleGoals {

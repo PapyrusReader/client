@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/providers/goals_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/book_details/bookmark_dialog.dart';
 import 'package:papyrus/widgets/book_details/annotation_dialog.dart';
@@ -16,6 +17,12 @@ import 'package:provider/provider.dart';
 
 import '../../helpers/test_helpers.dart';
 
+GoalsProvider goalProvider(BuildContext context) {
+  final provider = GoalsProvider(watchClock: false)..attach(context.read<DataStore>());
+  addTearDown(provider.dispose);
+  return provider;
+}
+
 void main() {
   final book = buildTestBook(title: 'A long book title for checking compact sheet headers');
   final launchers = <String, void Function(BuildContext)>{
@@ -23,7 +30,7 @@ void main() {
     'topic assignment': (context) => ManageTopicsSheet.show(context, book: book),
     'shelf form': (context) => AddShelfSheet.show(context),
     'topic form': (context) => AddTopicSheet.show(context),
-    'goal form': (context) => AddGoalSheet.show(context),
+    'goal form': (context) => AddGoalSheet.show(context, provider: goalProvider(context), initialTimezone: 'UTC'),
     'bookmark form': (context) => BookmarkDialog.show(context, bookId: book.id),
     'annotation form': (context) => AnnotationDialog.show(context, bookId: book.id),
     'note form': (context) => NoteDialog.show(context, bookId: book.id),

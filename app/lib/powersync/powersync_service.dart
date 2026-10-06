@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'package:papyrus/data/repositories/tracking_repository.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
@@ -46,10 +47,13 @@ class SyncStateRevisionCoordinator {
   void invalidate() => _revision++;
 }
 
-class PapyrusPowerSyncService implements BookRepository, LibraryRepository {
+class PapyrusPowerSyncService implements BookRepository, LibraryRepository, TrackingRepositoryOwner {
   final PowerSyncConnectorFactory connectorFactory;
   final LibraryDatabasePathResolver? pathResolver;
   final bool connectAuthenticated;
+  final Future<int> Function()? trackingCapability;
+  @override
+  TrackingRepository get trackingRepository => _activeLibrary;
 
   final StreamController<List<Book>> _booksController = StreamController<List<Book>>.broadcast();
   final StreamController<SyncState> _syncStateController = StreamController<SyncState>.broadcast();
@@ -59,6 +63,7 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository {
   PowerSyncDatabase? _database;
   LibraryDatabase? _library;
   LibrarySnapshot? _snapshot;
+  bool get supportsTracking => _library?.trackingSupported == true;
   final _libraryController = StreamController<LibrarySnapshot>.broadcast();
 
   LibraryDatabase get _activeLibrary {
@@ -103,7 +108,12 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository {
   BookMetadataSyncState _bookMetadataSyncState = const BookMetadataSyncState();
   final SyncStateRevisionCoordinator _syncStateRevisions = SyncStateRevisionCoordinator();
 
-  PapyrusPowerSyncService({required this.connectorFactory, this.pathResolver, this.connectAuthenticated = true});
+  PapyrusPowerSyncService({
+    required this.connectorFactory,
+    this.pathResolver,
+    this.connectAuthenticated = true,
+    this.trackingCapability,
+  });
 
   LibraryDatabaseMode? get mode => _mode;
   SyncState get syncState => _syncState;
@@ -129,6 +139,7 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository {
     }
     final database = _requireDatabase();
     if (online) {
+      await _prepareTracking();
       await database.connect(connector: connectorFactory());
     } else {
       await database.disconnect();
@@ -143,6 +154,7 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository {
     final database = _requireDatabase();
     _watchStatus(database);
     await database.disconnect();
+    await _prepareTracking();
     await database.connect(connector: connectorFactory());
   }
 
@@ -263,17 +275,34 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository {
     await database.initialize();
     _database = database;
     _library = LibraryDatabase(database, _refreshPendingWrites);
+    _library!.trackingSupported = mode == LibraryDatabaseMode.guest;
     await _library!.migrateLegacyBooks();
     _watchBooks(database);
 
     if (mode == LibraryDatabaseMode.authenticated && connectAuthenticated) {
       _watchStatus(database);
+      await _prepareTracking();
       await database.connect(connector: connectorFactory());
     } else {
       _setSyncState(const SyncState());
       _setBookMetadataSyncState(const BookMetadataSyncState());
     }
     await _refreshPendingWrites();
+  }
+
+  bool _checkingTracking = false;
+  Future<void> _prepareTracking() async {
+    final library = _activeLibrary;
+    if (_checkingTracking || library.trackingSupported) return;
+    _checkingTracking = true;
+    try {
+      final version = await trackingCapability?.call() ?? 0;
+      if (library.active && version >= 1) await library.enableTracking();
+    } catch (_) {
+      // Discovery failure keeps tracking local and does not prevent library sync.
+    } finally {
+      _checkingTracking = false;
+    }
   }
 
   void _watchBooks(PowerSyncDatabase database) {
@@ -304,6 +333,7 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository {
   }
 
   Future<void> _setStatusFromPowerSync(SyncStatus status) async {
+    if (status.connected && _library?.trackingSupported == false) unawaited(_prepareTracking());
     final revision = _syncStateRevisions.beginTransportUpdate();
     final pending = await _readPendingWrites();
     if (!_syncStateRevisions.isCurrent(revision)) return;

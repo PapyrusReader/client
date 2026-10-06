@@ -1,4 +1,7 @@
+import 'package:papyrus/services/reading_device_identity.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/app_motion.dart';
@@ -42,13 +45,20 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config/app_router.dart';
+import 'package:papyrus/goals/goal_calendar.dart';
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ensureBookImportDropPluginRegistered();
   usePathUrlStrategy();
 
+  try {
+    await GoalCalendar.deviceTimezone();
+  } catch (_) {
+    GoalCalendar.initialize();
+  }
   final prefs = await SharedPreferences.getInstance();
+  await ReadingDeviceIdentity.initialize(prefs);
   runApp(Papyrus(prefs: prefs));
 }
 
@@ -212,7 +222,15 @@ class _PapyrusState extends State<Papyrus> {
       activeApiConfig: () => _syncSettingsProvider.activeApiConfig,
     );
     _powerSyncService = PapyrusPowerSyncService(
+      trackingCapability: () async {
+        final response = await http
+            .get(_syncSettingsProvider.activeApiConfig.endpoint('/sync/settings'))
+            .timeout(const Duration(seconds: 5));
+        if (response.statusCode != 200) return 0;
+        return (jsonDecode(response.body) as Map)['tracking_schema_version'] as int? ?? 0;
+      },
       connectorFactory: () => PapyrusPowerSyncConnector(
+        supportsTracking: () => _powerSyncService.supportsTracking,
         authRepository: _authRepository,
         config: _syncSettingsProvider.activeApiConfig,
         onUploadComplete: () async {

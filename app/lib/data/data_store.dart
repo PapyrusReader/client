@@ -1,4 +1,12 @@
+import 'package:papyrus/services/reading_device_identity.dart';
 import 'dart:async';
+import 'package:uuid/uuid.dart';
+import 'package:papyrus/data/repositories/tracking_repository.dart';
+import 'package:papyrus/models/reading_activity.dart';
+import 'package:papyrus/models/goal_period_record.dart';
+import 'package:papyrus/goals/goal_progress.dart';
+import 'package:papyrus/goals/goal_calendar.dart';
+import 'package:papyrus/providers/enums/library_reading_status.dart';
 
 import 'package:flutter/foundation.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
@@ -34,12 +42,22 @@ class DataStore extends ChangeNotifier {
   final Map<String, Bookmark> _bookmarks = {};
   final Map<String, ReadingSession> _readingSessions = {};
   final Map<String, ReadingGoal> _readingGoals = {};
+  final Map<String, ReadingActivity> _activities = {};
+  final Map<String, GoalPeriodRecord> _goalPeriods = {};
+  TrackingRepository? get trackingRepository => _bookRepository is TrackingRepositoryOwner
+      ? (_bookRepository as TrackingRepositoryOwner).trackingRepository
+      : null;
+  List<ReadingActivity> get readingActivities => _activities.values.toList();
+  List<ReadingActivity> get effectiveReadingActivities => effectiveActivities(_activities.values);
+  List<GoalPeriodRecord> get goalPeriods => _goalPeriods.values.toList();
+  List<ReadingGoal> get goalDefinitions => _readingGoals.values.toList();
 
   // Junction table data
   final List<BookShelfRelation> _bookShelfRelations = [];
   final List<BookTagRelation> _bookTagRelations = [];
 
   bool _isLoaded = false;
+  bool _disposed = false;
   BookRepository? _bookRepository;
   StreamSubscription<List<Book>>? _bookSubscription;
   StreamSubscription<LibrarySnapshot>? _librarySubscription;
@@ -62,6 +80,7 @@ class DataStore extends ChangeNotifier {
   }
 
   void _replaceLibrary(LibrarySnapshot snapshot) {
+    if (_disposed) return;
     _shelves
       ..clear()
       ..addEntries(snapshot.shelves.map((value) => MapEntry(value.id, value)));
@@ -83,10 +102,16 @@ class DataStore extends ChangeNotifier {
     _bookTagRelations
       ..clear()
       ..addAll(snapshot.bookTags);
-    if (snapshot.books.isEmpty) {
-      _series.clear();
-      _readingGoals.clear();
-    }
+    _readingGoals
+      ..clear()
+      ..addEntries(snapshot.goals.map((value) => MapEntry(value.id, value)));
+    _activities
+      ..clear()
+      ..addEntries(snapshot.activities.map((value) => MapEntry(value.id, value)));
+    _goalPeriods
+      ..clear()
+      ..addEntries(snapshot.goalPeriods.map((value) => MapEntry(value.id, value)));
+    if (snapshot.books.isEmpty) _series.clear();
     replaceBooksFromSync(snapshot.books);
   }
 
@@ -133,8 +158,11 @@ class DataStore extends ChangeNotifier {
   List<Annotation> get annotations => _annotations.values.toList();
   List<Note> get notes => _notes.values.toList();
   List<Bookmark> get bookmarks => _bookmarks.values.toList();
-  List<ReadingSession> get readingSessions => _readingSessions.values.toList();
-  List<ReadingGoal> get readingGoals => _readingGoals.values.toList();
+  List<ReadingSession> get readingSessions =>
+      _activities.isEmpty ? _readingSessions.values.toList() : _activitySessions();
+  List<ReadingGoal> get readingGoals => _readingGoals.values
+      .map((goal) => projectGoal(goal, readingActivities, DateTime.now().toUtc()).projected)
+      .toList();
   List<BookShelfRelation> get bookShelfRelations => List.unmodifiable(_bookShelfRelations);
   List<BookTagRelation> get bookTagRelations => List.unmodifiable(_bookTagRelations);
 
@@ -171,7 +199,8 @@ class DataStore extends ChangeNotifier {
   }
 
   bool isBookRepositoryCurrent(BookRepository repository) =>
-      repository is EditableBookRepository ? repository.isCurrent : identical(_bookRepository, repository);
+      !_disposed &&
+      (repository is EditableBookRepository ? repository.isCurrent : identical(_bookRepository, repository));
 
   void addBook(Book book) {
     final repository = requireBookRepository();
@@ -198,11 +227,7 @@ class DataStore extends ChangeNotifier {
     final previous = _books[book.id];
     _books[book.id] = book;
     notifyListeners();
-    _reportWrite(
-      repository is EditableBookRepository && previous != null
-          ? repository.update(book, previous: previous)
-          : repository.upsert(book),
-    );
+    _reportWrite(updateBookAndWait(book, previous: previous, repository: repository));
   }
 
   void _reportWrite(Future<void> operation) {
@@ -213,9 +238,20 @@ class DataStore extends ChangeNotifier {
     );
   }
 
-  Future<void> updateBookAndWait(Book book, {Book? previous, BookRepository? repository}) async {
+  Future<void> updateBookAndWait(
+    Book book, {
+    Book? previous,
+    BookRepository? repository,
+    String completionSource = 'manual',
+    String? completionDeviceId,
+  }) async {
     final target = repository ?? requireBookRepository();
     final baseline = previous ?? _books[book.id];
+    if (trackingRepository != null && isBookRepositoryCurrent(target)) {
+      final changes = completionChanges(book, baseline, source: completionSource, deviceId: completionDeviceId);
+      await commitTracking(book: book, previousBook: baseline, activities: changes);
+      return;
+    }
     if (target is EditableBookRepository && baseline != null) {
       await target.update(book, previous: baseline);
       final saved = await target.getById(book.id);
@@ -285,6 +321,7 @@ class DataStore extends ChangeNotifier {
   }
 
   void replaceBooksFromSync(List<Book> books) {
+    if (_disposed) return;
     final mergedBooks = books
         .map((book) {
           final localBook = _books[book.id];
@@ -306,7 +343,7 @@ class DataStore extends ChangeNotifier {
     _annotations.removeWhere((key, annotation) => !syncedIds.contains(annotation.bookId));
     _notes.removeWhere((key, note) => !syncedIds.contains(note.bookId));
     _bookmarks.removeWhere((key, bookmark) => !syncedIds.contains(bookmark.bookId));
-    _readingSessions.removeWhere((key, session) => !syncedIds.contains(session.bookId));
+
     _isLoaded = true;
     notifyListeners();
   }
@@ -579,26 +616,156 @@ class DataStore extends ChangeNotifier {
   ReadingGoal? getReadingGoal(String id) => _readingGoals[id];
 
   List<ReadingGoal> get activeGoals {
-    return _readingGoals.values.where((g) => g.isActive && !g.isArchived).toList();
+    return readingGoals.where((g) => g.isActive && !g.isArchived && g.endDate.isAfter(DateTime.now().toUtc())).toList();
   }
 
   List<ReadingGoal> get completedGoals {
-    return _readingGoals.values.where((g) => g.isArchived).toList();
+    return readingGoals.where((g) => g.isArchived).toList();
   }
 
-  void addReadingGoal(ReadingGoal goal) {
-    _readingGoals[goal.id] = goal;
+  Future<void> addReadingGoal(ReadingGoal goal) => commitTracking(goals: [goal]);
+  Future<void> updateReadingGoal(ReadingGoal goal) => commitTracking(goals: [goal]);
+  Future<void> deleteReadingGoal(String id) => commitTracking(deleteGoalId: id);
+
+  Future<void> commitTracking({
+    List<ReadingGoal> goals = const [],
+    List<ReadingActivity> activities = const [],
+    List<GoalPeriodRecord> periods = const [],
+    String? deleteGoalId,
+    Book? book,
+    Book? previousBook,
+    TrackingRepository? repository,
+  }) async {
+    final target = repository ?? trackingRepository;
+    final scope = requireBookRepository();
+    if (target != null) {
+      await target.commitTracking(
+        goals: goals,
+        activities: activities,
+        periods: periods,
+        deleteGoalId: deleteGoalId,
+        book: book,
+        previousBook: previousBook,
+      );
+      if (!target.isCurrent || !isBookRepositoryCurrent(scope)) return;
+    } else if (book != null) {
+      await scope.upsert(book);
+      if (!isBookRepositoryCurrent(scope)) return;
+    }
+    for (final goal in goals) {
+      _readingGoals[goal.id] = goal;
+    }
+    for (final activity in activities) {
+      _activities[activity.id] = activity;
+    }
+    for (final period in periods) {
+      _goalPeriods[period.id] = period;
+    }
+    if (deleteGoalId != null) _readingGoals.remove(deleteGoalId);
+    if (book != null) _books[book.id] = book;
     notifyListeners();
   }
 
-  void updateReadingGoal(ReadingGoal goal) {
-    _readingGoals[goal.id] = goal;
-    notifyListeners();
+  List<ReadingActivity> completionChanges(
+    Book book,
+    Book? previous, {
+    DateTime? at,
+    String source = 'manual',
+    String? deviceId,
+  }) {
+    final now = (at ?? DateTime.now()).toUtc();
+    if (previous?.readingStatus != LibraryReadingStatus.completed &&
+        book.readingStatus == LibraryReadingStatus.completed) {
+      return [
+        ReadingActivity(
+          id: const Uuid().v4(),
+          bookId: book.id,
+          bookTitle: book.title,
+          startTime: now,
+          endTime: now,
+          createdAt: DateTime.now().toUtc(),
+          kind: 'completion',
+          source: source,
+          deviceId: deviceId ?? ReadingDeviceIdentity.current,
+          shelfIds: getShelfIdsForBook(book.id),
+        ),
+      ];
+    }
+    if (previous?.readingStatus == LibraryReadingStatus.completed &&
+        book.readingStatus != LibraryReadingStatus.completed) {
+      return effectiveReadingActivities
+          .where((activity) => activity.bookId == book.id && activity.kind == 'completion')
+          .map((original) => reversalFor(original, at: now))
+          .toList();
+    }
+    return [];
   }
 
-  void deleteReadingGoal(String id) {
-    _readingGoals.remove(id);
-    notifyListeners();
+  ReadingActivity reversalFor(ReadingActivity original, {DateTime? at, String? note}) {
+    final now = (at ?? DateTime.now()).toUtc();
+    return ReadingActivity(
+      id: const Uuid().v4(),
+      bookId: original.bookId,
+      bookTitle: original.bookTitle,
+      startTime: now,
+      endTime: now,
+      createdAt: now,
+      kind: 'reversal',
+      deviceId: ReadingDeviceIdentity.current,
+      correctionOf: original.id,
+      shelfIds: original.shelfIds,
+      note: note,
+    );
+  }
+
+  GoalProgress activityTotals(DateTime start, DateTime end, {String? timezone, String? bookId}) => projectGoal(
+    ReadingGoal(
+      id: 'projection',
+      type: GoalType.minutes,
+      targetValue: 1,
+      period: GoalPeriod.custom,
+      startDate: start.toUtc(),
+      endDate: end.toUtc(),
+      createdAt: start.toUtc(),
+      timezone: timezone ?? GoalCalendar.systemTimezone,
+      isRecurring: false,
+      scope: bookId == null ? GoalScope.library : GoalScope.book,
+      scopeId: bookId,
+    ),
+    readingActivities,
+    end.toUtc(),
+  );
+
+  List<ReadingSession> _activitySessions() {
+    final groups = <String, List<ReadingActivity>>{};
+    for (final activity in effectiveReadingActivities.where((a) => a.kind == 'reading')) {
+      var day = DateTime(
+        activity.startTime.toLocal().year,
+        activity.startTime.toLocal().month,
+        activity.startTime.toLocal().day,
+      );
+      final last = activity.endTime.toLocal();
+      do {
+        groups.putIfAbsent('${activity.bookId}:${day.toIso8601String()}', () => []).add(activity);
+        day = DateTime(day.year, day.month, day.day + 1);
+      } while (day.isBefore(last));
+    }
+    return groups.entries.map((entry) {
+      final first = entry.value.first;
+      final day = DateTime.parse(entry.key.substring(first.bookId.length + 1));
+      final end = DateTime(day.year, day.month, day.day + 1);
+      final totals = activityTotals(day, end, bookId: first.bookId);
+      return ReadingSession(
+        id: entry.key,
+        bookId: first.bookId,
+        startTime: day,
+        endTime: end,
+        startPosition: 0,
+        pagesRead: totals.pages.floor(),
+        recordedSeconds: totals.seconds,
+        createdAt: first.createdAt,
+      );
+    }).toList();
   }
 
   // ============================================================
@@ -803,9 +970,19 @@ class DataStore extends ChangeNotifier {
     _bookmarks.clear();
     _readingSessions.clear();
     _readingGoals.clear();
+    _activities.clear();
+    _goalPeriods.clear();
     _bookShelfRelations.clear();
     _bookTagRelations.clear();
     _isLoaded = false;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    unawaited(_bookSubscription?.cancel());
+    unawaited(_librarySubscription?.cancel());
+    super.dispose();
   }
 }
