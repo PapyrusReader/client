@@ -30,7 +30,8 @@ Goal definitions capture an IANA timezone, creation time, scope, and rule histor
 Monday weeks and calendar days/months/years respect timezone transitions. Activity
 before creation or during a pause does not count. Target/title revisions affect
 the current and future periods; metric, cadence, scope, timezone, and reading-day
-threshold changes require a replacement goal. Recurring goals remain visible after
+threshold changes save as a replacement goal, atomically archiving the original
+definition with its history. The edit sheet previews this before saving. Recurring goals remain visible after
 achievement and advance at calendar boundaries. Archive and deletion preserve
 period history; activity retains book identity/title and shelf snapshots after
 book deletion.

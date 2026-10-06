@@ -67,6 +67,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
       _title.text = editing.title ?? '';
       _threshold.text = '${editing.minimumMinutes}';
       _zone.text = editing.timezone;
+      _deadline = GoalCalendar.local(editing.endDate.subtract(const Duration(microseconds: 1)), editing.timezone);
       _timezoneReady = true;
     } else if (widget.initialTimezone != null) {
       _zone.text = widget.initialTimezone!;
@@ -185,7 +186,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                     ),
                   ),
               ],
-              onChanged: editing || _saving
+              onChanged: _saving
                   ? null
                   : (value) => setState(() {
                       _type = value!;
@@ -221,7 +222,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                     ),
                   ),
               ],
-              onChanged: editing || _saving
+              onChanged: _saving
                   ? null
                   : (value) => setState(() {
                       _period = value!;
@@ -232,12 +233,12 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
               Padding(
                 padding: const EdgeInsets.only(top: Spacing.md),
                 child: OutlinedButton.icon(
-                  onPressed: editing || _saving
+                  onPressed: _saving
                       ? null
                       : () async {
                           final date = await showAppDatePicker(
                             context: context,
-                            initialDate: _deadline,
+                            initialDate: _deadline.isBefore(DateTime.now()) ? DateTime.now() : _deadline,
                             firstDate: DateTime.now(),
                             lastDate: DateTime.now().add(const Duration(days: 3650)),
                           );
@@ -252,7 +253,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                 contentPadding: EdgeInsets.zero,
                 title: const Text('Repeat each period'),
                 value: _recurring,
-                onChanged: editing || _saving ? null : (value) => setState(() => _recurring = value),
+                onChanged: _saving ? null : (value) => setState(() => _recurring = value),
               ),
             const SizedBox(height: Spacing.md),
             DropdownButtonFormField<GoalScope>(
@@ -273,7 +274,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                     ),
                   ),
               ],
-              onChanged: editing || _saving
+              onChanged: _saving
                   ? null
                   : (value) => setState(() {
                       _scope = value!;
@@ -296,14 +297,14 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                 ],
                 validator: (value) =>
                     value == null ? 'Choose ${_scope == GoalScope.book ? 'a book' : 'a shelf'}.' : null,
-                onChanged: editing || _saving ? null : (value) => setState(() => _scopeId = value),
+                onChanged: _saving ? null : (value) => setState(() => _scopeId = value),
               ),
             ],
             if (_type == GoalType.days) ...[
               const SizedBox(height: Spacing.md),
               TextFormField(
                 controller: _threshold,
-                enabled: !editing,
+                enabled: !_saving,
                 keyboardType: TextInputType.number,
                 decoration: const InputDecoration(
                   labelText: 'Minimum minutes per reading day',
@@ -313,16 +314,18 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                   final n = int.tryParse(value ?? '');
                   return n == null || n < 1 || n > 1440 ? 'Enter 1–1,440 minutes.' : null;
                 },
+                onChanged: (_) => setState(() {}),
               ),
             ],
             const SizedBox(height: Spacing.md),
             TextFormField(
               controller: _zone,
-              enabled: !editing,
+              enabled: !_saving,
               decoration: const InputDecoration(
                 labelText: 'Timezone',
                 helperText: 'Calendar periods follow this timezone on every device.',
               ),
+              onChanged: (_) => setState(() {}),
               validator: (value) {
                 try {
                   GoalCalendar.location(value ?? '');
@@ -333,11 +336,18 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
               },
             ),
             const SizedBox(height: Spacing.lg),
-            Text(preview.displayTitle, style: Theme.of(context).textTheme.titleMedium),
+            Text('Preview', style: Theme.of(context).textTheme.titleMedium),
+            const SizedBox(height: Spacing.sm),
+            Text(
+              '${preview.description}. ${_scope == GoalScope.library ? 'Across your library' : items[_scopeId] ?? 'Choose a book or shelf'}.',
+              style: Theme.of(context).textTheme.bodyLarge,
+            ),
             const SizedBox(height: Spacing.sm),
             Text(
               editing
-                  ? 'Past periods keep their original target. To change the measure, schedule, or scope, create a new goal.'
+                  ? (_replacementNeeded
+                        ? 'This change starts a replacement goal. The current goal is archived with its history; only new reading counts toward the replacement.'
+                        : 'Past periods keep their original target.')
                   : 'Only reading after this goal is created counts. Progress comes from the reader and your manual logs.',
               style: Theme.of(context).textTheme.bodyMedium,
             ),
@@ -360,10 +370,30 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
         saveLabel: _saving
             ? 'Saving…'
             : editing
-            ? 'Save'
+            ? (_replacementNeeded ? 'Replace goal' : 'Save')
             : 'Create goal',
       ),
     );
+  }
+
+  bool get _replacementNeeded {
+    final goal = widget.editing;
+    if (goal == null) return false;
+    final zone = _zone.text.trim();
+    final originalDeadline = GoalCalendar.local(goal.endDate.subtract(const Duration(microseconds: 1)), goal.timezone);
+    final deadlineChanged =
+        _period == GoalPeriod.custom &&
+        (_deadline.year != originalDeadline.year ||
+            _deadline.month != originalDeadline.month ||
+            _deadline.day != originalDeadline.day);
+    return _type != goal.type ||
+        _period != goal.period ||
+        _scope != goal.scope ||
+        _scopeId != goal.scopeId ||
+        _recurring != goal.isRecurring ||
+        zone != goal.timezone ||
+        int.tryParse(_threshold.text) != goal.minimumMinutes ||
+        deadlineChanged;
   }
 
   Future<void> _save() async {
@@ -373,7 +403,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
       _error = null;
     });
     try {
-      if (widget.editing != null) {
+      if (widget.editing != null && !_replacementNeeded) {
         await widget.provider.updateGoal(
           goalId: widget.editing!.id,
           target: int.parse(_target.text),
@@ -382,6 +412,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
         );
       } else {
         await widget.provider.createGoal(
+          replaceGoalId: widget.editing?.id,
           type: _type,
           target: int.parse(_target.text),
           period: _period,
