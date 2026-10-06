@@ -30,7 +30,11 @@ class GoalsProvider extends ChangeNotifier {
     _store = dataStore;
     dataStore.addListener(_changed);
     if (watchClock) _clock ??= Timer.periodic(const Duration(minutes: 1), (_) => _changed());
-    _changed();
+    // Attaching from a page's dependency update must not persist periods and
+    // notify the DataStore's listeners while that page is still building.
+    scheduleMicrotask(() {
+      if (identical(_store, dataStore)) _changed();
+    });
   }
 
   void _changed() {
@@ -344,6 +348,7 @@ class GoalsProvider extends ChangeNotifier {
   void dispose() {
     _clock?.cancel();
     _store?.removeListener(_changed);
+    _store = null;
     super.dispose();
   }
 }

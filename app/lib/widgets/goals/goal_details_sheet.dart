@@ -1,17 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:papyrus/data/repositories/tracking_repository.dart';
-import 'package:papyrus/goals/goal_progress.dart';
 import 'package:papyrus/goals/goal_calendar.dart';
-import 'package:papyrus/models/reading_goal.dart';
+import 'package:papyrus/goals/goal_progress.dart';
 import 'package:papyrus/models/reading_activity.dart';
+import 'package:papyrus/models/reading_goal.dart';
 import 'package:papyrus/providers/goals_provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:papyrus/widgets/goals/add_goal_sheet.dart';
 import 'package:papyrus/widgets/goals/goal_card.dart';
+import 'package:papyrus/widgets/goals/goal_controls.dart';
 import 'package:papyrus/widgets/goals/log_reading_sheet.dart';
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 
 class GoalDetailsSheet extends StatefulWidget {
   const GoalDetailsSheet({super.key, required this.goal, required this.provider, this.historical});
@@ -55,87 +56,104 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
               period: history.range,
             );
       final periods = widget.provider.history.where((period) => period.goal.id == goal.id).toList();
-      return AppBottomSheet(
-        title: 'Goal details',
-        canClose: !_saving,
-        onClose: () => Navigator.pop(context),
-        body: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            GoalCard(goal: goal, progress: progress),
-            const SizedBox(height: Spacing.lg),
-            Text('Calendar timezone: ${goal.timezone}', style: Theme.of(context).textTheme.bodySmall),
-            if (widget.historical == null && !goal.isArchived) ...[
-              const SizedBox(height: Spacing.md),
-              Wrap(
-                spacing: Spacing.sm,
-                runSpacing: Spacing.sm,
+      return GoalControls(
+        child: AppBottomSheet(
+          title: 'Goal details',
+          canClose: !_saving,
+          onClose: () => Navigator.pop(context),
+          body: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              GoalCard(goal: goal, progress: progress, showReadingDays: true),
+              const SizedBox(height: Spacing.lg),
+              if (widget.historical == null && !goal.isArchived) ...[
+                const SizedBox(height: Spacing.md),
+                Wrap(
+                  spacing: Spacing.sm,
+                  runSpacing: Spacing.sm,
+                  children: [
+                    OutlinedButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () => AddGoalSheet.show(context, provider: widget.provider, editing: goal),
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Edit goal'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () => _action(
+                              () => widget.provider.pauseGoal(goal.id, goal.isActive, repository: _repository),
+                            ),
+                      icon: Icon(goal.isActive ? Icons.pause : Icons.play_arrow),
+                      label: Text(goal.isActive ? 'Pause goal' : 'Resume goal'),
+                    ),
+                    OutlinedButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () => _action(() => widget.provider.archiveGoal(goal.id, repository: _repository)),
+                      icon: const Icon(Icons.archive_outlined),
+                      label: const Text('Archive goal'),
+                    ),
+                  ],
+                ),
+              ],
+              if (goal.isArchived && widget.provider.store.getReadingGoal(goal.id) != null)
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TextButton.icon(
+                    onPressed: _saving
+                        ? null
+                        : () => _action(() => widget.provider.restoreGoal(goal.id, repository: _repository)),
+                    icon: const Icon(Icons.unarchive_outlined),
+                    label: const Text('Restore goal'),
+                  ),
+                ),
+              const SizedBox(height: Spacing.lg),
+              Text('Counted activity', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: Spacing.sm),
+              if (progress.activities.isEmpty)
+                const Text('No qualifying reading in this period yet.')
+              else
+                ReadingActivityList(activities: groupReadingActivities(progress.activities), provider: widget.provider),
+              if (periods.isNotEmpty && widget.historical == null) ...[
+                const SizedBox(height: Spacing.lg),
+                Text('Previous periods', style: Theme.of(context).textTheme.titleMedium),
+                for (final period in periods)
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Icon(period.reached ? Icons.check_circle_outline : Icons.event_outlined),
+                    title: Text(
+                      '${DateFormat.yMMMd().format(GoalCalendar.local(period.range.start, goal.timezone))} – ${DateFormat.yMMMd().format(GoalCalendar.local(period.range.end.subtract(const Duration(microseconds: 1)), goal.timezone))}',
+                    ),
+                    subtitle: Text('${goalCount(period)} · ${period.reached ? 'Achieved' : 'Missed'}'),
+                    onTap: () => GoalDetailsSheet.show(
+                      context,
+                      goal: period.goal,
+                      provider: widget.provider,
+                      historical: period,
+                    ),
+                  ),
+              ],
+              ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: const Text('Calendar settings'),
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: _saving
-                        ? null
-                        : () => AddGoalSheet.show(context, provider: widget.provider, editing: goal),
-                    icon: const Icon(Icons.edit_outlined),
-                    label: const Text('Edit target'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _saving
-                        ? null
-                        : () =>
-                              _action(() => widget.provider.pauseGoal(goal.id, goal.isActive, repository: _repository)),
-                    icon: Icon(goal.isActive ? Icons.pause : Icons.play_arrow),
-                    label: Text(goal.isActive ? 'Pause goal' : 'Resume goal'),
-                  ),
-                  OutlinedButton.icon(
-                    onPressed: _saving
-                        ? null
-                        : () => _action(() => widget.provider.archiveGoal(goal.id, repository: _repository)),
-                    icon: const Icon(Icons.archive_outlined),
-                    label: const Text('Archive goal'),
+                  Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: Text('Timezone: ${goal.timezone}', style: Theme.of(context).textTheme.bodySmall),
                   ),
                 ],
               ),
+              if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
-            if (goal.isArchived && widget.provider.store.getReadingGoal(goal.id) != null)
-              TextButton.icon(
-                onPressed: _saving
-                    ? null
-                    : () => _action(() => widget.provider.restoreGoal(goal.id, repository: _repository)),
-                icon: const Icon(Icons.unarchive_outlined),
-                label: const Text('Restore goal'),
-              ),
-            const SizedBox(height: Spacing.lg),
-            Text('Counted activity', style: Theme.of(context).textTheme.titleMedium),
-            const SizedBox(height: Spacing.sm),
-            if (progress.activities.isEmpty)
-              const Text('No qualifying reading in this period yet.')
-            else
-              ...groupReadingActivities(
-                progress.activities,
-              ).map((activity) => ReadingActivityTile(activity: activity, provider: widget.provider)),
-            if (periods.isNotEmpty && widget.historical == null) ...[
-              const SizedBox(height: Spacing.lg),
-              Text('Previous periods', style: Theme.of(context).textTheme.titleMedium),
-              for (final period in periods)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(period.reached ? Icons.check_circle_outline : Icons.event_outlined),
-                  title: Text(
-                    '${DateFormat.yMMMd().format(GoalCalendar.local(period.range.start, goal.timezone))} – ${DateFormat.yMMMd().format(GoalCalendar.local(period.range.end.subtract(const Duration(microseconds: 1)), goal.timezone))}',
-                  ),
-                  subtitle: Text('${goalCount(period)} · ${period.reached ? 'Achieved' : 'Missed'}'),
-                  onTap: () =>
-                      GoalDetailsSheet.show(context, goal: period.goal, provider: widget.provider, historical: period),
-                ),
-            ],
-            if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ],
-        ),
-        footer: BottomSheetFormActions(
-          onCancel: _saving || widget.provider.store.getReadingGoal(goal.id) == null ? null : _delete,
-          cancelLabel: 'Delete goal',
-          onSave: _saving ? null : () => Navigator.pop(context),
-          saveLabel: 'Done',
+          ),
+          footer: BottomSheetFormActions(
+            onCancel: _saving || widget.provider.store.getReadingGoal(goal.id) == null ? null : _delete,
+            cancelLabel: 'Delete goal',
+            onSave: _saving ? null : () => Navigator.pop(context),
+            saveLabel: 'Done',
+          ),
         ),
       );
     },

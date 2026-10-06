@@ -30,7 +30,8 @@ void main() {
     'topic assignment': (context) => ManageTopicsSheet.show(context, book: book),
     'shelf form': (context) => AddShelfSheet.show(context),
     'topic form': (context) => AddTopicSheet.show(context),
-    'goal form': (context) => AddGoalSheet.show(context, provider: goalProvider(context), initialTimezone: 'UTC'),
+    'goal form': (context) =>
+        AddGoalSheet.show(context, provider: goalProvider(context), preset: 0, initialTimezone: 'UTC'),
     'bookmark form': (context) => BookmarkDialog.show(context, bookId: book.id),
     'annotation form': (context) => AnnotationDialog.show(context, bookId: book.id),
     'note form': (context) => NoteDialog.show(context, bookId: book.id),

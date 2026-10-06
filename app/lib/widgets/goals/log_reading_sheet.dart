@@ -6,6 +6,7 @@ import 'package:papyrus/models/reading_activity.dart';
 import 'package:papyrus/providers/goals_provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/goals/goal_controls.dart';
 import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:papyrus/widgets/shared/app_date_picker.dart';
 
@@ -75,127 +76,147 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
   @override
   Widget build(BuildContext context) {
     final books = widget.provider.store.books;
-    return AppBottomSheet(
-      title: widget.correcting == null ? 'Log reading' : 'Correct reading entry',
-      canClose: !_saving,
-      onClose: () => Navigator.pop(context),
-      body: Form(
-        key: _form,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            DropdownButtonFormField<String>(
-              initialValue: books.any((book) => book.id == _bookId) ? _bookId : null,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Book'),
-              items: [
-                for (final book in books)
-                  DropdownMenuItem(
-                    value: book.id,
-                    child: Text(book.title, overflow: TextOverflow.ellipsis),
+    return GoalControls(
+      child: AppBottomSheet(
+        title: widget.correcting == null ? 'Log reading' : 'Correct reading entry',
+        canClose: !_saving,
+        onClose: () => Navigator.pop(context),
+        body: Form(
+          key: _form,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              DropdownButtonFormField<String>(
+                initialValue: books.any((book) => book.id == _bookId) ? _bookId : null,
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Book'),
+                items: [
+                  for (final book in books)
+                    DropdownMenuItem(
+                      value: book.id,
+                      child: Text(book.title, overflow: TextOverflow.ellipsis),
+                    ),
+                ],
+                validator: (value) => value == null ? 'Choose a book.' : null,
+                onChanged: _saving || widget.correcting != null ? null : (value) => setState(() => _bookId = value),
+              ),
+              if (books.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.only(top: Spacing.sm),
+                  child: Text('Add a digital or physical book to your library before logging reading.'),
+                ),
+              const SizedBox(height: Spacing.lg),
+              Text('Session ends at', style: Theme.of(context).textTheme.bodySmall),
+              const SizedBox(height: Spacing.sm),
+              Wrap(
+                spacing: Spacing.md,
+                runSpacing: Spacing.sm,
+                children: [
+                  OutlinedButton.icon(
+                    onPressed: _saving
+                        ? null
+                        : () async {
+                            final date = await showAppDatePicker(
+                              context: context,
+                              initialDate: _end,
+                              firstDate: DateTime(1900),
+                              lastDate: DateTime.now(),
+                            );
+                            if (date != null && mounted) {
+                              setState(() => _end = DateTime(date.year, date.month, date.day, _end.hour, _end.minute));
+                            }
+                          },
+                    icon: const Icon(Icons.event_outlined),
+                    label: Text(DateFormat.yMMMd().format(_end)),
                   ),
-              ],
-              validator: (value) => value == null ? 'Choose a book.' : null,
-              onChanged: _saving || widget.correcting != null ? null : (value) => setState(() => _bookId = value),
-            ),
-            if (books.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: Spacing.sm),
-                child: Text('Add a digital or physical book to your library before logging reading.'),
+                  OutlinedButton.icon(
+                    onPressed: _saving
+                        ? null
+                        : () async {
+                            final time = await showDialog<TimeOfDay>(
+                              context: context,
+                              animationStyle: AppMotion.animationStyle(context),
+                              builder: (_) => TimePickerDialog(initialTime: TimeOfDay.fromDateTime(_end)),
+                            );
+                            if (time != null && mounted) {
+                              setState(() => _end = DateTime(_end.year, _end.month, _end.day, time.hour, time.minute));
+                            }
+                          },
+                    icon: const Icon(Icons.schedule),
+                    label: Text(DateFormat.Hm().format(_end)),
+                  ),
+                ],
               ),
-            const SizedBox(height: Spacing.lg),
-            Wrap(
-              spacing: Spacing.md,
-              runSpacing: Spacing.sm,
-              children: [
-                OutlinedButton.icon(
-                  onPressed: _saving
-                      ? null
-                      : () async {
-                          final date = await showAppDatePicker(
-                            context: context,
-                            initialDate: _end,
-                            firstDate: DateTime(1900),
-                            lastDate: DateTime.now(),
-                          );
-                          if (date != null && mounted) {
-                            setState(() => _end = DateTime(date.year, date.month, date.day, _end.hour, _end.minute));
-                          }
-                        },
-                  icon: const Icon(Icons.event_outlined),
-                  label: Text(DateFormat.yMMMd().format(_end)),
+              const SizedBox(height: Spacing.lg),
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final enlarged = MediaQuery.textScalerOf(context).scale(16) > 24;
+                  final width = enlarged
+                      ? constraints.maxWidth
+                      : ((constraints.maxWidth - Spacing.md) / 2).clamp(0, 220).toDouble();
+                  return Wrap(
+                    spacing: Spacing.md,
+                    runSpacing: Spacing.md,
+                    children: [
+                      SizedBox(
+                        width: width,
+                        child: TextFormField(
+                          controller: _minutes,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Minutes read'),
+                          validator: _nonNegative,
+                        ),
+                      ),
+                      SizedBox(
+                        width: width,
+                        child: TextFormField(
+                          controller: _pages,
+                          keyboardType: TextInputType.number,
+                          decoration: const InputDecoration(labelText: 'Pages read'),
+                          validator: _nonNegative,
+                        ),
+                      ),
+                    ],
+                  );
+                },
+              ),
+              const SizedBox(height: Spacing.md),
+              CheckboxListTile(
+                contentPadding: EdgeInsets.zero,
+                controlAffinity: ListTileControlAffinity.leading,
+                title: const Text('I finished this book'),
+                value: _finished,
+                onChanged: _saving ? null : (value) => setState(() => _finished = value!),
+              ),
+              const SizedBox(height: Spacing.md),
+              TextFormField(
+                controller: _note,
+                maxLength: 10000,
+                maxLines: 3,
+                decoration: const InputDecoration(labelText: 'Note (optional)'),
+              ),
+              const SizedBox(height: Spacing.md),
+              const Text(
+                'Manual entries count toward matching goals. Reading before a goal was created stays in your history but does not count toward that goal.',
+              ),
+              if (widget.correcting != null)
+                const Padding(
+                  padding: EdgeInsets.only(top: Spacing.md),
+                  child: Text('The original entry is retained as corrected in your activity history.'),
                 ),
-                OutlinedButton.icon(
-                  onPressed: _saving
-                      ? null
-                      : () async {
-                          final time = await showDialog<TimeOfDay>(
-                            context: context,
-                            animationStyle: AppMotion.animationStyle(context),
-                            builder: (_) => TimePickerDialog(initialTime: TimeOfDay.fromDateTime(_end)),
-                          );
-                          if (time != null && mounted) {
-                            setState(() => _end = DateTime(_end.year, _end.month, _end.day, time.hour, time.minute));
-                          }
-                        },
-                  icon: const Icon(Icons.schedule),
-                  label: Text(DateFormat.Hm().format(_end)),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: Spacing.md),
+                  child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 ),
-              ],
-            ),
-            const SizedBox(height: Spacing.lg),
-            TextFormField(
-              controller: _minutes,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(
-                labelText: 'Minutes read',
-                helperText: 'The session ends at the time above.',
-              ),
-              validator: _nonNegative,
-            ),
-            const SizedBox(height: Spacing.md),
-            TextFormField(
-              controller: _pages,
-              keyboardType: TextInputType.number,
-              decoration: const InputDecoration(labelText: 'Pages read'),
-              validator: _nonNegative,
-            ),
-            const SizedBox(height: Spacing.md),
-            CheckboxListTile(
-              contentPadding: EdgeInsets.zero,
-              controlAffinity: ListTileControlAffinity.leading,
-              title: const Text('I finished this book'),
-              value: _finished,
-              onChanged: _saving ? null : (value) => setState(() => _finished = value!),
-            ),
-            const SizedBox(height: Spacing.md),
-            TextFormField(
-              controller: _note,
-              maxLength: 10000,
-              maxLines: 3,
-              decoration: const InputDecoration(labelText: 'Note (optional)'),
-            ),
-            const SizedBox(height: Spacing.md),
-            const Text(
-              'Manual entries count toward matching goals. Reading before a goal was created stays in your history but does not count toward that goal.',
-            ),
-            if (widget.correcting != null)
-              const Padding(
-                padding: EdgeInsets.only(top: Spacing.md),
-                child: Text('The original entry is retained as corrected in your activity history.'),
-              ),
-            if (_error != null)
-              Padding(
-                padding: const EdgeInsets.only(top: Spacing.md),
-                child: Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-              ),
-          ],
+            ],
+          ),
         ),
-      ),
-      footer: BottomSheetFormActions(
-        onCancel: _saving ? null : () => Navigator.pop(context),
-        onSave: _saving || books.isEmpty ? null : _save,
-        saveLabel: _saving ? 'Saving…' : 'Save reading',
+        footer: BottomSheetFormActions(
+          onCancel: _saving ? null : () => Navigator.pop(context),
+          onSave: _saving || books.isEmpty ? null : _save,
+          saveLabel: _saving ? 'Saving…' : 'Save reading',
+        ),
       ),
     );
   }
@@ -234,11 +255,77 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
   }
 }
 
+/// Book titles and dates belong to groups; individual entries retain their audit actions.
+class ReadingActivityList extends StatelessWidget {
+  const ReadingActivityList({
+    super.key,
+    required this.activities,
+    required this.provider,
+    this.correctedIds = const {},
+  });
+  final List<ReadingActivity> activities;
+  final GoalsProvider provider;
+  final Set<String> correctedIds;
+  @override
+  Widget build(BuildContext context) {
+    final entries = [...activities]..sort((a, b) => b.endTime.compareTo(a.endTime));
+    final groups = <String, List<ReadingActivity>>{};
+    for (final entry in entries) {
+      final day = DateFormat('yyyy-MM-dd').format(entry.endTime.toLocal());
+      groups.putIfAbsent('${entry.bookId}:$day', () => []).add(entry);
+    }
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (final group in groups.values) ...[
+          Padding(
+            padding: const EdgeInsets.only(top: Spacing.md, bottom: Spacing.xs),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Tooltip(
+                  message: group.first.bookTitle,
+                  child: Text(
+                    group.first.bookTitle,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                ),
+                Text(
+                  DateFormat.yMMMd().format(group.first.endTime.toLocal()),
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ],
+            ),
+          ),
+          for (final activity in group)
+            ReadingActivityTile(
+              activity: activity,
+              provider: provider,
+              corrected: correctedIds.contains(activity.id),
+              showBookTitle: false,
+            ),
+        ],
+      ],
+    );
+  }
+}
+
 class ReadingActivityTile extends StatelessWidget {
-  const ReadingActivityTile({super.key, required this.activity, required this.provider, this.corrected = false});
+  const ReadingActivityTile({
+    super.key,
+    required this.activity,
+    required this.provider,
+    this.corrected = false,
+    this.showBookTitle = true,
+  });
   final ReadingActivity activity;
   final GoalsProvider provider;
   final bool corrected;
+  final bool showBookTitle;
   @override
   Widget build(BuildContext context) {
     final label = activity.kind == 'completion'
@@ -260,11 +347,23 @@ class ReadingActivityTile extends StatelessWidget {
             ? Icons.auto_stories_outlined
             : Icons.edit_outlined,
       ),
-      title: Text(activity.bookTitle),
-      subtitle: Text(
-        '$label · ${activity.source == 'reader' ? 'Reader' : 'Manual'}${corrected ? ' · Corrected' : ''}\n${DateFormat.yMMMd().add_Hm().format(activity.startTime.toLocal())}',
+      dense: !showBookTitle,
+      title: Text(
+        showBookTitle
+            ? activity.bookTitle
+            : '$label · ${activity.source == 'reader' ? 'Reader' : 'Manual'}${corrected ? ' · Corrected' : ''}',
+        maxLines: showBookTitle ? 2 : null,
+        overflow: showBookTitle ? TextOverflow.ellipsis : null,
       ),
-      isThreeLine: true,
+      subtitle: showBookTitle
+          ? Text(
+              '$label · ${activity.source == 'reader' ? 'Reader' : 'Manual'}${corrected ? ' · Corrected' : ''}\n${DateFormat.yMMMd().add_Hm().format(activity.startTime.toLocal())}',
+            )
+          : null,
+      trailing: showBookTitle
+          ? null
+          : Text(DateFormat.Hm().format(activity.startTime.toLocal()), style: Theme.of(context).textTheme.bodySmall),
+      isThreeLine: showBookTitle,
       onTap: () => _details(context),
     );
   }
@@ -297,76 +396,78 @@ class _ActivityDetailsState extends State<_ActivityDetails> {
   Widget build(BuildContext context) {
     final activity = widget.activity;
     final book = widget.provider.store.getBook(activity.bookId);
-    return AppBottomSheet(
-      title: 'Reading activity',
-      canClose: !_saving,
-      onClose: () => Navigator.pop(context),
-      body: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Text(activity.bookTitle, style: Theme.of(context).textTheme.titleLarge),
-          const SizedBox(height: Spacing.md),
-          Text(
-            '${activity.source == 'reader' ? 'Recorded by the reader' : 'Logged manually'} · ${DateFormat.yMMMd().add_Hm().format(activity.startTime.toLocal())}',
-          ),
-          const SizedBox(height: Spacing.md),
-          if (activity.kind == 'reading')
+    return GoalControls(
+      child: AppBottomSheet(
+        title: 'Reading activity',
+        canClose: !_saving,
+        onClose: () => Navigator.pop(context),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(activity.bookTitle, style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: Spacing.md),
             Text(
-              '${activity.seconds ~/ 60} minutes · ${activity.pages > 0
-                  ? '${activity.pages} manual pages'
-                  : activity.isEstimated
-                  ? 'Estimated EPUB coverage'
-                  : activity.coverage.isEmpty
-                  ? 'No pages logged'
-                  : 'PDF coverage'}',
+              '${activity.source == 'reader' ? 'Recorded by the reader' : 'Logged manually'} · ${DateFormat.yMMMd().add_Hm().format(activity.startTime.toLocal())}',
             ),
-          if (activity.kind == 'completion') const Text('Explicitly marked as finished.'),
-          if (activity.note != null)
-            Padding(
-              padding: const EdgeInsets.only(top: Spacing.md),
-              child: Text(activity.note!),
-            ),
-          if (widget.corrected)
-            const Padding(
-              padding: EdgeInsets.only(top: Spacing.md),
-              child: Text('This entry was corrected and no longer contributes.'),
-            ),
-          if (book == null)
-            const Padding(
-              padding: EdgeInsets.only(top: Spacing.md),
-              child: Text('The book was removed. Its activity history is retained.'),
-            ),
-          if (!widget.corrected && activity.source == 'manual' && book != null)
-            Padding(
-              padding: const EdgeInsets.only(top: Spacing.md),
-              child: OutlinedButton.icon(
-                onPressed: _saving
-                    ? null
-                    : () {
-                        final parent = Navigator.of(context, rootNavigator: true).context;
-                        Navigator.pop(context);
-                        LogReadingSheet.show(parent, provider: widget.provider, book: book, correcting: activity);
-                      },
-                icon: const Icon(Icons.edit_outlined),
-                label: const Text('Correct entry'),
+            const SizedBox(height: Spacing.md),
+            if (activity.kind == 'reading')
+              Text(
+                '${activity.seconds ~/ 60} minutes · ${activity.pages > 0
+                    ? '${activity.pages} manual pages'
+                    : activity.isEstimated
+                    ? 'Estimated EPUB coverage'
+                    : activity.coverage.isEmpty
+                    ? 'No pages logged'
+                    : 'PDF coverage'}',
               ),
-            ),
-          if (!widget.corrected)
-            Padding(
-              padding: const EdgeInsets.only(top: Spacing.md),
-              child: OutlinedButton.icon(
-                onPressed: _saving ? null : _undo,
-                icon: const Icon(Icons.undo),
-                label: const Text('Undo this entry'),
+            if (activity.kind == 'completion') const Text('Explicitly marked as finished.'),
+            if (activity.note != null)
+              Padding(
+                padding: const EdgeInsets.only(top: Spacing.md),
+                child: Text(activity.note!),
               ),
-            ),
-          if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-        ],
-      ),
-      footer: BottomSheetFormActions(
-        onCancel: null,
-        onSave: _saving ? null : () => Navigator.pop(context),
-        saveLabel: 'Done',
+            if (widget.corrected)
+              const Padding(
+                padding: EdgeInsets.only(top: Spacing.md),
+                child: Text('This entry was corrected and no longer contributes.'),
+              ),
+            if (book == null)
+              const Padding(
+                padding: EdgeInsets.only(top: Spacing.md),
+                child: Text('The book was removed. Its activity history is retained.'),
+              ),
+            if (!widget.corrected && activity.source == 'manual' && book != null)
+              Padding(
+                padding: const EdgeInsets.only(top: Spacing.md),
+                child: OutlinedButton.icon(
+                  onPressed: _saving
+                      ? null
+                      : () {
+                          final parent = Navigator.of(context, rootNavigator: true).context;
+                          Navigator.pop(context);
+                          LogReadingSheet.show(parent, provider: widget.provider, book: book, correcting: activity);
+                        },
+                  icon: const Icon(Icons.edit_outlined),
+                  label: const Text('Correct entry'),
+                ),
+              ),
+            if (!widget.corrected)
+              Padding(
+                padding: const EdgeInsets.only(top: Spacing.md),
+                child: OutlinedButton.icon(
+                  onPressed: _saving ? null : _undo,
+                  icon: const Icon(Icons.undo),
+                  label: const Text('Undo this entry'),
+                ),
+              ),
+            if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+          ],
+        ),
+        footer: BottomSheetFormActions(
+          onCancel: null,
+          onSave: _saving ? null : () => Navigator.pop(context),
+          saveLabel: 'Done',
+        ),
       ),
     );
   }
