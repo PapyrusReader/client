@@ -119,6 +119,7 @@ class GoalsProvider extends ChangeNotifier {
     String? title,
     GoalScope scope = GoalScope.library,
     String? scopeId,
+    List<String> bookIds = const [],
     int minimumMinutes = 5,
     String? timezone,
     String? replaceGoalId,
@@ -128,7 +129,16 @@ class GoalsProvider extends ChangeNotifier {
     final replacing = replaceGoalId == null ? null : store.getReadingGoal(replaceGoalId);
     if (replaceGoalId != null && replacing == null) throw StateError('This goal no longer exists.');
     if (target < 1 || minimumMinutes < 1 || minimumMinutes > 1440) throw ArgumentError('Targets must be positive.');
-    if (scope != GoalScope.library && scopeId == null) throw ArgumentError('Choose a book or shelf.');
+    final selected = bookIds.toSet().toList()..sort();
+    if (selected.length > 1000) throw ArgumentError('Choose up to 1,000 books.');
+    if (scope == GoalScope.book && selected.isEmpty && scopeId != null) selected.add(scopeId);
+    if (scope == GoalScope.book && selected.isEmpty || scope == GoalScope.shelf && scopeId == null) {
+      throw ArgumentError('Choose books or a shelf.');
+    }
+    if (scope != GoalScope.book && selected.isNotEmpty) throw ArgumentError('Book selection requires a book scope.');
+    if (scope == GoalScope.book && type == GoalType.books && target > selected.length) {
+      throw ArgumentError('Target cannot exceed the number of selected books.');
+    }
     final zone = timezone ?? await GoalCalendar.deviceTimezone();
     final created = now;
     final range = period == GoalPeriod.custom
@@ -146,7 +156,8 @@ class GoalsProvider extends ChangeNotifier {
       title: title?.trim().isEmpty == true ? null : title,
       timezone: zone,
       scope: scope,
-      scopeId: scopeId,
+      scopeId: scope == GoalScope.book ? selected.first : scopeId,
+      bookIds: selected.length > 1 ? List.unmodifiable(selected) : const [],
       minimumMinutes: minimumMinutes,
       isRecurring: period != GoalPeriod.custom && isRecurring,
       rules: [GoalRule(at: created, target: target, title: title?.trim().isEmpty == true ? null : title)],
@@ -176,6 +187,7 @@ class GoalsProvider extends ChangeNotifier {
         title: title ?? goal.title,
         scope: goal.scope,
         scopeId: goal.scopeId,
+        bookIds: goal.bookIds,
         minimumMinutes: goal.minimumMinutes,
         timezone: goal.timezone,
         replaceGoalId: goalId,
@@ -184,6 +196,12 @@ class GoalsProvider extends ChangeNotifier {
       return;
     }
     if (target != null && target < 1) throw ArgumentError('Target must be positive.');
+    if (target != null &&
+        goal.type == GoalType.books &&
+        goal.scope == GoalScope.book &&
+        target > goal.selectedBookIds.length) {
+      throw ArgumentError('Target cannot exceed the number of selected books.');
+    }
     await _revise(goal, target: target, title: title, repository: repository);
   }
 

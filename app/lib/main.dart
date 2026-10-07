@@ -231,6 +231,7 @@ class _PapyrusState extends State<Papyrus> {
       },
       connectorFactory: () => PapyrusPowerSyncConnector(
         supportsTracking: () => _powerSyncService.supportsTracking,
+        trackingSchemaVersion: () => _powerSyncService.trackingSchemaVersion,
         authRepository: _authRepository,
         config: _syncSettingsProvider.activeApiConfig,
         onUploadComplete: () async {

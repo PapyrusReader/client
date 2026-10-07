@@ -141,6 +141,7 @@ class BottomSheetFormActions extends StatelessWidget {
     this.saveLabel = 'Save',
     this.cancelLabel = 'Cancel',
     this.saveButtonKey,
+    this.equalWidths = false,
   });
 
   final VoidCallback? onCancel;
@@ -148,9 +149,11 @@ class BottomSheetFormActions extends StatelessWidget {
   final String saveLabel;
   final String cancelLabel;
   final Key? saveButtonKey;
+  final bool equalWidths;
 
   @override
   Widget build(BuildContext context) => BottomSheetActions(
+    equalWidths: equalWidths,
     secondary: OutlinedButton(onPressed: onCancel, child: Text(cancelLabel)),
     primary: FilledButton(key: saveButtonKey, onPressed: onSave, child: Text(saveLabel)),
   );

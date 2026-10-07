@@ -3,10 +3,13 @@ import 'package:papyrus/themes/design_tokens.dart';
 
 /// Matching sheet actions arranged in a single row on every screen size.
 class BottomSheetActions extends StatelessWidget {
-  const BottomSheetActions({super.key, required this.primary, this.secondary});
+  const BottomSheetActions({super.key, required this.primary, this.secondary, this.equalWidths = false});
 
   final Widget primary;
   final Widget? secondary;
+
+  /// Give longer secondary labels room on compact screens.
+  final bool equalWidths;
 
   @override
   Widget build(BuildContext context) {
@@ -39,7 +42,10 @@ class BottomSheetActions extends StatelessWidget {
               if (compact) Expanded(child: secondary!) else secondary!,
               SizedBox(width: compact ? Spacing.sm : Spacing.md),
             ],
-            if (compact) Expanded(flex: secondary == null || enlargedText ? 1 : 2, child: primary) else primary,
+            if (compact)
+              Expanded(flex: secondary == null || enlargedText || equalWidths ? 1 : 2, child: primary)
+            else
+              primary,
           ],
         ),
       ),

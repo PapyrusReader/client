@@ -119,7 +119,8 @@ class ReadingActivityTimeline extends StatelessWidget {
       ...groupReadingActivities(entries.where((entry) => correctedIds.contains(entry.id))),
     ];
     return ExpansionTile(
-      key: ValueKey('activity-book-${entries.first.bookId}-${day.toIso8601String()}'),
+      // Expansion state must not share the enclosing list's saved scroll offset.
+      key: PageStorageKey('activity-book-${entries.first.bookId}-${day.toIso8601String()}'),
       tilePadding: const EdgeInsets.all(Spacing.md),
       childrenPadding: const EdgeInsets.symmetric(horizontal: Spacing.md),
       shape: const Border(),

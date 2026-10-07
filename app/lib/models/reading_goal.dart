@@ -64,6 +64,7 @@ class ReadingGoal {
   final String timezone;
   final GoalScope scope;
   final String? scopeId;
+  final List<String> bookIds;
   final int minimumMinutes;
   final List<GoalRule> rules;
   final bool isActive;
@@ -86,6 +87,7 @@ class ReadingGoal {
     this.timezone = 'UTC',
     this.scope = GoalScope.library,
     this.scopeId,
+    this.bookIds = const [],
     this.minimumMinutes = 5,
     this.rules = const [],
     this.isActive = true,
@@ -95,17 +97,23 @@ class ReadingGoal {
     this.completedAt,
     this.estimatedPages = false,
   }) : createdAt = createdAt ?? startDate;
+  List<String> get selectedBookIds => scope != GoalScope.book
+      ? const []
+      : bookIds.isNotEmpty
+      ? bookIds
+      : [?scopeId];
   int get target => targetValue;
   int get current => currentValue;
   double get progress => targetValue == 0 ? 0 : (currentValue / targetValue).clamp(0.0, 1.0);
   int get remaining => (targetValue - currentValue).clamp(0, targetValue);
   bool get isCompleted => currentValue >= targetValue;
   String get progressLabel => '${(progress * 100).round()}%';
-  String get typeLabel => switch (type) {
-    GoalType.books => 'books',
-    GoalType.pages => 'pages',
-    GoalType.minutes => 'minutes',
-    GoalType.days => 'days',
+  String get typeLabel => unitLabel(2);
+  String unitLabel(int quantity) => switch (type) {
+    GoalType.books => quantity == 1 ? 'book' : 'books',
+    GoalType.pages => quantity == 1 ? 'page' : 'pages',
+    GoalType.minutes => quantity == 1 ? 'minute' : 'minutes',
+    GoalType.days => quantity == 1 ? 'day' : 'days',
   };
   String get periodLabel => switch (period) {
     GoalPeriod.daily => 'daily',
@@ -120,12 +128,12 @@ class ReadingGoal {
   String get description =>
       goalDescription ??
       (type == GoalType.days
-          ? 'Read on $targetValue days $periodLabel'
-          : 'Read ${type == GoalType.minutes ? formatDuration(targetValue) : '$targetValue $typeLabel'} $periodLabel');
+          ? 'Read on $targetValue ${unitLabel(targetValue)} $periodLabel'
+          : 'Read ${type == GoalType.minutes ? formatDuration(targetValue) : '$targetValue ${unitLabel(targetValue)}'} $periodLabel');
   String get displayTitle => title?.trim().isNotEmpty == true ? title! : description;
   String get statusText => isCompleted
       ? 'Target reached'
-      : '${type == GoalType.minutes ? formatDuration(remaining) : '$remaining $typeLabel'} to go';
+      : '${type == GoalType.minutes ? formatDuration(remaining) : '$remaining ${unitLabel(remaining)}'} to go';
   String get recurrenceLabel => isRecurring && !isCustomPeriod ? 'Recurring' : 'One-off';
   ReadingGoal copyWith({
     String? id,
@@ -141,6 +149,7 @@ class ReadingGoal {
     String? timezone,
     GoalScope? scope,
     String? scopeId,
+    List<String>? bookIds,
     int? minimumMinutes,
     List<GoalRule>? rules,
     bool? isActive,
@@ -163,6 +172,7 @@ class ReadingGoal {
     timezone: timezone ?? this.timezone,
     scope: scope ?? this.scope,
     scopeId: scopeId ?? this.scopeId,
+    bookIds: bookIds ?? this.bookIds,
     minimumMinutes: minimumMinutes ?? this.minimumMinutes,
     rules: rules ?? this.rules,
     isActive: isActive ?? this.isActive,
@@ -185,6 +195,7 @@ class ReadingGoal {
     'timezone': timezone,
     'scope': scope.name,
     'scope_id': scopeId,
+    if (bookIds.length > 1) 'book_ids': bookIds,
     'minimum_minutes': minimumMinutes,
     'rules': rules.map((rule) => rule.toJson()).toList(),
     'is_active': isActive,
@@ -205,6 +216,7 @@ class ReadingGoal {
     timezone: json['timezone'] as String? ?? 'UTC',
     scope: GoalScope.values.byName(json['scope'] as String? ?? 'library'),
     scopeId: json['scope_id'] as String?,
+    bookIds: (json['book_ids'] as List? ?? []).cast<String>(),
     minimumMinutes: json['minimum_minutes'] as int? ?? 5,
     rules: (json['rules'] as List? ?? [])
         .map((value) => GoalRule.fromJson(Map<String, dynamic>.from(value as Map)))

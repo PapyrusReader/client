@@ -7,8 +7,11 @@ import 'package:papyrus/providers/goals_provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/goals/goal_controls.dart';
+import 'package:papyrus/widgets/book_details/book_cover_image.dart';
+import 'package:papyrus/widgets/shared/bottom_sheet_actions.dart';
 import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:papyrus/widgets/shared/app_date_picker.dart';
+import 'package:papyrus/widgets/shared/searchable_book_field.dart';
 
 class LogReadingSheet extends StatefulWidget {
   const LogReadingSheet({super.key, required this.provider, this.book, this.correcting});
@@ -86,64 +89,71 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              DropdownButtonFormField<String>(
-                initialValue: books.any((book) => book.id == _bookId) ? _bookId : null,
-                isExpanded: true,
-                decoration: const InputDecoration(labelText: 'Book'),
-                items: [
-                  for (final book in books)
-                    DropdownMenuItem(
-                      value: book.id,
-                      child: Text(book.title, overflow: TextOverflow.ellipsis),
-                    ),
-                ],
-                validator: (value) => value == null ? 'Choose a book.' : null,
-                onChanged: _saving || widget.correcting != null ? null : (value) => setState(() => _bookId = value),
-              ),
+              if (widget.correcting != null)
+                _ReadingBookHeader(
+                  book: widget.provider.store.getBook(_bookId!),
+                  fallbackTitle: widget.correcting!.bookTitle,
+                )
+              else
+                SearchableBookField(
+                  key: ValueKey('log-book-$_bookId'),
+                  books: books,
+                  value: _bookId,
+                  enabled: !_saving,
+                  onChanged: (value) => setState(() => _bookId = value),
+                ),
               if (books.isEmpty)
                 const Padding(
                   padding: EdgeInsets.only(top: Spacing.sm),
                   child: Text('Add a digital or physical book to your library before logging reading.'),
                 ),
               const SizedBox(height: Spacing.lg),
-              Text('Session ends at', style: Theme.of(context).textTheme.bodySmall),
-              const SizedBox(height: Spacing.sm),
               Wrap(
                 spacing: Spacing.md,
                 runSpacing: Spacing.sm,
                 children: [
-                  OutlinedButton.icon(
-                    onPressed: _saving
-                        ? null
-                        : () async {
-                            final date = await showAppDatePicker(
-                              context: context,
-                              initialDate: _end,
-                              firstDate: DateTime(1900),
-                              lastDate: DateTime.now(),
-                            );
-                            if (date != null && mounted) {
-                              setState(() => _end = DateTime(date.year, date.month, date.day, _end.hour, _end.minute));
-                            }
-                          },
-                    icon: const Icon(Icons.event_outlined),
-                    label: Text(DateFormat.yMMMd().format(_end)),
+                  _dateControl(
+                    label: 'Date',
+                    child: OutlinedButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () async {
+                              final date = await showAppDatePicker(
+                                context: context,
+                                initialDate: _end,
+                                firstDate: DateTime(1900),
+                                lastDate: DateTime.now(),
+                              );
+                              if (date != null && mounted) {
+                                setState(
+                                  () => _end = DateTime(date.year, date.month, date.day, _end.hour, _end.minute),
+                                );
+                              }
+                            },
+                      icon: const Icon(Icons.event_outlined),
+                      label: Text(DateFormat.yMMMd().format(_end)),
+                    ),
                   ),
-                  OutlinedButton.icon(
-                    onPressed: _saving
-                        ? null
-                        : () async {
-                            final time = await showDialog<TimeOfDay>(
-                              context: context,
-                              animationStyle: AppMotion.animationStyle(context),
-                              builder: (_) => TimePickerDialog(initialTime: TimeOfDay.fromDateTime(_end)),
-                            );
-                            if (time != null && mounted) {
-                              setState(() => _end = DateTime(_end.year, _end.month, _end.day, time.hour, time.minute));
-                            }
-                          },
-                    icon: const Icon(Icons.schedule),
-                    label: Text(DateFormat.Hm().format(_end)),
+                  _dateControl(
+                    label: 'Finished at',
+                    child: OutlinedButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () async {
+                              final time = await showDialog<TimeOfDay>(
+                                context: context,
+                                animationStyle: AppMotion.animationStyle(context),
+                                builder: (_) => TimePickerDialog(initialTime: TimeOfDay.fromDateTime(_end)),
+                              );
+                              if (time != null && mounted) {
+                                setState(
+                                  () => _end = DateTime(_end.year, _end.month, _end.day, time.hour, time.minute),
+                                );
+                              }
+                            },
+                      icon: const Icon(Icons.schedule),
+                      label: Text(DateFormat.Hm().format(_end)),
+                    ),
                   ),
                 ],
               ),
@@ -193,17 +203,10 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
                 controller: _note,
                 maxLength: 10000,
                 maxLines: 3,
-                decoration: const InputDecoration(labelText: 'Note (optional)'),
+                textAlignVertical: TextAlignVertical.top,
+                decoration: const InputDecoration(labelText: 'Note (optional)', alignLabelWithHint: true),
               ),
-              const SizedBox(height: Spacing.md),
-              const Text(
-                'Manual entries count toward matching goals. Reading before a goal was created stays in your history but does not count toward that goal.',
-              ),
-              if (widget.correcting != null)
-                const Padding(
-                  padding: EdgeInsets.only(top: Spacing.md),
-                  child: Text('The original entry is retained as corrected in your activity history.'),
-                ),
+
               if (_error != null)
                 Padding(
                   padding: const EdgeInsets.only(top: Spacing.md),
@@ -220,6 +223,16 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
       ),
     );
   }
+
+  Widget _dateControl({required String label, required Widget child}) => Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Text(label, style: Theme.of(context).textTheme.bodySmall),
+      const SizedBox(height: Spacing.sm),
+      child,
+    ],
+  );
 
   Future<void> _save() async {
     if (!_form.currentState!.validate()) return;
@@ -255,6 +268,48 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
   }
 }
 
+/// Plain book context for entries whose book identity cannot be changed.
+class _ReadingBookHeader extends StatelessWidget {
+  const _ReadingBookHeader({required this.book, required this.fallbackTitle, this.details = const []});
+  final Book? book;
+  final String fallbackTitle;
+  final List<Widget> details;
+
+  @override
+  Widget build(BuildContext context) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      ExcludeSemantics(
+        child: CoverImagePreview(
+          bookId: book?.id,
+          imageUrl: book?.coverUrl,
+          mediaId: book?.coverMediaId,
+          size: BookCoverSize.listThumbnail,
+        ),
+      ),
+      const SizedBox(width: Spacing.md),
+      Expanded(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(book?.title ?? fallbackTitle, style: Theme.of(context).textTheme.titleLarge),
+            if (book != null && book!.allAuthors.trim().isNotEmpty) ...[
+              const SizedBox(height: Spacing.xs),
+              Text(
+                book!.allAuthors,
+                style: Theme.of(
+                  context,
+                ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ],
+            ...details,
+          ],
+        ),
+      ),
+    ],
+  );
+}
+
 /// Book titles and dates belong to groups; individual entries retain their audit actions.
 class ReadingActivityList extends StatelessWidget {
   const ReadingActivityList({
@@ -262,7 +317,9 @@ class ReadingActivityList extends StatelessWidget {
     required this.activities,
     required this.provider,
     this.correctedIds = const {},
+    this.contributionLabel,
   });
+  final String? Function(ReadingActivity)? contributionLabel;
   final List<ReadingActivity> activities;
   final GoalsProvider provider;
   final Set<String> correctedIds;
@@ -307,6 +364,7 @@ class ReadingActivityList extends StatelessWidget {
               provider: provider,
               corrected: correctedIds.contains(activity.id),
               showBookTitle: false,
+              contributionLabel: contributionLabel?.call(activity),
             ),
         ],
       ],
@@ -321,7 +379,9 @@ class ReadingActivityTile extends StatelessWidget {
     required this.provider,
     this.corrected = false,
     this.showBookTitle = true,
+    this.contributionLabel,
   });
+  final String? contributionLabel;
   final ReadingActivity activity;
   final GoalsProvider provider;
   final bool corrected;
@@ -359,7 +419,9 @@ class ReadingActivityTile extends StatelessWidget {
           ? Text(
               '$label · ${activity.source == 'reader' ? 'Reader' : 'Manual'}${corrected ? ' · Corrected' : ''}\n${DateFormat.yMMMd().add_Hm().format(activity.startTime.toLocal())}',
             )
-          : null,
+          : contributionLabel == null
+          ? null
+          : Text(contributionLabel!),
       trailing: showBookTitle
           ? null
           : Text(DateFormat.Hm().format(activity.startTime.toLocal()), style: Theme.of(context).textTheme.bodySmall),
@@ -404,73 +466,101 @@ class _ActivityDetailsState extends State<_ActivityDetails> {
         body: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(activity.bookTitle, style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: Spacing.md),
-            Text(
-              '${activity.source == 'reader' ? 'Recorded by the reader' : 'Logged manually'} · ${DateFormat.yMMMd().add_Hm().format(activity.startTime.toLocal())}',
+            _ReadingBookHeader(
+              book: book,
+              fallbackTitle: activity.bookTitle,
+              details: [
+                const SizedBox(height: Spacing.sm),
+                if (activity.kind == 'completion')
+                  _detailLine(context, Icons.check_circle_outline, 'Finished book')
+                else if (activity.kind == 'reversal')
+                  _detailLine(context, Icons.undo, 'Entry undone')
+                else
+                  Text(_readingSummary(activity), style: Theme.of(context).textTheme.bodyMedium),
+                const SizedBox(height: Spacing.xs),
+                Text(
+                  '${DateFormat.yMMMd().add_Hm().format(activity.endTime.toLocal())} · ${activity.source == 'reader' ? 'Reader' : 'Manual entry'}',
+                  style: Theme.of(
+                    context,
+                  ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                ),
+              ],
             ),
-            const SizedBox(height: Spacing.md),
-            if (activity.kind == 'reading')
-              Text(
-                '${activity.seconds ~/ 60} minutes · ${activity.pages > 0
-                    ? '${activity.pages} manual pages'
-                    : activity.isEstimated
-                    ? 'Estimated EPUB coverage'
-                    : activity.coverage.isEmpty
-                    ? 'No pages logged'
-                    : 'PDF coverage'}',
+            if (activity.note?.trim().isNotEmpty == true) ...[
+              const SizedBox(height: Spacing.lg),
+              Text('Note', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: Spacing.xs),
+              Text(activity.note!),
+            ],
+            if (widget.corrected) ...[
+              const SizedBox(height: Spacing.lg),
+              _detailLine(context, Icons.history, 'This entry was corrected and no longer contributes.'),
+            ],
+            if (book == null) ...[
+              const SizedBox(height: Spacing.md),
+              Text('This book is no longer in your library.', style: Theme.of(context).textTheme.bodySmall),
+            ],
+            if (!widget.corrected && activity.kind != 'reversal') ...[
+              const SizedBox(height: Spacing.md),
+              Wrap(
+                spacing: Spacing.sm,
+                runSpacing: Spacing.sm,
+                children: [
+                  if (activity.source == 'manual' && book != null)
+                    OutlinedButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () {
+                              final parent = Navigator.of(context, rootNavigator: true).context;
+                              Navigator.pop(context);
+                              LogReadingSheet.show(parent, provider: widget.provider, book: book, correcting: activity);
+                            },
+                      icon: const Icon(Icons.edit_outlined),
+                      label: const Text('Correct entry'),
+                    ),
+                  OutlinedButton.icon(
+                    onPressed: _saving ? null : _undo,
+                    icon: const Icon(Icons.undo),
+                    label: const Text('Undo this entry'),
+                  ),
+                ],
               ),
-            if (activity.kind == 'completion') const Text('Explicitly marked as finished.'),
-            if (activity.note != null)
-              Padding(
-                padding: const EdgeInsets.only(top: Spacing.md),
-                child: Text(activity.note!),
-              ),
-            if (widget.corrected)
-              const Padding(
-                padding: EdgeInsets.only(top: Spacing.md),
-                child: Text('This entry was corrected and no longer contributes.'),
-              ),
-            if (book == null)
-              const Padding(
-                padding: EdgeInsets.only(top: Spacing.md),
-                child: Text('The book was removed. Its activity history is retained.'),
-              ),
-            if (!widget.corrected && activity.source == 'manual' && book != null)
-              Padding(
-                padding: const EdgeInsets.only(top: Spacing.md),
-                child: OutlinedButton.icon(
-                  onPressed: _saving
-                      ? null
-                      : () {
-                          final parent = Navigator.of(context, rootNavigator: true).context;
-                          Navigator.pop(context);
-                          LogReadingSheet.show(parent, provider: widget.provider, book: book, correcting: activity);
-                        },
-                  icon: const Icon(Icons.edit_outlined),
-                  label: const Text('Correct entry'),
-                ),
-              ),
-            if (!widget.corrected)
-              Padding(
-                padding: const EdgeInsets.only(top: Spacing.md),
-                child: OutlinedButton.icon(
-                  onPressed: _saving ? null : _undo,
-                  icon: const Icon(Icons.undo),
-                  label: const Text('Undo this entry'),
-                ),
-              ),
+            ],
             if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ],
         ),
-        footer: BottomSheetFormActions(
-          onCancel: null,
-          onSave: _saving ? null : () => Navigator.pop(context),
-          saveLabel: 'Done',
+        footer: BottomSheetActions(
+          primary: FilledButton(onPressed: _saving ? null : () => Navigator.pop(context), child: const Text('Done')),
         ),
       ),
     );
   }
+
+  String _duration(int seconds) {
+    if (seconds < 60) return '$seconds sec';
+    final hours = seconds ~/ 3600;
+    final minutes = (seconds % 3600) ~/ 60;
+    final remainder = seconds % 60;
+    return [if (hours > 0) '${hours}h', if (minutes > 0) '${minutes}m', if (remainder > 0) '${remainder}s'].join(' ');
+  }
+
+  String _readingSummary(ReadingActivity activity) {
+    final parts = [
+      if (activity.seconds > 0) _duration(activity.seconds),
+      if (activity.pages > 0) '${activity.pages} ${activity.pages == 1 ? 'page' : 'pages'}',
+      if (activity.coverage.isNotEmpty) activity.isEstimated ? 'Estimated EPUB pages' : 'PDF pages',
+    ];
+    return parts.isEmpty ? 'No reading time or pages recorded.' : parts.join(' · ');
+  }
+
+  Widget _detailLine(BuildContext context, IconData icon, String label) => Row(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+      Icon(icon, size: IconSizes.small, color: Theme.of(context).colorScheme.onSurfaceVariant),
+      const SizedBox(width: Spacing.xs),
+      Expanded(child: Text(label, style: Theme.of(context).textTheme.bodyMedium)),
+    ],
+  );
 
   Future<void> _undo() async {
     final confirmed = await showDialog<bool>(

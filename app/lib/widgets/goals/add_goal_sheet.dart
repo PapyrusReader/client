@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:papyrus/widgets/goals/goal_card.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_actions.dart';
@@ -9,7 +10,7 @@ import 'package:papyrus/providers/goals_provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/goals/goal_controls.dart';
-import 'package:papyrus/widgets/goals/goal_timezone_picker.dart';
+import 'package:papyrus/widgets/shared/searchable_books_field.dart';
 import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:papyrus/widgets/shared/app_date_picker.dart';
 
@@ -50,6 +51,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
   GoalPeriod _period = GoalPeriod.daily;
   GoalScope _scope = GoalScope.library;
   String? _scopeId;
+  List<String> _bookIds = [];
   bool _recurring = true;
   bool _choosingMetric = false;
   bool _saving = false;
@@ -68,6 +70,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
       _period = editing.period;
       _scope = editing.scope;
       _scopeId = editing.scopeId;
+      _bookIds = editing.selectedBookIds.toList();
       _recurring = editing.isRecurring;
       _target.text = '${editing.targetValue}';
       _title.text = editing.title ?? '';
@@ -92,8 +95,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
             if (mounted) {
               setState(() {
                 _timezoneReady = true;
-                _error =
-                    'Could not detect your timezone. Using UTC; choose another timezone in advanced settings if needed.';
+                _error = 'Could not detect your timezone. Calendar periods will use UTC.';
               });
             }
           });
@@ -106,6 +108,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
     _target.text = ['30', '5', '12', '100', '1'][index];
     _scope = index == 4 ? GoalScope.book : GoalScope.library;
     _scopeId = null;
+    _bookIds = [];
     _recurring = index != 4;
   }
 
@@ -132,19 +135,18 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
 
   void _chooseMetric(GoalType type) => setState(() {
     _applyPreset({GoalType.books: 2, GoalType.pages: 3, GoalType.minutes: 0, GoalType.days: 1}[type]!);
+    _period = GoalPeriod.daily;
+    _target.text = switch (type) {
+      GoalType.books || GoalType.days => '1',
+      GoalType.minutes => '30',
+      GoalType.pages => '100',
+    };
     _choosingMetric = false;
-  });
-
-  void _adjustTarget(int delta) => setState(() {
-    final value = ((int.tryParse(_target.text) ?? 0) + delta).clamp(1, 100000);
-    _target.text = '$value';
-    _target.selection = TextSelection.collapsed(offset: _target.text.length);
   });
 
   @override
   Widget build(BuildContext context) {
     final editing = widget.editing != null;
-    final texts = Theme.of(context).textTheme;
     final colors = Theme.of(context).colorScheme;
     if (_choosingMetric) {
       return GoalControls(
@@ -154,8 +156,6 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text('What would you like to track?', style: texts.titleLarge),
-              const SizedBox(height: Spacing.lg),
               for (final type in GoalType.values)
                 Padding(
                   padding: const EdgeInsets.only(bottom: Spacing.sm),
@@ -190,16 +190,6 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
       );
     }
     final store = widget.provider.store;
-    final preview = ReadingGoal(
-      id: 'preview',
-      title: _title.text.isEmpty ? null : _title.text,
-      type: _type,
-      targetValue: int.tryParse(_target.text) ?? 0,
-      period: _period,
-      startDate: DateTime.now(),
-      endDate: _deadline,
-      isRecurring: _recurring,
-    );
     final items = _scope == GoalScope.book
         ? {for (final book in store.books) book.id: book.title}
         : {for (final shelf in store.shelves) shelf.id: shelf.name};
@@ -213,6 +203,13 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              TextFormField(
+                controller: _title,
+                enabled: !_saving,
+                maxLength: 255,
+                decoration: const InputDecoration(labelText: 'Name (optional)', counterText: ''),
+              ),
+              const SizedBox(height: Spacing.md),
               DropdownButtonFormField<GoalType>(
                 initialValue: _type,
                 key: ValueKey('metric-$_type'),
@@ -225,49 +222,33 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                     ? null
                     : (value) => setState(() {
                         _type = value!;
+                        if (_type == GoalType.books && _bookIds.isNotEmpty) _target.text = '${_bookIds.length}';
                       }),
               ),
-              const SizedBox(height: Spacing.lg),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 320),
-                  child: Row(
-                    children: [
-                      IconButton.outlined(
-                        tooltip: 'Decrease target',
-                        onPressed: _saving ? null : () => _adjustTarget(-1),
-                        icon: const Icon(Icons.remove),
-                      ),
-                      const SizedBox(width: Spacing.sm),
-                      Expanded(
-                        child: TextFormField(
-                          key: const Key('goal-target-input'),
-                          controller: _target,
-                          enabled: !_saving,
-                          keyboardType: TextInputType.number,
-                          inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                          textAlign: TextAlign.center,
-                          style: texts.headlineSmall,
-                          decoration: const InputDecoration(labelText: 'Target'),
-                          validator: _positive,
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ),
-                      const SizedBox(width: Spacing.sm),
-                      IconButton.outlined(
-                        tooltip: 'Increase target',
-                        onPressed: _saving ? null : () => _adjustTarget(1),
-                        icon: const Icon(Icons.add),
-                      ),
-                    ],
-                  ),
+              const SizedBox(height: Spacing.md),
+              _compact(
+                child: TextFormField(
+                  key: const Key('goal-target-input'),
+                  controller: _target,
+                  enabled: !_saving,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(labelText: 'Target', suffixText: _typeLabel),
+                  validator: (value) {
+                    final error = _positive(value);
+                    if (error != null) return error;
+                    if (_type == GoalType.books &&
+                        _scope == GoalScope.book &&
+                        _bookIds.isNotEmpty &&
+                        int.parse(value!) > _bookIds.length) {
+                      return 'Choose a target of 1–${_bookIds.length}.';
+                    }
+                    return null;
+                  },
                 ),
               ),
-              const SizedBox(height: Spacing.sm),
-              Text(preview.typeLabel, style: texts.bodyMedium),
               const SizedBox(height: Spacing.lg),
-              Text('Schedule', style: texts.titleSmall),
+              Text('Schedule', style: Theme.of(context).textTheme.titleSmall),
               const SizedBox(height: Spacing.sm),
               Wrap(
                 spacing: Spacing.sm,
@@ -315,120 +296,75 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                     ),
                   ),
                 ),
-              const SizedBox(height: Spacing.lg),
-              TextFormField(
-                controller: _title,
-                enabled: !_saving,
-                maxLength: 255,
-                decoration: const InputDecoration(labelText: 'Name (optional)', counterText: ''),
-                onChanged: (_) => setState(() {}),
-              ),
-              if (_scope == GoalScope.book) ...[const SizedBox(height: Spacing.md), _scopeItem(items)],
-              const SizedBox(height: Spacing.sm),
-              ExpansionTile(
-                key: const Key('goal-advanced-settings'),
-                maintainState: true,
-                tilePadding: EdgeInsets.zero,
-                title: const Text('Advanced settings'),
-                children: [
-                  DropdownButtonFormField<GoalScope>(
-                    initialValue: _scope,
-                    key: ValueKey('scope-$_scope'),
-                    isExpanded: true,
-                    decoration: const InputDecoration(labelText: 'Include'),
-                    items: [
-                      for (final scope in GoalScope.values)
-                        DropdownMenuItem(
-                          value: scope,
-                          child: Text(switch (scope) {
-                            GoalScope.library => 'Whole library',
-                            GoalScope.book => 'A book',
-                            GoalScope.shelf => 'A shelf',
-                          }),
-                        ),
-                    ],
-                    onChanged: _saving
-                        ? null
-                        : (value) => setState(() {
-                            _scope = value!;
-                            _scopeId = null;
-                          }),
-                  ),
-                  if (_scope == GoalScope.shelf) ...[const SizedBox(height: Spacing.md), _scopeItem(items)],
-                  if (_period != GoalPeriod.custom)
-                    SwitchListTile(
-                      contentPadding: EdgeInsets.zero,
-                      title: const Text('Repeat each period'),
-                      value: _recurring,
-                      onChanged: _saving ? null : (value) => setState(() => _recurring = value),
-                    ),
-                  if (_type == GoalType.days)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: Spacing.md),
-                      child: _compact(
-                        width: 320,
-                        child: TextFormField(
-                          controller: _threshold,
-                          enabled: !_saving,
-                          keyboardType: TextInputType.number,
-                          decoration: const InputDecoration(
-                            labelText: 'Minutes to qualify a day',
-                            helperText: 'Time adds up throughout the day.',
-                          ),
-                          validator: (value) {
-                            final n = int.tryParse(value ?? '');
-                            return n == null || n < 1 || n > 1440 ? 'Enter 1–1,440 minutes.' : null;
-                          },
-                          onChanged: (_) => setState(() {}),
-                        ),
-                      ),
-                    ),
-                  const SizedBox(height: Spacing.md),
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: OutlinedButton.icon(
-                      key: const Key('goal-timezone-button'),
-                      onPressed: _saving
-                          ? null
-                          : () async {
-                              final zone = await GoalTimezonePicker.show(context, selected: _zone.text);
-                              if (zone != null && mounted) setState(() => _zone.text = zone);
-                            },
-                      icon: const Icon(Icons.public_outlined),
-                      label: Text('Timezone: ${timezoneCity(_zone.text)}'),
-                    ),
-                  ),
-                  const SizedBox(height: Spacing.sm),
-                  const Text('Defaults to your device. Calendar periods use this timezone across your devices.'),
-                  const SizedBox(height: Spacing.md),
-                ],
-              ),
-              const SizedBox(height: Spacing.md),
-              Text(
-                '${preview.description}. ${_scope == GoalScope.library ? 'Across your library' : items[_scopeId] ?? 'Choose a book or shelf'}.',
-                style: texts.bodyLarge,
-              ),
-              const SizedBox(height: Spacing.sm),
-              Text(
-                editing
-                    ? (_replacementNeeded
-                          ? 'This starts a replacement goal and preserves the original history. Only new reading counts.'
-                          : 'Past periods keep their original target.')
-                    : 'Progress updates from reading and manual logs after you create the goal.',
-                style: texts.bodySmall,
-              ),
-              if (_type == GoalType.days)
-                Padding(
-                  padding: const EdgeInsets.only(top: Spacing.sm),
-                  child: Text('${_threshold.text} minutes qualifies a reading day.', style: texts.bodySmall),
+              if (_period != GoalPeriod.custom)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Repeat each period'),
+                  value: _recurring,
+                  onChanged: _saving ? null : (value) => setState(() => _recurring = value),
                 ),
-              if (_type == GoalType.pages)
-                Padding(
-                  padding: const EdgeInsets.only(top: Spacing.sm),
-                  child: Text(
-                    'PDF pages are measured. EPUB pages are estimated when page metadata is available.',
-                    style: texts.bodySmall,
+              const SizedBox(height: Spacing.md),
+              DropdownButtonFormField<GoalScope>(
+                initialValue: _scope,
+                key: ValueKey('scope-$_scope'),
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Include'),
+                items: [
+                  for (final scope in GoalScope.values)
+                    DropdownMenuItem(
+                      value: scope,
+                      child: Text(switch (scope) {
+                        GoalScope.library => 'Whole library',
+                        GoalScope.book => 'Selected books',
+                        GoalScope.shelf => 'A shelf',
+                      }),
+                    ),
+                ],
+                onChanged: _saving
+                    ? null
+                    : (value) => setState(() {
+                        _scope = value!;
+                        _scopeId = null;
+                        _bookIds = [];
+                      }),
+              ),
+              if (_scope == GoalScope.book) ...[
+                const SizedBox(height: Spacing.md),
+                SearchableBooksField(
+                  key: ValueKey('scope-books-${_bookIds.join(',')}'),
+                  books: store.books,
+                  value: _bookIds,
+                  enabled: !_saving,
+                  onChanged: (value) => setState(() {
+                    _bookIds = value;
+                    _scopeId = value.firstOrNull;
+                    if (_type == GoalType.books && value.isNotEmpty) _target.text = '${value.length}';
+                  }),
+                ),
+              ],
+              if (_scope == GoalScope.shelf) ...[const SizedBox(height: Spacing.md), _scopeItem(items)],
+              if (_type == GoalType.days) ...[
+                const SizedBox(height: Spacing.md),
+                _compact(
+                  width: 320,
+                  child: TextFormField(
+                    controller: _threshold,
+                    enabled: !_saving,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(labelText: 'Daily minimum', suffixText: 'minutes'),
+                    onChanged: (_) => setState(() {}),
+                    validator: (value) {
+                      final n = int.tryParse(value ?? '');
+                      return n == null || n < 1 || n > 1440 ? 'Enter 1–1,440 minutes.' : null;
+                    },
                   ),
+                ),
+              ],
+              if (editing && _replacementNeeded)
+                const Padding(
+                  padding: EdgeInsets.only(top: Spacing.md),
+                  child: Text('This creates a replacement goal and keeps the original history.'),
                 ),
               if (_error != null)
                 Padding(
@@ -450,6 +386,13 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
       ),
     );
   }
+
+  String get _typeLabel => switch (_type) {
+    GoalType.books => 'books',
+    GoalType.pages => 'pages',
+    GoalType.minutes => 'minutes',
+    GoalType.days => 'days',
+  };
 
   Widget _scopeItem(Map<String, String> items) => DropdownButtonFormField<String>(
     initialValue: items.containsKey(_scopeId) ? _scopeId : null,
@@ -488,7 +431,9 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
     return _type != goal.type ||
         _period != goal.period ||
         _scope != goal.scope ||
-        _scopeId != goal.scopeId ||
+        (_scope == GoalScope.book
+            ? !setEquals(_bookIds.toSet(), goal.selectedBookIds.toSet())
+            : _scopeId != goal.scopeId) ||
         _recurring != goal.isRecurring ||
         zone != goal.timezone ||
         int.tryParse(_threshold.text) != goal.minimumMinutes ||
@@ -519,6 +464,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
           title: _title.text.trim(),
           scope: _scope,
           scopeId: _scopeId,
+          bookIds: _bookIds,
           minimumMinutes: int.parse(_threshold.text),
           timezone: _zone.text.trim(),
           endDate: _period == GoalPeriod.custom ? GoalCalendar.deadline(_deadline, _zone.text.trim()) : null,

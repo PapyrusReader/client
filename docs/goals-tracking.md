@@ -43,15 +43,41 @@ progress, and can be reprojected after corrections arrive.
 
 ## Sync and compatibility
 
-`GET /v1/sync/settings` advertises `tracking_schema_version: 1`. New tables are
+`GET /v1/sync/settings` advertises `tracking_schema_version: 2`. Version 2
+adds goals scoped to multiple selected books through `book_ids`; single-book and
+library goals retain version-1 payloads. A books-finished target cannot exceed
+the selected book count. The server validates ownership of every selected book. New tables are
 `reading_goals`, `reading_activities`, and `goal_periods`, with an owner-scoped JSON
 payload. Older servers keep tracking in local-only `tracking_staging`. Queued
 tracking after a server downgrade is retained there while ordinary library uploads
-continue. Capability discovery promotes staged records atomically.
+continue. Capability discovery promotes supported staged records atomically. Multi-book
+goals remain staged against version-1 servers without blocking ordinary tracking
+or library synchronization.
 
 Deploy the server migration, PostgreSQL publication/grants, and PowerSync streams
 before releasing this client. Versions are unchanged; merge feature PRs into
 `development` and use the normal release workflow.
+
+## UI review
+
+The current Goals page uses swipeable Overview and Activity tabs with shared
+collection-page spacing and controls. Overview groups goals by progress and offers
+a compact completed-goal filter; phones use a New goal FAB. Creation defaults to
+Daily and supports an editable target, recurrence, shelves, and selected books.
+Activity groups book/day entries with expandable details and archived history.
+Expansion state is stored separately from scroll positions.
+
+These screenshots show the production widgets in an isolated preview with
+synthetic library and activity fixtures; they demonstrate presentation, not live
+reader or synchronization validation.
+
+![Desktop Overview](images/goals-review/overview-desktop.png)
+
+![Activity and full-width heatmap](images/goals-review/activity-desktop.png)
+
+![Daily goal creation with editable target](images/goals-review/new-goal.png)
+
+![Mobile Overview and New goal FAB](images/goals-review/overview-mobile.png)
 
 ## Validation
 

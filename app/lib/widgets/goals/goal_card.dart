@@ -11,8 +11,23 @@ IconData goalIcon(GoalType type) => switch (type) {
   GoalType.minutes => Icons.schedule_outlined,
   GoalType.days => Icons.calendar_today_outlined,
 };
-String goalCount(GoalProgress progress) =>
-    '${progress.value} / ${progress.goal.targetValue} ${progress.goal.typeLabel}';
+String goalTime(int seconds) {
+  if (seconds == 0) return '0 sec';
+  final minutes = seconds ~/ 60;
+  final remainder = seconds % 60;
+  if (minutes == 0) return '$remainder sec';
+  return remainder == 0 ? formatDuration(minutes) : '${formatDuration(minutes)} ${remainder}s';
+}
+
+String goalCount(GoalProgress progress) => progress.goal.type == GoalType.minutes && progress.seconds % 60 != 0
+    ? '${goalTime(progress.seconds)} / ${formatDuration(progress.goal.targetValue)}'
+    : '${progress.value} / ${progress.goal.targetValue} ${progress.goal.unitLabel(progress.goal.targetValue)}';
+
+String goalRemaining(GoalProgress progress) => progress.reached
+    ? 'Target reached'
+    : progress.goal.type == GoalType.minutes
+    ? '${goalTime((progress.goal.targetValue * 60 - progress.seconds).clamp(0, progress.goal.targetValue * 60))} to go'
+    : progress.projected.statusText;
 
 class GoalCard extends StatelessWidget {
   const GoalCard({
@@ -20,23 +35,19 @@ class GoalCard extends StatelessWidget {
     required this.goal,
     this.progress,
     this.onTap,
-    this.onContinue,
     this.onMenu,
     this.scopeLabel,
     this.isDesktop = false,
     this.fillHeight = false,
-    this.bookProgressLabel,
     this.showReadingDays = false,
   });
   final ReadingGoal goal;
   final GoalProgress? progress;
   final VoidCallback? onTap;
-  final VoidCallback? onContinue;
   final void Function(String)? onMenu;
   final String? scopeLabel;
   final bool isDesktop;
   final bool fillHeight;
-  final String? bookProgressLabel;
   final bool showReadingDays;
   @override
   Widget build(BuildContext context) {
@@ -113,7 +124,9 @@ class GoalCard extends StatelessWidget {
               ),
               const SizedBox(height: Spacing.md),
               Text(
-                '${projected.currentValue} / ${projected.targetValue} ${projected.typeLabel}',
+                progress == null
+                    ? '${projected.currentValue} / ${projected.targetValue} ${projected.unitLabel(projected.targetValue)}'
+                    : goalCount(progress!),
                 style: texts.titleMedium,
               ),
               const SizedBox(height: Spacing.xs),
@@ -127,7 +140,7 @@ class GoalCard extends StatelessWidget {
               Semantics(
                 container: true,
                 label:
-                    '${projected.displayTitle}, ${projected.currentValue} of ${projected.targetValue} ${projected.typeLabel}',
+                    '${projected.displayTitle}, ${progress == null ? '${projected.currentValue} of ${projected.targetValue} ${projected.unitLabel(projected.targetValue)}' : goalCount(progress!)}',
                 child: LinearProgressIndicator(
                   value: progress?.fraction ?? projected.progress,
                   minHeight: 6,
@@ -162,7 +175,8 @@ class GoalCard extends StatelessWidget {
                       '${((progress?.fraction ?? projected.progress) * 100).round()}% complete',
                       style: texts.bodySmall,
                     ),
-                  if (!projected.isCompleted) Text(projected.statusText, style: texts.bodySmall),
+                  if (!projected.isCompleted)
+                    Text(progress == null ? projected.statusText : goalRemaining(progress!), style: texts.bodySmall),
                 ],
               ),
               const SizedBox(height: Spacing.xs),
@@ -178,10 +192,6 @@ class GoalCard extends StatelessWidget {
               ),
               if (progress?.estimated == true && goal.type == GoalType.pages)
                 Text('Estimated pages included', style: texts.bodySmall),
-              if (bookProgressLabel != null) ...[
-                const SizedBox(height: Spacing.sm),
-                Text(bookProgressLabel!, style: texts.bodySmall),
-              ],
               if (showReadingDays && goal.type == GoalType.days) ...[
                 const SizedBox(height: Spacing.md),
                 if (goal.period == GoalPeriod.weekly && progress != null)
@@ -194,18 +204,6 @@ class GoalCard extends StatelessWidget {
                 Text('${goal.minimumMinutes} minutes qualifies a day', style: texts.bodySmall),
               ],
               if (fillHeight) const Spacer(),
-              if (onContinue != null && !expired && !goal.isArchived && goal.isActive)
-                Padding(
-                  padding: const EdgeInsets.only(top: Spacing.sm),
-                  child: Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: TextButton.icon(
-                      onPressed: onContinue,
-                      icon: const Icon(Icons.play_arrow_outlined),
-                      label: const Text('Continue reading'),
-                    ),
-                  ),
-                ),
             ],
           ),
         ),
