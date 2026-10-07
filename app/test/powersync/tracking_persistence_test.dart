@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/models/reading_activity.dart';
 import 'package:papyrus/models/reading_goal.dart';
+import 'package:papyrus/models/goal_period_record.dart';
 import 'package:papyrus/powersync/library_database.dart';
 import 'package:papyrus/powersync/sync_state.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
@@ -112,6 +113,59 @@ void main() {
     expect(await db.getAll('SELECT * FROM tracking_staging'), isEmpty);
     expect((await db.getAll('SELECT * FROM ps_crud')).length, 2);
     expect((await library.snapshot()).activities.single.id, activity.id);
+    await db.close();
+  });
+  test('v1 keeps book sets local across restart while ordinary tracking uploads', () async {
+    final path = '${directory.path}/book-sets.db';
+    final db = PowerSyncDatabase(path: path, schema: papyrusAccountSchema);
+    await db.initialize();
+    final library = LibraryDatabase(db, () async {});
+    await library.enableTracking(schemaVersion: 1);
+    final selected = goal.copyWith(id: 'selected', scope: GoalScope.book, scopeId: 'a', bookIds: ['a', 'b']);
+    final period = GoalPeriodRecord(
+      id: 'period',
+      goalId: selected.id,
+      definition: selected.copyWith(isRecurring: false),
+    );
+    await library.commitTracking(goals: [selected, goal], activities: [activity], periods: [period]);
+    expect((await db.getAll('SELECT * FROM tracking_staging')).length, 2);
+    expect((await db.getAll('SELECT * FROM ps_crud')).length, 2);
+    await db.close();
+    final reopened = PowerSyncDatabase(path: path, schema: papyrusAccountSchema);
+    await reopened.initialize();
+    final supported = LibraryDatabase(reopened, () async {});
+    await supported.enableTracking(schemaVersion: 1);
+    expect((await supported.snapshot()).goals.firstWhere((g) => g.id == 'selected').selectedBookIds, ['a', 'b']);
+    expect((await reopened.getAll('SELECT * FROM tracking_staging')).length, 2);
+    expect((await supported.snapshot()).goalPeriods.single.definition.selectedBookIds, ['a', 'b']);
+    await supported.enableTracking();
+    expect(await reopened.getAll('SELECT * FROM tracking_staging'), isEmpty);
+    expect((await reopened.getAll('SELECT * FROM ps_crud')).length, 4);
+    await supported.enableTracking();
+    expect((await reopened.getAll('SELECT * FROM ps_crud')).length, 4);
+    await reopened.close();
+  });
+  test('queued v2 goals defer on a v1 server without blocking library or activity uploads', () async {
+    final db = PowerSyncDatabase(path: '${directory.path}/book-set-downgrade.db', schema: papyrusAccountSchema);
+    await db.initialize();
+    final library = LibraryDatabase(db, () async {});
+    await library.enableTracking();
+    final selected = goal.copyWith(scope: GoalScope.book, scopeId: 'a', bookIds: ['a', 'b']);
+    await library.commitTracking(goals: [selected], activities: [activity]);
+    await library.upsert('books', PowerSyncBookMapper.toRow(book));
+    final auth = CapturingUploadRepository();
+    final connector = PapyrusPowerSyncConnector(
+      authRepository: auth,
+      config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://example.invalid')),
+      trackingSchemaVersion: () => 1,
+    );
+    await connector.uploadData(db);
+    expect(auth.batches.expand((batch) => batch).map((entry) => entry['type']), ['reading_activities', 'books']);
+    expect(await db.getAll('SELECT * FROM ps_crud'), isEmpty);
+    expect((await db.getAll('SELECT * FROM tracking_staging')).length, 1);
+    await library.enableTracking();
+    expect(await db.getAll('SELECT * FROM tracking_staging'), isEmpty);
+    expect((await db.getAll('SELECT * FROM ps_crud')).length, 1);
     await db.close();
   });
   test('captured repository is invalidated on account switch and guest data is isolated', () async {

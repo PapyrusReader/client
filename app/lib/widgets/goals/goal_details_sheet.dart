@@ -64,10 +64,9 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              GoalCard(goal: goal, progress: progress, showReadingDays: true),
+              _progressSummary(context, progress),
               const SizedBox(height: Spacing.lg),
               if (widget.historical == null && !goal.isArchived) ...[
-                const SizedBox(height: Spacing.md),
                 Wrap(
                   spacing: Spacing.sm,
                   runSpacing: Spacing.sm,
@@ -110,12 +109,32 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
                   ),
                 ),
               const SizedBox(height: Spacing.lg),
-              Text('Counted activity', style: Theme.of(context).textTheme.titleMedium),
+              Text('Reading activity', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: Spacing.sm),
               if (progress.activities.isEmpty)
-                const Text('No qualifying reading in this period yet.')
-              else
-                ReadingActivityList(activities: groupReadingActivities(progress.activities), provider: widget.provider),
+                const Text('No reading activity for this goal yet.')
+              else ...[
+                if (goal.type == GoalType.minutes || goal.type == GoalType.days) ...[
+                  if (progress.hasCreationCutoff || progress.hasOverlappingTime)
+                    Text(
+                      [
+                        if (progress.hasCreationCutoff) 'Time before goal creation is excluded.',
+                        if (progress.hasOverlappingTime) 'Overlapping time is counted once.',
+                      ].join(' '),
+                      style: Theme.of(context).textTheme.bodySmall,
+                    ),
+                ],
+                ReadingActivityList(
+                  activities: groupReadingActivities(progress.activities),
+                  provider: widget.provider,
+                  contributionLabel: goal.type == GoalType.minutes || goal.type == GoalType.days
+                      ? (activity) =>
+                            activity.kind == 'reading' && progress.eligibleSecondsFor(activity) != activity.seconds
+                            ? '${goalTime(progress.eligibleSecondsFor(activity))} for this goal'
+                            : null
+                      : null,
+                ),
+              ],
               if (periods.isNotEmpty && widget.historical == null) ...[
                 const SizedBox(height: Spacing.lg),
                 Text('Previous periods', style: Theme.of(context).textTheme.titleMedium),
@@ -135,22 +154,13 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
                     ),
                   ),
               ],
-              ExpansionTile(
-                tilePadding: EdgeInsets.zero,
-                title: const Text('Calendar settings'),
-                children: [
-                  Align(
-                    alignment: AlignmentDirectional.centerStart,
-                    child: Text('Timezone: ${goal.timezone}', style: Theme.of(context).textTheme.bodySmall),
-                  ),
-                ],
-              ),
               if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
           ),
           footer: BottomSheetFormActions(
+            equalWidths: true,
             onCancel: _saving || widget.provider.store.getReadingGoal(goal.id) == null ? null : _delete,
-            cancelLabel: 'Delete goal',
+            cancelLabel: 'Delete',
             onSave: _saving ? null : () => Navigator.pop(context),
             saveLabel: 'Done',
           ),
@@ -158,6 +168,122 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
       );
     },
   );
+  Widget _progressSummary(BuildContext context, GoalProgress progress) {
+    final goal = progress.projected;
+    final texts = Theme.of(context).textTheme;
+    final colors = Theme.of(context).colorScheme;
+    final ended = !progress.range.end.isAfter(widget.provider.now);
+    final status = goal.isArchived
+        ? 'Archived'
+        : !goal.isActive
+        ? 'Paused'
+        : ended
+        ? (progress.reached ? 'Achieved' : 'Missed')
+        : goalRemaining(progress);
+    final scope = switch (goal.scope) {
+      GoalScope.library => 'Whole library',
+      GoalScope.book =>
+        goal.selectedBookIds.length > 1
+            ? goal.selectedBookIds.map((id) => widget.provider.store.getBook(id)?.title ?? 'Removed book').join(', ')
+            : widget.provider.store.getBook(goal.scopeId!)?.title ?? 'Removed book',
+      GoalScope.shelf => widget.provider.store.getShelf(goal.scopeId!)?.name ?? 'Removed shelf',
+    };
+    final start = GoalCalendar.local(progress.range.start, goal.timezone);
+    final end = GoalCalendar.local(progress.range.end.subtract(const Duration(microseconds: 1)), goal.timezone);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Icon(goalIcon(goal.type), color: colors.primary),
+            const SizedBox(width: Spacing.sm),
+            Expanded(child: Text(goal.displayTitle, style: texts.titleLarge)),
+          ],
+        ),
+        const SizedBox(height: Spacing.md),
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: Spacing.md,
+          runSpacing: Spacing.sm,
+          children: [
+            Text(goalCount(progress), style: texts.headlineSmall),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (progress.reached || !goal.isActive || goal.isArchived || ended) ...[
+                  Icon(
+                    goal.isArchived
+                        ? Icons.archive_outlined
+                        : !goal.isActive
+                        ? Icons.pause_circle_outline
+                        : progress.reached
+                        ? Icons.check_circle_outline
+                        : Icons.event_outlined,
+                    size: IconSizes.small,
+                  ),
+                  const SizedBox(width: Spacing.xs),
+                ],
+                Flexible(child: Text(status, style: texts.bodyMedium)),
+              ],
+            ),
+          ],
+        ),
+        const SizedBox(height: Spacing.sm),
+        LinearProgressIndicator(
+          value: progress.fraction,
+          minHeight: 6,
+          borderRadius: BorderRadius.circular(AppRadius.full),
+          semanticsLabel: goal.displayTitle,
+          semanticsValue: '${(progress.fraction * 100).round()}',
+        ),
+        const SizedBox(height: Spacing.md),
+        Text(scope, style: texts.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
+        const SizedBox(height: Spacing.xs),
+        Text(
+          '${DateFormat.yMMMd().format(start)} – ${DateFormat.yMMMd().format(end)}',
+          style: texts.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+        ),
+        if (progress.estimated && goal.type == GoalType.pages) ...[
+          const SizedBox(height: Spacing.xs),
+          Text('Estimated pages included', style: texts.bodySmall),
+        ],
+        if (goal.type == GoalType.days) ...[
+          const SizedBox(height: Spacing.md),
+          if (goal.period == GoalPeriod.weekly)
+            Wrap(
+              spacing: Spacing.lg,
+              runSpacing: Spacing.sm,
+              children: [
+                for (var i = 0; i < 7; i++)
+                  _readingDay(context, progress, GoalCalendar.dayOffset(progress.range.start, i, goal.timezone)),
+              ],
+            ),
+          const SizedBox(height: Spacing.sm),
+          Text('Daily minimum: ${goal.minimumMinutes} minutes', style: texts.bodySmall),
+        ],
+      ],
+    );
+  }
+
+  Widget _readingDay(BuildContext context, GoalProgress progress, DateTime day) {
+    final date = GoalCalendar.local(day, progress.goal.timezone);
+    final qualified = progress.qualifiedDays.contains(day);
+    return Semantics(
+      label: '${DateFormat.yMMMd().format(date)}: ${qualified ? 'Reading day' : 'Daily minimum not reached'}',
+      excludeSemantics: true,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Text(DateFormat.E().format(date), style: Theme.of(context).textTheme.bodySmall),
+          const SizedBox(height: Spacing.xs),
+          Icon(qualified ? Icons.check : Icons.remove, size: IconSizes.small),
+        ],
+      ),
+    );
+  }
+
   Future<void> _action(Future<void> Function() action) async {
     setState(() {
       _saving = true;
@@ -173,7 +299,15 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
   }
 
   Future<void> _delete() async {
-    final confirmed = await showDialog<bool>(
+    final confirmed = await confirmGoalDeletion(context);
+    if (confirmed != true || !mounted) return;
+    await _action(() => widget.provider.deleteGoal(widget.goal.id, repository: _repository));
+    if (mounted && _error == null) Navigator.pop(context);
+  }
+}
+
+Future<bool> confirmGoalDeletion(BuildContext context) async =>
+    await showDialog<bool>(
       context: context,
       animationStyle: AppMotion.animationStyle(context),
       builder: (context) => AlertDialog(
@@ -181,12 +315,8 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
         content: const Text('Reading activity and previous periods remain in your history.'),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
-          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete goal')),
+          FilledButton(onPressed: () => Navigator.pop(context, true), child: const Text('Delete')),
         ],
       ),
-    );
-    if (confirmed != true || !mounted) return;
-    await _action(() => widget.provider.deleteGoal(widget.goal.id, repository: _repository));
-    if (mounted && _error == null) Navigator.pop(context);
-  }
-}
+    ) ??
+    false;

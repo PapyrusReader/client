@@ -14,6 +14,9 @@ class GoalProgress {
     required this.activities,
     required this.estimated,
     required this.qualifiedDays,
+    this.activityIntervals = const {},
+    this.hasOverlappingTime = false,
+    this.hasCreationCutoff = false,
   });
   final ReadingGoal goal;
   final GoalRange range;
@@ -24,6 +27,15 @@ class GoalProgress {
   final List<ReadingActivity> activities;
   final bool estimated;
   final Set<DateTime> qualifiedDays;
+
+  /// Eligible intervals for presentation only; the ledger remains unchanged.
+  final Map<String, List<(double, double)>> activityIntervals;
+  final bool hasOverlappingTime;
+  final bool hasCreationCutoff;
+  int eligibleSecondsFor(ReadingActivity activity) => unionLength([
+    for (final id in activity.constituentIds.isEmpty ? [activity.id] : activity.constituentIds)
+      ...?activityIntervals[id],
+  ]).floor();
   int get value => switch (goal.type) {
     GoalType.books => finishedBooks,
     GoalType.pages => pages.floor(),
@@ -60,7 +72,7 @@ GoalRule ruleAt(ReadingGoal goal, DateTime at) {
 
 bool matchesGoal(ReadingGoal goal, ReadingActivity activity) => switch (goal.scope) {
   GoalScope.library => true,
-  GoalScope.book => activity.bookId == goal.scopeId,
+  GoalScope.book => goal.selectedBookIds.contains(activity.bookId),
   GoalScope.shelf => activity.shelfIds.contains(goal.scopeId),
 };
 
@@ -104,6 +116,8 @@ GoalProgress projectGoal(ReadingGoal definition, Iterable<ReadingActivity> ledge
   final scales = <String, double>{};
   final books = <String>{};
   final counted = <ReadingActivity>[];
+  final activityIntervals = <String, List<(double, double)>>{};
+  var hasCreationCutoff = false;
   var manualPages = 0;
   var estimated = false;
   final boundaries =
@@ -153,10 +167,10 @@ GoalProgress projectGoal(ReadingGoal definition, Iterable<ReadingActivity> ledge
         }
         final active = ruleAt(definition, cursor);
         if (active.active && !active.archived) {
-          times.putIfAbsent(day, () => []).add((
-            cursor.microsecondsSinceEpoch / 1000000,
-            stop.microsecondsSinceEpoch / 1000000,
-          ));
+          final interval = (cursor.microsecondsSinceEpoch / 1000000, stop.microsecondsSinceEpoch / 1000000);
+          times.putIfAbsent(day, () => []).add(interval);
+          activityIntervals.putIfAbsent(activity.id, () => []).add(interval);
+          hasCreationCutoff |= activity.startTime.isBefore(definition.createdAt);
           contributed = true;
         }
         cursor = stop;
@@ -183,5 +197,10 @@ GoalProgress projectGoal(ReadingGoal definition, Iterable<ReadingActivity> ledge
     activities: counted,
     estimated: estimated,
     qualifiedDays: qualified,
+    activityIntervals: activityIntervals,
+    hasCreationCutoff: hasCreationCutoff,
+    hasOverlappingTime:
+        activityIntervals.values.fold<double>(0, (total, ranges) => total + unionLength([...ranges])) >
+        dailySeconds.values.fold<double>(0, (a, b) => a + b) + .000001,
   );
 }

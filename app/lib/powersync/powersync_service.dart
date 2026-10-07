@@ -64,6 +64,7 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
   LibraryDatabase? _library;
   LibrarySnapshot? _snapshot;
   bool get supportsTracking => _library?.trackingSupported == true;
+  int get trackingSchemaVersion => _library?.trackingSchemaVersion ?? 0;
   final _libraryController = StreamController<LibrarySnapshot>.broadcast();
 
   LibraryDatabase get _activeLibrary {
@@ -293,11 +294,13 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
   bool _checkingTracking = false;
   Future<void> _prepareTracking() async {
     final library = _activeLibrary;
-    if (_checkingTracking || library.trackingSupported) return;
+    if (_checkingTracking || library.trackingSchemaVersion >= 2) return;
     _checkingTracking = true;
     try {
       final version = await trackingCapability?.call() ?? 0;
-      if (library.active && version >= 1) await library.enableTracking();
+      if (library.active && version >= 1 && version != library.trackingSchemaVersion) {
+        await library.enableTracking(schemaVersion: version);
+      }
     } catch (_) {
       // Discovery failure keeps tracking local and does not prevent library sync.
     } finally {
@@ -333,7 +336,7 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
   }
 
   Future<void> _setStatusFromPowerSync(SyncStatus status) async {
-    if (status.connected && _library?.trackingSupported == false) unawaited(_prepareTracking());
+    if (status.connected && trackingSchemaVersion < 2) unawaited(_prepareTracking());
     final revision = _syncStateRevisions.beginTransportUpdate();
     final pending = await _readPendingWrites();
     if (!_syncStateRevisions.isCurrent(revision)) return;

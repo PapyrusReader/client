@@ -13,6 +13,8 @@ import 'package:papyrus/widgets/goals/goal_details_sheet.dart';
 import 'package:papyrus/widgets/goals/log_reading_sheet.dart';
 import 'package:papyrus/widgets/goals/reading_activity_heatmap.dart';
 import 'package:papyrus/widgets/goals/reading_activity_timeline.dart';
+import 'package:papyrus/widgets/shared/searchable_book_field.dart';
+import 'package:papyrus/widgets/shared/searchable_books_field.dart';
 
 void main() {
   final now = DateTime.now().toUtc();
@@ -70,8 +72,7 @@ void main() {
     return value;
   }
 
-  testWidgets('desktop rows align mixed goal cards and their reading actions', (tester) async {
-    final semantics = tester.ensureSemantics();
+  testWidgets('desktop rows align goal cards without reader launch controls', (tester) async {
     await size(tester);
     final store = DataStore()..loadData(books: [book], readingGoals: [short, days]);
     addTearDown(store.dispose);
@@ -85,10 +86,7 @@ void main() {
     final left = tester.getRect(find.byKey(const ValueKey('goal-card-short')));
     final right = tester.getRect(find.byKey(const ValueKey('goal-card-days')));
     expect(left.height, right.height);
-    expect(find.bySemanticsLabel('Continue reading'), findsNWidgets(2));
-    semantics.dispose();
-    final actions = find.widgetWithText(TextButton, 'Continue reading');
-    expect(tester.getRect(actions.at(0)).bottom, tester.getRect(actions.at(1)).bottom);
+    expect(find.text('Continue reading'), findsNothing);
     final log = find.widgetWithText(OutlinedButton, 'Log reading');
     expect(tester.getSize(log).width, lessThan(300));
     final theme = Theme.of(tester.element(log));
@@ -126,30 +124,97 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('timezone is advanced, searchable, selectable and saved as an IANA identifier', (tester) async {
+  testWidgets('goal form uses device timezone without an advanced settings section', (tester) async {
     final store = DataStore()..loadData();
     final goals = provider(store);
     await showSheet(
       tester,
-      (context) => AddGoalSheet.show(context, provider: goals, preset: 0, initialTimezone: 'UTC'),
+      (context) => AddGoalSheet.show(context, provider: goals, preset: 0, initialTimezone: 'Europe/Vilnius'),
     );
-    expect(find.byKey(const Key('goal-timezone-button')).hitTestable(), findsNothing);
-    expect(find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == 'Timezone'), findsNothing);
-    await tester.tap(find.text('Advanced settings'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const Key('goal-timezone-button')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-      find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == 'Search city or timezone'),
-      'Vilnius',
+    expect(find.text('Advanced settings'), findsNothing);
+    expect(find.byKey(const Key('goal-timezone-button')), findsNothing);
+    expect(find.text('Repeat each period'), findsOneWidget);
+    expect(
+      tester.getTopLeft(find.widgetWithText(TextFormField, 'Name (optional)')).dy,
+      lessThan(tester.getTopLeft(find.widgetWithText(DropdownButtonFormField<GoalType>, 'Measure')).dy),
     );
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(ListTile, 'Vilnius'));
-    await tester.pumpAndSettle();
-    expect(find.text('Timezone: Vilnius'), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Create goal'));
     await tester.pumpAndSettle();
     expect(store.goalDefinitions.single.timezone, 'Europe/Vilnius');
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('deletion confirms directly from the card menu and preserves activity', (tester) async {
+    await size(tester);
+    final entry = ReadingActivity(
+      id: 'entry',
+      bookId: book.id,
+      bookTitle: book.title,
+      startTime: now,
+      endTime: now,
+      createdAt: now,
+      pages: 5,
+    );
+    final store = DataStore()..loadData(books: [book], readingGoals: [short]);
+    await store.commitTracking(activities: [entry]);
+    addTearDown(store.dispose);
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: store,
+        child: MaterialApp(theme: AppTheme.dark, home: const GoalsPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Goal actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    expect(find.byType(GoalDetailsSheet), findsNothing);
+    expect(find.text('Delete goal?'), findsOneWidget);
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(store.goalDefinitions, hasLength(1));
+    await tester.tap(find.byTooltip('Goal actions'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Delete'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
+    await tester.pumpAndSettle();
+    expect(store.goalDefinitions, isEmpty);
+    expect(store.readingActivities.single.id, entry.id);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('manual logging searches books by title author and ISBN before saving', (tester) async {
+    final other = Book(id: 'other', title: 'Dune', author: 'Frank Herbert', isbn: '9780441172719', addedAt: now);
+    final store = DataStore()..loadData(books: [book, other]);
+    final goals = provider(store);
+    await showSheet(tester, (context) => LogReadingSheet.show(context, provider: goals));
+    tester.view.physicalSize = const Size(390, 844);
+    await tester.pumpAndSettle();
+    expect(find.text('Session ends at'), findsNothing);
+    expect(find.textContaining('Manual entries count'), findsNothing);
+    await tester.tap(find.byType(SearchableBookField));
+    await tester.pumpAndSettle();
+    tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+    await tester.pumpAndSettle();
+    final search = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'Search books');
+    for (final query in ['dune', 'herbert', '9780441172719']) {
+      await tester.enterText(search, query);
+      await tester.pumpAndSettle();
+      expect(find.widgetWithText(ListTile, 'Dune'), findsOneWidget);
+      expect(find.widgetWithText(ListTile, book.title), findsNothing);
+    }
+    expect(tester.getRect(find.widgetWithText(ListTile, 'Dune')).bottom, lessThanOrEqualTo(564));
+    await tester.tap(find.widgetWithText(ListTile, 'Dune'));
+    await tester.pumpAndSettle();
+    tester.view.viewInsets = const FakeViewPadding();
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextFormField, 'Minutes read'), '15');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save reading'));
+    await tester.pumpAndSettle();
+    expect(store.effectiveReadingActivities.single.bookId, other.id);
+    expect(store.effectiveReadingActivities.single.seconds, 900);
     expect(tester.takeException(), isNull);
   });
 
@@ -204,6 +269,104 @@ void main() {
     });
   }
 
+  for (final metric in ['Books finished', 'Pages read', 'Reading time', 'Reading days']) {
+    testWidgets('$metric starts with Daily selected', (tester) async {
+      final store = DataStore()..loadData();
+      final goals = provider(store);
+      await showSheet(tester, (context) => AddGoalSheet.show(context, provider: goals, initialTimezone: 'UTC'));
+      await tester.tap(find.widgetWithText(ListTile, metric));
+      await tester.pumpAndSettle();
+      expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Daily')).selected, isTrue);
+      await tester.tap(find.widgetWithText(FilledButton, 'Create goal'));
+      await tester.pumpAndSettle();
+      expect(store.goalDefinitions.single.period, GoalPeriod.daily);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('book selection survives searching and bounds the editable completion target', (tester) async {
+    final other = Book(id: 'other', title: 'Dune', author: 'Frank Herbert', addedAt: now);
+    final store = DataStore()..loadData(books: [book, other]);
+    final goals = provider(store);
+    await showSheet(tester, (context) => AddGoalSheet.show(context, provider: goals, initialTimezone: 'UTC'));
+    await tester.tap(find.widgetWithText(ListTile, 'Books finished'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(DropdownButtonFormField<GoalScope>, 'Include'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Selected books').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.byType(SearchableBooksField));
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Choose books'));
+    await tester.pumpAndSettle();
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 280);
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(CheckboxListTile, book.title));
+    final search = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'Search books');
+    await tester.enterText(search, 'Herbert');
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(CheckboxListTile, book.title), findsNothing);
+    await tester.tap(find.widgetWithText(CheckboxListTile, 'Dune'));
+    await tester.pumpAndSettle();
+    final select = find.widgetWithText(FilledButton, 'Select (2)');
+    expect(select.hitTestable(), findsOneWidget);
+    expect(tester.getRect(select).bottom, lessThanOrEqualTo(564));
+    await tester.tap(select);
+    await tester.pumpAndSettle();
+    tester.view.viewInsets = const FakeViewPadding();
+    tester.view.physicalSize = const Size(1200, 1100);
+    await tester.pumpAndSettle();
+    final target = find.byKey(const Key('goal-target-input'));
+    await tester.ensureVisible(target);
+    expect(tester.widget<TextFormField>(target).controller!.text, '2');
+    await tester.enterText(target, '12');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create goal'));
+    await tester.pumpAndSettle();
+    expect(find.text('Choose a target of 1–2.'), findsOneWidget);
+    expect(store.goalDefinitions, isEmpty);
+    await tester.enterText(target, '1');
+    await tester.tap(find.widgetWithText(FilledButton, 'Create goal'));
+    await tester.pumpAndSettle();
+    expect(store.goalDefinitions.single.selectedBookIds, ['book', 'other']);
+    expect(store.goalDefinitions.single.targetValue, 1);
+    expect(store.goalDefinitions.single.period, GoalPeriod.daily);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('editing keeps the schedule and replaces a goal when a selected book is removed', (tester) async {
+    final other = Book(id: 'other', title: 'Dune', author: 'Frank Herbert', addedAt: now);
+    final goal = short.copyWith(
+      type: GoalType.books,
+      targetValue: 2,
+      period: GoalPeriod.yearly,
+      bookIds: ['book', 'other'],
+    );
+    final store = DataStore()..loadData(books: [book, other], readingGoals: [goal]);
+    final goals = provider(store);
+    await showSheet(tester, (context) => AddGoalSheet.show(context, provider: goals, editing: goal));
+    expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Yearly')).selected, isTrue);
+    await tester.enterText(find.widgetWithText(TextFormField, 'Name (optional)'), 'Chosen books');
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+    expect(store.goalDefinitions.single.id, goal.id);
+    expect(store.goalDefinitions.single.selectedBookIds, ['book', 'other']);
+    final updated = store.goalDefinitions.single;
+    await showSheet(tester, (context) => AddGoalSheet.show(context, provider: goals, editing: updated));
+    final chip = find.widgetWithText(Chip, 'Dune');
+    await tester.ensureVisible(chip);
+    await tester.pumpAndSettle();
+    await tester.tap(find.descendant(of: chip, matching: find.byIcon(Icons.cancel)));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextFormField>(find.byKey(const Key('goal-target-input'))).controller!.text, '1');
+    await tester.tap(find.widgetWithText(FilledButton, 'Replace goal'));
+    await tester.pumpAndSettle();
+    expect(store.getReadingGoal(goal.id)!.isArchived, isTrue);
+    expect(store.getReadingGoal(goal.id)!.selectedBookIds, ['book', 'other']);
+    expect(goals.current.single.goal.selectedBookIds, ['book']);
+    expect(goals.current.single.goal.targetValue, 1);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('goal targets and deadline controls stay bounded', (tester) async {
     final store = DataStore()..loadData(books: [book]);
     final goals = provider(store);
@@ -221,20 +384,20 @@ void main() {
     final store = DataStore()..loadData();
     final goals = provider(store);
     await showSheet(tester, (context) => AddGoalSheet.show(context, provider: goals, initialTimezone: 'UTC'));
-    expect(find.text('What would you like to track?'), findsOneWidget);
+    expect(find.text('What would you like to track?'), findsNothing);
     await tester.tap(find.widgetWithText(ListTile, 'Pages read'));
     await tester.pumpAndSettle();
     final target = find.byKey(const Key('goal-target-input'));
     await tester.enterText(target, '73');
-    await tester.tap(find.byTooltip('Increase target'));
-    await tester.pump();
-    expect(find.text('74'), findsOneWidget);
-    await tester.tap(find.byTooltip('Decrease target'));
+    expect(find.byTooltip('Increase target'), findsNothing);
     await tester.tap(find.widgetWithText(ChoiceChip, 'Monthly'));
+    await tester.pump();
+    await tester.tap(find.text('Repeat each period'));
     await tester.pump();
     await tester.tap(find.widgetWithText(FilledButton, 'Create goal'));
     await tester.pumpAndSettle();
     expect(store.goalDefinitions.single.targetValue, 73);
+    expect(store.goalDefinitions.single.isRecurring, isFalse);
     expect(store.goalDefinitions.single.period, GoalPeriod.monthly);
     expect(store.goalDefinitions.single.type, GoalType.pages);
     expect(tester.takeException(), isNull);

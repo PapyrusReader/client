@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:papyrus/powersync/tracking_schema_version.dart';
 import 'package:papyrus/data/repositories/tracking_repository.dart';
 import 'package:papyrus/models/reading_goal.dart';
 import 'package:papyrus/models/reading_activity.dart';
@@ -16,7 +17,9 @@ class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository {
   final PowerSyncDatabase database;
   final Future<void> Function() onWrite;
   bool active = true;
-  bool trackingSupported = false;
+  int trackingSchemaVersion = 0;
+  bool get trackingSupported => trackingSchemaVersion > 0;
+  set trackingSupported(bool value) => trackingSchemaVersion = value ? 2 : 0;
   @override
   bool get isCurrent => active;
 
@@ -194,30 +197,27 @@ class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository {
     );
   });
 
-  Future<void> enableTracking() async {
-    final previous = trackingSupported;
+  Future<void> enableTracking({int schemaVersion = 2}) async {
+    final previous = trackingSchemaVersion;
     try {
       await write((tx) async {
-        trackingSupported = true;
+        trackingSchemaVersion = schemaVersion;
         final staged = await tx.getAll('SELECT * FROM tracking_staging ORDER BY table_name DESC');
         for (final table in trackingTableNames) {
           for (final row in staged.where((row) => row['table_name'] == table)) {
+            final payload = Map<String, dynamic>.from(jsonDecode(row['payload'] as String) as Map);
+            if (requiredTrackingSchemaVersion(payload) > schemaVersion) continue;
             if (row['deleted'] == 1) {
               await tx.execute('DELETE FROM $table WHERE id = ?', [row['row_id']]);
             } else {
-              await _trackingRow(
-                tx,
-                table,
-                Map<String, dynamic>.from(jsonDecode(row['payload'] as String) as Map),
-                force: true,
-              );
+              await _trackingRow(tx, table, payload, force: true);
             }
             await tx.execute('DELETE FROM tracking_staging WHERE id = ?', [row['id']]);
           }
         }
       });
     } catch (_) {
-      trackingSupported = previous;
+      trackingSchemaVersion = previous;
       rethrow;
     }
   }
@@ -230,7 +230,10 @@ class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository {
     bool force = false,
   }) async {
     final id = payload['id'] as String;
-    if (!trackingSupported) {
+    final staged = deleted
+        ? await tx.getOptional('SELECT id FROM tracking_staging WHERE id = ?', ['$table:$id'])
+        : null;
+    if (requiredTrackingSchemaVersion(payload) > trackingSchemaVersion || staged != null) {
       await tx.execute(
         'INSERT OR REPLACE INTO tracking_staging (id, table_name, row_id, payload, deleted) VALUES (?, ?, ?, ?, ?)',
         ['$table:$id', table, id, jsonEncode(payload), deleted ? 1 : 0],

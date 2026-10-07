@@ -22,6 +22,85 @@ void main() {
       expect(totals.value, expected['current_value']);
     });
   }
+  test('eligible activity durations preserve originals and merge grouped checkpoints', () {
+    final fixture = fixtures.last as Map<String, dynamic>;
+    final goal = ReadingGoal.fromJson(fixture['goal'] as Map<String, dynamic>);
+    final ledger = (fixture['activities'] as List)
+        .map((a) => ReadingActivity.fromJson(a as Map<String, dynamic>))
+        .toList();
+    final progress = projectGoal(goal, ledger, DateTime.parse(fixture['now'] as String));
+    expect(progress.hasCreationCutoff, isTrue);
+    expect(progress.hasOverlappingTime, isTrue);
+    expect(progress.fraction, closeTo(1 / 60, .00001));
+    for (final activity in progress.activities) {
+      expect(progress.eligibleSecondsFor(activity), 30);
+      expect(activity.seconds, 1800);
+      expect(activity.toJson(), ledger.firstWhere((entry) => entry.id == activity.id).toJson());
+    }
+    final reader = ledger
+        .map(
+          (entry) => ReadingActivity(
+            id: entry.id,
+            bookId: entry.bookId,
+            bookTitle: entry.bookTitle,
+            startTime: entry.startTime,
+            endTime: entry.endTime,
+            createdAt: entry.createdAt,
+            source: 'reader',
+            sessionId: 'session',
+          ),
+        )
+        .toList();
+    final readerProgress = projectGoal(goal, reader, DateTime.parse(fixture['now'] as String));
+    final grouped = groupReadingActivities(readerProgress.activities).single;
+    expect(grouped.seconds, 1800);
+    expect(readerProgress.eligibleSecondsFor(grouped), 30);
+    final olderGoal = goal.copyWith(createdAt: DateTime.utc(2026, 10, 5));
+    final fullProgress = projectGoal(olderGoal, ledger, DateTime.parse(fixture['now'] as String));
+    expect(fullProgress.seconds, 1800);
+    expect(fullProgress.hasCreationCutoff, isFalse);
+    expect(fullProgress.hasOverlappingTime, isTrue);
+  });
+  test('separate manual sessions add normally and partial pauses stay excluded', () {
+    final start = DateTime.utc(2026, 10, 8, 10);
+    final goal = ReadingGoal(
+      id: 'goal',
+      type: GoalType.minutes,
+      targetValue: 90,
+      period: GoalPeriod.daily,
+      startDate: start,
+      endDate: start.add(const Duration(days: 1)),
+      createdAt: start,
+    );
+    final sessions = [
+      for (var i = 0; i < 3; i++)
+        ReadingActivity(
+          id: 'session-$i',
+          bookId: 'book',
+          bookTitle: 'Book',
+          startTime: start.add(Duration(minutes: 30 * i)),
+          endTime: start.add(Duration(minutes: 30 * (i + 1))),
+          createdAt: start,
+        ),
+    ];
+    final progress = projectGoal(goal, sessions, start.add(const Duration(hours: 2)));
+    expect(progress.seconds, 5400);
+    expect(progress.reached, isTrue);
+    expect(progress.hasOverlappingTime, isFalse);
+    expect(progress.hasCreationCutoff, isFalse);
+    final paused = goal.copyWith(
+      rules: [
+        GoalRule(at: start, target: 90),
+        GoalRule(at: start.add(const Duration(minutes: 10)), target: 90, active: false),
+        GoalRule(at: start.add(const Duration(minutes: 20)), target: 90),
+      ],
+    );
+    final partial = projectGoal(paused, sessions, start.add(const Duration(hours: 2)));
+    expect(partial.seconds, 4800);
+    expect(partial.eligibleSecondsFor(sessions.first), 1200);
+    expect(partial.eligibleSecondsFor(sessions.last), 1800);
+    expect(partial.hasOverlappingTime, isFalse);
+  });
   test('Monday weeks and both DST boundaries use calendar days', () {
     final spring = GoalCalendar.calendarPeriod(GoalPeriod.daily, DateTime.utc(2026, 3, 29, 12), 'Europe/Vilnius');
     final autumn = GoalCalendar.calendarPeriod(GoalPeriod.daily, DateTime.utc(2026, 10, 25, 12), 'Europe/Vilnius');

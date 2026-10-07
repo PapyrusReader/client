@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:papyrus/powersync/tracking_schema_version.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/auth/auth_repository.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
@@ -11,12 +12,14 @@ class PapyrusPowerSyncConnector extends PowerSyncBackendConnector {
   final PapyrusApiConfig config;
   final Future<void> Function()? onUploadComplete;
   final bool Function()? supportsTracking;
+  final int Function()? trackingSchemaVersion;
 
   PapyrusPowerSyncConnector({
     required this.authRepository,
     required this.config,
     this.onUploadComplete,
     this.supportsTracking,
+    this.trackingSchemaVersion,
   });
 
   @override
@@ -47,9 +50,13 @@ class PapyrusPowerSyncConnector extends PowerSyncBackendConnector {
         return;
       }
 
-      final deferred = supportsTracking?.call() == false
-          ? transaction.crud.where((entry) => trackingTableNames.contains(entry.table)).toList()
-          : <CrudEntry>[];
+      final version = supportsTracking?.call() == false ? 0 : trackingSchemaVersion?.call() ?? 2;
+      final deferred = <CrudEntry>[];
+      for (final entry in transaction.crud.where((entry) => trackingTableNames.contains(entry.table))) {
+        final raw = entry.opData?['payload'];
+        final payload = raw is String ? Map<String, dynamic>.from(jsonDecode(raw) as Map) : <String, dynamic>{};
+        if (requiredTrackingSchemaVersion(payload) > version) deferred.add(entry);
+      }
       if (deferred.isNotEmpty) {
         await database.writeTransaction((tx) async {
           for (final entry in deferred) {
