@@ -31,6 +31,29 @@ void main() {
     await ReadingDeviceIdentity.initialize(preferences);
     expect(ReadingDeviceIdentity.current, 'installation-one');
   });
+  test('correcting duplicate completions only clears status after the last confirmation', () async {
+    var now = DateTime.utc(2026, 10, 5, 12);
+    final book = Book(id: 'book', title: 'Book', author: '', addedAt: now);
+    final store = DataStore()..loadData(books: [book]);
+    final provider = GoalsProvider(now: () => now, watchClock: false)..attach(store);
+    addTearDown(provider.dispose);
+    addTearDown(store.dispose);
+    await provider.createGoal(type: GoalType.books, target: 1, period: GoalPeriod.daily, timezone: 'UTC');
+    now = now.add(const Duration(hours: 1));
+    await provider.logReading(book: store.getBook(book.id)!, end: now, finished: true);
+    now = now.add(const Duration(minutes: 1));
+    await provider.logReading(book: store.getBook(book.id)!, end: now, finished: true);
+    final confirmations = store.effectiveReadingActivities.where((a) => a.kind == 'completion').toList();
+    final completedAt = store.getBook(book.id)!.completedAt;
+    await provider.logReading(book: store.getBook(book.id)!, end: now, minutes: 30, correcting: confirmations.first);
+    expect(store.getBook(book.id)!.readingStatus, LibraryReadingStatus.completed);
+    expect(store.getBook(book.id)!.completedAt, completedAt);
+    expect(provider.current.single.finishedBooks, 1);
+    await provider.logReading(book: store.getBook(book.id)!, end: now, minutes: 30, correcting: confirmations.last);
+    expect(store.getBook(book.id)!.readingStatus, LibraryReadingStatus.inProgress);
+    expect(store.getBook(book.id)!.completedAt, isNull);
+    expect(provider.current.single.finishedBooks, 0);
+  });
   test('configuration replacement archives the old rules and starts at the replacement cutoff', () async {
     var now = DateTime.utc(2026, 10, 5, 12);
     final book = Book(id: 'book', title: 'Book', author: '', addedAt: now);

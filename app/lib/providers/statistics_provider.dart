@@ -139,7 +139,25 @@ class StatisticsProvider extends ChangeNotifier {
   int get totalBooks {
     if (_dataStore == null) return 0;
     final range = _getDateRangeForPeriod();
-    return _dataStore!.activityTotals(range.start, range.end).finishedBooks;
+    return _completedBooks(range.start, range.end).length;
+  }
+
+  Set<String> _completedBooks(DateTime start, DateTime end) {
+    final store = _dataStore;
+    if (store == null) return {};
+    final trackedBooks = store.readingActivities.where((a) => a.kind == 'completion').map((a) => a.bookId).toSet();
+    return {
+      for (final activity in store.effectiveReadingActivities)
+        if (activity.kind == 'completion' && !activity.endTime.isBefore(start) && activity.endTime.isBefore(end))
+          activity.bookId,
+      // Pre-ledger completion dates remain history without contributing to new goals.
+      for (final book in store.books)
+        if (!trackedBooks.contains(book.id) &&
+            book.completedAt != null &&
+            !book.completedAt!.isBefore(start) &&
+            book.completedAt!.isBefore(end))
+          book.id,
+    };
   }
 
   /// Goals completed in the selected period.
@@ -410,7 +428,7 @@ class StatisticsProvider extends ChangeNotifier {
         date: day,
         readingMinutes: totals.seconds ~/ 60,
         pagesRead: totals.pages.floor(),
-        booksRead: totals.activities.where((a) => a.kind == 'completion').map((a) => a.bookId).toSet().toList(),
+        booksRead: _completedBooks(day, DateTime(day.year, day.month, day.day + 1)).toList(),
       );
     });
   }
@@ -424,7 +442,7 @@ class StatisticsProvider extends ChangeNotifier {
       return MonthlyStats(
         month: start.month,
         year: start.year,
-        booksRead: totals?.finishedBooks ?? 0,
+        booksRead: _completedBooks(start, end).length,
         pagesRead: totals?.pages.floor() ?? 0,
         readingMinutes: (totals?.seconds ?? 0) ~/ 60,
       );

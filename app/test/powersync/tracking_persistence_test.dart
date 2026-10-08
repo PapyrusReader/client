@@ -56,6 +56,38 @@ void main() {
   tearDown(() async {
     await directory.delete(recursive: true);
   });
+  test('reconnect refreshes cached capabilities after upgrade, downgrade and discovery failure', () async {
+    var version = 2;
+    var failDiscovery = false;
+    final db = PapyrusPowerSyncService(
+      connectorFactory: OfflineConnector.new,
+      connectAuthenticated: false,
+      trackingCapability: () async {
+        if (failDiscovery) throw StateError('Server unavailable');
+        return version;
+      },
+      pathResolver: (mode, profile, user) async => '${directory.path}/refresh.db',
+    );
+    addTearDown(db.close);
+    await db.activateAuthenticated('one');
+    await db.reconnect();
+    expect(db.trackingSchemaVersion, 2);
+    await db.upsert(book);
+    await db.trackingRepository.commitTracking(goals: [goal], activities: [activity]);
+    for (final supported in [0, 1, 2]) {
+      version = supported;
+      await db.reconnect();
+      expect(db.trackingSchemaVersion, supported);
+      expect(db.supportsTracking, supported > 0);
+      final snapshot = await db.watchLibrary().firstWhere((s) => s.activities.isNotEmpty && s.books.isNotEmpty);
+      expect(snapshot.activities.single.id, activity.id);
+      expect(snapshot.books.single.id, book.id);
+    }
+    failDiscovery = true;
+    await db.reconnect();
+    expect(db.trackingSchemaVersion, 0);
+    expect((await db.watchLibrary().firstWhere((s) => s.activities.isNotEmpty)).activities.single.id, activity.id);
+  });
   test('guest restart retains goals and activity after deleting the book', () async {
     final first = service();
     await first.activateGuest();
