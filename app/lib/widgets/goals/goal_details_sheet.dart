@@ -56,59 +56,60 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
               period: history.range,
             );
       final periods = widget.provider.history.where((period) => period.goal.id == goal.id).toList();
+      final canRestore = goal.isArchived && widget.provider.store.getReadingGoal(goal.id) != null;
       return GoalControls(
         child: AppBottomSheet(
           title: 'Goal details',
           canClose: !_saving,
           onClose: () => Navigator.pop(context),
+          contentPadding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg, Spacing.md),
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _progressSummary(context, progress),
-              const SizedBox(height: Spacing.lg),
-              if (widget.historical == null && !goal.isArchived) ...[
+              if (canRestore || (widget.historical == null && !goal.isArchived)) ...[
+                const SizedBox(height: Spacing.md),
                 Wrap(
                   spacing: Spacing.sm,
                   runSpacing: Spacing.sm,
                   children: [
-                    OutlinedButton.icon(
-                      onPressed: _saving
-                          ? null
-                          : () => AddGoalSheet.show(context, provider: widget.provider, editing: goal),
-                      icon: const Icon(Icons.edit_outlined),
-                      label: const Text('Edit goal'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _saving
-                          ? null
-                          : () => _action(
-                              () => widget.provider.pauseGoal(goal.id, goal.isActive, repository: _repository),
-                            ),
-                      icon: Icon(goal.isActive ? Icons.pause : Icons.play_arrow),
-                      label: Text(goal.isActive ? 'Pause goal' : 'Resume goal'),
-                    ),
-                    OutlinedButton.icon(
-                      onPressed: _saving
-                          ? null
-                          : () => _action(() => widget.provider.archiveGoal(goal.id, repository: _repository)),
-                      icon: const Icon(Icons.archive_outlined),
-                      label: const Text('Archive goal'),
-                    ),
+                    if (canRestore)
+                      OutlinedButton.icon(
+                        onPressed: _saving
+                            ? null
+                            : () => _action(() => widget.provider.restoreGoal(goal.id, repository: _repository)),
+                        icon: const Icon(Icons.unarchive_outlined),
+                        label: const Text('Restore goal'),
+                      )
+                    else ...[
+                      OutlinedButton.icon(
+                        onPressed: _saving
+                            ? null
+                            : () => AddGoalSheet.show(context, provider: widget.provider, editing: goal),
+                        icon: const Icon(Icons.edit_outlined),
+                        label: const Text('Edit goal'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _saving
+                            ? null
+                            : () => _action(
+                                () => widget.provider.pauseGoal(goal.id, goal.isActive, repository: _repository),
+                              ),
+                        icon: Icon(goal.isActive ? Icons.pause : Icons.play_arrow),
+                        label: Text(goal.isActive ? 'Pause goal' : 'Resume goal'),
+                      ),
+                      OutlinedButton.icon(
+                        onPressed: _saving
+                            ? null
+                            : () => _action(() => widget.provider.archiveGoal(goal.id, repository: _repository)),
+                        icon: const Icon(Icons.archive_outlined),
+                        label: const Text('Archive goal'),
+                      ),
+                    ],
                   ],
                 ),
               ],
-              if (goal.isArchived && widget.provider.store.getReadingGoal(goal.id) != null)
-                Align(
-                  alignment: AlignmentDirectional.centerStart,
-                  child: TextButton.icon(
-                    onPressed: _saving
-                        ? null
-                        : () => _action(() => widget.provider.restoreGoal(goal.id, repository: _repository)),
-                    icon: const Icon(Icons.unarchive_outlined),
-                    label: const Text('Restore goal'),
-                  ),
-                ),
-              const SizedBox(height: Spacing.lg),
+              const SizedBox(height: Spacing.sm),
               Text('Reading activity', style: Theme.of(context).textTheme.titleMedium),
               const SizedBox(height: Spacing.sm),
               if (progress.activities.isEmpty)

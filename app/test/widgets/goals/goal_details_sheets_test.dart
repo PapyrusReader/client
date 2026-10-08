@@ -241,6 +241,18 @@ void main() {
       expect(store.getReadingGoal(goal.id)!.isActive, isFalse);
       expect(find.text('Paused'), findsOneWidget);
       expect(find.text('Resume goal'), findsOneWidget);
+      await tester.ensureVisible(find.text('Archive goal'));
+      await tester.tap(find.text('Archive goal'));
+      await tester.pumpAndSettle();
+      expect(store.getReadingGoal(goal.id)!.isArchived, isTrue);
+      final restore = find.widgetWithText(OutlinedButton, 'Restore goal');
+      expect(restore, findsOneWidget);
+      await tester.ensureVisible(restore);
+      await tester.tap(restore);
+      await tester.pumpAndSettle();
+      expect(store.getReadingGoal(goal.id)!.isArchived, isFalse);
+      expect(find.text('Restore goal'), findsNothing);
+      expect(find.text('Edit goal'), findsOneWidget);
       expect(store.readingActivities, hasLength(1));
       expect(tester.takeException(), isNull);
     });
