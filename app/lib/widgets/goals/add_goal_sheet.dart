@@ -15,27 +15,63 @@ import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:papyrus/widgets/shared/app_date_picker.dart';
 
 class AddGoalSheet extends StatefulWidget {
-  const AddGoalSheet({super.key, required this.provider, this.editing, this.preset, this.initialTimezone});
+  const AddGoalSheet({
+    super.key,
+    required this.provider,
+    this.editing,
+    this.preset,
+    this.initialTimezone,
+    this.initialMetric,
+  });
   final GoalsProvider provider;
   final ReadingGoal? editing;
   final int? preset;
   final String? initialTimezone;
+  final GoalType? initialMetric;
   static Future<void> show(
     BuildContext context, {
     required GoalsProvider provider,
     ReadingGoal? editing,
     int? preset,
     String? initialTimezone,
-  }) => showModalBottomSheet<void>(
-    context: context,
-    useRootNavigator: true,
-    isScrollControlled: true,
-    useSafeArea: true,
-    sheetAnimationStyle: AppMotion.animationStyle(context),
-    constraints: const BoxConstraints(maxWidth: 640),
-    builder: (_) =>
-        AddGoalSheet(provider: provider, editing: editing, preset: preset, initialTimezone: initialTimezone),
-  );
+  }) async {
+    GoalType? metric;
+    if (editing == null && preset == null) {
+      ModalBottomSheetRoute<GoalType>? chooserRoute;
+      metric = await showModalBottomSheet<GoalType>(
+        context: context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+        useSafeArea: true,
+        sheetAnimationStyle: AppMotion.animationStyle(context),
+        constraints: const BoxConstraints(maxWidth: 640),
+        builder: (sheetContext) {
+          chooserRoute = ModalRoute.of(sheetContext) as ModalBottomSheetRoute<GoalType>;
+          return const _GoalMetricSheet();
+        },
+      );
+      // Wait for the chooser to leave before presenting the differently sized form.
+      await chooserRoute?.completed;
+      if (metric == null || !context.mounted) return;
+    }
+    if (!context.mounted) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      useRootNavigator: true,
+      isScrollControlled: true,
+      useSafeArea: true,
+      sheetAnimationStyle: AppMotion.animationStyle(context),
+      constraints: const BoxConstraints(maxWidth: 640),
+      builder: (_) => AddGoalSheet(
+        provider: provider,
+        editing: editing,
+        preset: preset,
+        initialTimezone: initialTimezone,
+        initialMetric: metric,
+      ),
+    );
+  }
+
   @override
   State<AddGoalSheet> createState() => _AddGoalSheetState();
 }
@@ -53,7 +89,6 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
   String? _scopeId;
   List<String> _bookIds = [];
   bool _recurring = true;
-  bool _choosingMetric = false;
   bool _saving = false;
   bool _timezoneReady = false;
   String? _error;
@@ -62,8 +97,16 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
   void initState() {
     super.initState();
     _repository = widget.provider.store.trackingRepository;
-    _choosingMetric = widget.editing == null && widget.preset == null;
     _applyPreset(widget.preset ?? 0);
+    if (widget.initialMetric case final type?) {
+      _type = type;
+      _period = GoalPeriod.daily;
+      _target.text = switch (type) {
+        GoalType.books || GoalType.days => '1',
+        GoalType.minutes => '30',
+        GoalType.pages => '100',
+      };
+    }
     final editing = widget.editing;
     if (editing != null) {
       _type = editing.type;
@@ -126,69 +169,10 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
     return number == null || number < 1 || number > 100000 ? 'Enter a number from 1 to 100,000.' : null;
   }
 
-  String _metricLabel(GoalType type) => switch (type) {
-    GoalType.books => 'Books finished',
-    GoalType.pages => 'Pages read',
-    GoalType.minutes => 'Reading time',
-    GoalType.days => 'Reading days',
-  };
-
-  void _chooseMetric(GoalType type) => setState(() {
-    _applyPreset({GoalType.books: 2, GoalType.pages: 3, GoalType.minutes: 0, GoalType.days: 1}[type]!);
-    _period = GoalPeriod.daily;
-    _target.text = switch (type) {
-      GoalType.books || GoalType.days => '1',
-      GoalType.minutes => '30',
-      GoalType.pages => '100',
-    };
-    _choosingMetric = false;
-  });
-
   @override
   Widget build(BuildContext context) {
     final editing = widget.editing != null;
     final colors = Theme.of(context).colorScheme;
-    if (_choosingMetric) {
-      return GoalControls(
-        child: AppBottomSheet(
-          title: 'New goal',
-          onClose: () => Navigator.pop(context),
-          body: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              for (final type in GoalType.values)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: Spacing.sm),
-                  child: Material(
-                    color: colors.surfaceContainerLow,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(AppRadius.lg),
-                      side: BorderSide(color: colors.outlineVariant),
-                    ),
-                    clipBehavior: Clip.antiAlias,
-                    child: ListTile(
-                      contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-                      leading: Icon(goalIcon(type), color: colors.primary),
-                      title: Text(_metricLabel(type)),
-                      subtitle: Text(switch (type) {
-                        GoalType.books => 'Finish books from your library',
-                        GoalType.pages => 'Read a set number of pages',
-                        GoalType.minutes => 'Make time for reading',
-                        GoalType.days => 'Read regularly throughout the week',
-                      }),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => _chooseMetric(type),
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          footer: BottomSheetActions(
-            primary: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          ),
-        ),
-      );
-    }
     final store = widget.provider.store;
     final items = _scope == GoalScope.book
         ? {for (final book in store.books) book.id: book.title}
@@ -480,5 +464,60 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
         });
       }
     }
+  }
+}
+
+String _metricLabel(GoalType type) => switch (type) {
+  GoalType.books => 'Books finished',
+  GoalType.pages => 'Pages read',
+  GoalType.minutes => 'Reading time',
+  GoalType.days => 'Reading days',
+};
+
+class _GoalMetricSheet extends StatelessWidget {
+  const _GoalMetricSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+    return GoalControls(
+      child: AppBottomSheet(
+        title: 'New goal',
+        onClose: () => Navigator.pop(context),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final type in GoalType.values)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Spacing.sm),
+                child: Material(
+                  color: colors.surfaceContainerLow,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    side: BorderSide(color: colors.outlineVariant),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                    leading: Icon(goalIcon(type), color: colors.primary),
+                    title: Text(_metricLabel(type)),
+                    subtitle: Text(switch (type) {
+                      GoalType.books => 'Finish books from your library',
+                      GoalType.pages => 'Read a set number of pages',
+                      GoalType.minutes => 'Make time for reading',
+                      GoalType.days => 'Read regularly throughout the week',
+                    }),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pop(context, type),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        footer: BottomSheetActions(
+          primary: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ),
+      ),
+    );
   }
 }

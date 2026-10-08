@@ -252,6 +252,54 @@ void main() {
     expect(find.text('Missed'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
+  testWidgets('archived goals appear once below their heading with periods available in details', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 2400);
+    addTearDown(tester.view.reset);
+    final now = DateTime.now().toUtc();
+    final store = DataStore()
+      ..loadData(
+        readingGoals: [
+          for (final id in ['first', 'second'])
+            ReadingGoal(
+              id: id,
+              title: 'Archived $id',
+              type: GoalType.books,
+              targetValue: 1,
+              period: GoalPeriod.daily,
+              createdAt: now.subtract(const Duration(days: 3)),
+              startDate: now.subtract(const Duration(days: 3)),
+              endDate: now.subtract(const Duration(days: 2)),
+              isActive: false,
+              isArchived: true,
+            ),
+        ],
+      );
+    addTearDown(store.dispose);
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: store,
+        child: MaterialApp(theme: AppTheme.dark, home: const GoalsPage()),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Activity'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Goal history'));
+    await tester.pumpAndSettle();
+    final heading = tester.getRect(find.text('Archived goals'));
+    expect(find.byType(GoalCard), findsNWidgets(2));
+    for (final id in ['first', 'second']) {
+      expect(find.text('Archived $id'), findsOneWidget);
+      expect(tester.getRect(find.text('Archived $id')).top, greaterThan(heading.bottom));
+    }
+    await tester.tap(find.text('Archived first'));
+    await tester.pumpAndSettle();
+    expect(find.text('Previous periods'), findsOneWidget);
+    expect(find.text('Restore goal'), findsOneWidget);
+    expect(find.textContaining('Missed'), findsWidgets);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('archived goal activity restores scroll and expansion independently', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1200, 800);

@@ -334,9 +334,9 @@ class ReadingActivityList extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final group in groups.values) ...[
+        for (final (index, group) in groups.values.indexed) ...[
           Padding(
-            padding: const EdgeInsets.only(top: Spacing.md, bottom: Spacing.xs),
+            padding: EdgeInsets.only(top: index == 0 ? 0 : Spacing.md, bottom: Spacing.xs),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

@@ -49,11 +49,11 @@ void main() {
     addTearDown(tester.view.reset);
   }
 
-  Future<void> showSheet(WidgetTester tester, void Function(BuildContext) show) async {
+  Future<void> showSheet(WidgetTester tester, void Function(BuildContext) show, {ThemeData? theme}) async {
     await size(tester);
     await tester.pumpWidget(
       MaterialApp(
-        theme: AppTheme.dark,
+        theme: theme ?? AppTheme.dark,
         home: Scaffold(
           body: Builder(
             builder: (context) => TextButton(onPressed: () => show(context), child: const Text('Open')),
@@ -274,8 +274,21 @@ void main() {
       final store = DataStore()..loadData();
       final goals = provider(store);
       await showSheet(tester, (context) => AddGoalSheet.show(context, provider: goals, initialTimezone: 'UTC'));
-      await tester.tap(find.widgetWithText(ListTile, metric));
+      final chooser = find.widgetWithText(ListTile, metric);
+      final chooserRoute = ModalRoute.of(tester.element(chooser))!;
+      await tester.tap(chooser);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      // The selector keeps its content while exiting; the form appears only
+      // after that route finishes, rather than resizing the current sheet.
+      expect(find.byKey(const Key('goal-target-input')), findsNothing);
+      expect(chooser, findsOneWidget);
+      expect(chooserRoute.animation!.status, AnimationStatus.reverse);
       await tester.pumpAndSettle();
+      final formRoute = ModalRoute.of(tester.element(find.byKey(const Key('goal-target-input'))))!;
+      expect(formRoute, isNot(same(chooserRoute)));
+      expect(chooserRoute.isCurrent, isFalse);
+      expect(formRoute.isCurrent, isTrue);
       expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, 'Daily')).selected, isTrue);
       await tester.tap(find.widgetWithText(FilledButton, 'Create goal'));
       await tester.pumpAndSettle();
@@ -284,6 +297,41 @@ void main() {
     });
   }
 
+  testWidgets('e-ink reopens goal creation without animation', (tester) async {
+    final store = DataStore()..loadData();
+    final goals = provider(store);
+    await showSheet(
+      tester,
+      (context) => AddGoalSheet.show(context, provider: goals, initialTimezone: 'UTC'),
+      theme: AppTheme.eink,
+    );
+    final chooser = find.widgetWithText(ListTile, 'Reading time');
+    final chooserRoute = ModalRoute.of(tester.element(chooser))!;
+    await tester.tap(chooser);
+    await tester.pumpAndSettle();
+    final formRoute = ModalRoute.of(tester.element(find.byKey(const Key('goal-target-input'))))!;
+    expect(formRoute, isNot(same(chooserRoute)));
+    expect(formRoute.transitionDuration, Duration.zero);
+    expect(formRoute.reverseTransitionDuration, Duration.zero);
+    expect(find.widgetWithText(ListTile, 'Books finished'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('dismissing the metric chooser does not open a form', (tester) async {
+    final store = DataStore()..loadData();
+    final goals = provider(store);
+    var finished = false;
+    await showSheet(tester, (context) {
+      AddGoalSheet.show(context, provider: goals, initialTimezone: 'UTC').then((_) => finished = true);
+    });
+    await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
+    await tester.pumpAndSettle();
+    expect(finished, isTrue);
+    expect(find.byKey(const Key('goal-target-input')), findsNothing);
+    expect(find.byType(ListTile), findsNothing);
+    expect(store.goalDefinitions, isEmpty);
+    expect(tester.takeException(), isNull);
+  });
   testWidgets('book selection survives searching and bounds the editable completion target', (tester) async {
     final other = Book(id: 'other', title: 'Dune', author: 'Frank Herbert', addedAt: now);
     final store = DataStore()..loadData(books: [book, other]);

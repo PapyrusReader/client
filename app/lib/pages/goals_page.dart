@@ -320,7 +320,12 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
     ];
   }
 
-  Widget _cards(BuildContext context, List<GoalProgress> goals, {bool historical = false}) => LayoutBuilder(
+  Widget _cards(
+    BuildContext context,
+    List<GoalProgress> goals, {
+    bool historical = false,
+    bool currentDetails = false,
+  }) => LayoutBuilder(
     builder: (context, constraints) {
       final columns = constraints.maxWidth >= 760 && MediaQuery.textScalerOf(context).scale(16) <= 24 ? 2 : 1;
       Widget card(GoalProgress progress) => GoalCard(
@@ -333,7 +338,7 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
           context,
           goal: progress.goal,
           provider: _provider,
-          historical: historical ? progress : null,
+          historical: historical && !currentDetails ? progress : null,
         ),
         onMenu: historical ? null : (action) => _goalAction(progress.goal, action),
       );
@@ -430,9 +435,13 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
       now,
       period: range,
     );
+    final archivedIds = _provider.store.goalDefinitions.where((goal) => goal.isArchived).map((goal) => goal.id).toSet();
+    // Archived goals have one summary below; their previous periods remain
+    // inspectable in goal details rather than appearing as duplicate cards.
     final filtered = periods
         .where(
           (p) =>
+              !archivedIds.contains(p.goal.id) &&
               (_filterGoal == null || p.goal.id == _filterGoal) &&
               p.range.start.isBefore(range.end) &&
               p.range.end.isAfter(range.start),
@@ -601,7 +610,7 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
                 ),
               ),
               const SizedBox(height: Spacing.md),
-              _cards(context, archived, historical: true),
+              _cards(context, archived, historical: true, currentDetails: true),
             ],
           ],
         ),
