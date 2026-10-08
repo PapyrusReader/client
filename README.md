@@ -8,7 +8,7 @@
     <a href="https://join.slack.com/t/papyrus-crew/shared_invite/zt-4btcyuevl-RVRivB9rreOiri4SQhVxdQ"><img src="https://img.shields.io/badge/Slack-Join%20the%20community-4A154B?logo=slack&logoColor=white" alt="Join the Papyrus community on Slack"/></a>
     <a href="https://trello.com/invite/b/681367b2ba91db4e40b0cfea/ATTI5156837607437467bd3d646f933528054D126F02/papyrus"><img src="https://img.shields.io/badge/Trello-blue?logo=trello&logoColor=white" alt="Trello"/></a>
     <a href="https://papyrusreader.github.io/docs/"><img src="https://img.shields.io/badge/Documentation-darkslateblue?logo=gitbook&logoColor=white" alt="Documentation"/></a>
-    <a href="https://codecov.io/gh/PapyrusReader/client"><img src="https://codecov.io/gh/PapyrusReader/client/branch/master/graph/badge.svg" alt="Coverage"/></a>
+    <a href="https://app.codecov.io/gh/PapyrusReader/client/branch/development"><img src="https://codecov.io/gh/PapyrusReader/client/branch/development/graph/badge.svg" alt="Coverage"/></a>
     <a href="https://github.com/PapyrusReader/client/tree/master?tab=AGPL-3.0-1-ov-file"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="License"/></a>
   </p>
 </div>
@@ -178,6 +178,17 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
    ```
 
 4. Open a pull request
+
+### Coverage
+
+CI runs `flutter test --coverage` from `app/`, retains `lcov.info` as a
+`client-coverage-<attempt>` artifact for 14 days, and uploads it to Codecov.
+A missing or empty report, or a failed upload, fails the quality job.
+
+[`codecov.yml`](codecov.yml) uses `development` as the default branch. The
+project status compares coverage against the PR base or parent commit and allows
+a one percentage point drop. The patch status targets 80% of changed lines and
+is informational initially; it reports coverage without failing on the target.
 
 ## Resources
 
