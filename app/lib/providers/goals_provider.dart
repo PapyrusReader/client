@@ -334,9 +334,12 @@ class GoalsProvider extends ChangeNotifier {
         ),
       );
     }
+    final anotherCompletion = store.effectiveReadingActivities.any(
+      (activity) => activity.bookId == book.id && activity.kind == 'completion' && activity.id != correcting?.id,
+    );
     final updated = finished
         ? book.copyWith(readingStatus: LibraryReadingStatus.completed, completedAt: end)
-        : correcting?.kind == 'completion'
+        : correcting?.kind == 'completion' && !anotherCompletion
         ? book.copyWith(readingStatus: LibraryReadingStatus.inProgress, clearCompletedAt: true)
         : book.copyWith(lastReadAt: book.lastReadAt != null && book.lastReadAt!.isAfter(end) ? book.lastReadAt : end);
     await store.commitTracking(activities: activities, book: updated, previousBook: book, repository: repository);
