@@ -1,0 +1,21 @@
+codecov:
+  branch: development
+
+coverage:
+  status:
+    project:
+      default:
+        # Compare with the PR base; tolerate a one percentage point drop.
+        target: auto
+        threshold: 1%
+        if_not_found: failure
+        flags:
+          - client
+    patch:
+      default:
+        # Report the target before enforcing it on existing workflows.
+        target: 80%
+        threshold: 0%
+        informational: true
+        flags:
+          - client
