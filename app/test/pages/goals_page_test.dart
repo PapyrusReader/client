@@ -392,7 +392,8 @@ void main() {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1200, 2400);
     addTearDown(tester.view.reset);
-    final now = DateTime.now().toUtc();
+    // Keep the full reading interval in one day, regardless of when CI runs.
+    final now = DateTime.utc(2026, 10, 8, 12);
     final created = now.subtract(const Duration(hours: 1));
     final book = Book(id: 'alice', title: 'Alice', author: 'Lewis Carroll', addedAt: created);
     ReadingGoal goal(String id, GoalType type, int target, GoalPeriod period, {bool active = true}) => ReadingGoal(
@@ -448,7 +449,10 @@ void main() {
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: store,
-        child: MaterialApp(theme: AppTheme.dark, home: const GoalsPage()),
+        child: MaterialApp(
+          theme: AppTheme.dark,
+          home: GoalsPage(now: () => now),
+        ),
       ),
     );
     await tester.pumpAndSettle();

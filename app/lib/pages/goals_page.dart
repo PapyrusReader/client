@@ -22,13 +22,14 @@ import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
 class GoalsPage extends StatefulWidget {
-  const GoalsPage({super.key});
+  const GoalsPage({super.key, this.now});
+  final DateTime Function()? now;
   @override
   State<GoalsPage> createState() => _GoalsPageState();
 }
 
 class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
-  final _provider = GoalsProvider();
+  late final _provider = GoalsProvider(now: widget.now);
   bool _activity = false;
   bool _hideCompleted = false;
   late TabController _tabs;
