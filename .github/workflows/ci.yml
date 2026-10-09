@@ -7,6 +7,7 @@ on:
       - 'app/**'
       - 'packages/**'
       - '.github/workflows/**'
+      - '.github/scripts/**'
       - 'codecov.yml'
   pull_request:
     branches: [development, master, main]
@@ -14,6 +15,7 @@ on:
       - 'app/**'
       - 'packages/**'
       - '.github/workflows/**'
+      - '.github/scripts/**'
       - 'codecov.yml'
   workflow_dispatch:
 
@@ -54,6 +56,9 @@ jobs:
       - name: Install JUnit converter
         run: dart pub global activate junitreport 2.0.2
 
+      - name: Check report normalization
+        run: python3 -m unittest discover -s ../.github/scripts -p 'test_*.py'
+
       - name: Run tests with coverage
         id: tests
         run: |
@@ -63,8 +68,10 @@ jobs:
       - name: Generate JUnit report
         if: ${{ !cancelled() && (steps.tests.outcome == 'success' || steps.tests.outcome == 'failure') }}
         run: |
+          python3 ../.github/scripts/normalize_test_report.py \
+            build/test-results/tests.json build/test-results/tests.junit.json
           dart pub global run junitreport:tojunit \
-            --input build/test-results/tests.json \
+            --input build/test-results/tests.junit.json \
             --output build/test-results/junit.xml \
             --base "$PWD/" \
             --package app/
