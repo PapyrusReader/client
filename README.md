@@ -185,6 +185,8 @@ CI runs `flutter test --coverage --file-reporter json:build/test-results/tests.j
 from `app/`. The normal test log remains visible in Actions. A pinned JUnit
 converter turns the JSON results into XML for Codecov Test Analytics, which
 reports test duration and failures.
+Before conversion, runtime skips are normalized from the test runner's final
+result so they remain skipped in JUnit. The original JSON report is preserved.
 
 Coverage and test results are uploaded even when tests fail. The failing test
 step still fails the job; report generation and uploads cannot mask that failure.
