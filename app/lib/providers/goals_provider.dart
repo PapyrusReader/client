@@ -24,22 +24,35 @@ class GoalsProvider extends ChangeNotifier {
   String? get error => _error;
   bool get isLoading => _store?.isLoaded != true;
   DateTime get now => _now().toUtc();
+
   void attach(DataStore dataStore) {
-    if (identical(_store, dataStore)) return;
+    if (identical(_store, dataStore)) {
+      return;
+    }
+
     _store?.removeListener(_changed);
     _store = dataStore;
     dataStore.addListener(_changed);
-    if (watchClock) _clock ??= Timer.periodic(const Duration(minutes: 1), (_) => _changed());
+
+    if (watchClock) {
+      _clock ??= Timer.periodic(const Duration(minutes: 1), (_) => _changed());
+    }
     // Attaching from a page's dependency update must not persist periods and
     // notify the DataStore's listeners while that page is still building.
+
     scheduleMicrotask(() {
-      if (identical(_store, dataStore)) _changed();
+      if (identical(_store, dataStore)) {
+        _changed();
+      }
     });
   }
 
   void _changed() {
     notifyListeners();
-    if (!_sealing && _store?.isLoaded == true) unawaited(_sealPeriods());
+
+    if (!_sealing && _store?.isLoaded == true) {
+      unawaited(_sealPeriods());
+    }
   }
 
   List<GoalProgress> get current => store.goalDefinitions
@@ -47,18 +60,22 @@ class GoalsProvider extends ChangeNotifier {
       .map((goal) => projectGoal(goal, store.readingActivities, now))
       .where((progress) => progress.range.end.isAfter(now))
       .toList();
+
   List<ReadingGoal> get activeGoals => current.map((progress) => progress.projected).toList();
   List<ReadingGoal> get completedGoals => store.goalDefinitions.where((goal) => goal.isArchived).toList();
   bool get hasActiveGoals => current.isNotEmpty;
   bool get hasCompletedGoals => store.goalPeriods.isNotEmpty || completedGoals.isNotEmpty;
   GoalProgress progress(ReadingGoal goal) => projectGoal(goal, store.readingActivities, now);
+
   List<GoalProgress> get history {
     final all = <String, GoalProgress>{};
+
     for (final goal in store.goalDefinitions) {
       for (final period in GoalCalendar.pastPeriods(goal, now)) {
         all['${goal.id}:${period.start}'] = projectGoal(goal, store.readingActivities, now, period: period);
       }
     }
+
     for (final record in store.goalPeriods) {
       all['${record.goalId}:${record.definition.startDate}'] = projectGoal(
         store.getReadingGoal(record.goalId) ?? record.definition,
@@ -67,24 +84,32 @@ class GoalsProvider extends ChangeNotifier {
         period: GoalRange(record.definition.startDate, record.definition.endDate),
       );
     }
-    final values = all.values.toList()..sort((a, b) => b.range.end.compareTo(a.range.end));
+
+    final values = all.values.toList()..sort((left, right) => right.range.end.compareTo(left.range.end));
     return values;
   }
 
   Future<void> _sealPeriods() async {
     _sealing = true;
     final target = store.trackingRepository;
+
     try {
       final known = store.goalPeriods.map((value) => value.id).toSet();
       final records = <GoalPeriodRecord>[];
+
       for (final goal in store.goalDefinitions) {
         for (final period in GoalCalendar.pastPeriods(goal, now)) {
           final id = const Uuid().v5(
             Namespace.url.value,
             'papyrus:goal-period:${goal.id}:${period.start.microsecondsSinceEpoch}',
           );
-          if (known.contains(id)) continue;
+
+          if (known.contains(id)) {
+            continue;
+          }
+
           final rule = ruleAt(goal, period.end.subtract(const Duration(microseconds: 1)));
+
           final definition = goal.copyWith(
             startDate: period.start,
             endDate: period.end,
@@ -95,10 +120,15 @@ class GoalsProvider extends ChangeNotifier {
             isRecurring: false,
             rules: goal.rules.where((rule) => rule.at.isBefore(period.end)).toList(),
           );
+
           records.add(GoalPeriodRecord(id: id, goalId: goal.id, definition: definition));
         }
       }
-      if (records.isNotEmpty) await store.commitTracking(periods: records, repository: target);
+
+      if (records.isNotEmpty) {
+        await store.commitTracking(periods: records, repository: target);
+      }
+
       _error = null;
     } catch (error) {
       _error = 'Could not save goal history: $error';
@@ -109,6 +139,7 @@ class GoalsProvider extends ChangeNotifier {
 
   Future<void> loadGoals() => store.waitUntilLoaded();
   Future<void> refresh() => _sealPeriods();
+
   Future<void> createGoal({
     required GoalType type,
     required int target,
@@ -127,24 +158,48 @@ class GoalsProvider extends ChangeNotifier {
   }) async {
     final origin = repository ?? store.trackingRepository;
     final replacing = replaceGoalId == null ? null : store.getReadingGoal(replaceGoalId);
-    if (replaceGoalId != null && replacing == null) throw StateError('This goal no longer exists.');
-    if (target < 1 || minimumMinutes < 1 || minimumMinutes > 1440) throw ArgumentError('Targets must be positive.');
+
+    if (replaceGoalId != null && replacing == null) {
+      throw StateError('This goal no longer exists.');
+    }
+
+    if (target < 1 || minimumMinutes < 1 || minimumMinutes > 1440) {
+      throw ArgumentError('Targets must be positive.');
+    }
+
     final selected = bookIds.toSet().toList()..sort();
-    if (selected.length > 1000) throw ArgumentError('Choose up to 1,000 books.');
-    if (scope == GoalScope.book && selected.isEmpty && scopeId != null) selected.add(scopeId);
+
+    if (selected.length > 1000) {
+      throw ArgumentError('Choose up to 1,000 books.');
+    }
+
+    if (scope == GoalScope.book && selected.isEmpty && scopeId != null) {
+      selected.add(scopeId);
+    }
+
     if (scope == GoalScope.book && selected.isEmpty || scope == GoalScope.shelf && scopeId == null) {
       throw ArgumentError('Choose books or a shelf.');
     }
-    if (scope != GoalScope.book && selected.isNotEmpty) throw ArgumentError('Book selection requires a book scope.');
+
+    if (scope != GoalScope.book && selected.isNotEmpty) {
+      throw ArgumentError('Book selection requires a book scope.');
+    }
+
     if (scope == GoalScope.book && type == GoalType.books && target > selected.length) {
       throw ArgumentError('Target cannot exceed the number of selected books.');
     }
+
     final zone = timezone ?? await GoalCalendar.deviceTimezone();
     final created = now;
+
     final range = period == GoalPeriod.custom
         ? GoalRange(startDate ?? created, endDate ?? GoalCalendar.nextDay(created.add(const Duration(days: 30)), zone))
         : GoalCalendar.calendarPeriod(period, created, zone);
-    if (!range.end.isAfter(created)) throw ArgumentError('The deadline must be in the future.');
+
+    if (!range.end.isAfter(created)) {
+      throw ArgumentError('The deadline must be in the future.');
+    }
+
     final goal = ReadingGoal(
       id: const Uuid().v4(),
       type: type,
@@ -162,6 +217,7 @@ class GoalsProvider extends ChangeNotifier {
       isRecurring: period != GoalPeriod.custom && isRecurring,
       rules: [GoalRule(at: created, target: target, title: title?.trim().isEmpty == true ? null : title)],
     );
+
     await store.commitTracking(
       goals: [if (replacing != null) _revisedGoal(replacing, archived: true, active: false), goal],
       repository: origin,
@@ -176,7 +232,11 @@ class GoalsProvider extends ChangeNotifier {
     TrackingRepository? repository,
   }) async {
     final goal = store.getReadingGoal(goalId);
-    if (goal == null) throw StateError('This goal no longer exists.');
+
+    if (goal == null) {
+      throw StateError('This goal no longer exists.');
+    }
+
     if (type != null && type != goal.type) {
       await createGoal(
         type: type,
@@ -193,15 +253,21 @@ class GoalsProvider extends ChangeNotifier {
         replaceGoalId: goalId,
         repository: repository,
       );
+
       return;
     }
-    if (target != null && target < 1) throw ArgumentError('Target must be positive.');
+
+    if (target != null && target < 1) {
+      throw ArgumentError('Target must be positive.');
+    }
+
     if (target != null &&
         goal.type == GoalType.books &&
         goal.scope == GoalScope.book &&
         target > goal.selectedBookIds.length) {
       throw ArgumentError('Target cannot exceed the number of selected books.');
     }
+
     await _revise(goal, target: target, title: title, repository: repository);
   }
 
@@ -219,6 +285,7 @@ class GoalsProvider extends ChangeNotifier {
 
   ReadingGoal _revisedGoal(ReadingGoal goal, {int? target, String? title, bool? active, bool? archived}) {
     var at = now;
+
     final rules = goal.rules.isEmpty
         ? [
             GoalRule(
@@ -230,7 +297,11 @@ class GoalsProvider extends ChangeNotifier {
             ),
           ]
         : [...goal.rules];
-    if (!at.isAfter(rules.last.at)) at = rules.last.at.add(const Duration(microseconds: 1));
+
+    if (!at.isAfter(rules.last.at)) {
+      at = rules.last.at.add(const Duration(microseconds: 1));
+    }
+
     final rule = GoalRule(
       at: at,
       target: target ?? goal.targetValue,
@@ -238,6 +309,7 @@ class GoalsProvider extends ChangeNotifier {
       active: active ?? goal.isActive,
       archived: archived ?? goal.isArchived,
     );
+
     return goal.copyWith(
       targetValue: rule.target,
       title: rule.title,
@@ -249,15 +321,23 @@ class GoalsProvider extends ChangeNotifier {
 
   Future<void> pauseGoal(String id, bool paused, {TrackingRepository? repository}) =>
       _revise(store.getReadingGoal(id)!, active: !paused, repository: repository);
+
   Future<void> archiveGoal(String id, {TrackingRepository? repository}) =>
       _revise(store.getReadingGoal(id)!, archived: true, active: false, repository: repository);
+
   Future<void> restoreGoal(String id, {TrackingRepository? repository}) =>
       _revise(store.getReadingGoal(id)!, archived: false, active: true, repository: repository);
+
   Future<void> deleteGoal(String id, {TrackingRepository? repository}) async {
     await _sealPeriods();
     final goal = store.getReadingGoal(id);
-    if (goal == null) return;
+
+    if (goal == null) {
+      return;
+    }
+
     final period = GoalCalendar.currentPeriod(goal, now);
+
     final record = GoalPeriodRecord(
       id: const Uuid().v5(Namespace.url.value, 'papyrus:goal-period:$id:${period.start.microsecondsSinceEpoch}'),
       goalId: id,
@@ -281,6 +361,7 @@ class GoalsProvider extends ChangeNotifier {
         ],
       ),
     );
+
     await store.commitTracking(periods: [record], deleteGoalId: id, repository: repository);
   }
 
@@ -297,11 +378,14 @@ class GoalsProvider extends ChangeNotifier {
     if (end.isAfter(now) || minutes < 0 || pages < 0 || minutes == 0 && pages == 0 && !finished) {
       throw ArgumentError('Choose a past time and enter reading time, pages, or completion.');
     }
+
     final created = now;
     final shelfIds = correcting?.shelfIds ?? store.getShelfIdsForBook(book.id);
+
     final activities = <ReadingActivity>[
       if (correcting != null) store.reversalFor(correcting, note: 'Corrected entry'),
     ];
+
     if (minutes > 0 || pages > 0) {
       activities.add(
         ReadingActivity(
@@ -318,6 +402,7 @@ class GoalsProvider extends ChangeNotifier {
         ),
       );
     }
+
     if (finished) {
       activities.add(
         ReadingActivity(
@@ -334,26 +419,36 @@ class GoalsProvider extends ChangeNotifier {
         ),
       );
     }
+
     final anotherCompletion = store.effectiveReadingActivities.any(
       (activity) => activity.bookId == book.id && activity.kind == 'completion' && activity.id != correcting?.id,
     );
-    final updated = finished
-        ? book.copyWith(readingStatus: LibraryReadingStatus.completed, completedAt: end)
-        : correcting?.kind == 'completion' && !anotherCompletion
-        ? book.copyWith(readingStatus: LibraryReadingStatus.inProgress, clearCompletedAt: true)
-        : book.copyWith(lastReadAt: book.lastReadAt != null && book.lastReadAt!.isAfter(end) ? book.lastReadAt : end);
+
+    final updated = switch (finished) {
+      true => book.copyWith(readingStatus: LibraryReadingStatus.completed, completedAt: end),
+      false when correcting?.kind == 'completion' && !anotherCompletion => book.copyWith(
+        readingStatus: LibraryReadingStatus.inProgress,
+        clearCompletedAt: true,
+      ),
+      false => book.copyWith(
+        lastReadAt: book.lastReadAt != null && book.lastReadAt!.isAfter(end) ? book.lastReadAt : end,
+      ),
+    };
+
     await store.commitTracking(activities: activities, book: updated, previousBook: book, repository: repository);
   }
 
   Future<void> reverseActivity(ReadingActivity original, {TrackingRepository? repository}) async {
     final book = store.getBook(original.bookId);
+
     final anotherCompletion = store.effectiveReadingActivities.any(
       (activity) => activity.bookId == original.bookId && activity.kind == 'completion' && activity.id != original.id,
     );
+
     await store.commitTracking(
       activities: [
         for (final entry in store.effectiveReadingActivities.where(
-          (a) => a.id == original.id || original.constituentIds.contains(a.id),
+          (activity) => activity.id == original.id || original.constituentIds.contains(activity.id),
         ))
           store.reversalFor(entry, note: 'Undone from activity history'),
       ],

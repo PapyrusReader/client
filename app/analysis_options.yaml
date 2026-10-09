@@ -5,6 +5,7 @@ linter:
     lines_longer_than_80_chars: false
 formatter:
   page_width: 120
+  trailing_commas: preserve
 analyzer:
   exclude:
     - build/**

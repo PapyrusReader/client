@@ -20,6 +20,7 @@ void main() {
       addTearDown(tester.view.reset);
       final now = DateTime.utc(2026, 10, 8, 0, 36);
       final book = Book(id: 'book', title: 'SQL Performance Explained', author: 'Markus Winand', addedAt: now);
+
       final goal = ReadingGoal(
         id: 'daily',
         type: GoalType.minutes,
@@ -31,7 +32,9 @@ void main() {
         scope: GoalScope.book,
         scopeId: book.id,
       );
+
       final store = DataStore()..loadData(books: [book], readingGoals: [goal]);
+
       await store.commitTracking(
         activities: [
           for (var i = 0; i < 3; i++)
@@ -45,11 +48,13 @@ void main() {
             ),
         ],
       );
+
       final provider = GoalsProvider(now: () => now, watchClock: false)..attach(store);
       addTearDown(provider.dispose);
       addTearDown(store.dispose);
       expect(goalCount(provider.progress(goal)), '30 sec / 30m');
       expect(goalRemaining(provider.progress(goal)), '29m 30s to go');
+
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark,
@@ -63,6 +68,7 @@ void main() {
           ),
         ),
       );
+
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       expect(find.text('30 sec / 30m'), findsOneWidget);
@@ -82,11 +88,13 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
   testWidgets('editing a metric previews replacement and retains the original goal', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1000, 1400);
     addTearDown(tester.view.reset);
     final now = DateTime.now().toUtc();
+
     final goal = ReadingGoal(
       id: 'original',
       type: GoalType.minutes,
@@ -96,10 +104,12 @@ void main() {
       endDate: now.add(const Duration(days: 1)),
       timezone: 'UTC',
     );
+
     final store = DataStore()..loadData(readingGoals: [goal]);
     final provider = GoalsProvider(watchClock: false)..attach(store);
     addTearDown(provider.dispose);
     addTearDown(store.dispose);
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
@@ -113,6 +123,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Edit'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
@@ -127,12 +138,14 @@ void main() {
     expect(provider.current.single.goal.type, GoalType.pages);
     expect(tester.takeException(), isNull);
   });
+
   testWidgets('an unchanged DST deadline remains a target edit rather than a replacement', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1000, 1400);
     addTearDown(tester.view.reset);
     final now = DateTime.utc(2026, 3, 28, 12);
     final end = GoalCalendar.deadline(DateTime(2026, 3, 29), 'Europe/Vilnius');
+
     final goal = ReadingGoal(
       id: 'deadline',
       type: GoalType.books,
@@ -143,10 +156,12 @@ void main() {
       timezone: 'Europe/Vilnius',
       isRecurring: false,
     );
+
     final store = DataStore()..loadData(readingGoals: [goal]);
     final provider = GoalsProvider(now: () => now, watchClock: false)..attach(store);
     addTearDown(provider.dispose);
     addTearDown(store.dispose);
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
@@ -160,6 +175,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Edit'));
     await tester.pumpAndSettle();
     expect(find.text('Deadline: 29/3/2026'), findsOneWidget);
@@ -171,6 +187,7 @@ void main() {
     expect(store.getReadingGoal('deadline')!.isArchived, isFalse);
     expect(tester.takeException(), isNull);
   });
+
   for (final size in [const Size(390, 844), const Size(1200, 1000)]) {
     testWidgets('details show a plain scoped summary with activity and live actions at $size', (tester) async {
       tester.view.devicePixelRatio = 1;
@@ -178,6 +195,7 @@ void main() {
       addTearDown(tester.view.reset);
       final now = DateTime.now().toUtc();
       final book = Book(id: 'book', title: 'Alice’s Adventures in Wonderland', author: 'Lewis Carroll', addedAt: now);
+
       final goal = ReadingGoal(
         id: 'goal',
         type: GoalType.books,
@@ -188,7 +206,9 @@ void main() {
         startDate: now.subtract(const Duration(hours: 1)),
         endDate: now.add(const Duration(days: 30)),
       );
+
       final store = DataStore()..loadData(books: [book], readingGoals: [goal]);
+
       await store.commitTracking(
         activities: [
           ReadingActivity(
@@ -202,9 +222,11 @@ void main() {
           ),
         ],
       );
+
       final provider = GoalsProvider(watchClock: false)..attach(store);
       addTearDown(provider.dispose);
       addTearDown(store.dispose);
+
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark,
@@ -222,6 +244,7 @@ void main() {
           ),
         ),
       );
+
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       expect(find.byType(GoalCard), findsNothing);
@@ -257,6 +280,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
   for (final width in [320.0, 390.0, 1200.0]) {
     for (final theme in [AppTheme.light, AppTheme.dark, AppTheme.eink]) {
       testWidgets('goal sheet footer is above system navigation at $width/${theme.brightness}', (tester) async {
@@ -266,6 +290,7 @@ void main() {
         tester.view.viewPadding = const FakeViewPadding(bottom: 48);
         addTearDown(tester.view.reset);
         final now = DateTime.now().toUtc();
+
         final goal = ReadingGoal(
           id: 'goal',
           type: GoalType.books,
@@ -275,10 +300,12 @@ void main() {
           endDate: DateTime.utc(now.year + 1),
           createdAt: now,
         );
+
         final store = DataStore()..loadData(readingGoals: [goal]);
         final provider = GoalsProvider(watchClock: false)..attach(store);
         addTearDown(provider.dispose);
         addTearDown(store.dispose);
+
         await tester.pumpWidget(
           MaterialApp(
             theme: theme,
@@ -292,6 +319,7 @@ void main() {
             ),
           ),
         );
+
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
         final done = find.widgetWithText(FilledButton, 'Done');
@@ -302,10 +330,12 @@ void main() {
         expect(tester.getRect(done).bottom, lessThanOrEqualTo(652));
         expect(tester.getRect(delete).top, tester.getRect(done).top);
         expect(find.widgetWithText(OutlinedButton, 'Delete goal'), findsNothing);
+
         if (width < 600) {
           expect(tester.getSize(delete).width, closeTo(tester.getSize(done).width, 1));
           expect(tester.getSize(find.text('Delete')).height, lessThan(tester.getSize(delete).height));
         }
+
         expect(tester.takeException(), isNull);
         await tester.tap(done);
         await tester.pumpAndSettle();

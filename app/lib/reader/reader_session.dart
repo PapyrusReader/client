@@ -30,7 +30,9 @@ final class ReaderSession {
   bool _disposed = false;
 
   void updateLocator(ReaderLocator locator) {
-    if (_disposed) return;
+    if (_disposed) {
+      return;
+    }
 
     _pendingLocator = locator;
     tracker?.updateLocator(locator);
@@ -40,6 +42,7 @@ final class ReaderSession {
 
   Future<void> flush() async {
     final locator = _pendingLocator;
+
     if (locator == null) {
       await tracker?.flush();
       return;
@@ -48,16 +51,20 @@ final class ReaderSession {
     _timer?.cancel();
     _timer = null;
     _pendingLocator = null;
+
     if (tracker != null) {
       await tracker!.flush();
       return;
     }
+
     _book = ReaderBookAdapter.applyLocator(_book, locator, now: _now());
     _saveBook(_book);
   }
 
   void dispose() {
-    if (_disposed) return;
+    if (_disposed) {
+      return;
+    }
 
     unawaited(flush());
     unawaited(tracker?.close().catchError((Object error) => tracker!.onError(error)));

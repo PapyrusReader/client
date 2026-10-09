@@ -51,16 +51,20 @@ void main() {
             tester.view.physicalSize = layout.screen;
             addTearDown(tester.view.reset);
             final repository = _PendingGoogleRepository();
+
             final auth = AuthProvider(
               await SharedPreferences.getInstance(),
               repository: repository,
               bootstrapOnCreate: false,
             );
+
             await auth.bootstrap();
+
             addTearDown(() async {
               await tester.pumpWidget(const SizedBox.shrink());
               auth.dispose();
             });
+
             await tester.pumpWidget(
               ChangeNotifierProvider.value(
                 value: auth,
@@ -74,6 +78,7 @@ void main() {
                 ),
               ),
             );
+
             await tester.pumpAndSettle();
             final button = find.descendant(of: find.byType(GoogleSignInButton), matching: find.byType(OutlinedButton));
             await tester.ensureVisible(button);
@@ -108,20 +113,25 @@ void main() {
       }
     }
   }
+
   for (final theme in [AppTheme.dark, AppTheme.eink]) {
     testWidgets('Google loading keeps button size at enlarged text in ${theme.brightness}', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final repository = _PendingGoogleRepository();
+
       final auth = AuthProvider(
         await SharedPreferences.getInstance(),
         repository: repository,
         bootstrapOnCreate: false,
       );
+
       await auth.bootstrap();
+
       addTearDown(() async {
         await tester.pumpWidget(const SizedBox.shrink());
         auth.dispose();
       });
+
       await tester.pumpWidget(
         ChangeNotifierProvider.value(
           value: auth,
@@ -138,6 +148,7 @@ void main() {
           ),
         ),
       );
+
       await tester.pumpAndSettle();
       final button = find.byType(OutlinedButton);
       final bounds = tester.getRect(button);

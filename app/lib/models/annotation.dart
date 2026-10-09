@@ -41,7 +41,6 @@ extension HighlightColorExtension on HighlightColor {
     }
   }
 
-  /// Get the display name.
   String get displayName {
     switch (this) {
       case HighlightColor.yellow:
@@ -74,9 +73,11 @@ class BookLocation {
     if (chapterTitle != null && chapter != null) {
       return 'Chapter $chapter: $chapterTitle, Page $pageNumber';
     }
+
     if (chapter != null) {
       return 'Chapter $chapter, Page $pageNumber';
     }
+
     return 'Page $pageNumber';
   }
 
@@ -85,6 +86,7 @@ class BookLocation {
     if (chapter != null) {
       return 'Ch. $chapter, p. $pageNumber';
     }
+
     return 'Page $pageNumber';
   }
 
@@ -98,7 +100,6 @@ class BookLocation {
   }
 }
 
-/// Annotation data model for highlighted text in books.
 class Annotation {
   final String id;
   final String bookId;
@@ -149,7 +150,6 @@ class Annotation {
     );
   }
 
-  /// Convert to JSON for API/storage.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -166,7 +166,6 @@ class Annotation {
     };
   }
 
-  /// Create from JSON.
   factory Annotation.fromJson(Map<String, dynamic> json) {
     return Annotation(
       id: json['id'] as String,

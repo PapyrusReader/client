@@ -10,6 +10,7 @@ Future<String?> saveBookFileToDevice({
 }) async {
   final blob = Blob(<JSAny>[bytes.toJS].toJS, BlobPropertyBag(type: _contentTypeForExtension(extension)));
   final url = URL.createObjectURL(blob);
+
   final anchor = HTMLAnchorElement()
     ..href = url
     ..download = fileName
@@ -19,7 +20,6 @@ Future<String?> saveBookFileToDevice({
   anchor.click();
   anchor.remove();
   URL.revokeObjectURL(url);
-
   return fileName;
 }
 

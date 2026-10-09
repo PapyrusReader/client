@@ -70,9 +70,7 @@ void main() {
       final now = DateTime.utc(2026, 7, 27, 12);
       final book = buildTestBook(fileFormat: BookFormat.pdf, customMetadata: {'source': 'import'});
       final locator = PdfReaderLocator(pageIndex: 4, pageOffset: 0.2, totalProgression: 0.35);
-
       final updated = ReaderBookAdapter.applyLocator(book, locator, now: now);
-
       expect(updated.customMetadata?['source'], 'import');
       expect(updated.customMetadata?[ReaderBookAdapter.locatorMetadataKey], locator.toJson());
       expect(updated.currentPage, 5);
@@ -90,11 +88,10 @@ void main() {
         'margins': 'large',
         'reading_mode': 'scroll',
       });
+
       final provider = PreferencesProvider(await SharedPreferences.getInstance());
       final colors = ColorScheme.fromSeed(seedColor: Colors.deepPurple, brightness: Brightness.dark);
-
       final preferences = ReaderBookAdapter.preferencesFor(provider, colors);
-
       expect(preferences.fontFamily, 'Georgia');
       expect(preferences.fontSize, 20);
       expect(preferences.lineHeight, 1.75);
@@ -108,6 +105,7 @@ void main() {
     test('persists reader setting changes as application defaults', () async {
       SharedPreferences.setMockInitialValues({});
       final provider = PreferencesProvider(await SharedPreferences.getInstance());
+
       const readerPreferences = ReaderPreferences(
         fontFamily: 'Atkinson Hyperlegible',
         fontSize: 22,
@@ -117,7 +115,6 @@ void main() {
       );
 
       ReaderBookAdapter.persistPreferences(provider, readerPreferences);
-
       expect(provider.defaultFont, 'Atkinson Hyperlegible');
       expect(provider.defaultFontSize, 22);
       expect(provider.lineSpacing, 'relaxed');

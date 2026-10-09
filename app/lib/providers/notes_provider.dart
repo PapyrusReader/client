@@ -38,10 +38,6 @@ class NotesProvider extends ChangeNotifier {
     super.dispose();
   }
 
-  // ============================================================================
-  // GETTERS
-  // ============================================================================
-
   NoteSortOption get sortOption => _sortOption;
   Set<String> get activeTags => _selectedTags;
   String get searchQuery => _searchQuery;
@@ -60,17 +56,25 @@ class NotesProvider extends ChangeNotifier {
 
   /// All unique tags across all notes (for filter chip generation).
   Set<String> get allTags {
-    if (_dataStore == null) return {};
+    if (_dataStore == null) {
+      return {};
+    }
+
     final tags = <String>{};
+
     for (final note in _dataStore!.notes) {
       tags.addAll(note.tags);
     }
+
     return tags;
   }
 
   /// All notes, filtered and sorted.
   List<Note> get notes {
-    if (_dataStore == null) return [];
+    if (_dataStore == null) {
+      return [];
+    }
+
     var list = List<Note>.from(_dataStore!.notes);
     list = _applyFilters(list);
     _applySorting(list);
@@ -81,9 +85,11 @@ class NotesProvider extends ChangeNotifier {
   Map<String, List<Note>> get notesByBook {
     final filtered = notes;
     final map = <String, List<Note>>{};
+
     for (final note in filtered) {
       map.putIfAbsent(note.bookId, () => []).add(note);
     }
+
     return map;
   }
 
@@ -101,10 +107,6 @@ class NotesProvider extends ChangeNotifier {
     return _dataStore?.getBook(bookId)?.coverMediaId;
   }
 
-  // ============================================================================
-  // SORTING & FILTERING
-  // ============================================================================
-
   void setSortOption(NoteSortOption option) {
     _sortOption = option;
     notifyListeners();
@@ -112,11 +114,13 @@ class NotesProvider extends ChangeNotifier {
 
   void toggleTagFilter(String tag) {
     _selectedTags = Set.from(_selectedTags);
+
     if (_selectedTags.contains(tag)) {
       _selectedTags.remove(tag);
     } else {
       _selectedTags.add(tag);
     }
+
     notifyListeners();
   }
 
@@ -141,10 +145,6 @@ class NotesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============================================================================
-  // CRUD (delegated to DataStore)
-  // ============================================================================
-
   Future<void> updateNote(Note note, {Note? previous, EntityRepository<Note>? repository}) async {
     await _dataStore?.updateNote(note, previous: previous, repository: repository);
   }
@@ -155,28 +155,29 @@ class NotesProvider extends ChangeNotifier {
 
   Future<void> togglePin(String noteId) async {
     final note = _dataStore?.getNote(noteId);
-    if (note == null || _dataStore == null) return;
+
+    if (note == null || _dataStore == null) {
+      return;
+    }
+
     await _dataStore!.updateNote(note.copyWith(isPinned: !note.isPinned), previous: note);
   }
-
-  // ============================================================================
-  // PRIVATE HELPERS
-  // ============================================================================
 
   List<Note> _applyFilters(List<Note> all) {
     var result = all;
 
     if (_selectedTags.isNotEmpty) {
-      result = result.where((n) => n.tags.any((t) => _selectedTags.contains(t))).toList();
+      result = result.where((note) => note.tags.any((value) => _selectedTags.contains(value))).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      result = result.where((n) {
-        final bookTitle = getBookTitle(n.bookId).toLowerCase();
-        final title = n.title.toLowerCase();
-        final content = n.content.toLowerCase();
-        final tags = n.tags.join(' ').toLowerCase();
+
+      result = result.where((note) {
+        final bookTitle = getBookTitle(note.bookId).toLowerCase();
+        final title = note.title.toLowerCase();
+        final content = note.content.toLowerCase();
+        final tags = note.tags.join(' ').toLowerCase();
         return bookTitle.contains(query) || title.contains(query) || content.contains(query) || tags.contains(query);
       }).toList();
     }
@@ -185,19 +186,19 @@ class NotesProvider extends ChangeNotifier {
   }
 
   void _applySorting(List<Note> list) {
-    list.sort((a, b) {
+    list.sort((left, right) {
       switch (_sortOption) {
         case NoteSortOption.dateNewest:
-          return b.createdAt.compareTo(a.createdAt);
+          return right.createdAt.compareTo(left.createdAt);
         case NoteSortOption.dateOldest:
-          return a.createdAt.compareTo(b.createdAt);
+          return left.createdAt.compareTo(right.createdAt);
         case NoteSortOption.bookTitle:
-          return getBookTitle(a.bookId).toLowerCase().compareTo(getBookTitle(b.bookId).toLowerCase());
+          return getBookTitle(left.bookId).toLowerCase().compareTo(getBookTitle(right.bookId).toLowerCase());
         case NoteSortOption.pinnedFirst:
-          if (a.isPinned != b.isPinned) {
-            return a.isPinned ? -1 : 1;
+          if (left.isPinned != right.isPinned) {
+            return left.isPinned ? -1 : 1;
           }
-          return b.createdAt.compareTo(a.createdAt);
+          return right.createdAt.compareTo(left.createdAt);
       }
     });
   }

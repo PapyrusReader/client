@@ -11,7 +11,6 @@ Future<T?> showGuardedModalBottomSheet<T>({
 }) {
   assert(debugCheckHasMediaQuery(context));
   assert(debugCheckHasMaterialLocalizations(context));
-
   final navigator = Navigator.of(context, rootNavigator: useRootNavigator);
   final localizations = MaterialLocalizations.of(context);
   final reduceAnimations = AppMotion.disabled(context);

@@ -17,8 +17,10 @@ import 'powersync_service_test.dart' show OfflineConnector;
 
 class CapturingUploadRepository implements AuthRepository {
   final batches = <List<Map<String, dynamic>>>[];
+
   @override
   Future<void> uploadPowerSyncBatch(List<Map<String, dynamic>> batch) async => batches.add(batch);
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -27,6 +29,7 @@ void main() {
   late Directory directory;
   final now = DateTime.utc(2026, 10, 6, 12);
   final book = Book(id: 'book', title: 'Book', author: 'Author', addedAt: now, customMetadata: const {'keep': 'value'});
+
   final activity = ReadingActivity(
     id: 'reading',
     bookId: book.id,
@@ -35,6 +38,7 @@ void main() {
     endTime: now.add(const Duration(seconds: 10)),
     createdAt: now.add(const Duration(seconds: 10)),
   );
+
   final goal = ReadingGoal(
     id: 'goal',
     type: GoalType.minutes,
@@ -44,50 +48,70 @@ void main() {
     startDate: DateTime.utc(2026, 10, 6),
     endDate: DateTime.utc(2026, 10, 7),
   );
+
   PapyrusPowerSyncService service() => PapyrusPowerSyncService(
     connectorFactory: OfflineConnector.new,
     connectAuthenticated: false,
     pathResolver: (mode, profile, user) async =>
         '${directory.path}/${mode == LibraryDatabaseMode.guest ? 'guest' : '$profile-$user'}.db',
   );
+
   setUp(() async {
     directory = await Directory.systemTemp.createTemp('papyrus-tracking-');
   });
+
   tearDown(() async {
     await directory.delete(recursive: true);
   });
+
   test('reconnect refreshes cached capabilities after upgrade, downgrade and discovery failure', () async {
     var version = 2;
     var failDiscovery = false;
+
     final db = PapyrusPowerSyncService(
       connectorFactory: OfflineConnector.new,
       connectAuthenticated: false,
       trackingCapability: () async {
-        if (failDiscovery) throw StateError('Server unavailable');
+        if (failDiscovery) {
+          throw StateError('Server unavailable');
+        }
+
         return version;
       },
       pathResolver: (mode, profile, user) async => '${directory.path}/refresh.db',
     );
+
     addTearDown(db.close);
     await db.activateAuthenticated('one');
     await db.reconnect();
     expect(db.trackingSchemaVersion, 2);
     await db.upsert(book);
     await db.trackingRepository.commitTracking(goals: [goal], activities: [activity]);
+
     for (final supported in [0, 1, 2]) {
       version = supported;
       await db.reconnect();
       expect(db.trackingSchemaVersion, supported);
       expect(db.supportsTracking, supported > 0);
-      final snapshot = await db.watchLibrary().firstWhere((s) => s.activities.isNotEmpty && s.books.isNotEmpty);
+
+      final snapshot = await db.watchLibrary().firstWhere(
+        (item) => item.activities.isNotEmpty && item.books.isNotEmpty,
+      );
+
       expect(snapshot.activities.single.id, activity.id);
       expect(snapshot.books.single.id, book.id);
     }
+
     failDiscovery = true;
     await db.reconnect();
     expect(db.trackingSchemaVersion, 0);
-    expect((await db.watchLibrary().firstWhere((s) => s.activities.isNotEmpty)).activities.single.id, activity.id);
+
+    expect(
+      (await db.watchLibrary().firstWhere((item) => item.activities.isNotEmpty)).activities.single.id,
+      activity.id,
+    );
   });
+
   test('guest restart retains goals and activity after deleting the book', () async {
     final first = service();
     await first.activateGuest();
@@ -97,12 +121,13 @@ void main() {
     await first.close();
     final second = service();
     await second.activateGuest();
-    final snapshot = await second.watchLibrary().firstWhere((s) => s.activities.isNotEmpty);
+    final snapshot = await second.watchLibrary().firstWhere((item) => item.activities.isNotEmpty);
     expect(snapshot.goals.single.id, goal.id);
     expect(snapshot.activities.single.id, activity.id);
     expect(snapshot.books, isEmpty);
     await second.close();
   });
+
   test('old-server tracking stays outside CRUD and promotes atomically on capability upgrade', () async {
     final path = '${directory.path}/account.db';
     final db = PowerSyncDatabase(path: path, schema: papyrusAccountSchema);
@@ -124,6 +149,7 @@ void main() {
     expect((await reopened.getAll('SELECT * FROM ps_crud')).length, 2);
     await reopened.close();
   });
+
   test('a downgraded server receives library writes while queued tracking is retained for promotion', () async {
     final db = PowerSyncDatabase(path: '${directory.path}/downgrade.db', schema: papyrusAccountSchema);
     await db.initialize();
@@ -132,11 +158,13 @@ void main() {
     await library.commitTracking(goals: [goal], activities: [activity]);
     await library.upsert('books', PowerSyncBookMapper.toRow(book));
     final auth = CapturingUploadRepository();
+
     final connector = PapyrusPowerSyncConnector(
       authRepository: auth,
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://example.invalid')),
       supportsTracking: () => false,
     );
+
     await connector.uploadData(db);
     expect(auth.batches.expand((batch) => batch).map((entry) => entry['type']), ['books']);
     expect(await db.getAll('SELECT * FROM ps_crud'), isEmpty);
@@ -147,6 +175,7 @@ void main() {
     expect((await library.snapshot()).activities.single.id, activity.id);
     await db.close();
   });
+
   test('v1 keeps book sets local across restart while ordinary tracking uploads', () async {
     final path = '${directory.path}/book-sets.db';
     final db = PowerSyncDatabase(path: path, schema: papyrusAccountSchema);
@@ -154,11 +183,13 @@ void main() {
     final library = LibraryDatabase(db, () async {});
     await library.enableTracking(schemaVersion: 1);
     final selected = goal.copyWith(id: 'selected', scope: GoalScope.book, scopeId: 'a', bookIds: ['a', 'b']);
+
     final period = GoalPeriodRecord(
       id: 'period',
       goalId: selected.id,
       definition: selected.copyWith(isRecurring: false),
     );
+
     await library.commitTracking(goals: [selected, goal], activities: [activity], periods: [period]);
     expect((await db.getAll('SELECT * FROM tracking_staging')).length, 2);
     expect((await db.getAll('SELECT * FROM ps_crud')).length, 2);
@@ -167,7 +198,7 @@ void main() {
     await reopened.initialize();
     final supported = LibraryDatabase(reopened, () async {});
     await supported.enableTracking(schemaVersion: 1);
-    expect((await supported.snapshot()).goals.firstWhere((g) => g.id == 'selected').selectedBookIds, ['a', 'b']);
+    expect((await supported.snapshot()).goals.firstWhere((goal) => goal.id == 'selected').selectedBookIds, ['a', 'b']);
     expect((await reopened.getAll('SELECT * FROM tracking_staging')).length, 2);
     expect((await supported.snapshot()).goalPeriods.single.definition.selectedBookIds, ['a', 'b']);
     await supported.enableTracking();
@@ -177,6 +208,7 @@ void main() {
     expect((await reopened.getAll('SELECT * FROM ps_crud')).length, 4);
     await reopened.close();
   });
+
   test('queued v2 goals defer on a v1 server without blocking library or activity uploads', () async {
     final db = PowerSyncDatabase(path: '${directory.path}/book-set-downgrade.db', schema: papyrusAccountSchema);
     await db.initialize();
@@ -186,11 +218,13 @@ void main() {
     await library.commitTracking(goals: [selected], activities: [activity]);
     await library.upsert('books', PowerSyncBookMapper.toRow(book));
     final auth = CapturingUploadRepository();
+
     final connector = PapyrusPowerSyncConnector(
       authRepository: auth,
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://example.invalid')),
       trackingSchemaVersion: () => 1,
     );
+
     await connector.uploadData(db);
     expect(auth.batches.expand((batch) => batch).map((entry) => entry['type']), ['reading_activities', 'books']);
     expect(await db.getAll('SELECT * FROM ps_crud'), isEmpty);
@@ -200,6 +234,7 @@ void main() {
     expect((await db.getAll('SELECT * FROM ps_crud')).length, 1);
     await db.close();
   });
+
   test('captured repository is invalidated on account switch and guest data is isolated', () async {
     final db = service();
     await db.activateGuest();
@@ -209,18 +244,20 @@ void main() {
     await db.activateAuthenticated('one');
     expect(original.isCurrent, isFalse);
     await expectLater(original.commitTracking(activities: [activity]), throwsStateError);
-    final empty = await db.watchLibrary().firstWhere((s) => s.activities.isEmpty && s.books.isEmpty);
+    final empty = await db.watchLibrary().firstWhere((item) => item.activities.isEmpty && item.books.isEmpty);
     expect(empty.goals, isEmpty);
     await db.activateGuest();
-    final restored = await db.watchLibrary().firstWhere((s) => s.activities.isNotEmpty);
+    final restored = await db.watchLibrary().firstWhere((item) => item.activities.isNotEmpty);
     expect(restored.goals.single.id, goal.id);
     await db.close();
   });
+
   test('reader patches preserve unrelated edits and commit activity atomically', () async {
     final db = service();
     await db.activateGuest();
     await db.upsert(book);
     await db.upsert(book.copyWith(title: 'Edited title'));
+
     await db.trackingRepository.commitTracking(
       activities: [activity],
       readerBookId: book.id,
@@ -230,10 +267,12 @@ void main() {
         'reader_locator': {'version': 1},
       },
     );
+
     final updated = (await db.getById(book.id))!;
     expect(updated.title, 'Edited title');
     expect(updated.customMetadata?['keep'], 'value');
     expect(updated.currentPosition, .4);
+
     final invalid = ReadingActivity(
       id: 'rollback',
       bookId: 'gone',
@@ -242,12 +281,15 @@ void main() {
       endTime: now,
       createdAt: now,
     );
+
     await db.trackingRepository.commitTracking(
       activities: [invalid],
       readerBookId: 'gone',
       readerPatch: {'current_position': .2},
     );
+
     expect(await db.getById('gone'), isNull);
+
     await expectLater(
       db.trackingRepository.commitTracking(
         activities: [activity],
@@ -258,9 +300,10 @@ void main() {
       ),
       throwsA(anything),
     );
+
     expect((await db.getById(book.id))!.title, 'Edited title');
-    final snapshot = await db.watchLibrary().firstWhere((s) => s.activities.length == 2);
-    expect(snapshot.activities.map((a) => a.id).toSet(), {'reading', 'rollback'});
+    final snapshot = await db.watchLibrary().firstWhere((item) => item.activities.length == 2);
+    expect(snapshot.activities.map((activity) => activity.id).toSet(), {'reading', 'rollback'});
     await db.close();
   });
 }

@@ -9,9 +9,11 @@ typedef BookGridLayout = ({int crossAxisCount, double spacing, double childAspec
 BookGridLayout bookGridLayout(double width, {double itemWidth = BookGridSize.defaultWidth}) {
   final spacing = width >= Breakpoints.tablet ? Spacing.md : Spacing.sm;
   final compactArea = width < Breakpoints.tablet;
+
   final preferredWidth = compactArea
       ? BookGridSize.normalize(itemWidth)
       : math.max(BookGridSize.regularMinimum, BookGridSize.normalize(itemWidth));
+
   final desiredColumns = math.max(1, ((width + spacing) / (preferredWidth + spacing)).floor());
   final columns = compactArea ? math.min(4, desiredColumns) : desiredColumns;
   final fittedWidth = math.max(0.0, (width - spacing * (columns - 1)) / columns);
@@ -24,12 +26,15 @@ typedef BookGridSizeOption = ({int columns, double preferredWidth});
 /// Keep the stored width preference so density still adapts across screen sizes.
 List<BookGridSizeOption> bookGridSizeOptions(double width) {
   final options = <int, double>{};
+
   for (double size = BookGridSize.minimum; size <= BookGridSize.maximum; size += BookGridSize.step) {
     final columns = bookGridLayout(width, itemWidth: size).crossAxisCount;
     final previous = options[columns];
+
     if (previous == null || (size - BookGridSize.defaultWidth).abs() < (previous - BookGridSize.defaultWidth).abs()) {
       options[columns] = size;
     }
   }
+
   return [for (final columns in options.keys.toList()..sort()) (columns: columns, preferredWidth: options[columns]!)];
 }

@@ -110,14 +110,18 @@ void main() {
   Future<AuthProvider> buildAuthProvider({bool guest = false, bool signedIn = false}) async {
     final prefs = await SharedPreferences.getInstance();
     final repository = _FakeAuthRepository();
+
     if (signedIn) {
       repository.bootstrapResult = _tokens();
     }
+
     final provider = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
     await provider.bootstrap();
+
     if (guest) {
       provider.setOfflineMode(true);
     }
+
     return provider;
   }
 
@@ -131,6 +135,7 @@ void main() {
     AcquisitionAvailabilityProvider? acquisitionAvailabilityProvider,
   }) async {
     final prefs = await SharedPreferences.getInstance();
+
     final config = PapyrusApiConfig(
       serverBaseUri: Uri.parse('https://api.test'),
       powerSyncServiceUri: Uri.parse('https://data-sync.test'),
@@ -174,12 +179,10 @@ void main() {
   testWidgets('offline storage sync UI is local-first and hides sync internals', (tester) async {
     final auth = await buildAuthProvider(guest: true);
     final service = _FakePowerSyncService(currentMode: LibraryDatabaseMode.guest, currentSyncState: const SyncState());
-
     await tester.pumpWidget(await buildPage(authProvider: auth, powerSyncService: service));
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Storage'), 400);
     await tester.pumpAndSettle();
-
     expect(find.text('Stored on this device'), findsOneWidget);
     expect(find.text('Export or import a backup'), findsOneWidget);
     expect(find.text('Clear local library'), findsOneWidget);
@@ -207,24 +210,26 @@ void main() {
 
   testWidgets('authenticated mobile profile separates supported acquisition settings from storage', (tester) async {
     final auth = await buildAuthProvider(signedIn: true);
+
     final service = _FakePowerSyncService(
       currentMode: LibraryDatabaseMode.authenticated,
       currentSyncState: const SyncState(connected: true),
     );
+
     final availability = AcquisitionAvailabilityProvider(loadCapabilities: (_) async => _capabilities(enabled: true));
     await availability.refresh(Uri.parse('https://api.test'));
 
     await tester.pumpWidget(
       await buildPage(authProvider: auth, powerSyncService: service, acquisitionAvailabilityProvider: availability),
     );
+
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.byKey(const Key('profile-acquisition-section')), 400);
     await tester.pumpAndSettle();
-
     final acquisitionSection = find.byKey(const Key('profile-acquisition-section'));
-
     expect(find.descendant(of: acquisitionSection, matching: find.text('Data sync')), findsNothing);
     expect(find.descendant(of: acquisitionSection, matching: find.text('Acquisition')), findsOneWidget);
+
     expect(
       find.descendant(
         of: acquisitionSection,
@@ -232,18 +237,16 @@ void main() {
       ),
       findsOneWidget,
     );
+
     expect(find.descendant(of: acquisitionSection, matching: find.text('Available on this server')), findsOneWidget);
     expect(find.descendant(of: acquisitionSection, matching: find.text('Manage integrations')), findsNothing);
-
     final semantics = tester.getSemantics(find.bySemanticsLabel('Enable acquisition'));
     expect(semantics.label, 'Enable acquisition');
     expect(semantics.flagsCollection.isEnabled, Tristate.isTrue);
     expect(semantics.flagsCollection.isToggled, Tristate.isFalse);
     expect(semantics.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
-
     await tester.tap(find.bySemanticsLabel('Enable acquisition'));
     await tester.pumpAndSettle();
-
     expect(tester.getSemantics(find.bySemanticsLabel('Enable acquisition')).flagsCollection.isToggled, Tristate.isTrue);
     expect(find.descendant(of: acquisitionSection, matching: find.text('Manage integrations')), findsOneWidget);
   });
@@ -251,55 +254,54 @@ void main() {
   testWidgets('authenticated mobile profile reports pending acquisition availability', (tester) async {
     final completer = Completer<AcquisitionCapabilities>();
     final auth = await buildAuthProvider(signedIn: true);
+
     final service = _FakePowerSyncService(
       currentMode: LibraryDatabaseMode.authenticated,
       currentSyncState: const SyncState(connected: true),
     );
+
     final availability = AcquisitionAvailabilityProvider(loadCapabilities: (_) => completer.future);
     final refresh = availability.refresh(Uri.parse('https://api.test'));
 
     await tester.pumpWidget(
       await buildPage(authProvider: auth, powerSyncService: service, acquisitionAvailabilityProvider: availability),
     );
+
     await tester.pump();
     await tester.scrollUntilVisible(find.byKey(const Key('profile-acquisition-section')), 400);
     await tester.pump();
-
     expect(find.text('Checking server support…'), findsOneWidget);
-
     completer.complete(_capabilities(enabled: true));
     await refresh;
     await tester.pumpAndSettle();
-
     expect(find.text('Available on this server'), findsOneWidget);
   });
 
   testWidgets('authenticated mobile profile hides acquisition management when server is unavailable', (tester) async {
     final auth = await buildAuthProvider(signedIn: true);
+
     final service = _FakePowerSyncService(
       currentMode: LibraryDatabaseMode.authenticated,
       currentSyncState: const SyncState(connected: true),
     );
+
     final availability = AcquisitionAvailabilityProvider(loadCapabilities: (_) async => _capabilities(enabled: false));
     await availability.refresh(Uri.parse('https://api.test'));
 
     await tester.pumpWidget(
       await buildPage(authProvider: auth, powerSyncService: service, acquisitionAvailabilityProvider: availability),
     );
+
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Storage'), 400);
     await tester.pumpAndSettle();
-
     final acquisitionSection = find.byKey(const Key('profile-acquisition-section'));
-
     expect(acquisitionSection, findsOneWidget);
     expect(find.text('Enable acquisition'), findsOneWidget);
     expect(find.text('Unavailable on this server'), findsOneWidget);
     expect(find.text('Manage integrations'), findsNothing);
-
     await tester.tap(find.bySemanticsLabel('Enable acquisition'));
     await tester.pumpAndSettle();
-
     expect(find.text('Manage integrations'), findsNothing);
   });
 
@@ -310,10 +312,10 @@ void main() {
     await tester.pumpWidget(
       await buildPage(authProvider: auth, powerSyncService: service, screenSize: const Size(1200, 900)),
     );
+
     await tester.pump();
     await tester.tap(find.text('Storage').first);
     await tester.pump();
-
     expect(find.text('Library storage'), findsOneWidget);
     expect(find.text('Your library is stored on this device.'), findsOneWidget);
     expect(find.textContaining('Nothing is sent to Papyrus servers'), findsOneWidget);
@@ -336,14 +338,17 @@ void main() {
 
   testWidgets('authenticated storage sync UI shows data sync and hides implementation details', (tester) async {
     final auth = await buildAuthProvider(signedIn: true);
+
     final dataStore = dataStoreWithBooks([
       testBook(id: 'book-1', title: 'Small book', fileSize: 100 * 1024 * 1024),
       testBook(id: 'book-2', title: 'Large book', fileSize: 250 * 1024 * 1024),
     ]);
+
     final service = _FakePowerSyncService(
       currentMode: LibraryDatabaseMode.authenticated,
       currentSyncState: SyncState(connected: true, lastSyncedAt: DateTime.utc(2026, 6, 27, 10, 30)),
     );
+
     final availability = AcquisitionAvailabilityProvider(loadCapabilities: (_) async => _capabilities(enabled: true));
     await availability.refresh(Uri.parse('https://api.test'));
 
@@ -356,10 +361,10 @@ void main() {
         acquisitionAvailabilityProvider: availability,
       ),
     );
+
     await tester.pumpAndSettle();
     await tester.tap(find.text('Storage').first);
     await tester.pumpAndSettle();
-
     expect(find.text('Data sync'), findsOneWidget);
     expect(find.text('Official server'), findsWidgets);
     expect(find.text('350 MB used, 674 MB available of 1 GB'), findsOneWidget);
@@ -383,26 +388,24 @@ void main() {
     expect(find.text('Media storage'), findsNothing);
     expect(find.text('Local database'), findsNothing);
     expect(find.text('Server-scoped account cache'), findsNothing);
-
     await tester.ensureVisible(find.text('Reconnect'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Reconnect'));
     await tester.pump();
-
     expect(service.reconnectCalls, 1);
-
     await tester.tap(find.bySemanticsLabel('Enable acquisition'));
     await tester.pumpAndSettle();
-
     expect(find.text('Manage integrations'), findsOneWidget);
   });
 
   testWidgets('authenticated desktop profile reports unsupported acquisition separately', (tester) async {
     final auth = await buildAuthProvider(signedIn: true);
+
     final service = _FakePowerSyncService(
       currentMode: LibraryDatabaseMode.authenticated,
       currentSyncState: const SyncState(connected: true),
     );
+
     final availability = AcquisitionAvailabilityProvider(loadCapabilities: (_) async => _capabilities(enabled: false));
     await availability.refresh(Uri.parse('https://api.test'));
 
@@ -414,10 +417,10 @@ void main() {
         acquisitionAvailabilityProvider: availability,
       ),
     );
+
     await tester.pumpAndSettle();
     await tester.tap(find.text('Storage').first);
     await tester.pumpAndSettle();
-
     expect(find.byKey(const Key('profile-data-sync-card')), findsOneWidget);
     expect(find.byKey(const Key('profile-acquisition-card')), findsOneWidget);
     expect(find.text('Unavailable on this server'), findsOneWidget);
@@ -426,6 +429,7 @@ void main() {
 
   testWidgets('manage servers lists official and custom servers for switching', (tester) async {
     final prefs = await SharedPreferences.getInstance();
+
     final syncSettings = SyncSettingsProvider(
       prefs,
       officialConfig: PapyrusApiConfig(
@@ -437,9 +441,11 @@ void main() {
         fileStorageQuotaBytes: 1_073_741_824,
       ),
     );
+
     await syncSettings.addCustomServer('https://reader.example');
     syncSettings.selectServer(SyncSettingsProvider.officialServerId);
     final auth = await buildAuthProvider(signedIn: true);
+
     final service = _FakePowerSyncService(
       currentMode: LibraryDatabaseMode.authenticated,
       currentSyncState: const SyncState(connected: true),
@@ -448,12 +454,12 @@ void main() {
     await tester.pumpWidget(
       await buildPage(authProvider: auth, powerSyncService: service, syncSettingsProvider: syncSettings),
     );
+
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(find.text('Storage'), 400);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Manage servers'));
     await tester.pumpAndSettle();
-
     expect(find.text('Sync servers'), findsOneWidget);
     expect(find.text('Official server'), findsWidgets);
     expect(find.text('reader.example'), findsOneWidget);
@@ -462,6 +468,7 @@ void main() {
 
   testWidgets('storage sync UI shows pending writes and sync errors', (tester) async {
     final auth = await buildAuthProvider(signedIn: true);
+
     final service = _FakePowerSyncService(
       currentMode: LibraryDatabaseMode.authenticated,
       currentSyncState: const SyncState(connected: true, hasPendingWrites: true, uploadError: 'upload failed'),
@@ -470,10 +477,10 @@ void main() {
     await tester.pumpWidget(
       await buildPage(authProvider: auth, powerSyncService: service, screenSize: const Size(1200, 900)),
     );
+
     await tester.pumpAndSettle();
     await tester.tap(find.text('Storage').first);
     await tester.pumpAndSettle();
-
     expect(find.text('Error'), findsWidgets);
     expect(find.text('Sync error: upload failed'), findsOneWidget);
     expect(find.text('Pending changes'), findsNothing);

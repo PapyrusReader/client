@@ -7,6 +7,7 @@ import 'package:papyrus/widgets/shared/app_drawer.dart';
 void main() {
   testWidgets('e-ink calendar changes months and years instantly and saves a date', (tester) async {
     DateTime? result;
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.eink,
@@ -27,6 +28,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pump();
     await tester.pump();
@@ -50,6 +52,7 @@ void main() {
 
   testWidgets('e-ink range selection spans months and cancel preserves the original', (tester) async {
     DateTimeRange? result;
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.eink,
@@ -70,6 +73,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pump();
     await tester.pump();
@@ -94,6 +98,7 @@ void main() {
 
   testWidgets('e-ink drawer opens and dismisses instantly at its regular width', (tester) async {
     final scaffold = GlobalKey<ScaffoldState>();
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.eink,
@@ -107,6 +112,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pump();
     await tester.pump();
@@ -121,6 +127,7 @@ void main() {
 
   testWidgets('e-ink typed dates validate and survive switching back to calendar', (tester) async {
     DateTime? result;
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.eink,
@@ -141,6 +148,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pump();
     await tester.pump();

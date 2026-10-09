@@ -170,6 +170,7 @@ class _AcquisitionJobDetailsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+
     return AppBottomSheet(
       header: Semantics(
         key: const Key('acquisition-job-details-title'),
@@ -325,6 +326,5 @@ class _SelectFile extends _AcquisitionJobAction {
 
 String _fileName(String path) {
   final segments = path.split(RegExp(r'[/\\]'));
-
   return segments.lastWhere((segment) => segment.isNotEmpty, orElse: () => path);
 }

@@ -14,11 +14,14 @@ class BottomSheetActions extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     final primaryShape =
         theme.filledButtonTheme.style?.shape ??
         const FilledButton(onPressed: null, child: SizedBox()).defaultStyleOf(context).shape;
+
     final compact = MediaQuery.sizeOf(context).width < Breakpoints.tablet;
     final enlargedText = MediaQuery.textScalerOf(context).scale(16) > 20;
+
     final style = ButtonStyle(
       visualDensity: VisualDensity.standard,
       minimumSize: const WidgetStatePropertyAll(Size(80, ComponentSizes.buttonHeightMobile)),
@@ -26,6 +29,7 @@ class BottomSheetActions extends StatelessWidget {
         EdgeInsets.symmetric(horizontal: compact ? Spacing.md : Spacing.buttonPaddingHorizontal, vertical: Spacing.sm),
       ),
     );
+
     return Theme(
       data: theme.copyWith(
         filledButtonTheme: FilledButtonThemeData(style: style.merge(theme.filledButtonTheme.style)),

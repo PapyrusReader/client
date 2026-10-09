@@ -43,26 +43,21 @@ void main() {
     testWidgets('calls onQueryChanged when text is entered', (tester) async {
       String? lastQuery;
       await tester.pumpWidget(buildSearchBar(onQueryChanged: (q) => lastQuery = q));
-
       await tester.enterText(find.byType(TextField), 'tolkien');
       await tester.pump();
-
       expect(lastQuery, 'tolkien');
     });
 
     testWidgets('calls onFilterTap when filter button is tapped', (tester) async {
       var filterTapped = false;
       await tester.pumpWidget(buildSearchBar(onFilterTap: () => filterTapped = true));
-
       await tester.tap(find.byIcon(Icons.tune_rounded));
       await tester.pump();
-
       expect(filterTapped, true);
     });
 
     testWidgets('shows filter badge when activeFilterCount > 0', (tester) async {
       await tester.pumpWidget(buildSearchBar(activeFilterCount: 3, onFilterTap: () {}));
-
       expect(find.text('3'), findsOneWidget);
     });
 
@@ -76,7 +71,6 @@ void main() {
     testWidgets('shows clear button when text is entered', (tester) async {
       await tester.pumpWidget(buildSearchBar(initialQuery: 'test'));
       await tester.pump();
-
       expect(find.byIcon(Icons.clear), findsOneWidget);
     });
 
@@ -84,17 +78,14 @@ void main() {
       String? lastQuery;
       await tester.pumpWidget(buildSearchBar(initialQuery: 'test', onQueryChanged: (q) => lastQuery = q));
       await tester.pump();
-
       await tester.tap(find.byIcon(Icons.clear));
       await tester.pump();
-
       expect(lastQuery, '');
     });
 
     testWidgets('initializes with initial query', (tester) async {
       await tester.pumpWidget(buildSearchBar(initialQuery: 'my search'));
       await tester.pump();
-
       expect(find.text('my search'), findsOneWidget);
     });
 
@@ -111,7 +102,6 @@ void main() {
         // Rebuild with new initialQuery
         await tester.pumpWidget(buildSearchBar(initialQuery: 'new query'));
         await tester.pump();
-
         expect(find.text('new query'), findsOneWidget);
       });
     });

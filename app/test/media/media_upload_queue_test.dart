@@ -40,6 +40,7 @@ void main() {
         return uploadResult.future;
       },
     );
+
     await uploadStarted.future;
 
     // A downloaded server snapshot can replace the in-memory copy while the
@@ -49,7 +50,6 @@ void main() {
     uploadResult.complete(_asset(assetId: 'file-asset', bookId: book.id, kind: MediaKind.bookFile));
     await processing;
     await pumpEventQueue();
-
     expect(queue.pendingTasks, isEmpty);
     final persisted = await repository.getById(book.id);
     expect(persisted?.fileFormat, BookFormat.epub);
@@ -100,7 +100,6 @@ void main() {
     );
 
     await queue.retryFailed();
-
     expect(queue.pendingTasks.single.status, MediaUploadTaskStatus.pending);
     expect(queue.pendingTasks.single.errorMessage, isNull);
   });
@@ -109,12 +108,9 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final queue = await _activeQueue(prefs);
     final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
-
     await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
     await queue.enqueueCover(book: book, filename: 'cover.jpg', contentType: 'image/jpeg');
-
     await queue.removeTasksForBook(book.id);
-
     expect(queue.pendingTasks, isEmpty);
     expect(prefs.getString('media_upload_queue:official--user-1'), '[]');
   });
@@ -123,9 +119,7 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final queue = await _activeQueue(prefs);
     final book = _book(filePath: 'book-1');
-
     await queue.enqueueCover(book: book, filename: 'cover.jpg', contentType: 'image/jpeg');
-
     final stored = jsonDecode(prefs.getString('media_upload_queue:official--user-1')!) as List<dynamic>;
     final task = stored.single as Map<String, dynamic>;
     expect(task, isNot(contains('cover_base64')));
@@ -228,6 +222,7 @@ void main() {
     await pumpEventQueue();
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     final coverBytes = Uint8List.fromList('legacy cover'.codeUnits);
+
     await prefs.setString(
       'media_upload_queue:${scope.persistenceKey}',
       jsonEncode([
@@ -243,6 +238,7 @@ void main() {
         },
       ]),
     );
+
     final queue = MediaUploadQueue(prefs);
     await queue.activateScope(scope);
     var attempts = 0;
@@ -254,21 +250,24 @@ void main() {
       uploadMedia: (payload) async {
         attempts++;
         expect(payload.bytes, coverBytes);
+
         if (attempts == 1) {
           throw const MediaUploadException.storageFull();
         }
+
         return _asset(assetId: 'cover-asset', bookId: book.id, kind: MediaKind.coverImage);
       },
     );
 
     await process();
+
     final failedTask =
         (jsonDecode(prefs.getString('media_upload_queue:${scope.persistenceKey}')!) as List<dynamic>).single
             as Map<String, dynamic>;
+
     expect(failedTask['cover_base64'], base64Encode(coverBytes));
     await queue.retryFailed();
     await process();
-
     expect(attempts, 2);
     expect(queue.pendingTasks, isEmpty);
   });
@@ -279,12 +278,10 @@ void main() {
     final first = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     final second = MediaStorageScope(profileKey: 'custom-a', userId: 'user-2');
     final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
-
     await queue.activateScope(first);
     await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
     await queue.activateScope(second);
     expect(queue.pendingTasks, isEmpty);
-
     await queue.activateScope(first);
     expect(queue.pendingTasks, hasLength(1));
     expect(queue.pendingTasks.single.bookId, book.id);
@@ -297,9 +294,7 @@ void main() {
     final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
     await queue.activateScope(scope);
     await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
-
     await queue.activateScope(null);
-
     expect(queue.activeScope, isNull);
     expect(queue.pendingTasks, isEmpty);
   });
@@ -334,7 +329,6 @@ void main() {
     expect(identical(first, second), isTrue);
     await Future<void>.delayed(Duration.zero);
     expect(uploads, 1);
-
     gate.complete(_asset(assetId: 'file-asset', bookId: book.id, kind: MediaKind.bookFile));
     await Future.wait([first, second]);
     expect(uploads, 1);
@@ -359,11 +353,13 @@ void main() {
       readPendingCover: (_, _) async => null,
       uploadMedia: (payload) async {
         attempts++;
+
         if (attempts == 1) {
           firstAttemptStarted.complete();
           await releaseFirstAttempt.future;
           throw StateError('book has not synced yet');
         }
+
         return _asset(assetId: 'file-asset', bookId: payload.bookId, kind: payload.kind);
       },
     );
@@ -373,7 +369,6 @@ void main() {
     final retrySignal = process();
     releaseFirstAttempt.complete();
     await Future.wait([first, retrySignal]);
-
     expect(attempts, 2);
     expect(queue.pendingTasks, isEmpty);
   });
@@ -398,32 +393,36 @@ void main() {
       readPendingCover: (_, _) async => null,
       uploadMedia: (payload) async {
         uploadedBookIds.add(payload.bookId);
+
         if (payload.bookId == firstBook.id) {
           firstUploadStarted.complete();
           await releaseFirstUpload.future;
         }
+
         return _asset(assetId: 'asset-${payload.bookId}', bookId: payload.bookId, kind: payload.kind);
       },
     );
 
     queue = MediaUploadQueue(prefs, onWorkAvailable: process);
     await queue.activateScope(MediaStorageScope(profileKey: 'official', userId: 'user-1'));
+
     final firstEnqueue = queue.enqueueBookFile(
       book: firstBook,
       filename: 'first.epub',
       contentType: 'application/epub+zip',
     );
+
     await firstUploadStarted.future;
+
     final secondEnqueue = queue.enqueueBookFile(
       book: secondBook,
       filename: 'second.epub',
       contentType: 'application/epub+zip',
     );
+
     await pumpEventQueue();
     releaseFirstUpload.complete();
-
     await Future.wait([firstEnqueue, secondEnqueue]);
-
     expect(uploadedBookIds, [firstBook.id, secondBook.id]);
     expect(queue.pendingTasks, isEmpty);
     expect(prefs.getString('media_upload_queue:official--user-1'), '[]');
@@ -451,11 +450,11 @@ void main() {
         throw const MediaUploadException('network failure');
       },
     );
+
     await uploadStarted.future;
     await queue.removeTasksForBook(book.id);
     releaseUpload.complete();
     await processing;
-
     expect(queue.pendingTasks, isEmpty);
     expect(prefs.getString('media_upload_queue:official--user-1'), '[]');
   });
@@ -464,12 +463,14 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     String? storedAtCallback;
+
     final queue = MediaUploadQueue(
       prefs,
       onWorkAvailable: () async {
         storedAtCallback = prefs.getString('media_upload_queue:${scope.persistenceKey}');
       },
     );
+
     await queue.activateScope(scope);
 
     await queue.enqueueBookFile(
@@ -487,6 +488,7 @@ void main() {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     var callbacks = 0;
     List<dynamic>? storedAtCallback;
+
     final queue = MediaUploadQueue(
       prefs,
       onWorkAvailable: () async {
@@ -494,6 +496,7 @@ void main() {
         storedAtCallback = jsonDecode(prefs.getString('media_upload_queue:${scope.persistenceKey}')!) as List<dynamic>;
       },
     );
+
     await queue.activateScope(scope);
 
     await queue.enqueueImportedBookMedia(
@@ -576,6 +579,7 @@ void main() {
     await pumpEventQueue();
     await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
     callbacks = 0;
+
     await queue.processPending(
       dataStore: dataStore,
       readBookFile: (_) async => Uint8List.fromList([1]),
@@ -585,7 +589,6 @@ void main() {
 
     await queue.retryFailed();
     await queue.retryFailed();
-
     expect(callbacks, 1);
   });
 }

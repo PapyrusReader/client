@@ -7,6 +7,7 @@ class GoalPeriodRecord {
   final String goalId;
   final ReadingGoal definition;
   Map<String, dynamic> toJson() => {'id': id, 'goal_id': goalId, 'definition': definition.toJson()};
+
   factory GoalPeriodRecord.fromJson(Map<String, dynamic> json) => GoalPeriodRecord(
     id: json['id'] as String,
     goalId: json['goal_id'] as String,

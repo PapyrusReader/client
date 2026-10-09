@@ -52,6 +52,7 @@ class _BookBookmarksState extends State<BookBookmarks> {
 
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
+
       result = result.where((bookmark) {
         return bookmark.displayLocation.toLowerCase().contains(query) ||
             (bookmark.note?.toLowerCase().contains(query) ?? false) ||
@@ -59,14 +60,14 @@ class _BookBookmarksState extends State<BookBookmarks> {
       }).toList();
     }
 
-    result.sort((a, b) {
+    result.sort((left, right) {
       switch (_sortOption) {
         case _BookmarkSort.dateNewest:
-          return b.createdAt.compareTo(a.createdAt);
+          return right.createdAt.compareTo(left.createdAt);
         case _BookmarkSort.dateOldest:
-          return a.createdAt.compareTo(b.createdAt);
+          return left.createdAt.compareTo(right.createdAt);
         case _BookmarkSort.position:
-          return a.position.compareTo(b.position);
+          return left.position.compareTo(right.position);
       }
     });
 
@@ -93,7 +94,10 @@ class _BookBookmarksState extends State<BookBookmarks> {
       return EmptyBookmarksState(isPhysical: widget.isPhysical, onAddBookmark: widget.onAddBookmark);
     }
 
-    if (isDesktop) return _buildDesktopLayout(context);
+    if (isDesktop) {
+      return _buildDesktopLayout(context);
+    }
+
     return _buildMobileLayout(context);
   }
 
@@ -227,6 +231,7 @@ class _BookBookmarksState extends State<BookBookmarks> {
       separatorBuilder: (_, _) => SizedBox(height: separatorHeight),
       itemBuilder: (context, index) {
         final bookmark = bookmarks[index];
+
         return BookmarkListItem(
           bookmark: bookmark,
           bookTitle: widget.bookTitle,

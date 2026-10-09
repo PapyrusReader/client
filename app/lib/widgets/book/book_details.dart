@@ -32,6 +32,7 @@ class _BookDetailsState extends State<BookDetails> {
     if (isDesktop) {
       return _buildDesktopLayout(context);
     }
+
     return _buildMobileLayout(context);
   }
 

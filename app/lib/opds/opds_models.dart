@@ -65,7 +65,11 @@ class OpdsLink {
       'download',
       'preview',
     };
-    if (indirect || templated || !rels.any(directRelations.contains)) return null;
+
+    if (indirect || templated || !rels.any(directRelations.contains)) {
+      return null;
+    }
+
     const extensions = {
       'application/epub+zip': 'epub',
       'application/pdf': 'pdf',
@@ -77,11 +81,17 @@ class OpdsLink {
       'application/vnd.comicbook-rar': 'cbr',
       'text/plain': 'txt',
     };
+
     final mime = type?.split(';').first.trim().toLowerCase();
-    if (extensions.containsKey(mime)) return extensions[mime];
+
+    if (extensions.containsKey(mime)) {
+      return extensions[mime];
+    }
+
     if (mime != null && mime.isNotEmpty && mime != 'application/octet-stream') {
       return null;
     }
+
     final extension = uri.path.split('.').last.toLowerCase();
     return extensions.values.contains(extension) ? extension : null;
   }
@@ -130,6 +140,7 @@ class OpdsPublication {
   OpdsLink? get detailLink {
     for (final link in links) {
       final type = link.type?.toLowerCase() ?? '';
+
       if ((link.hasRel('alternate') || link.hasRel('self')) &&
           (type.startsWith('application/opds-publication+json') ||
               (type.startsWith('application/atom+xml') && RegExp(r'type\s*=\s*"?entry').hasMatch(type)))) {
@@ -139,9 +150,11 @@ class OpdsPublication {
     // Some catalogs represent a book's editions in an acquisition feed rather
     // than a standalone entry. Author metadata distinguishes these partial
     // publications from category links with decorative thumbnails.
+
     if (authors.isNotEmpty) {
       for (final link in links) {
         final type = link.type?.toLowerCase() ?? '';
+
         if (link.hasRel('alternate') &&
             type.split(';').first.trim() == 'application/atom+xml' &&
             RegExp(r';\s*kind\s*=\s*"?acquisition"?\s*(?:;|$)').hasMatch(type)) {
@@ -149,6 +162,7 @@ class OpdsPublication {
         }
       }
     }
+
     return null;
   }
 }
@@ -194,20 +208,28 @@ class OpdsFeed {
 
   OpdsLink? _link(String rel) {
     for (final link in links) {
-      if (link.hasRel(rel)) return link;
+      if (link.hasRel(rel)) {
+        return link;
+      }
     }
+
     return null;
   }
 
   OpdsLink? get searchLink {
     for (final link in links.where((link) => link.hasRel('search'))) {
       final mime = link.type?.split(';').first.trim().toLowerCase();
-      if (mime == 'application/opensearchdescription+xml') return link;
+
+      if (mime == 'application/opensearchdescription+xml') {
+        return link;
+      }
+
       if ((mime == null || mime.isEmpty || mime == 'application/opds+json' || mime == 'application/atom+xml') &&
           RegExp(r'\{[^}]*\b(query|searchTerms)\b').hasMatch(link.template)) {
         return link;
       }
     }
+
     return null;
   }
 
@@ -219,19 +241,26 @@ class OpdsFeed {
 String opdsPlainText(String input) {
   var text = input.replaceAll('\r\n', '\n').replaceAll('\r', '\n');
   final hasMarkup = RegExp(r'</?[a-zA-Z][\w:.-]*(?:\s[^>]*|/?)>').hasMatch(text);
+
   text = text
       .replaceAll(RegExp(r'<!--[\s\S]*?-->'), '')
       .replaceAll(
         RegExp(r'<(?:[\w.-]+:)?(script|style)\b[^>]*>[\s\S]*?</(?:[\w.-]+:)?\1\s*>', caseSensitive: false),
         '',
       );
+
   if (hasMarkup) {
     // Indentation and wrapped source lines are not visual paragraph breaks.
     text = text.replaceAll(RegExp(r'\s+'), ' ');
+
     text = text.replaceAllMapped(RegExp(r'<(/?)(?:[\w.-]+:)?([a-zA-Z][\w.-]*)\b[^>]*>', caseSensitive: false), (match) {
       final closing = match[1] == '/';
       final tag = match[2]!.toLowerCase();
-      if (tag == 'br') return '\n';
+
+      if (tag == 'br') {
+        return '\n';
+      }
+
       if ({
         'p',
         'div',
@@ -256,20 +285,34 @@ String opdsPlainText(String input) {
       }.contains(tag)) {
         return '\n\n';
       }
-      if ({'li', 'dt', 'dd', 'tr'}.contains(tag)) return closing ? '\n' : '';
-      if (tag == 'td' || tag == 'th') return closing ? ' ' : '';
+
+      if ({'li', 'dt', 'dd', 'tr'}.contains(tag)) {
+        return closing ? '\n' : '';
+      }
+
+      if (tag == 'td' || tag == 'th') {
+        return closing ? ' ' : '';
+      }
+
       return '';
     });
   }
+
   text = text.replaceAllMapped(RegExp(r'&(#x[\da-fA-F]+|#\d+|amp|lt|gt|quot|apos|nbsp);'), (match) {
     const named = {'amp': '&', 'lt': '<', 'gt': '>', 'quot': '"', 'apos': "'", 'nbsp': ' '};
     final entity = match[1]!;
-    if (named.containsKey(entity)) return named[entity]!;
+
+    if (named.containsKey(entity)) {
+      return named[entity]!;
+    }
+
     final code = entity.startsWith('#x')
         ? int.tryParse(entity.substring(2), radix: 16)
         : int.tryParse(entity.substring(1));
+
     return code != null && code >= 0 && code <= 0x10ffff ? String.fromCharCode(code) : match[0]!;
   });
+
   return text
       .replaceAll(RegExp(r'[^\S\n]+'), ' ')
       .replaceAll(RegExp(r' *\n *'), '\n')
@@ -278,9 +321,13 @@ String opdsPlainText(String input) {
 }
 
 String? opdsIsbn(String? identifier) {
-  if (identifier == null) return null;
+  if (identifier == null) {
+    return null;
+  }
+
   final normalized = identifier
       .replaceFirst(RegExp(r'^(?:urn:)?isbn:', caseSensitive: false), '')
       .replaceAll(RegExp(r'[\s-]'), '');
+
   return RegExp(r'^(?:\d{13}|\d{9}[\dXx])$').hasMatch(normalized) ? normalized.toUpperCase() : null;
 }

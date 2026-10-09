@@ -13,6 +13,7 @@ class OpdsPublicationInformation extends StatelessWidget {
   Widget build(BuildContext context) {
     final content = OpdsPublicationContent.from(catalog, publication);
     final theme = Theme.of(context);
+
     final description = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -30,6 +31,7 @@ class OpdsPublicationInformation extends StatelessWidget {
         ),
       ],
     );
+
     final additionalDetails = <Widget>[
       if (content.subjects.isNotEmpty) ...[
         const SizedBox(height: Spacing.lg),
@@ -44,6 +46,7 @@ class OpdsPublicationInformation extends StatelessWidget {
         ),
       ],
     ];
+
     final information = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -52,6 +55,7 @@ class OpdsPublicationInformation extends StatelessWidget {
         BookMetadataRows(entries: content.information.entries.map((entry) => (entry.key, entry.value)).toList()),
       ],
     );
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: Spacing.md),
       child: LayoutBuilder(
@@ -62,6 +66,7 @@ class OpdsPublicationInformation extends StatelessWidget {
               children: [description, ...additionalDetails],
             );
           }
+
           if (constraints.maxWidth >= 700 * MediaQuery.textScalerOf(context).scale(1)) {
             return Row(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -78,6 +83,7 @@ class OpdsPublicationInformation extends StatelessWidget {
               ],
             );
           }
+
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [

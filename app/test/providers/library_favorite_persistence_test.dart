@@ -12,12 +12,14 @@ import '../powersync/powersync_service_test.dart' show OfflineConnector;
 void main() {
   test('favorites persist, follow remote changes, and remain scoped', () async {
     final directory = await Directory.systemTemp.createTemp('papyrus-favorites-');
+
     PapyrusPowerSyncService open() => PapyrusPowerSyncService(
       connectorFactory: OfflineConnector.new,
       connectAuthenticated: false,
       pathResolver: (mode, profile, user) async =>
           '${directory.path}/${mode == LibraryDatabaseMode.guest ? 'guest' : '$profile-$user'}.db',
     );
+
     var service = open();
     await service.activateGuest();
     await service.upsert(buildTestBook(id: 'book'));

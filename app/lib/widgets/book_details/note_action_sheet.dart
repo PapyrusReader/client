@@ -27,6 +27,7 @@ class NoteActionSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return AppBottomSheet(
       header: Text(
         note.title,
@@ -72,6 +73,7 @@ class DeleteNoteDialog extends StatelessWidget {
       context: context,
       builder: (context) => DeleteNoteDialog(note: note),
     );
+
     return result ?? false;
   }
 

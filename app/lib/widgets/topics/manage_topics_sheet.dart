@@ -80,6 +80,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
   void initState() {
     super.initState();
     _repository = context.read<DataStore>().libraryRepository?.tags;
+
     if (widget.isBulkMode) {
       _selectedTagIds = {};
     } else {
@@ -103,6 +104,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
     final filtered = tags.where((item) => item.name.toLowerCase().contains(_searchQuery.toLowerCase())).toList();
     final mobile = MediaQuery.sizeOf(context).width < Breakpoints.tablet;
     final shortViewport = MediaQuery.sizeOf(context).height - MediaQuery.viewInsetsOf(context).bottom < 400;
+
     Widget buildSheet(ScrollController? scrollController) => AppBottomSheet(
       avoidKeyboard: false,
       expandBody: !mobile && tags.isNotEmpty,
@@ -192,6 +194,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
               ],
             ),
     );
+
     return Padding(
       padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
       child: mobile || tags.isEmpty
@@ -211,11 +214,16 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
   Widget _buildCover(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final book = widget.book;
+
     final placeholder = Container(
       color: colorScheme.surfaceContainerHighest,
       child: Icon(Icons.menu_book, color: colorScheme.onSurfaceVariant, size: 20),
     );
-    if (book == null) return placeholder;
+
+    if (book == null) {
+      return placeholder;
+    }
+
     return CoverImage(bookId: book.id, imageUrl: book.coverURL, mediaId: book.coverMediaId, placeholder: placeholder);
   }
 
@@ -223,6 +231,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
     final compact =
         MediaQuery.sizeOf(context).height - MediaQuery.viewInsetsOf(context).bottom < 400 ||
         MediaQuery.textScalerOf(context).scale(16) > 20;
+
     return SizedBox(
       width: double.infinity,
       child: EmptyState(
@@ -328,6 +337,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
       context,
       onSave: (name, description, colorHex) async {
         final now = DateTime.now();
+
         final newTag = Tag(
           id: const Uuid().v4(),
           name: name,
@@ -335,8 +345,12 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
           description: description,
           createdAt: now,
         );
+
         await dataStore.addTag(newTag, repository: repository);
-        if (!mounted) return;
+
+        if (!mounted) {
+          return;
+        }
 
         // Auto-select the newly created topic
         setState(() {
@@ -348,6 +362,9 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
 
   Future<void> _onSave() async {
     final saved = await persist(() => widget.onSave?.call(_selectedTagIds.toList()));
-    if (saved && mounted) Navigator.pop(context);
+
+    if (saved && mounted) {
+      Navigator.pop(context);
+    }
   }
 }

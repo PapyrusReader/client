@@ -65,34 +65,38 @@ class _BookListItemState extends State<BookListItem> {
     final inSelection = isAcquisition ? widget.isAcquisitionSelectionMode : widget.isSelectionMode;
     final isSelected = isAcquisition ? widget.isAcquisitionSelected : widget.isSelected;
     final onSelectionToggle = isAcquisition ? widget.onAcquisitionSelectionToggle : widget.onSelectToggle;
-    final onTap = isAcquisition
-        ? inSelection
-              ? widget.onAcquisitionSelectionToggle
-              : widget.onAcquisitionTap
-        : inSelection
-        ? widget.onSelectToggle
-        : widget.onTap;
+
+    final onTap = switch (isAcquisition) {
+      true => switch (inSelection) {
+        true => widget.onAcquisitionSelectionToggle,
+        false => widget.onAcquisitionTap,
+      },
+      false when inSelection => widget.onSelectToggle,
+      false => widget.onTap,
+    };
+
     final isUnavailable = !isAcquisition && !widget.book.isPhysical && widget.deviceStatus == BookDeviceStatus.missing;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
-        onLongPressStart: isAcquisition
-            ? widget.onAcquisitionSelectionToggle == null
-                  ? null
-                  : (_) => widget.onAcquisitionSelectionToggle!()
-            : _isDesktop
-            ? null
-            : (details) {
-                showBookContextMenu(context: context, book: widget.book, position: details.globalPosition);
-              },
+        onLongPressStart: switch (isAcquisition) {
+          true => switch (widget.onAcquisitionSelectionToggle == null) {
+            true => null,
+            false => (_) => widget.onAcquisitionSelectionToggle!(),
+          },
+          false when _isDesktop => null,
+          false => (details) {
+            showBookContextMenu(context: context, book: widget.book, position: details.globalPosition);
+          },
+        },
         child: Material(
-          color: inSelection && isSelected
-              ? colorScheme.primary.withValues(alpha: 0.08)
-              : isUnavailable
-              ? colorScheme.surfaceContainerLow
-              : Colors.transparent,
+          color: switch (inSelection && isSelected) {
+            true => colorScheme.primary.withValues(alpha: 0.08),
+            false when isUnavailable => colorScheme.surfaceContainerLow,
+            false => Colors.transparent,
+          },
           child: InkWell(
             onTap: onTap,
             child: Container(
@@ -272,9 +276,11 @@ class _BookListItemState extends State<BookListItem> {
       mediaId: widget.book.coverMediaId,
       placeholder: _buildPlaceholder(context),
     );
+
     if (widget.book.isPhysical || widget.deviceStatus != BookDeviceStatus.missing) {
       return cover;
     }
+
     return ColorFiltered(
       key: ValueKey('book-unavailable-tint-${widget.book.id}'),
       colorFilter: const ColorFilter.matrix([

@@ -142,6 +142,7 @@ class _MultiSelectionSheetState<T> extends State<_MultiSelectionSheet<T>> {
   @override
   Widget build(BuildContext context) {
     final normalizedQuery = _searchQuery.trim().toLowerCase();
+
     final visibleOptions = normalizedQuery.isEmpty
         ? widget.options
         : widget.options.where((option) => option.label.toLowerCase().contains(normalizedQuery)).toList();
@@ -288,15 +289,18 @@ class LibraryFilterChips extends StatelessWidget {
     final provider = context.watch<LibraryProvider>();
     final dataStore = context.watch<DataStore>();
     final filterOptions = this.filterOptions ?? LibraryFilterOptions.fromDataStore(dataStore);
+
     final statusOptions = [
       for (final option in filterOptions.readingStatuses)
         _SelectionOption<LibraryReadingStatus>(value: option.value, label: option.label, icon: option.value.icon),
     ];
+
     final effectiveStatusOptions = _withSelectedSelectionOptions(
       statusOptions,
       provider.selectedStatuses,
       (status) => status.label,
     );
+
     final authorOptions = _withIcon(
       _withSelectedFilterOptions(
         filterOptions.authors,
@@ -305,6 +309,7 @@ class LibraryFilterChips extends StatelessWidget {
       ),
       Icons.person_outline_rounded,
     );
+
     final languageOptions = _withIcon(
       _withSelectedFilterOptions(
         filterOptions.languages,
@@ -313,6 +318,7 @@ class LibraryFilterChips extends StatelessWidget {
       ),
       Icons.language_rounded,
     );
+
     final formatOptions = _withIcon(
       _withSelectedFilterOptions(
         filterOptions.formats,
@@ -321,6 +327,7 @@ class LibraryFilterChips extends StatelessWidget {
       ),
       Icons.description_outlined,
     );
+
     final topicOptions = _withIcon(
       _withSelectedFilterOptions(
         filterOptions.topics,
@@ -329,6 +336,7 @@ class LibraryFilterChips extends StatelessWidget {
       ),
       Icons.label_outline_rounded,
     );
+
     final shelfOptions = _withIcon(
       _withSelectedFilterOptions(
         filterOptions.shelves,
@@ -337,6 +345,7 @@ class LibraryFilterChips extends StatelessWidget {
       ),
       Icons.folder_outlined,
     );
+
     final selectedSort = _sortOptions.firstWhere((option) => option.value == provider.sortOption);
     final selectedFavorite = _favoriteOptions.firstWhere((option) => option.value == provider.favoriteFilter);
 
@@ -520,9 +529,9 @@ class LibraryFilterChips extends StatelessWidget {
     final hasActiveSelections =
         chips.any((chip) => chip.isActive) || provider.activeFilterCount > 0 || isDownloadingSelected;
 
-    chips.sort((a, b) {
-      final activeComparison = (b.isActive ? 1 : 0).compareTo(a.isActive ? 1 : 0);
-      return activeComparison != 0 ? activeComparison : a.defaultOrder.compareTo(b.defaultOrder);
+    chips.sort((left, right) {
+      final activeComparison = (right.isActive ? 1 : 0).compareTo(left.isActive ? 1 : 0);
+      return activeComparison != 0 ? activeComparison : left.defaultOrder.compareTo(right.defaultOrder);
     });
 
     final orderKey = [...chips.map((chip) => chip.id), if (hasActiveSelections) 'clear-all'].join('-');
@@ -536,6 +545,7 @@ class LibraryFilterChips extends StatelessWidget {
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (child, animation) {
           final offsetAnimation = Tween<Offset>(begin: const Offset(0.03, 0), end: Offset.zero).animate(animation);
+
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(position: offsetAnimation, child: child),
@@ -562,9 +572,11 @@ class LibraryFilterChips extends StatelessWidget {
                 key: const ValueKey('clear-all'),
                 onPressed: () {
                   provider.resetQuickFilters();
+
                   if (isDownloadingSelected) {
                     onDownloadingTapped?.call();
                   }
+
                   onLibraryFilterTapped?.call();
                 },
                 style: TextButton.styleFrom(
@@ -632,16 +644,19 @@ class LibraryFilterChips extends StatelessWidget {
     if (selectedValues.isEmpty) {
       return category;
     }
+
     if (selectedValues.length > 1) {
       return '$category · ${selectedValues.length}';
     }
 
     final selectedValue = selectedValues.first;
+
     for (final option in options) {
       if (option.value == selectedValue) {
         return option.label;
       }
     }
+
     return category;
   }
 
@@ -683,6 +698,7 @@ class LibraryFilterChips extends StatelessWidget {
         }
       }
     }
+
     return 'Unknown author ($value)';
   }
 
@@ -692,6 +708,7 @@ class LibraryFilterChips extends StatelessWidget {
         return book.formatLabel;
       }
     }
+
     return 'Unknown format ($value)';
   }
 
@@ -701,6 +718,7 @@ class LibraryFilterChips extends StatelessWidget {
         return bookLanguageLabel(book.language ?? value);
       }
     }
+
     final label = bookLanguageLabel(value);
     return label == value ? 'Unknown language ($value)' : label;
   }
@@ -711,6 +729,7 @@ class LibraryFilterChips extends StatelessWidget {
         return topic.name;
       }
     }
+
     return 'Unknown topic ($value)';
   }
 
@@ -720,6 +739,7 @@ class LibraryFilterChips extends StatelessWidget {
         return shelf.name;
       }
     }
+
     return 'Unknown shelf ($value)';
   }
 }

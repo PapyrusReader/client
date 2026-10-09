@@ -81,7 +81,6 @@ class AuthApiClient {
 
   Future<AuthTokens> refresh(String refreshToken) async {
     final json = await _postJson(config.endpoint('/auth/refresh'), body: {'refresh_token': refreshToken});
-
     return AuthTokens.fromJson(json);
   }
 
@@ -100,7 +99,6 @@ class AuthApiClient {
 
   Future<PapyrusUser> currentUser(String accessToken) async {
     final json = await _getJson(config.endpoint('/users/me'), accessToken: accessToken);
-
     return PapyrusUser.fromJson(json);
   }
 
@@ -116,37 +114,31 @@ class AuthApiClient {
     }
 
     final json = await _patchJson(config.endpoint('/users/me'), accessToken: accessToken, body: body);
-
     return PapyrusUser.fromJson(json);
   }
 
   Future<String> forgotPassword(String email) async {
     final json = await _postJson(config.endpoint('/auth/forgot-password'), body: {'email': email});
-
     return json['message'] as String? ?? 'If the email is registered, a reset link has been sent';
   }
 
   Future<String> resetPassword({required String token, required String password}) async {
     final json = await _postJson(config.endpoint('/auth/reset-password'), body: {'token': token, 'password': password});
-
     return json['message'] as String? ?? 'Password has been reset successfully';
   }
 
   Future<String> verifyEmail(String token) async {
     final json = await _postJson(config.endpoint('/auth/verify-email'), body: {'token': token});
-
     return json['message'] as String? ?? 'Email verified successfully';
   }
 
   Future<String> resendVerification(String email) async {
     final json = await _postJson(config.endpoint('/auth/resend-verification'), body: {'email': email});
-
     return json['message'] as String? ?? 'If the email is registered, a verification link has been sent';
   }
 
   Future<PowerSyncToken> powerSyncToken(String accessToken) async {
     final json = await _postJson(config.endpoint('/auth/powersync-token'), accessToken: accessToken);
-
     return PowerSyncToken.fromJson(json);
   }
 
@@ -179,24 +171,27 @@ class AuthApiClient {
 
   Future<Uint8List> downloadMedia(String accessToken, String assetId) async {
     final response = await _httpClient.get(config.endpoint('/media/$assetId'), headers: _authHeaders(accessToken));
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return response.bodyBytes;
     }
+
     _decodeResponse(response);
     throw const AuthApiException(statusCode: 0, message: 'Media download failed');
   }
 
   Future<void> deleteMedia(String accessToken, String assetId) async {
     final response = await _httpClient.delete(config.endpoint('/media/$assetId'), headers: _authHeaders(accessToken));
+
     if (response.statusCode >= 200 && response.statusCode < 300) {
       return;
     }
+
     _decodeResponse(response);
   }
 
   Future<Map<String, dynamic>> _getJson(Uri uri, {String? accessToken}) async {
     final response = await _httpClient.get(uri, headers: _headers(accessToken));
-
     return _decodeResponse(response);
   }
 
@@ -216,7 +211,6 @@ class AuthApiClient {
     required Map<String, Object?> body,
   }) async {
     final response = await _httpClient.patch(uri, headers: _headers(accessToken), body: jsonEncode(body));
-
     return _decodeResponse(response);
   }
 
@@ -234,7 +228,11 @@ class AuthApiClient {
 
   MediaType _mediaType(String contentType) {
     final parts = contentType.split('/');
-    if (parts.length != 2) return MediaType('application', 'octet-stream');
+
+    if (parts.length != 2) {
+      return MediaType('application', 'octet-stream');
+    }
+
     return MediaType(parts[0], parts[1]);
   }
 

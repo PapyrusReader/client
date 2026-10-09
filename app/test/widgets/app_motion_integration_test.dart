@@ -46,12 +46,14 @@ void main() {
       tester,
     ) async {
       await desktop(tester);
+
       await tester.pumpWidget(
         MaterialApp(
           theme: entry.value,
           home: Scaffold(body: card()),
         ),
       );
+
       await tester.pumpAndSettle();
       expect(opacity(tester), 0);
       final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -59,12 +61,14 @@ void main() {
       await mouse.moveTo(tester.getCenter(find.byType(ShelfCard)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
+
       if (entry.key == 'eink') {
         expect(opacity(tester), 1);
       } else {
         expect(opacity(tester), greaterThan(0));
         expect(opacity(tester), lessThan(1));
       }
+
       await mouse.removePointer();
       await tester.pumpAndSettle();
     });
@@ -74,6 +78,7 @@ void main() {
     await desktop(tester);
     final theme = ValueNotifier(AppTheme.light);
     addTearDown(theme.dispose);
+
     await tester.pumpWidget(
       ValueListenableBuilder<ThemeData>(
         valueListenable: theme,
@@ -84,6 +89,7 @@ void main() {
         ),
       ),
     );
+
     await tester.pumpAndSettle();
     final mouse = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await mouse.addPointer(location: Offset.zero);
@@ -105,6 +111,7 @@ void main() {
         final navigator = GlobalKey<NavigatorState>();
         final busy = ValueNotifier(false);
         addTearDown(busy.dispose);
+
         await tester.pumpWidget(
           MaterialApp(
             theme: entry.value,
@@ -121,6 +128,7 @@ void main() {
                       bookTitle: 'Book',
                     );
                   }
+
                   return TextButton(
                     onPressed: () {
                       switch (overlay) {
@@ -163,11 +171,13 @@ void main() {
             ),
           ),
         );
+
         await tester.pumpAndSettle();
         await tester.tap(overlay == 'popup' ? find.byIcon(Icons.sort) : find.text('Open'));
         await tester.pump();
         await tester.pump();
         final route = routes.latest! as TransitionRoute<dynamic>;
+
         if (entry.key == 'eink') {
           expect(route.transitionDuration, Duration.zero);
           expect(route.animation!.value, 1);
@@ -177,9 +187,11 @@ void main() {
           expect(route.animation!.value, inExclusiveRange(0, 1));
           await tester.pumpAndSettle();
         }
+
         navigator.currentState!.pop();
         await tester.pump();
         await tester.pump();
+
         if (entry.key == 'eink') {
           expect(route.isActive, isFalse);
           expect(navigator.currentState!.canPop(), isFalse);

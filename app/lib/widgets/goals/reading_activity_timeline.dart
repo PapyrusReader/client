@@ -19,6 +19,7 @@ class ReadingActivityTimeline extends StatelessWidget {
     this.correctedIds = const {},
     this.range,
   });
+
   final List<ReadingActivity> activities;
   final GoalsProvider provider;
   final String timezone;
@@ -28,15 +29,22 @@ class ReadingActivityTimeline extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final days = <DateTime, Map<String, List<ReadingActivity>>>{};
-    final sorted = [...activities]..sort((a, b) => b.endTime.compareTo(a.endTime));
+    final sorted = [...activities]..sort((left, right) => right.endTime.compareTo(left.endTime));
+
     for (final entry in sorted) {
       // A reader interval crossing midnight belongs to each exposed day. Keep
       // its original identity so inspecting or correcting it still edits one entry.
       final entryDays = <DateTime>{};
+
       if (entry.kind == 'reading' && entry.endTime.isAfter(entry.startTime)) {
         var cursor = entry.startTime;
-        if (range != null && cursor.isBefore(range!.start)) cursor = range!.start;
+
+        if (range != null && cursor.isBefore(range!.start)) {
+          cursor = range!.start;
+        }
+
         final end = range != null && range!.end.isBefore(entry.endTime) ? range!.end : entry.endTime;
+
         while (cursor.isBefore(end)) {
           entryDays.add(GoalCalendar.midnight(cursor, timezone));
           cursor = GoalCalendar.nextDay(cursor, timezone);
@@ -44,15 +52,18 @@ class ReadingActivityTimeline extends StatelessWidget {
       } else if (range == null || range!.contains(entry.endTime)) {
         entryDays.add(GoalCalendar.midnight(entry.endTime, timezone));
       }
+
       for (final day in entryDays) {
         days.putIfAbsent(day, () => {}).putIfAbsent(entry.bookId, () => []).add(entry);
       }
     }
+
     final colors = Theme.of(context).colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        for (final day in (days.entries.toList()..sort((a, b) => b.key.compareTo(a.key)))) ...[
+        for (final day in (days.entries.toList()..sort((left, right) => right.key.compareTo(left.key)))) ...[
           Padding(
             padding: const EdgeInsets.only(top: Spacing.lg, bottom: Spacing.sm),
             child: Semantics(
@@ -90,6 +101,7 @@ class ReadingActivityTimeline extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     final current = entries.where((entry) => !correctedIds.contains(entry.id)).toList();
     final end = GoalCalendar.nextDay(day, timezone);
+
     final totals = projectGoal(
       ReadingGoal(
         id: 'timeline',
@@ -106,7 +118,9 @@ class ReadingActivityTimeline extends StatelessWidget {
       provider.now,
       period: GoalRange(day, end),
     );
+
     final sources = current.map((entry) => entry.source == 'reader' ? 'Reader' : 'Manual').toSet();
+
     final summary = [
       if (totals.finishedBooks > 0) 'Finished',
       if (totals.seconds > 0) totals.seconds < 60 ? '${totals.seconds} sec' : formatDuration(totals.seconds ~/ 60),
@@ -114,10 +128,12 @@ class ReadingActivityTimeline extends StatelessWidget {
       ...sources,
       if (entries.any((entry) => correctedIds.contains(entry.id))) 'Corrected entries',
     ].join(' · ');
+
     final grouped = [
       ...groupReadingActivities(current),
       ...groupReadingActivities(entries.where((entry) => correctedIds.contains(entry.id))),
     ];
+
     return ExpansionTile(
       // Expansion state must not share the enclosing list's saved scroll offset.
       key: PageStorageKey('activity-book-${entries.first.bookId}-${day.toIso8601String()}'),

@@ -36,6 +36,7 @@ void main() {
     addTearDown(tester.view.reset);
     final dataStore = store ?? (DataStore()..loadData(shelves: const [], tags: const []));
     addTearDown(dataStore.dispose);
+
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: dataStore,
@@ -49,6 +50,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
@@ -60,6 +62,7 @@ void main() {
       addTearDown(library.dispose);
       final store = DataStore()..loadData(books: createTestBooks());
       LibraryFilters? result;
+
       await openSheet(
         tester,
         (context) async {
@@ -68,13 +71,16 @@ void main() {
         store: store,
         size: size,
       );
+
       expect(find.text('Reset'), findsOneWidget);
       expect(find.text('Cancel'), findsNothing);
       expect(find.text('Show 2 books'), findsOneWidget);
+
       final reset = find.descendant(
         of: find.byType(BottomSheetFooter),
         matching: find.widgetWithText(OutlinedButton, 'Reset'),
       );
+
       await tester.tap(reset);
       await tester.pumpAndSettle();
       expect(find.byType(LibraryAdvancedFilterSheet), findsOneWidget);
@@ -100,6 +106,7 @@ void main() {
       LibraryAdvancedFilterSheet.show(context, libraryProvider: library, dataStore: context.read<DataStore>());
     },
   };
+
   for (final entry in longSheets.entries) {
     testWidgets('${entry.key} expands before scrolling on mobile', (tester) async {
       final store = DataStore()
@@ -108,18 +115,23 @@ void main() {
           shelves: List.generate(20, (i) => buildTestShelf(id: 'shelf-$i', name: 'Shelf $i')),
           tags: List.generate(20, (i) => buildTestTag(id: 'topic-$i', name: 'Topic $i')),
         );
+
       await openSheet(tester, entry.value, store: store);
       expect(find.byType(ExpandableBottomSheet), findsOneWidget);
       final header = find.byKey(Key(entry.key == 'physical book' ? 'add-book-sheet-header' : 'bottom-sheet-header'));
       final initialTop = tester.getTopLeft(header).dy;
       expect(initialTop, greaterThan(24));
+
       final scrollable = find
           .descendant(of: find.byType(ExpandableBottomSheet), matching: find.byType(Scrollable))
           .first;
+
       final position = tester.state<ScrollableState>(scrollable).position;
+
       final footer = entry.key == 'physical book'
           ? find.byKey(const Key('add-book-sheet-footer'))
           : find.byType(BottomSheetFooter);
+
       final footerBottom = tester.getBottomRight(footer).dy;
       await tester.drag(scrollable, const Offset(0, -70));
       await tester.pumpAndSettle();
@@ -150,6 +162,7 @@ void main() {
         ),
       ),
     );
+
     final draggable = tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet));
     expect(draggable.initialChildSize, lessThan(.8));
     expect(draggable.maxChildSize, draggable.initialChildSize);
@@ -177,6 +190,7 @@ void main() {
         ),
       ),
     );
+
     final draggable = tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet));
     expect(draggable.maxChildSize, greaterThan(.8));
     expect(draggable.maxChildSize, lessThan(1));
@@ -194,6 +208,7 @@ void main() {
       (context) => AddGoalSheet.show(context, provider: goalProvider(context), preset: 0, initialTimezone: 'UTC'),
       size: const Size(1280, 800),
     );
+
     expect(find.byType(ExpandableBottomSheet), findsNothing);
     final header = find.byKey(const Key('bottom-sheet-header'));
     final top = tester.getTopLeft(header).dy;

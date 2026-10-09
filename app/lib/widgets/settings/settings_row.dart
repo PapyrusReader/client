@@ -82,18 +82,18 @@ class SettingsRow extends StatelessWidget {
               children: [
                 if (leading != null) ...[leading!, const SizedBox(width: Spacing.md)],
                 Expanded(
-                  child: showsValueAsTrailing
-                      ? Text(label, style: textTheme.bodyLarge)
-                      : value != null
-                      ? Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(label, style: textTheme.bodyLarge),
-                            const SizedBox(height: 2),
-                            Text(value!, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-                          ],
-                        )
-                      : Text(label, style: textTheme.bodyLarge),
+                  child: switch (showsValueAsTrailing) {
+                    true => Text(label, style: textTheme.bodyLarge),
+                    false when value != null => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(label, style: textTheme.bodyLarge),
+                        const SizedBox(height: 2),
+                        Text(value!, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+                      ],
+                    ),
+                    false => Text(label, style: textTheme.bodyLarge),
+                  },
                 ),
                 if (trailing != null)
                   trailing!

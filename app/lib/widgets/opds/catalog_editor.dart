@@ -17,6 +17,7 @@ class CatalogEditor extends StatefulWidget {
 
   static Future<void> show(BuildContext context, {required OpdsCatalogs catalogs, OpdsCatalog? catalog}) async {
     final busy = ValueNotifier(false);
+
     try {
       await showGuardedModalBottomSheet<void>(
         context: context,
@@ -44,6 +45,7 @@ class _CatalogEditorState extends State<CatalogEditor> {
   bool _clearCredentials = false;
   bool _saving = false;
   String? _error;
+
   @override
   void initState() {
     super.initState();
@@ -60,28 +62,42 @@ class _CatalogEditorState extends State<CatalogEditor> {
   }
 
   Future<void> _save() async {
-    if (_saving) return;
-    if (!_form.currentState!.validate()) return;
+    if (_saving) {
+      return;
+    }
+
+    if (!_form.currentState!.validate()) {
+      return;
+    }
+
     widget._busy?.value = true;
+
     setState(() {
       _saving = true;
       _error = null;
     });
+
     try {
       if (_scope != widget.catalogs.scope) {
         throw const OpdsException('The active account changed. Close this editor and try again.');
       }
+
       final uri = OpdsHttpClient.validateUri(Uri.parse(_url.text.trim()));
       final changedOrigin = widget.catalog != null && widget.catalog!.uri.origin != uri.origin;
+
       final credentials = !_clearCredentials && _username.text.isNotEmpty
           ? OpdsCredentials(username: _username.text, password: _password.text)
           : null;
+
       await widget.catalogs.save(
         OpdsCatalog(id: widget.catalog?.id ?? const Uuid().v4(), name: _name.text.trim(), uri: uri),
         credentials: credentials,
         clearCredentials: _clearCredentials || changedOrigin,
       );
-      if (mounted) Navigator.of(context).pop();
+
+      if (mounted) {
+        Navigator.of(context).pop();
+      }
     } catch (error) {
       if (mounted) {
         setState(() {

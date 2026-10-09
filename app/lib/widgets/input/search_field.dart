@@ -23,6 +23,7 @@ class SearchField extends StatelessWidget {
 
   /// Called when the text changes.
   final ValueChanged<String>? onChanged;
+
   final ValueChanged<String>? onSubmitted;
 
   /// Called when the clear button is pressed.
@@ -54,6 +55,7 @@ class SearchField extends StatelessWidget {
 
   void _handleClear() {
     controller.clear();
+
     if (onClear != null) {
       onClear!();
     } else {

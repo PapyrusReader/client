@@ -26,6 +26,7 @@ class SheetChoiceButtons<T> extends StatelessWidget {
           style: const ButtonStyle(visualDensity: VisualDensity.compact),
         );
       }
+
       return Wrap(
         spacing: Spacing.sm,
         runSpacing: Spacing.sm,

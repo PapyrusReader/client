@@ -82,6 +82,7 @@ class BookImportCommitService {
     final coverImage = result.coverImage;
     var coverStored = false;
     var metadataAdded = false;
+
     try {
       if (coverImage != null) {
         if (accountScope != null) {
@@ -89,11 +90,11 @@ class BookImportCommitService {
         } else {
           await _storeGuestCover(book.id, coverImage);
         }
+
         coverStored = true;
       }
 
       _ensureLibraryContextCurrent();
-
       await _addBook(book);
       metadataAdded = true;
       _ensureLibraryContextCurrent();
@@ -114,6 +115,7 @@ class BookImportCommitService {
       if (metadataAdded) {
         await _bestEffort(() => _deleteBook(book.id));
       }
+
       if (coverStored) {
         if (accountScope != null) {
           await _bestEffort(() => _deletePendingCover(accountScope, book.id));
@@ -121,6 +123,7 @@ class BookImportCommitService {
           await _bestEffort(() => _deleteGuestCover(book.id));
         }
       }
+
       Error.throwWithStackTrace(error, stackTrace);
     }
   }
@@ -144,8 +147,11 @@ Future<void> _bestEffort(FutureOr<void> Function() compensation) async {
 
 BookFormat? _bookFormat(String extension) {
   for (final format in BookFormat.values) {
-    if (format.name == extension) return format;
+    if (format.name == extension) {
+      return format;
+    }
   }
+
   return null;
 }
 

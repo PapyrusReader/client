@@ -66,6 +66,7 @@ Widget createTestPage({
 /// Creates test books with various states for filtering tests.
 List<Book> createTestBooks() {
   final now = DateTime.now();
+
   return [
     Book(
       id: 'book-1',
@@ -124,6 +125,7 @@ List<Book> createTestBooks() {
 DataStore createTestDataStore({List<Book>? books, List<Shelf>? shelves, List<Tag>? tags}) {
   final now = DateTime.now();
   final store = DataStore();
+
   store.loadData(
     books: books ?? createTestBooks(),
     shelves:
@@ -139,13 +141,13 @@ DataStore createTestDataStore({List<Book>? books, List<Shelf>? shelves, List<Tag
           Tag(id: 'tag-2', name: 'Classic', colorHex: '#2196F3', createdAt: now),
         ],
   );
+
   return store;
 }
 
 // ============================================================
 // Test data builders
 // ============================================================
-
 int _nextId = 1;
 
 /// Builds a [Book] with sensible defaults. Override only what you need.
@@ -281,6 +283,7 @@ Shelf buildTestShelf({
   DateTime? updatedAt,
 }) {
   final now = createdAt ?? DateTime(2025, 1, 1);
+
   return Shelf(
     id: id ?? 'shelf-${_nextId++}',
     name: name,

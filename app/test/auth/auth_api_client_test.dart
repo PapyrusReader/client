@@ -30,6 +30,7 @@ void main() {
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test')),
       httpClient: MockClient((request) async {
         expect(request.url.path, '/v1/auth/login');
+
         expect(jsonDecode(request.body), {
           'email': 'reader@example.com',
           'password': 'password123',
@@ -74,9 +75,7 @@ void main() {
 
   test('googleOAuthStartUri builds server-owned browser flow URL', () {
     final client = AuthApiClient(config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test')));
-
     final uri = client.googleOAuthStartUri('papyrus://auth/callback');
-
     expect(uri.path, '/v1/auth/oauth/google/start');
     expect(uri.queryParameters['redirect_uri'], 'papyrus://auth/callback');
   });
@@ -104,13 +103,11 @@ void main() {
       httpClient: MockClient((request) async {
         expect(request.url.path, '/v1/auth/powersync-token');
         expect(request.headers['Authorization'], 'Bearer access-token');
-
         return http.Response(jsonEncode({'token': 'powersync-token', 'expires_in': 300}), 200);
       }),
     );
 
     final token = await client.powerSyncToken('access-token');
-
     expect(token.token, 'powersync-token');
     expect(token.expiresIn, 300);
   });
@@ -121,6 +118,7 @@ void main() {
       httpClient: MockClient((request) async {
         expect(request.url.path, '/v1/sync/powersync-upload');
         expect(request.headers['Authorization'], 'Bearer access-token');
+
         expect(jsonDecode(request.body), {
           'batch': [
             {
@@ -152,13 +150,11 @@ void main() {
       httpClient: MockClient((request) async {
         expect(request.url.path, '/v1/media/usage');
         expect(request.headers['Authorization'], 'Bearer access-token');
-
         return http.Response(jsonEncode({'used_bytes': 10, 'quota_bytes': 100, 'available_bytes': 90}), 200);
       }),
     );
 
     final usage = await client.fetchMediaUsage('access-token');
-
     expect(usage.usedBytes, 10);
     expect(usage.quotaBytes, 100);
     expect(usage.availableBytes, 90);
@@ -170,13 +166,11 @@ void main() {
       httpClient: MockClient((request) async {
         expect(request.url.path, '/v1/media/asset-id');
         expect(request.headers['Authorization'], 'Bearer access-token');
-
         return http.Response.bytes([1, 2, 3], 200, headers: {'content-type': 'application/epub+zip'});
       }),
     );
 
     final bytes = await client.downloadMedia('access-token', 'asset-id');
-
     expect(bytes, Uint8List.fromList([1, 2, 3]));
   });
 
@@ -238,6 +232,7 @@ class _CapturingMultipartClient extends http.BaseClient {
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final body = await request.finalize().bytesToString();
     final response = await handler(request, body);
+
     return http.StreamedResponse(
       Stream.value(response.bodyBytes),
       response.statusCode,

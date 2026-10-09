@@ -1,7 +1,11 @@
 String formatDuration(int minutes) {
   final h = minutes ~/ 60;
   final m = minutes % 60;
-  if (h == 0) return '${m}m';
+
+  if (h == 0) {
+    return '${m}m';
+  }
+
   return m == 0 ? '${h}h' : '${h}h ${m}m';
 }
 
@@ -33,6 +37,7 @@ class GoalRule {
   final String? title;
   final bool active;
   final bool archived;
+
   Map<String, dynamic> toJson() => {
     'at': at.toUtc().toIso8601String(),
     'target': target,
@@ -40,6 +45,7 @@ class GoalRule {
     'active': active,
     'archived': archived,
   };
+
   factory GoalRule.fromJson(Map<String, dynamic> json) => GoalRule(
     at: DateTime.parse(json['at'] as String).toUtc(),
     target: json['target'] as int,
@@ -73,6 +79,7 @@ class ReadingGoal {
   final bool isArchived;
   final DateTime? completedAt;
   final bool estimatedPages;
+
   const ReadingGoal({
     required this.id,
     this.title,
@@ -97,11 +104,13 @@ class ReadingGoal {
     this.completedAt,
     this.estimatedPages = false,
   }) : createdAt = createdAt ?? startDate;
-  List<String> get selectedBookIds => scope != GoalScope.book
-      ? const []
-      : bookIds.isNotEmpty
-      ? bookIds
-      : [?scopeId];
+
+  List<String> get selectedBookIds => switch (scope != GoalScope.book) {
+    true => const [],
+    false when bookIds.isNotEmpty => bookIds,
+    false => [?scopeId],
+  };
+
   int get target => targetValue;
   int get current => currentValue;
   double get progress => targetValue == 0 ? 0 : (currentValue / targetValue).clamp(0.0, 1.0);
@@ -109,12 +118,14 @@ class ReadingGoal {
   bool get isCompleted => currentValue >= targetValue;
   String get progressLabel => '${(progress * 100).round()}%';
   String get typeLabel => unitLabel(2);
+
   String unitLabel(int quantity) => switch (type) {
     GoalType.books => quantity == 1 ? 'book' : 'books',
     GoalType.pages => quantity == 1 ? 'page' : 'pages',
     GoalType.minutes => quantity == 1 ? 'minute' : 'minutes',
     GoalType.days => quantity == 1 ? 'day' : 'days',
   };
+
   String get periodLabel => switch (period) {
     GoalPeriod.daily => 'daily',
     GoalPeriod.weekly => 'this week',
@@ -122,19 +133,25 @@ class ReadingGoal {
     GoalPeriod.yearly => 'this year',
     GoalPeriod.custom => 'by ${endDate.day}/${endDate.month}/${endDate.year}',
   };
+
   bool get isDaily => period == GoalPeriod.daily;
   bool get isYearly => period == GoalPeriod.yearly;
   bool get isCustomPeriod => period == GoalPeriod.custom;
+
   String get description =>
       goalDescription ??
       (type == GoalType.days
           ? 'Read on $targetValue ${unitLabel(targetValue)} $periodLabel'
           : 'Read ${type == GoalType.minutes ? formatDuration(targetValue) : '$targetValue ${unitLabel(targetValue)}'} $periodLabel');
+
   String get displayTitle => title?.trim().isNotEmpty == true ? title! : description;
+
   String get statusText => isCompleted
       ? 'Target reached'
       : '${type == GoalType.minutes ? formatDuration(remaining) : '$remaining ${unitLabel(remaining)}'} to go';
+
   String get recurrenceLabel => isRecurring && !isCustomPeriod ? 'Recurring' : 'One-off';
+
   ReadingGoal copyWith({
     String? id,
     String? title,
@@ -182,6 +199,7 @@ class ReadingGoal {
     completedAt: completedAt ?? this.completedAt,
     estimatedPages: estimatedPages ?? this.estimatedPages,
   );
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'title': title,
@@ -202,6 +220,7 @@ class ReadingGoal {
     'is_recurring': isRecurring,
     'is_archived': isArchived,
   };
+
   factory ReadingGoal.fromJson(Map<String, dynamic> json) => ReadingGoal(
     id: json['id'] as String,
     title: json['title'] as String?,
@@ -231,6 +250,7 @@ class ReadingGoal {
   /// Sample reading goals for backwards compatibility.
   static List<ReadingGoal> get sampleGoals {
     final now = DateTime.now();
+
     return [
       ReadingGoal(
         id: 'goal-1',
@@ -288,6 +308,7 @@ class ReadingGoal {
   /// Sample completed goals for backwards compatibility.
   static List<ReadingGoal> get sampleCompletedGoals {
     final now = DateTime.now();
+
     return [
       ReadingGoal(
         id: 'goal-5',

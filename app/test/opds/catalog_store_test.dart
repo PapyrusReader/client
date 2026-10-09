@@ -11,8 +11,10 @@ import 'package:shared_preferences_platform_interface/shared_preferences_platfor
 
 class MemorySecrets implements OpdsSecretStorage {
   final values = <String, String>{};
+
   @override
   Future<String?> read(String key) async => values[key];
+
   @override
   Future<void> write(String key, String value) async {
     values[key] = value;
@@ -32,8 +34,14 @@ class _FailingPreferences extends InMemorySharedPreferencesStore {
 
   @override
   Future<bool> setValue(String valueType, String key, Object value) async {
-    if (writeError != null) throw writeError!;
-    if (rejectWrites) return false;
+    if (writeError != null) {
+      throw writeError!;
+    }
+
+    if (rejectWrites) {
+      return false;
+    }
+
     return super.setValue(valueType, key, value);
   }
 }
@@ -43,7 +51,10 @@ class _FailingSecrets extends MemorySecrets {
 
   @override
   Future<void> write(String key, String value) async {
-    if (writeError != null) throw writeError!;
+    if (writeError != null) {
+      throw writeError!;
+    }
+
     await super.write(key, value);
   }
 }
@@ -67,11 +78,13 @@ void main() {
     final secrets = MemorySecrets();
     final store = OpdsCatalogStore(prefs, secrets: secrets);
     final catalog = OpdsCatalog(id: 'one', name: 'Private', uri: Uri.parse('https://books.test/feed'));
+
     await store.save(
       'server--alice',
       catalog,
       credentials: const OpdsCredentials(username: 'alice', password: 'secret'),
     );
+
     expect(store.load('server--alice').single.name, 'Private');
     expect(store.load('server--bob'), isEmpty);
     expect(store.load('local--guest'), isEmpty);
@@ -86,11 +99,13 @@ void main() {
   test('changing a catalog origin clears saved credentials', () async {
     SharedPreferences.setMockInitialValues({});
     final store = OpdsCatalogStore(await SharedPreferences.getInstance(), secrets: MemorySecrets());
+
     await store.save(
       'guest',
       OpdsCatalog(id: 'one', name: 'One', uri: Uri.parse('https://one.test')),
       credentials: const OpdsCredentials(username: 'u', password: 'p'),
     );
+
     await store.save('guest', OpdsCatalog(id: 'one', name: 'Two', uri: Uri.parse('https://two.test')));
     expect(await store.credentials('guest', 'one'), isNull);
   });
@@ -100,11 +115,13 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final secrets = MemorySecrets();
     final store = OpdsCatalogStore(prefs, secrets: secrets);
+
     await store.save(
       scope,
       originA,
       credentials: const OpdsCredentials(username: 'alice', password: 'origin-a'),
     );
+
     expect((jsonDecode(secrets.values[secretKey]!) as Map)['origin'], originA.uri.origin);
     await prefs.setString(catalogKey, jsonEncode([originB.toJson()]));
     expect(await OpdsCatalogStore(prefs, secrets: secrets).credentials(scope, 'one'), isNull);
@@ -116,6 +133,7 @@ void main() {
     SharedPreferences.setMockInitialValues({
       catalogKey: jsonEncode([originA.toJson()]),
     });
+
     final prefs = await SharedPreferences.getInstance();
     final secrets = MemorySecrets()..values[secretKey] = jsonEncode({'username': 'alice', 'password': 'unbound'});
     expect(await OpdsCatalogStore(prefs, secrets: secrets).credentials(scope, 'one'), isNull);
@@ -123,16 +141,19 @@ void main() {
 
   for (final throwsOnWrite in [false, true]) {
     final mode = throwsOnWrite ? 'throws' : 'returns false';
+
     test('save restores catalog cache and old credentials when preferences $mode', () async {
       final platform = _FailingPreferences();
       final prefs = await failingPreferences(platform);
       final secrets = MemorySecrets();
       final store = OpdsCatalogStore(prefs, secrets: secrets);
+
       await store.save(
         scope,
         originA,
         credentials: const OpdsCredentials(username: 'alice', password: 'origin-a'),
       );
+
       final originalJson = prefs.getString(catalogKey);
       final error = StateError('Preference save failed');
       platform.rejectWrites = !throwsOnWrite;
@@ -146,6 +167,7 @@ void main() {
         ),
         throwsOnWrite ? throwsA(same(error)) : throwsA(isA<OpdsException>()),
       );
+
       expect(prefs.getString(catalogKey), originalJson);
       final reloaded = OpdsCatalogStore(prefs, secrets: secrets);
       expect(reloaded.load(scope).single.uri, originA.uri);
@@ -163,11 +185,13 @@ void main() {
       final prefs = await failingPreferences(platform);
       final secrets = MemorySecrets();
       final store = OpdsCatalogStore(prefs, secrets: secrets);
+
       await store.save(
         scope,
         originA,
         credentials: const OpdsCredentials(username: 'alice', password: 'origin-a'),
       );
+
       final originalJson = prefs.getString(catalogKey);
       final error = StateError('Preference removal failed');
       platform.rejectWrites = !throwsOnWrite;
@@ -177,6 +201,7 @@ void main() {
         store.remove(scope, 'one'),
         throwsOnWrite ? throwsA(same(error)) : throwsA(isA<OpdsException>()),
       );
+
       expect(prefs.getString(catalogKey), originalJson);
       final reloaded = OpdsCatalogStore(prefs, secrets: secrets);
       expect(reloaded.load(scope).single.uri, originA.uri);
@@ -190,6 +215,7 @@ void main() {
       final store = OpdsCatalogStore(prefs, secrets: secrets);
       platform.rejectWrites = !throwsOnWrite;
       platform.writeError = throwsOnWrite ? StateError('Preference save failed') : null;
+
       await expectLater(
         store.save(
           scope,
@@ -198,6 +224,7 @@ void main() {
         ),
         throwsA(anything),
       );
+
       expect(prefs.containsKey(catalogKey), isFalse);
       expect(store.load(scope), isEmpty);
       expect(secrets.values, isEmpty);
@@ -209,11 +236,13 @@ void main() {
     final prefs = await failingPreferences(platform);
     final secrets = _FailingSecrets();
     final store = OpdsCatalogStore(prefs, secrets: secrets);
+
     await store.save(
       scope,
       originA,
       credentials: const OpdsCredentials(username: 'alice', password: 'origin-a'),
     );
+
     final originalJson = prefs.getString(catalogKey);
     final originalError = StateError('Preference save failed');
     platform.writeError = originalError;

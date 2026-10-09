@@ -14,10 +14,13 @@ abstract interface class OpdsSecretStorage {
 class SecureOpdsSecretStorage implements OpdsSecretStorage {
   const SecureOpdsSecretStorage();
   static const _storage = FlutterSecureStorage();
+
   @override
   Future<String?> read(String key) => _storage.read(key: key);
+
   @override
   Future<void> write(String key, String value) => _storage.write(key: key, value: value);
+
   @override
   Future<void> delete(String key) => _storage.delete(key: key);
 }
@@ -32,7 +35,11 @@ class OpdsCatalogStore {
 
   List<OpdsCatalog> load(String scope) {
     final raw = _prefs.getString(_key(scope));
-    if (raw == null) return [];
+
+    if (raw == null) {
+      return [];
+    }
+
     try {
       return (jsonDecode(raw) as List)
           .map((item) => OpdsCatalog.fromJson(Map<String, dynamic>.from(item as Map)))
@@ -44,15 +51,21 @@ class OpdsCatalogStore {
 
   Future<OpdsCredentials?> credentials(String scope, String id, {String? expectedOrigin}) async {
     final raw = await _secrets.read(_secretKey(scope, id));
-    if (raw == null) return null;
+
+    if (raw == null) {
+      return null;
+    }
+
     final data = jsonDecode(raw) as Map<String, dynamic>;
     final catalogs = load(scope);
     final index = catalogs.indexWhere((entry) => entry.id == id);
+
     if (index < 0 ||
         data['origin'] != catalogs[index].uri.origin ||
         (expectedOrigin != null && data['origin'] != expectedOrigin)) {
       return null;
     }
+
     return OpdsCredentials(username: data['username'] as String, password: data['password'] as String);
   }
 
@@ -66,7 +79,11 @@ class OpdsCatalogStore {
   Future<void> save(String scope, OpdsCatalog catalog, {OpdsCredentials? credentials, bool clearCredentials = false}) =>
       _serialize(() async {
         OpdsHttpClient.validateUri(catalog.uri);
-        if (catalog.name.trim().isEmpty || catalog.id.isEmpty) throw const OpdsException('Enter a catalog name.');
+
+        if (catalog.name.trim().isEmpty || catalog.id.isEmpty) {
+          throw const OpdsException('Enter a catalog name.');
+        }
+
         final catalogKey = _key(scope);
         final oldCatalogs = _prefs.getString(catalogKey);
         final catalogs = load(scope);
@@ -74,6 +91,7 @@ class OpdsCatalogStore {
         final originChanged = index >= 0 && catalogs[index].uri.origin != catalog.uri.origin;
         final key = _secretKey(scope, catalog.id);
         final oldSecret = await _secrets.read(key);
+
         try {
           if (credentials != null) {
             await _secrets.write(
@@ -87,12 +105,14 @@ class OpdsCatalogStore {
           } else if (clearCredentials || originChanged) {
             await _secrets.delete(key);
           }
+
           if (index < 0) {
             catalogs.add(catalog);
           } else {
             catalogs[index] = catalog;
           }
-          if (!await _prefs.setString(catalogKey, jsonEncode(catalogs.map((e) => e.toJson()).toList()))) {
+
+          if (!await _prefs.setString(catalogKey, jsonEncode(catalogs.map((item) => item.toJson()).toList()))) {
             throw const OpdsException('Could not save this catalog.');
           }
         } catch (_) {
@@ -107,9 +127,11 @@ class OpdsCatalogStore {
     final catalogs = load(scope)..removeWhere((entry) => entry.id == id);
     final key = _secretKey(scope, id);
     final oldSecret = await _secrets.read(key);
+
     try {
       await _secrets.delete(key);
-      if (!await _prefs.setString(catalogKey, jsonEncode(catalogs.map((e) => e.toJson()).toList()))) {
+
+      if (!await _prefs.setString(catalogKey, jsonEncode(catalogs.map((item) => item.toJson()).toList()))) {
         throw const OpdsException('Could not remove this catalog.');
       }
     } catch (_) {
@@ -130,6 +152,7 @@ class OpdsCatalogStore {
     } catch (_) {
       // Still attempt secret restoration and preserve the original failure.
     }
+
     try {
       if (oldSecret == null) {
         await _secrets.delete(secretKey);

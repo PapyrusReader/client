@@ -52,11 +52,13 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
   final LibraryDatabasePathResolver? pathResolver;
   final bool connectAuthenticated;
   final Future<int> Function()? trackingCapability;
+
   @override
   TrackingRepository get trackingRepository => _activeLibrary;
 
   final StreamController<List<Book>> _booksController = StreamController<List<Book>>.broadcast();
   final StreamController<SyncState> _syncStateController = StreamController<SyncState>.broadcast();
+
   final StreamController<BookMetadataSyncState> _bookMetadataSyncStateController =
       StreamController<BookMetadataSyncState>.broadcast();
 
@@ -69,26 +71,38 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
 
   LibraryDatabase get _activeLibrary {
     final library = _library;
-    if (library == null) throw StateError('Library database is not active');
+
+    if (library == null) {
+      throw StateError('Library database is not active');
+    }
+
     return library;
   }
 
   @override
   EditableBookRepository get scopedBooks => _activeLibrary.books;
+
   @override
   EntityRepository<Shelf> get shelves => _activeLibrary.shelves;
+
   @override
   EntityRepository<Tag> get tags => _activeLibrary.tags;
+
   @override
   EntityRepository<Note> get notes => _activeLibrary.notes;
+
   @override
   EntityRepository<Annotation> get annotations => _activeLibrary.annotations;
+
   @override
   EntityRepository<Bookmark> get bookmarks => _activeLibrary.bookmarks;
+
   @override
   EntityRepository<BookShelfRelation> get bookShelves => _activeLibrary.bookShelves;
+
   @override
   EntityRepository<BookTagRelation> get bookTags => _activeLibrary.bookTags;
+
   @override
   LibraryMembershipWriter get memberships => _activeLibrary;
 
@@ -96,9 +110,14 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
   Stream<LibrarySnapshot> watchLibrary() => Stream<LibrarySnapshot>.multi((listener) {
     final subscription = _libraryController.stream.listen(listener.addSync, onError: listener.addErrorSync);
     final current = _snapshot;
-    if (current != null) listener.addSync(current);
+
+    if (current != null) {
+      listener.addSync(current);
+    }
+
     listener.onCancel = subscription.cancel;
   }, isBroadcast: true);
+
   StreamSubscription? _booksSubscription;
   StreamSubscription? _statusSubscription;
   Future<void>? _modeOperation;
@@ -118,8 +137,10 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
 
   LibraryDatabaseMode? get mode => _mode;
   SyncState get syncState => _syncState;
+
   Stream<SyncState> get syncStates =>
       streamWithCurrentValue(currentValue: () => _syncState, updates: _syncStateController.stream);
+
   BookMetadataSyncState get bookMetadataSyncState => _bookMetadataSyncState;
   Stream<BookMetadataSyncState> get bookMetadataSyncStates => _bookMetadataSyncStateController.stream;
 
@@ -135,10 +156,13 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
 
   Future<void> setOnline(bool online) async {
     await _modeOperation;
+
     if (_mode != LibraryDatabaseMode.authenticated) {
       throw StateError('Only authenticated libraries can connect to PowerSync');
     }
+
     final database = _requireDatabase();
+
     if (online) {
       await _prepareTracking();
       await database.connect(connector: connectorFactory());
@@ -149,9 +173,11 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
 
   Future<void> reconnect() async {
     await _modeOperation;
+
     if (_mode != LibraryDatabaseMode.authenticated) {
       throw StateError('Only authenticated libraries can connect to PowerSync');
     }
+
     final database = _requireDatabase();
     _watchStatus(database);
     await database.disconnect();
@@ -161,15 +187,19 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
 
   Future<void> clearGuestLibrary() async {
     await _modeOperation;
+
     if (_mode != LibraryDatabaseMode.guest) {
       throw StateError('Only guest libraries can be cleared with clearGuestLibrary');
     }
+
     final database = _requireDatabase();
+
     await database.writeTransaction((tx) async {
       for (final table in libraryTableNames.reversed) {
         await tx.execute('DELETE FROM $table');
       }
     });
+
     _booksController.add(const []);
     _setSyncState(const SyncState());
     _setBookMetadataSyncState(const BookMetadataSyncState());
@@ -177,11 +207,14 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
 
   Future<void> clearAuthenticatedCache() async {
     await _modeOperation;
+
     if (_mode != LibraryDatabaseMode.authenticated) {
       throw StateError('Only authenticated libraries can clear the account cache');
     }
+
     final userId = _authenticatedUserId;
     final profileKey = _authenticatedProfileKey ?? 'official';
+
     if (userId == null) {
       throw StateError('Authenticated library is missing a user id');
     }
@@ -239,17 +272,22 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
 
   Future<void> _switchMode(LibraryDatabaseMode mode, {String? authenticatedUserId, String? authenticatedProfileKey}) {
     final previousOperation = _modeOperation;
+
     final operation = (() async {
       await previousOperation;
+
       if (_mode == mode &&
           _database != null &&
           (mode == LibraryDatabaseMode.guest ||
               (_authenticatedUserId == authenticatedUserId && _authenticatedProfileKey == authenticatedProfileKey))) {
         return;
       }
+
       await _performModeSwitch(mode, authenticatedUserId, authenticatedProfileKey);
     })();
+
     _modeOperation = operation;
+
     return operation.whenComplete(() {
       if (identical(_modeOperation, operation)) {
         _modeOperation = null;
@@ -273,6 +311,7 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
       schema: mode == LibraryDatabaseMode.guest ? papyrusGuestSchema : papyrusAccountSchema,
       path: await _databasePath(mode),
     );
+
     await database.initialize();
     _database = database;
     _library = LibraryDatabase(database, _refreshPendingWrites);
@@ -288,18 +327,25 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
       _setSyncState(const SyncState());
       _setBookMetadataSyncState(const BookMetadataSyncState());
     }
+
     await _refreshPendingWrites();
   }
 
   Future<void>? _trackingPreparation;
   LibraryDatabase? _trackingLibrary;
+
   Future<void> _prepareTracking() {
     final library = _activeLibrary;
     final pending = _trackingPreparation;
-    if (pending != null && identical(_trackingLibrary, library)) return pending;
+
+    if (pending != null && identical(_trackingLibrary, library)) {
+      return pending;
+    }
+
     final operation = _refreshTracking(library);
     _trackingLibrary = library;
     _trackingPreparation = operation;
+
     return operation.whenComplete(() {
       if (identical(_trackingPreparation, operation)) {
         _trackingPreparation = null;
@@ -311,47 +357,64 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
   Future<void> _refreshTracking(LibraryDatabase library) async {
     try {
       final version = await trackingCapability?.call() ?? 0;
+
       if (library.active && version != library.trackingSchemaVersion) {
         await library.enableTracking(schemaVersion: version);
       }
     } catch (_) {
       // Discovery failure keeps tracking local and does not prevent library sync.
-      if (library.active) library.trackingSchemaVersion = 0;
+      if (library.active) {
+        library.trackingSchemaVersion = 0;
+      }
     }
   }
 
   void _watchBooks(PowerSyncDatabase database) {
     unawaited(_booksSubscription?.cancel());
     final library = _activeLibrary;
+
     _booksSubscription = database
         .watch('SELECT count(*) FROM books', triggerOnTables: libraryTableNames)
         .asyncMap((_) => library.snapshot())
         .listen(
           (snapshot) {
-            if (!library.active) return;
+            if (!library.active) {
+              return;
+            }
+
             _snapshot = snapshot;
             _booksController.add(snapshot.books);
             _libraryController.add(snapshot);
           },
           onError: (Object error, StackTrace stack) {
-            if (library.active) _libraryController.addError(error, stack);
+            if (library.active) {
+              _libraryController.addError(error, stack);
+            }
           },
         );
   }
 
   void _watchStatus(PowerSyncDatabase database) {
     unawaited(_statusSubscription?.cancel());
+
     _statusSubscription = database.statusStream.listen((status) async {
       await _setStatusFromPowerSync(status);
     });
+
     unawaited(_setStatusFromPowerSync(database.currentStatus));
   }
 
   Future<void> _setStatusFromPowerSync(SyncStatus status) async {
-    if (status.connected && !_syncState.connected) unawaited(_prepareTracking());
+    if (status.connected && !_syncState.connected) {
+      unawaited(_prepareTracking());
+    }
+
     final revision = _syncStateRevisions.beginTransportUpdate();
     final pending = await _readPendingWrites();
-    if (!_syncStateRevisions.isCurrent(revision)) return;
+
+    if (!_syncStateRevisions.isCurrent(revision)) {
+      return;
+    }
 
     _setBookMetadataSyncState(
       BookMetadataSyncState(
@@ -359,6 +422,7 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
         failedBookIds: status.uploadError == null ? const {} : pending.bookIds,
       ),
     );
+
     _setSyncState(
       SyncState(
         connected: status.connected,
@@ -376,15 +440,20 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
   Future<void> _refreshPendingWrites() async {
     final revision = _syncStateRevisions.observeForPendingRefresh();
     final pending = await _readPendingWrites();
-    if (!_syncStateRevisions.isCurrent(revision)) return;
+
+    if (!_syncStateRevisions.isCurrent(revision)) {
+      return;
+    }
 
     final current = _syncState;
+
     _setBookMetadataSyncState(
       BookMetadataSyncState(
         pendingBookIds: pending.bookIds,
         failedBookIds: current.uploadError == null ? const {} : pending.bookIds,
       ),
     );
+
     _setSyncState(
       SyncState(
         connected: current.connected,
@@ -403,29 +472,40 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
 
   Future<_PendingWrites> _readPendingWrites() async {
     final database = _database;
+
     if (database == null || _mode != LibraryDatabaseMode.authenticated) {
       return const _PendingWrites();
     }
+
     final rows = await database.getAll('SELECT data FROM ps_crud');
     final bookIds = <String>{};
+
     for (final row in rows) {
       final rawData = row['data'];
-      if (rawData is! String) continue;
+
+      if (rawData is! String) {
+        continue;
+      }
+
       final Object? decoded;
+
       try {
         decoded = jsonDecode(rawData);
       } on FormatException {
         continue;
       }
+
       if (decoded case {'type': 'books', 'id': final String id}) {
         bookIds.add(id);
       }
     }
+
     return _PendingWrites(any: rows.isNotEmpty, bookIds: bookIds);
   }
 
   void _setSyncState(SyncState state) {
     _syncState = state;
+
     if (!_syncStateController.isClosed) {
       _syncStateController.add(state);
     }
@@ -433,6 +513,7 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
 
   void _setBookMetadataSyncState(BookMetadataSyncState state) {
     _bookMetadataSyncState = state;
+
     if (!_bookMetadataSyncStateController.isClosed) {
       _bookMetadataSyncStateController.add(state);
     }
@@ -440,15 +521,18 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
 
   PowerSyncDatabase _requireDatabase() {
     final database = _database;
+
     if (database == null) {
       throw StateError('Library database is not active');
     }
+
     return database;
   }
 
   Future<void> _closeActive({required bool clearAuthenticated}) async {
     _syncStateRevisions.invalidate();
     final library = _library;
+
     if (library != null) {
       library.active = false;
       _library = null;
@@ -456,14 +540,15 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
       _booksController.add(const []);
       _libraryController.add(_snapshot!);
     }
+
     await _booksSubscription?.cancel();
     await _statusSubscription?.cancel();
     _booksSubscription = null;
     _statusSubscription = null;
-
     final database = _database;
     final mode = _mode;
     _database = null;
+
     if (database == null) {
       return;
     }
@@ -473,11 +558,13 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
     } else if (mode == LibraryDatabaseMode.authenticated) {
       await database.disconnect();
     }
+
     await database.close();
   }
 
   Future<String> _databasePath(LibraryDatabaseMode mode) async {
     final customResolver = pathResolver;
+
     if (customResolver != null) {
       return customResolver(mode, _authenticatedProfileKey, _authenticatedUserId);
     }
@@ -485,9 +572,11 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
     final fileName = mode == LibraryDatabaseMode.guest
         ? 'papyrus-guest.db'
         : 'papyrus-account-${_safeFileComponent(_authenticatedProfileKey ?? 'official')}-${_safeFileComponent(_authenticatedUserId ?? 'anonymous')}.db';
+
     if (kIsWeb) {
       return fileName;
     }
+
     final directory = await getApplicationSupportDirectory();
     return path.join(directory.path, fileName);
   }

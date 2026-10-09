@@ -31,6 +31,7 @@ void main() {
 
   test('schema expansion keeps queued legacy books and promotes local metadata once', () async {
     final dbPath = '${directory.path}/official-one.db';
+
     final legacy = PowerSyncDatabase(
       path: dbPath,
       schema: const Schema([
@@ -42,7 +43,9 @@ void main() {
         ]),
       ]),
     );
+
     await legacy.initialize();
+
     await legacy.execute('INSERT INTO books (id, title, author, added_at, custom_metadata) VALUES (?, ?, ?, ?, ?)', [
       'book',
       'Legacy',
@@ -55,6 +58,7 @@ void main() {
         'custom_metadata': {'preserved': 'yes'},
       }),
     ]);
+
     final before = await legacy.getAll('SELECT data FROM ps_crud');
     await legacy.close();
     final upgraded = service();
@@ -80,9 +84,11 @@ void main() {
     final db = service();
     await db.activateGuest();
     await db.upsert(Book(id: 'book', title: 'Book', author: 'Author', addedAt: now));
+
     for (final id in ['a', 'b', 'c']) {
       await db.shelves.upsert(Shelf(id: id, name: id, createdAt: now, updatedAt: now));
     }
+
     await db.memberships.updateMemberships(bookIds: {'book'}, shelfIds: ['a', 'b']);
     await db.memberships.updateMemberships(bookIds: {'book'}, shelfIds: ['c'], previousShelfIds: {'a'});
     expect(await db.bookShelves.getById('book:a'), isNull);
@@ -98,6 +104,7 @@ void main() {
     final dbPath = '${directory.path}/official-one.db';
     final cached = PowerSyncDatabase(path: dbPath, schema: papyrusAccountSchema);
     await cached.initialize();
+
     await cached.execute(
       'INSERT INTO books (id, title, author, added_at, physical_location, custom_metadata) VALUES (?, ?, ?, ?, ?, ?)',
       [
@@ -114,6 +121,7 @@ void main() {
         }),
       ],
     );
+
     final count = (await cached.getAll('SELECT data FROM ps_crud')).length;
     await cached.close();
     final upgraded = service();
@@ -149,6 +157,7 @@ void main() {
     await first.shelves.upsert(Shelf(id: 'shelf', name: 'Shelf', createdAt: now, updatedAt: now));
     await first.tags.upsert(Tag(id: 'tag', name: 'Topic', colorHex: '#123456', createdAt: now));
     await first.notes.upsert(Note(id: 'note', bookId: 'book', title: 'Note', content: 'Content', createdAt: now));
+
     await first.annotations.upsert(
       Annotation(
         id: 'annotation',
@@ -158,9 +167,9 @@ void main() {
         createdAt: now,
       ),
     );
+
     await first.bookShelves.upsert(BookShelfRelation(bookId: 'book', shelfId: 'shelf', addedAt: now));
     await first.close();
-
     final second = service();
     await second.activateGuest();
     expect((await second.shelves.getById('shelf'))?.name, 'Shelf');

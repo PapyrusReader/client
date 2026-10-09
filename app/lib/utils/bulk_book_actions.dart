@@ -15,10 +15,6 @@ import 'package:papyrus/widgets/topics/manage_topics_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
-// =============================================================================
-// LOW-LEVEL BULK OPERATIONS
-// =============================================================================
-
 /// Add all selected books to the given shelves.
 Future<void> bulkAddToShelves(
   DataStore dataStore,
@@ -39,6 +35,7 @@ Future<void> bulkAddTopics(
 void bulkChangeStatus(DataStore dataStore, Set<String> bookIds, LibraryReadingStatus status) {
   for (final bookId in bookIds) {
     final book = dataStore.getBook(bookId);
+
     if (book != null) {
       dataStore.updateBook(book.copyWith(readingStatus: status));
     }
@@ -54,18 +51,29 @@ Future<void> bulkToggleFavorite(LibraryProvider libraryProvider, DataStore dataS
   });
 
   final writes = <Future<void>>[];
+
   for (final bookId in bookIds) {
     final book = dataStore.getBook(bookId);
-    if (book == null) continue;
+
+    if (book == null) {
+      continue;
+    }
+
     final currentFav = libraryProvider.isBookFavorite(bookId, book.isFavorite);
+
     if (allFavorite) {
       // Un-favorite all
-      if (currentFav) writes.add(libraryProvider.toggleFavorite(bookId, true));
+      if (currentFav) {
+        writes.add(libraryProvider.toggleFavorite(bookId, true));
+      }
     } else {
       // Favorite all
-      if (!currentFav) writes.add(libraryProvider.toggleFavorite(bookId, false));
+      if (!currentFav) {
+        writes.add(libraryProvider.toggleFavorite(bookId, false));
+      }
     }
   }
+
   await Future.wait(writes);
 }
 
@@ -75,10 +83,6 @@ void bulkDelete(DataStore dataStore, Set<String> bookIds) {
     dataStore.deleteBook(bookId);
   }
 }
-
-// =============================================================================
-// UI HANDLERS (shared between LibraryPage and ShelfContentsPage)
-// =============================================================================
 
 /// Show the move-to-shelf sheet for selected books.
 void handleBulkAddToShelf(BuildContext context, LibraryProvider libraryProvider) {
@@ -129,6 +133,7 @@ void handleBulkChangeStatus(BuildContext context, LibraryProvider libraryProvide
 /// Toggle favorite status for all selected books.
 Future<void> handleBulkToggleFavorite(BuildContext context, LibraryProvider libraryProvider) async {
   final dataStore = context.read<DataStore>();
+
   try {
     await bulkToggleFavorite(libraryProvider, dataStore, libraryProvider.selectedBookIds);
     libraryProvider.exitSelectionMode();
@@ -165,8 +170,10 @@ void handleBulkDelete(BuildContext context, LibraryProvider libraryProvider) {
             final importService = context.read<BookImportService>();
             final mediaScope = mediaUploadQueue.activeScope;
             Navigator.pop(context);
+
             for (final bookId in selectedBookIds) {
               final book = dataStore.getBook(bookId);
+
               await deleteBookWithMediaCleanup(
                 dataStore: dataStore,
                 mediaUploadQueue: mediaUploadQueue,
@@ -178,6 +185,7 @@ void handleBulkDelete(BuildContext context, LibraryProvider libraryProvider) {
                     : (mediaId) => importService.deleteCoverFile(mediaScope, mediaId),
               );
             }
+
             libraryProvider.exitSelectionMode();
           },
           style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),

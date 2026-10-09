@@ -33,6 +33,7 @@ class OpdsDownloads extends ChangeNotifier {
     : httpClient = httpClient ?? OpdsHttpClient() {
     library?.addListener(_notify);
   }
+
   final OpdsLibrary? library;
   final BookImportSession Function() captureImport;
   final OpdsHttpClient httpClient;
@@ -46,27 +47,41 @@ class OpdsDownloads extends ChangeNotifier {
 
   static bool supports(OpdsLink link) =>
       (kIsWeb ? bookImportWebExtensions : bookImportNativeExtensions).contains(link.supportedExtension);
+
   static String jobKey(OpdsCatalog catalog, OpdsPublication publication, OpdsLink link) =>
       '${catalog.id}\n${publication.id}\n${link.uri}';
 
   Future<void> start(OpdsCatalog catalog, OpdsPublication publication, OpdsLink link, {OpdsCredentials? credentials}) {
     final key = jobKey(catalog, publication, link);
-    if (_operations.containsKey(key)) return _operations[key]!;
-    if (_disposed) return Future.value();
+
+    if (_operations.containsKey(key)) {
+      return _operations[key]!;
+    }
+
+    if (_disposed) {
+      return Future.value();
+    }
+
     final job = OpdsDownloadJob(key: key, catalog: catalog, publication: publication, link: link);
     _jobs[key] = job;
     final existing = libraryBookId(catalog, publication, link: link);
+
     if (existing != null) {
       job.bookId = existing;
       job.status = OpdsDownloadStatus.complete;
       _notify();
       return Future.value();
     }
+
     final operation = _run(job, credentials);
     _operations[key] = operation;
+
     operation.whenComplete(() {
-      if (identical(_operations[key], operation)) _operations.remove(key);
+      if (identical(_operations[key], operation)) {
+        _operations.remove(key);
+      }
     });
+
     return operation;
   }
 
@@ -75,8 +90,10 @@ class OpdsDownloads extends ChangeNotifier {
     BookImportSession? session;
     BookImportResult? imported;
     var committed = false;
+
     void check() {
       job.cancellation.check();
+
       if (_disposed || !identical(_jobs[job.key], job) || (session != null && !session.isCurrent())) {
         throw const OpdsCancelled();
       }
@@ -86,9 +103,11 @@ class OpdsDownloads extends ChangeNotifier {
       if (!supports(job.link)) {
         throw const OpdsException('This format or acquisition method is not supported on this device.');
       }
+
       session = captureImport();
       check();
       _notify();
+
       final response = await httpClient.get(
         job.catalog,
         job.link.uri,
@@ -101,22 +120,27 @@ class OpdsDownloads extends ChangeNotifier {
           _notify();
         },
       );
+
       check();
       final contentType = response.headers['content-type']?.split(';').first.trim().toLowerCase();
+
       final prefix = utf8
           .decode(response.bytes.take(1024).toList(), allowMalformed: true)
           .replaceFirst('\uFEFF', '')
           .trimLeft();
+
       final isHtml = RegExp(
         r'^(?:<\?xml[^>]*>\s*)?(?:<!doctype\s+html\b|<html\b|<head\b|<body\b)',
         caseSensitive: false,
       ).hasMatch(prefix);
+
       if (isHtml ||
           contentType == 'text/html' ||
           contentType == 'application/xhtml+xml' ||
           contentType == 'application/json') {
         throw const OpdsException('The catalog returned a page instead of a book file. Check access and retry.');
       }
+
       final extension = job.link.supportedExtension!;
       final filename = 'book.$extension';
       job.status = OpdsDownloadStatus.importing;
@@ -125,6 +149,7 @@ class OpdsDownloads extends ChangeNotifier {
       check();
       Uint8List? cover;
       String? coverMime;
+
       if (imported.coverImage == null && job.publication.images.isNotEmpty) {
         try {
           final response = await httpClient.get(
@@ -133,14 +158,19 @@ class OpdsDownloads extends ChangeNotifier {
             credentials: credentials,
             cancellation: job.cancellation,
           );
+
           coverMime = response.headers['content-type']?.split(';').first.trim().toLowerCase();
-          if (['image/jpeg', 'image/png', 'image/webp', 'image/gif'].contains(coverMime)) cover = response.bytes;
+
+          if (['image/jpeg', 'image/png', 'image/webp', 'image/gif'].contains(coverMime)) {
+            cover = response.bytes;
+          }
         } on OpdsCancelled {
           rethrow;
         } catch (_) {
           /* Missing artwork must not block a book import. */
         }
       }
+
       check();
       final result = mergeOpdsMetadata(imported, job.publication, cover: cover, coverMime: coverMime);
       job.status = OpdsDownloadStatus.committing;
@@ -149,6 +179,7 @@ class OpdsDownloads extends ChangeNotifier {
       committed = true;
       job.bookId = book.id;
       job.status = OpdsDownloadStatus.complete;
+
       if (identity != null && identical(_jobs[job.key], job) && session.isCurrent()) {
         await library!.record(identity, book.id);
       }
@@ -167,19 +198,28 @@ class OpdsDownloads extends ChangeNotifier {
           job.status = OpdsDownloadStatus.failed;
         }
       }
+
       _notify();
     }
   }
 
   void cancel(String key) {
     final job = _jobs[key];
-    if (job != null && job.isCancellable) job.cancellation.cancel();
+
+    if (job != null && job.isCancellable) {
+      job.cancellation.cancel();
+    }
+
     _notify();
   }
 
   void dismiss(String key) {
     final job = _jobs[key];
-    if (job == null || job.isActive) return;
+
+    if (job == null || job.isActive) {
+      return;
+    }
+
     _jobs.remove(key);
     _notify();
   }
@@ -188,13 +228,16 @@ class OpdsDownloads extends ChangeNotifier {
     for (final job in _jobs.values) {
       job.cancellation.cancel();
     }
+
     _jobs.clear();
     _operations.clear();
     _notify();
   }
 
   void _notify() {
-    if (!_disposed) notifyListeners();
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
 
   @override
@@ -214,7 +257,9 @@ BookImportResult mergeOpdsMetadata(
 }) {
   bool missing(String? value) =>
       value == null || value.trim().isEmpty || ['unknown', 'unknown author'].contains(value.trim().toLowerCase());
+
   final missingAuthor = missing(result.author);
+
   return BookImportResult(
     bookId: result.bookId,
     title: missing(result.title) || result.title == 'book' ? publication.title : result.title,

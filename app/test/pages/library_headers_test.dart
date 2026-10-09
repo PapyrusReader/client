@@ -29,16 +29,20 @@ void main() {
       addTearDown(tester.view.reset);
       SharedPreferences.setMockInitialValues({});
       final store = createTestDataStore(books: [], shelves: []);
+
       final catalogs = OpdsCatalogs(OpdsCatalogStore(await SharedPreferences.getInstance(), secrets: MemorySecrets()))
         ..setScope('local--guest');
+
       final downloads = OpdsDownloads(captureImport: () => throw StateError('Unexpected import'));
       final httpClient = OpdsHttpClient();
+
       addTearDown(() async {
         await tester.pumpWidget(const SizedBox.shrink());
         store.dispose();
         catalogs.dispose();
         downloads.dispose();
       });
+
       await tester.pumpWidget(
         createTestPage(
           dataStore: store,
@@ -59,6 +63,7 @@ void main() {
           ),
         ),
       );
+
       await tester.pumpAndSettle();
       final shelfAction = find.ancestor(of: find.text('Create shelf'), matching: find.byType(EmptyStateAction));
       final catalogAction = find.ancestor(of: find.text('Add catalog'), matching: find.byType(EmptyStateAction));
@@ -67,25 +72,33 @@ void main() {
       expect(shelfState, findsOneWidget);
       expect(catalogState, findsOneWidget);
       final shelfIcon = tester.widget<Icon>(find.descendant(of: shelfState, matching: find.byIcon(Icons.shelves)));
+
       final catalogIcon = tester.widget<Icon>(
         find.descendant(of: catalogState, matching: find.byIcon(Icons.local_library_outlined)),
       );
+
       expect(shelfIcon.color, catalogIcon.color);
       expect(shelfIcon.size, catalogIcon.size);
+
       expect(
         tester.widget<Text>(find.text('No shelves yet')).style,
         tester.widget<Text>(find.text('No catalogs yet')).style,
       );
+
       final shelfSubtitle = tester.widget<Text>(find.text('Create shelves to organize your books into collections'));
+
       final catalogSubtitle = tester.widget<Text>(
         find.text('Connect an OPDS catalog to explore its collection and add books to your library.'),
       );
+
       expect(shelfSubtitle.style, catalogSubtitle.style);
       expect(tester.getSize(shelfAction), tester.getSize(catalogAction));
       expect(tester.getSize(shelfAction).height, greaterThanOrEqualTo(50));
+
       for (final action in [shelfAction, catalogAction]) {
         expect(find.descendant(of: action, matching: find.byIcon(Icons.add)), findsOneWidget);
       }
+
       expect(tester.takeException(), isNull);
     });
   }
@@ -130,8 +143,8 @@ void main() {
             ),
           ),
         );
-        await tester.pumpAndSettle();
 
+        await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
         expect(find.text(entry.key), findsNothing);
         expect(find.byType(LibraryPageHeader), findsNothing);
@@ -139,19 +152,23 @@ void main() {
         if (layout.screen.width < 840) {
           expect(tester.getTopLeft(find.byType(LibraryMobileToolbar)).dy, 16);
           expect(tester.getTopLeft(find.byType(TextField)).dx, tester.getTopLeft(find.byType(LibraryMobileToolbar)).dx);
+
           expect(
             find.descendant(of: find.byType(TextField), matching: find.byTooltip('Library sections')),
             findsOneWidget,
           );
+
           expect(tester.getCenter(find.byTooltip('Library sections')).dy, tester.getCenter(find.byType(TextField)).dy);
           await tester.tap(find.byTooltip('Library sections'));
           await tester.pumpAndSettle();
           expect(find.byType(Drawer), findsOneWidget);
         } else {
           expect(tester.getTopLeft(find.byType(LibraryToolbar)).dy, 24);
+
           if (layout.scale == 1 && (entry.key == 'Books' || entry.key == 'Shelves')) {
             expect(tester.getCenter(find.byType(TextField)).dy, tester.getCenter(find.byType(LibraryAddButton)).dy);
           }
+
           if (entry.key == 'Shelves') {
             await tester.tap(find.text('Add shelf'));
             await tester.pumpAndSettle();

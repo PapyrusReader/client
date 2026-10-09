@@ -24,9 +24,11 @@ void main() {
       officialConfig: officialConfig(),
       discoveryFetcher: (serverUrl) async {
         final settings = discovered?[serverUrl.toString()];
+
         if (settings == null) {
           throw SyncSettingsException('Server settings could not be loaded');
         }
+
         return settings;
       },
     );
@@ -35,7 +37,6 @@ void main() {
   test('defaults to the official data sync profile with 1 GB file storage', () async {
     final prefs = await SharedPreferences.getInstance();
     final provider = SyncSettingsProvider(prefs, officialConfig: officialConfig());
-
     expect(provider.activeServerId, SyncSettingsProvider.officialServerId);
     expect(provider.activeServerLabel, 'Official server');
     expect(provider.activeProfileKey, 'official');
@@ -47,6 +48,7 @@ void main() {
 
   test('adds multiple custom servers from one public URL and switches the active server', () async {
     final prefs = await SharedPreferences.getInstance();
+
     final provider = providerWithFetcher(
       prefs,
       discovered: {
@@ -64,9 +66,7 @@ void main() {
     final local = await provider.addCustomServer('localhost:8080');
     final remote = await provider.addCustomServer('https://reader.example');
     provider.selectServer(local.id);
-
     final restored = SyncSettingsProvider(prefs, officialConfig: officialConfig());
-
     expect(restored.customServers.map((server) => server.url), ['http://localhost:8080', 'https://reader.example']);
     expect(restored.activeServerId, local.id);
     expect(restored.activeServerLabel, 'localhost:8080');
@@ -78,6 +78,7 @@ void main() {
 
   test('rejects duplicate custom server URLs after normalization', () async {
     final prefs = await SharedPreferences.getInstance();
+
     final provider = providerWithFetcher(
       prefs,
       discovered: {
@@ -98,6 +99,7 @@ void main() {
 
   test('removing the active custom server switches back to official', () async {
     final prefs = await SharedPreferences.getInstance();
+
     final provider = providerWithFetcher(
       prefs,
       discovered: {
@@ -109,9 +111,7 @@ void main() {
     );
 
     final custom = await provider.addCustomServer('localhost:8080');
-
     provider.removeCustomServer(custom.id);
-
     expect(provider.activeServerId, SyncSettingsProvider.officialServerId);
     expect(provider.customServers, isEmpty);
   });
@@ -122,10 +122,9 @@ void main() {
       'sync_custom_api_url': 'http://legacy-api.test',
       'sync_custom_powersync_url': 'http://legacy-sync.test',
     });
+
     final prefs = await SharedPreferences.getInstance();
-
     final provider = SyncSettingsProvider(prefs, officialConfig: officialConfig());
-
     expect(provider.customServers, hasLength(1));
     expect(provider.activeServerId, provider.customServers.single.id);
     expect(provider.activeServerLabel, 'legacy-api.test');

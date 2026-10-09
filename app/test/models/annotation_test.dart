@@ -38,7 +38,6 @@ void main() {
       test('creates copy with updated fields', () {
         const original = BookLocation(chapter: 1, chapterTitle: 'Intro', pageNumber: 5, percentage: 0.01);
         final copy = original.copyWith(pageNumber: 10, percentage: 0.05);
-
         expect(copy.chapter, 1);
         expect(copy.chapterTitle, 'Intro');
         expect(copy.pageNumber, 10);
@@ -71,7 +70,6 @@ void main() {
       test('creates copy with updated fields', () {
         final original = buildTestAnnotation(selectedText: 'Original', color: HighlightColor.yellow, note: 'Note');
         final copy = original.copyWith(color: HighlightColor.blue, note: 'Updated note');
-
         expect(copy.selectedText, 'Original');
         expect(copy.color, HighlightColor.blue);
         expect(copy.note, 'Updated note');
@@ -82,6 +80,7 @@ void main() {
     group('toJson', () {
       test('serializes all fields including flattened location', () {
         final now = DateTime(2025, 6, 15);
+
         final annotation = Annotation(
           id: 'ann-1',
           bookId: 'book-1',
@@ -94,7 +93,6 @@ void main() {
         );
 
         final json = annotation.toJson();
-
         expect(json['id'], 'ann-1');
         expect(json['book_id'], 'book-1');
         expect(json['selected_text'], 'Some text');
@@ -126,7 +124,6 @@ void main() {
         };
 
         final annotation = Annotation.fromJson(json);
-
         expect(annotation.id, 'ann-1');
         expect(annotation.bookId, 'book-1');
         expect(annotation.selectedText, 'Important passage');
@@ -167,7 +164,6 @@ void main() {
         );
 
         final restored = Annotation.fromJson(original.toJson());
-
         expect(restored.id, original.id);
         expect(restored.selectedText, original.selectedText);
         expect(restored.color, original.color);

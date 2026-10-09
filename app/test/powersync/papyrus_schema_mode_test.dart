@@ -12,6 +12,7 @@ void main() {
     final tables = papyrusAccountSchema.tables.where(
       (table) => libraryTableNames.contains(table.name) && table.name != 'tracking_staging',
     );
+
     expect(tables.length, libraryTableNames.length - 1);
     expect(papyrusAccountSchema.tables.singleWhere((table) => table.name == 'tracking_staging').localOnly, isTrue);
     expect(tables.every((table) => !table.localOnly), isTrue);

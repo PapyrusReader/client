@@ -12,6 +12,7 @@ class NavItemCount extends StatelessWidget {
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
     final foreground = selected ? colors.onPrimaryContainer : colors.onSurfaceVariant;
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
       decoration: BoxDecoration(

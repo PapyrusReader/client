@@ -158,6 +158,7 @@ class AppRouter {
                     path: ':shelfId',
                     pageBuilder: (context, state) {
                       final shelfId = state.pathParameters['shelfId'];
+
                       return NoTransitionPage(
                         key: state.pageKey,
                         child: ShelfContentsPage(shelfId: shelfId),
@@ -191,6 +192,7 @@ class AppRouter {
                 path: 'details/:bookId',
                 pageBuilder: (context, state) {
                   var bookId = state.pathParameters['bookId'];
+
                   return NoTransitionPage(
                     key: state.pageKey,
                     child: BookDetailsPage(id: bookId),
@@ -203,6 +205,7 @@ class AppRouter {
                 parentNavigatorKey: rootNavigatorKey,
                 pageBuilder: (context, state) {
                   final bookId = state.pathParameters['bookId']!;
+
                   return NoTransitionPage(
                     key: state.pageKey,
                     child: ReaderPage(bookId: bookId),
@@ -214,6 +217,7 @@ class AppRouter {
                 path: 'edit/:bookId',
                 pageBuilder: (context, state) {
                   var bookId = state.pathParameters['bookId'];
+
                   return NoTransitionPage(
                     key: state.pageKey,
                     child: BookEditPage(id: bookId),
@@ -296,6 +300,7 @@ class AppRouter {
     final acquisitionAvailable = acquisitionAvailabilityProvider.isAvailableFor(
       syncSettingsProvider.activeApiConfig.serverBaseUri,
     );
+
     if (location == '/acquisition' && (!preferencesProvider.acquisitionEnabled || !acquisitionAvailable)) {
       return '/profile';
     }

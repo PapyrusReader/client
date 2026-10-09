@@ -1,9 +1,5 @@
 import 'package:flutter/material.dart';
 
-// =============================================================================
-// LIGHT COLOR SCHEME
-// =============================================================================
-
 const lightColorScheme = ColorScheme(
   brightness: Brightness.light,
   primary: Color(0xFF5654A8),
@@ -35,10 +31,6 @@ const lightColorScheme = ColorScheme(
   outlineVariant: Color(0xFFC8C5D0),
   scrim: Color(0xFF000000),
 );
-
-// =============================================================================
-// DARK COLOR SCHEME
-// =============================================================================
 
 const darkColorScheme = ColorScheme(
   brightness: Brightness.dark,
@@ -72,9 +64,6 @@ const darkColorScheme = ColorScheme(
   scrim: Color(0xFF000000),
 );
 
-// =============================================================================
-// E-INK COLOR SCHEME
-// =============================================================================
 // High contrast, grayscale-only colors optimized for e-ink displays.
 // Rules:
 // - NO gradients - use solid fills only

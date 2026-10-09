@@ -68,10 +68,6 @@ class _DashboardPageState extends State<DashboardPage> {
     );
   }
 
-  // ============================================================================
-  // MOBILE LAYOUT
-  // ============================================================================
-
   /// Builds the mobile layout with vertically stacked cards.
   Widget _buildMobileLayout(BuildContext context, DashboardProvider provider) {
     return Scaffold(
@@ -115,10 +111,6 @@ class _DashboardPageState extends State<DashboardPage> {
       ),
     );
   }
-
-  // ============================================================================
-  // DESKTOP LAYOUT
-  // ============================================================================
 
   /// Builds the desktop layout with grid arrangement.
   Widget _buildDesktopLayout(BuildContext context, DashboardProvider provider) {

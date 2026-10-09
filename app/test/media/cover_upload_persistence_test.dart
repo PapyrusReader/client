@@ -93,6 +93,7 @@ void main() {
       ),
       throwsStateError,
     );
+
     expect(promotions, 0);
   });
 }

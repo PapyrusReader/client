@@ -9,10 +9,6 @@ import 'design_tokens.dart';
 class AppTheme {
   AppTheme._();
 
-  // ===========================================================================
-  // LIGHT THEME
-  // ===========================================================================
-
   static ThemeData get light => ThemeData(
     useMaterial3: true,
     colorScheme: lightColorScheme,
@@ -31,10 +27,6 @@ class AppTheme {
     popupMenuTheme: _popupMenuTheme(lightColorScheme),
   );
 
-  // ===========================================================================
-  // DARK THEME
-  // ===========================================================================
-
   static ThemeData get dark => ThemeData(
     useMaterial3: true,
     colorScheme: darkColorScheme,
@@ -52,10 +44,6 @@ class AppTheme {
     snackBarTheme: _snackBarTheme(darkColorScheme),
     popupMenuTheme: _popupMenuTheme(darkColorScheme),
   );
-
-  // ===========================================================================
-  // E-INK THEME
-  // ===========================================================================
 
   static ThemeData get eink => ThemeData(
     useMaterial3: true,
@@ -152,10 +140,6 @@ class AppTheme {
     splashColor: Colors.transparent,
   );
 
-  // ===========================================================================
-  // TYPOGRAPHY
-  // ===========================================================================
-
   static const TextTheme _textTheme = TextTheme(
     displayLarge: TextStyle(fontSize: 57, fontWeight: FontWeight.w400, letterSpacing: -0.25),
     displayMedium: TextStyle(fontSize: 45, fontWeight: FontWeight.w400, letterSpacing: 0),
@@ -182,10 +166,6 @@ class AppTheme {
         labelSmall: _textTheme.labelSmall!.copyWith(fontWeight: FontWeight.w600),
       )
       .apply(bodyColor: EinkColors.black, displayColor: EinkColors.black);
-
-  // ===========================================================================
-  // STANDARD COMPONENT THEMES
-  // ===========================================================================
 
   static ElevatedButtonThemeData _elevatedButtonTheme(ColorScheme colors) {
     return ElevatedButtonThemeData(
@@ -309,10 +289,6 @@ class AppTheme {
       mouseCursor: WidgetStateMouseCursor.clickable,
     );
   }
-
-  // ===========================================================================
-  // E-INK COMPONENT THEMES
-  // ===========================================================================
 
   static ElevatedButtonThemeData _einkElevatedButtonTheme() {
     return ElevatedButtonThemeData(

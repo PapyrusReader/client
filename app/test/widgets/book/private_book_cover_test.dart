@@ -90,10 +90,8 @@ void main() {
     expect(find.byIcon(Icons.auto_stories_rounded), findsOneWidget);
     expect(find.text('Loading…'), findsOneWidget);
     expect(find.byKey(const Key('fallback-placeholder')), findsNothing);
-
     coverBytes.complete(Uint8List.fromList(pngBytes));
     await tester.pumpAndSettle();
-
     expect(find.byKey(const Key('cover-image-loading')), findsNothing);
     expect(find.byType(Image), findsOneWidget);
   });
@@ -131,12 +129,10 @@ void main() {
     await tester.pumpWidget(harness.wrap(Align(child: cover())));
     await _waitForDecodedCover(tester);
     expect(importService.cachedCoverReads, 1);
-
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
     await tester.pumpWidget(harness.wrap(Center(child: cover())));
     await tester.pump();
-
     expect(importService.cachedCoverReads, 1);
     expect(find.byKey(const Key('placeholder')), findsNothing);
     expect(find.byType(Image), findsOneWidget);
@@ -147,6 +143,7 @@ void main() {
       Uint8List.fromList(pngBytes),
       pendingCoverBytes: Uint8List.fromList(pngBytes),
     );
+
     final harness = await _buildProviderHarness(importService: importService);
 
     await tester.pumpWidget(
@@ -158,8 +155,8 @@ void main() {
         ),
       ),
     );
-    await _waitForDecodedCover(tester);
 
+    await _waitForDecodedCover(tester);
     expect(importService.pendingCoverReads, 1);
     expect(importService.cachedCoverReads, 0);
     expect(find.byType(Image), findsOneWidget);
@@ -168,6 +165,7 @@ void main() {
   testWidgets('provider-backed pending cover reuses its decoded image across pages', (tester) async {
     final harness = await _buildProviderHarness();
     var pendingReads = 0;
+
     Future<Uint8List?> loadPending(MediaStorageScope scope, String bookId) async {
       pendingReads++;
       return Uint8List.fromList(pngBytes);
@@ -184,12 +182,10 @@ void main() {
     await tester.pumpWidget(harness.wrap(Align(child: cover())));
     await _waitForDecodedCover(tester);
     expect(pendingReads, 1);
-
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
     await tester.pumpWidget(harness.wrap(Center(child: cover())));
     await tester.pump();
-
     expect(pendingReads, 1);
     expect(find.byKey(const Key('placeholder')), findsNothing);
     expect(find.byType(Image), findsOneWidget);
@@ -198,6 +194,7 @@ void main() {
   testWidgets('provider-backed guest cover reuses its decoded image across pages', (tester) async {
     final harness = await _buildProviderHarness(offline: true);
     var guestReads = 0;
+
     Future<Uint8List?> loadGuest(String bookId) async {
       guestReads++;
       return Uint8List.fromList(pngBytes);
@@ -214,12 +211,10 @@ void main() {
     await tester.pumpWidget(harness.wrap(Align(child: cover())));
     await _waitForDecodedCover(tester);
     expect(guestReads, 1);
-
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
     await tester.pumpWidget(harness.wrap(Center(child: cover())));
     await tester.pump();
-
     expect(guestReads, 1);
     expect(find.byKey(const Key('placeholder')), findsNothing);
     expect(find.byType(Image), findsOneWidget);
@@ -227,6 +222,7 @@ void main() {
 
   testWidgets('private cover renders lazily loaded bytes', (tester) async {
     var loads = 0;
+
     await tester.pumpWidget(
       MaterialApp(
         home: CoverImage(
@@ -239,8 +235,8 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     expect(find.byType(Image), findsOneWidget);
     expect(find.byKey(const Key('placeholder')), findsNothing);
     expect(loads, 1);
@@ -261,8 +257,8 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     expect(find.byType(Image), findsOneWidget);
     expect(find.byKey(const Key('placeholder')), findsNothing);
     expect(loadedBookIds, ['book-1']);
@@ -289,14 +285,15 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     expect(privateLoads, 1);
     expect(localLoads, 0);
   });
 
   testWidgets('local cover keeps one load future across rebuilds', (tester) async {
     var loads = 0;
+
     Future<Uint8List?> loader(String _) async {
       loads++;
       return Uint8List.fromList(pngBytes);
@@ -316,12 +313,12 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pumpWidget(build('book-1'));
     await tester.pumpAndSettle();
-
     expect(loads, 1);
   });
 
   testWidgets('local cover reloads when book id changes', (tester) async {
     final loadedBookIds = <String>[];
+
     Future<Uint8List?> loader(String bookId) async {
       loadedBookIds.add(bookId);
       return Uint8List.fromList(pngBytes);
@@ -341,7 +338,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pumpWidget(build('book-2'));
     await tester.pumpAndSettle();
-
     expect(loadedBookIds, ['book-1', 'book-2']);
   });
 
@@ -365,7 +361,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pumpWidget(build(secondLoader));
     await tester.pumpAndSettle();
-
     final image = tester.widget<Image>(find.byType(Image));
     expect(identical((image.image as MemoryImage).bytes, secondBytes), isTrue);
   });
@@ -390,7 +385,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pumpWidget(build(secondLoader));
     await tester.pumpAndSettle();
-
     final image = tester.widget<Image>(find.byType(Image));
     expect(identical((image.image as MemoryImage).bytes, secondBytes), isTrue);
   });
@@ -422,8 +416,8 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     expect(pendingLoads, 1);
     expect(guestLoads, 0);
     refreshGate.complete(harness.repository.tokens);
@@ -453,9 +447,11 @@ void main() {
         ),
       ),
     );
+
     await tester.pumpAndSettle();
     expect(guestLoads, 1);
     expect(pendingLoads, 0);
+
     _expectLocalCoverKey(
       tester,
       scopeKey: MediaStorageScope.localGuest.persistenceKey,
@@ -468,6 +464,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(guestLoads, 1);
     expect(pendingLoads, 1);
+
     _expectLocalCoverKey(
       tester,
       scopeKey: '${SyncSettingsProvider.officialServerId}--user-1',
@@ -479,6 +476,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(guestLoads, 1);
     expect(pendingLoads, 1);
+
     _expectLocalCoverKey(
       tester,
       scopeKey: MediaStorageScope.localGuest.persistenceKey,
@@ -506,13 +504,13 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     harness.syncSettings.setCustomServerUrls(apiUrl: 'https://custom.test', powerSyncUrl: 'https://sync.custom.test');
     await tester.pumpAndSettle();
-
     expect(scopes.map((scope) => scope.profileKey), [SyncSettingsProvider.officialServerId, startsWith('custom-')]);
     final customScope = scopes.last;
+
     _expectLocalCoverKey(
       tester,
       scopeKey: customScope.persistenceKey,
@@ -527,8 +525,8 @@ void main() {
     final officialBytes = Uint8List.fromList(pngBytes);
     final customBytes = Uint8List.fromList(pngBytes);
     final scopes = <MediaStorageScope>[];
-
     Future<Uint8List?> localLoader(String _) async => injectedBytes;
+
     Future<Uint8List?> pendingLoader(MediaStorageScope scope, String _) async {
       scopes.add(scope);
       return scope.profileKey == SyncSettingsProvider.officialServerId ? officialBytes : customBytes;
@@ -550,10 +548,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(scopes, isEmpty);
     expect(identical((tester.widget<Image>(find.byType(Image)).image as MemoryImage).bytes, injectedBytes), isTrue);
-
     await tester.pumpWidget(build(injected: false));
     await tester.pumpAndSettle();
     expect(scopes.map((scope) => scope.profileKey), [SyncSettingsProvider.officialServerId]);
+
     _expectLocalCoverKey(
       tester,
       scopeKey: scopes.single.persistenceKey,
@@ -563,8 +561,8 @@ void main() {
 
     harness.syncSettings.setCustomServerUrls(apiUrl: 'https://custom.test', powerSyncUrl: 'https://sync.custom.test');
     await tester.pumpAndSettle();
-
     expect(scopes.map((scope) => scope.profileKey), [SyncSettingsProvider.officialServerId, startsWith('custom-')]);
+
     _expectLocalCoverKey(
       tester,
       scopeKey: scopes.last.persistenceKey,
@@ -583,8 +581,8 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('placeholder')), findsOneWidget);
     expect(find.byType(Image), findsNothing);
   });
@@ -635,6 +633,7 @@ void main() {
 
   testWidgets('private cover keeps one load future across rebuilds', (tester) async {
     var loads = 0;
+
     Future<Uint8List?> loader(String _) async {
       loads++;
       return Uint8List.fromList(pngBytes);
@@ -654,7 +653,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.pumpWidget(build());
     await tester.pumpAndSettle();
-
     expect(loads, 1);
   });
 
@@ -668,8 +666,8 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('placeholder')), findsOneWidget);
     expect(find.byType(Image), findsNothing);
   });
@@ -684,8 +682,8 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     expect(find.byKey(const Key('placeholder')), findsOneWidget);
     expect(find.byType(Image), findsNothing);
   });
@@ -693,22 +691,30 @@ void main() {
 
 Future<void> _waitForDecodedCover(WidgetTester tester) async {
   final image = tester.widget<Image>(find.byType(Image));
+
   await tester.runAsync(() async {
     final firstFrame = Completer<void>();
     final stream = image.image.resolve(ImageConfiguration.empty);
     late ImageStreamListener listener;
+
     listener = ImageStreamListener(
       (_, _) {
-        if (!firstFrame.isCompleted) firstFrame.complete();
+        if (!firstFrame.isCompleted) {
+          firstFrame.complete();
+        }
       },
       onError: (Object error, StackTrace? stackTrace) {
-        if (!firstFrame.isCompleted) firstFrame.completeError(error, stackTrace);
+        if (!firstFrame.isCompleted) {
+          firstFrame.completeError(error, stackTrace);
+        }
       },
     );
+
     stream.addListener(listener);
     await firstFrame.future;
     stream.removeListener(listener);
   });
+
   await tester.pump();
 }
 
@@ -756,6 +762,7 @@ Future<_ProviderHarness> _buildProviderHarness({
   MediaCacheService? cacheService,
 }) async {
   final prefs = await SharedPreferences.getInstance();
+
   final tokens = AuthTokens(
     accessToken: 'access-token',
     refreshToken: 'refresh-token',
@@ -771,13 +778,16 @@ Future<_ProviderHarness> _buildProviderHarness({
       lastLoginAt: null,
     ),
   );
+
   final repository = _GatedAuthRepository(tokens);
   final authProvider = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
+
   if (offline) {
     authProvider.setOfflineMode(true);
   } else {
     await authProvider.bootstrap();
   }
+
   final syncSettings = SyncSettingsProvider(
     prefs,
     officialConfig: PapyrusApiConfig(
@@ -785,6 +795,7 @@ Future<_ProviderHarness> _buildProviderHarness({
       powerSyncServiceUri: Uri.parse('https://sync.test'),
     ),
   );
+
   return _ProviderHarness(
     repository: repository,
     authProvider: authProvider,

@@ -31,6 +31,7 @@ void main() {
   late SharedPreferences prefs;
   late DataStore store;
   late OpdsLibrary library;
+
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     prefs = await SharedPreferences.getInstance();
@@ -38,6 +39,7 @@ void main() {
     await store.waitUntilLoaded();
     library = OpdsLibrary(prefs, dataStore: store)..setScope('guest');
   });
+
   tearDown(() {
     library.dispose();
     store.dispose();
@@ -54,10 +56,12 @@ void main() {
     expect(library.bookId(_catalog, _publication, link: _pdf), isNull);
     expect(library.bookId(_catalog, OpdsPublication(id: 'other-edition', title: 'Book')), isNull);
     expect(library.bookId(OpdsCatalog(id: 'other', name: 'Books', uri: _catalog.uri), _publication), isNull);
+
     expect(
       library.bookId(OpdsCatalog(id: 'one', name: 'Books', uri: Uri.parse('https://other.test')), _publication),
       isNull,
     );
+
     store.replaceBooksFromSync([]);
     expect(library.bookId(_catalog, _publication), isNull);
   });
@@ -110,16 +114,19 @@ void main() {
   test('renaming preserves provenance; credentials and removal invalidate it', () async {
     final catalogs = OpdsCatalogs(OpdsCatalogStore(prefs, secrets: MemorySecrets()), library: library)
       ..setScope('guest');
+
     addTearDown(catalogs.dispose);
     await catalogs.save(_catalog);
     store.replaceBooksFromSync([_book]);
     await library.record(library.capture(_catalog, _publication, _epub)!, _book.id);
     await catalogs.save(OpdsCatalog(id: 'one', name: 'Renamed', uri: _catalog.uri));
     expect(library.bookId(_catalog, _publication), _book.id);
+
     await catalogs.save(
       _catalog,
       credentials: const OpdsCredentials(username: 'new', password: 'secret'),
     );
+
     expect(library.bookId(_catalog, _publication), isNull);
     await library.record(library.capture(_catalog, _publication, _epub)!, _book.id);
     await catalogs.remove(_catalog.id);
@@ -130,6 +137,7 @@ void main() {
   test('successful import is remembered; duplicate acquisition skips network; deletion permits reimport', () async {
     var requests = 0;
     var commits = 0;
+
     final downloads = OpdsDownloads(
       library: library,
       httpClient: OpdsHttpClient(
@@ -156,6 +164,7 @@ void main() {
         },
       ),
     );
+
     addTearDown(downloads.dispose);
     await downloads.start(_catalog, _publication, _epub);
     expect(library.bookId(_catalog, _publication), _book.id);
@@ -188,6 +197,7 @@ void main() {
         commit: (_, _) async => throw StateError('Commit failed'),
       ),
     );
+
     addTearDown(downloads.dispose);
     await downloads.start(_catalog, _publication, _epub);
     store.replaceBooksFromSync([_book]);
@@ -198,6 +208,7 @@ void main() {
   test('account switch during commit cannot record in the newly selected library', () async {
     final commitStarted = Completer<void>();
     final committed = Completer<Book>();
+
     final downloads = OpdsDownloads(
       library: library,
       httpClient: OpdsHttpClient(clientFactory: () => MockRelayClient((_) async => http.Response('book', 200))),
@@ -218,6 +229,7 @@ void main() {
         },
       ),
     );
+
     addTearDown(downloads.dispose);
     final operation = downloads.start(_catalog, _publication, _epub);
     await commitStarted.future;

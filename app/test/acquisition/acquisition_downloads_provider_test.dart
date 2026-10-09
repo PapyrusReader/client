@@ -27,13 +27,11 @@ void main() {
         ),
       ],
     );
+
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
-
     await provider.refreshConfiguration();
-
     expect(provider.isManagedAcquisitionReady, isTrue);
     expect(provider.downloadClients.single.id, 'client-1');
-
     provider.dispose();
   });
 
@@ -44,30 +42,27 @@ void main() {
         AcquisitionJobPage(items: [_job(status: AcquisitionJobStatus.completed)], total: 1, limit: 50, offset: 0),
       ],
     );
-    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
 
+    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     await provider.refreshJobs();
     provider.toggleJobSelection('job-1');
-
     expect(provider.jobs.single.status, AcquisitionJobStatus.downloading);
     expect(provider.jobById('job-1')?.status, AcquisitionJobStatus.downloading);
     expect(provider.jobById('missing'), isNull);
     expect(provider.jobsByBookId['book-1']?.status, AcquisitionJobStatus.downloading);
     expect(provider.activeCount, 1);
     expect(provider.selectedJobIds, {'job-1'});
-
     await provider.refreshJobs();
-
     expect(provider.jobs.single.status, AcquisitionJobStatus.completed);
     expect(provider.jobsByBookId, isEmpty);
     expect(provider.activeCount, 0);
     expect(provider.selectedJobIds, {'job-1'});
-
     provider.dispose();
   });
 
   test('discards a stale refresh after removal and lets a later refresh converge', () async {
     final staleRefresh = Completer<AcquisitionJobPage>();
+
     final gateway = _FakeGateway(
       jobResponses: [
         AcquisitionJobPage(items: [_job(status: AcquisitionJobStatus.failed)], total: 1, limit: 100, offset: 0),
@@ -80,60 +75,56 @@ void main() {
         ),
       ],
     );
-    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
 
+    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     await provider.refreshJobs();
     provider.toggleJobSelection('job-1');
     final refresh = provider.refreshJobs();
-
     await provider.removeSelectedJobs();
     expect(provider.jobs, isEmpty);
 
     staleRefresh.complete(
       AcquisitionJobPage(items: [_job(status: AcquisitionJobStatus.failed)], total: 1, limit: 100, offset: 0),
     );
-    await refresh;
 
+    await refresh;
     expect(provider.jobs, isEmpty);
     expect(provider.isLoadingJobs, isFalse);
-
     await provider.refreshJobs();
-
     expect(provider.jobs.single.id, 'server-job');
     expect(provider.isLoadingJobs, isFalse);
-
     provider.dispose();
   });
 
   test('discards a stale refresh after successful cancellation', () async {
     final staleRefresh = Completer<AcquisitionJobPage>();
+
     final gateway = _FakeGateway(
       jobResponses: [
         AcquisitionJobPage(items: [_job(status: AcquisitionJobStatus.downloading)], total: 1, limit: 100, offset: 0),
         staleRefresh.future,
       ],
     );
-    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
 
+    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     await provider.refreshJobs();
     final refresh = provider.refreshJobs();
-
     await provider.cancelJob('job-1');
     expect(provider.jobById('job-1')?.status, AcquisitionJobStatus.cancelled);
 
     staleRefresh.complete(
       AcquisitionJobPage(items: [_job(status: AcquisitionJobStatus.downloading)], total: 1, limit: 100, offset: 0),
     );
-    await refresh;
 
+    await refresh;
     expect(provider.jobById('job-1')?.status, AcquisitionJobStatus.cancelled);
     expect(provider.isLoadingJobs, isFalse);
-
     provider.dispose();
   });
 
   test('discards a stale refresh after successful retry', () async {
     final staleRefresh = Completer<AcquisitionJobPage>();
+
     final gateway = _FakeGateway(
       jobResponses: [
         AcquisitionJobPage(
@@ -145,11 +136,10 @@ void main() {
         staleRefresh.future,
       ],
     );
-    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
 
+    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     await provider.refreshJobs();
     final refresh = provider.refreshJobs();
-
     await provider.retryJobImport('job-1');
     expect(provider.jobById('job-1')?.status, AcquisitionJobStatus.downloading);
 
@@ -161,16 +151,16 @@ void main() {
         offset: 0,
       ),
     );
-    await refresh;
 
+    await refresh;
     expect(provider.jobById('job-1')?.status, AcquisitionJobStatus.downloading);
     expect(provider.isLoadingJobs, isFalse);
-
     provider.dispose();
   });
 
   test('discards a stale refresh after successful submission inserts a job', () async {
     final staleRefresh = Completer<AcquisitionJobPage>();
+
     final gateway = _FakeGateway(
       jobResponses: [staleRefresh.future],
       batchResult: BatchSubmissionResponse(
@@ -183,22 +173,18 @@ void main() {
         ],
       ),
     );
+
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     const release = TorrentRelease(title: 'One', releaseToken: 'token-1', protocol: 'torrent', indexer: 'Prowlarr');
-
     final refresh = provider.refreshJobs();
     provider.setRemoteResults('query', const [release]);
     provider.toggleReleaseSelection('token-1');
-
     await provider.submitSelectedReleases('endpoint-1');
     expect(provider.jobs.single.id, 'submitted-job');
-
     staleRefresh.complete(const AcquisitionJobPage(items: [], total: 0, limit: 100, offset: 0));
     await refresh;
-
     expect(provider.jobs.single.id, 'submitted-job');
     expect(provider.isLoadingJobs, isFalse);
-
     provider.dispose();
   });
 
@@ -207,16 +193,14 @@ void main() {
       endpointsError: StateError('https://download-client.local/settings?token=secret'),
       searchError: const AuthApiException(statusCode: 503, message: 'indexer down'),
     );
-    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
 
+    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     await provider.refreshConfiguration();
     await provider.searchRemote('  remote book  ');
-
     expect(provider.remoteQuery, 'remote book');
     expect(provider.remoteResults, isEmpty);
     expect(provider.searchError, 'Could not search connected sources. Check the enabled indexers and try again.');
     expect(provider.error, 'Could not load download settings. Try again.');
-
     provider.dispose();
   });
 
@@ -227,35 +211,30 @@ void main() {
     );
 
     await provider.searchRemote('  remote book  ');
-
     expect(provider.remoteQuery, 'remote book');
     expect(provider.remoteResults, isEmpty);
     expect(provider.searchError, 'Could not search connected sources. Check the enabled indexers and try again.');
     expect(provider.error, isNull);
-
     provider.dispose();
   });
 
   test('clearing remote state invalidates a hung search without blocking the next search', () async {
     final oldSearch = Completer<List<TorrentRelease>>();
+
     final gateway = _FakeGateway(
       searchResponses: [
         oldSearch.future,
         const [TorrentRelease(title: 'New', releaseToken: 'new-token', protocol: 'torrent', indexer: 'Prowlarr')],
       ],
     );
-    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
 
+    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     final oldOperation = provider.searchRemote('old');
     expect(provider.isSearching, isTrue);
-
     provider.clearRemoteResults();
-
     expect(provider.isSearching, isFalse);
     expect(provider.remoteQuery, isNull);
-
     await provider.searchRemote('new');
-
     expect(provider.remoteQuery, 'new');
     expect(provider.remoteResults.single.releaseToken, 'new-token');
     expect(provider.isSearching, isFalse);
@@ -263,12 +242,11 @@ void main() {
     oldSearch.complete(const [
       TorrentRelease(title: 'Old', releaseToken: 'old-token', protocol: 'torrent', indexer: 'Prowlarr'),
     ]);
-    await oldOperation;
 
+    await oldOperation;
     expect(provider.remoteQuery, 'new');
     expect(provider.remoteResults.single.releaseToken, 'new-token');
     expect(provider.isSearching, isFalse);
-
     provider.dispose();
   });
 
@@ -279,9 +257,7 @@ void main() {
     );
 
     await provider.refreshJobs();
-
     expect(provider.error, 'Could not refresh downloads. Try again.');
-
     provider.dispose();
   });
 
@@ -300,17 +276,14 @@ void main() {
     expect(filesResult.files, isEmpty);
     expect(filesResult.error, 'Could not load download files. Try again.');
     expect(provider.error, 'Could not load download files. Try again.');
-
     final selectFileOutcome = await provider.selectJobFile('job-1', 0);
     expect(selectFileOutcome.failed, isTrue);
     expect(selectFileOutcome.error, 'Could not select the download file. Try again.');
     expect(provider.error, selectFileOutcome.error);
-
     final retryOutcome = await provider.retryJobImport('job-1');
     expect(retryOutcome.failed, isTrue);
     expect(retryOutcome.error, 'Could not retry the download import. Try again.');
     expect(provider.error, retryOutcome.error);
-
     provider.dispose();
   });
 
@@ -324,10 +297,10 @@ void main() {
       ),
       pollingInterval: Duration.zero,
     );
+
     await cancelProvider.refreshJobs();
     cancelProvider.toggleJobSelection('job-1');
     final cancelOutcome = await cancelProvider.cancelSelectedJobs();
-
     expect(cancelOutcome.failed, isTrue);
     expect(cancelOutcome.error, 'Could not cancel the download. Try again.');
     expect(cancelProvider.error, cancelOutcome.error);
@@ -343,10 +316,10 @@ void main() {
       ),
       pollingInterval: Duration.zero,
     );
+
     await removeProvider.refreshJobs();
     removeProvider.toggleJobSelection('job-1');
     final removeOutcome = await removeProvider.removeSelectedJobs();
-
     expect(removeOutcome.failed, isTrue);
     expect(removeOutcome.error, 'Could not remove the download. Try again.');
     expect(removeProvider.error, removeOutcome.error);
@@ -369,23 +342,22 @@ void main() {
       ],
       retryImportErrorsByJobId: {'job-2': StateError('raw retry failure with token=secret')},
     );
+
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     await provider.refreshJobs();
     provider.toggleJobSelection('job-1');
     provider.toggleJobSelection('job-2');
-
     final outcome = await provider.retrySelectedJobs();
-
     expect(outcome.failed, isTrue);
     expect(outcome.error, 'Could not retry the download import. Try again.');
     expect(provider.selectedJobIds, {'job-2'});
     expect(gateway.retriedJobIds, ['job-1']);
-
     provider.dispose();
   });
 
   test('bulk retry blocks concurrent remove and keeps ownership until its delayed result completes', () async {
     final retry = Completer<AcquisitionJob>();
+
     final gateway = _FakeGateway(
       jobPages: [
         AcquisitionJobPage(
@@ -397,88 +369,76 @@ void main() {
       ],
       retryImportCompleter: retry,
     );
+
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     await provider.refreshJobs();
     provider.toggleJobSelection('job-1');
-
     final retryOperation = provider.retrySelectedJobs();
-
     expect(provider.isMutatingJobs, isTrue);
     expect(gateway.retriedJobIds, ['job-1']);
-
     final removeOutcome = await provider.removeSelectedJobs();
-
     expect(removeOutcome.ignored, isTrue);
     expect(gateway.removedJobIds, isEmpty);
     expect(provider.isMutatingJobs, isTrue);
     expect(provider.selectedJobIds, {'job-1'});
-
     retry.complete(_job(status: AcquisitionJobStatus.downloading));
     final retryOutcome = await retryOperation;
-
     expect(retryOutcome.succeeded, isTrue);
     expect(provider.isMutatingJobs, isFalse);
     expect(provider.selectedJobIds, isEmpty);
-
     provider.dispose();
   });
 
   test('bulk removal ignores a duplicate invocation while the first request is delayed', () async {
     final removal = Completer<void>();
+
     final gateway = _FakeGateway(
       jobPages: [
         AcquisitionJobPage(items: [_job(status: AcquisitionJobStatus.failed)], total: 1, limit: 100, offset: 0),
       ],
       removeCompleter: removal,
     );
+
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     await provider.refreshJobs();
     provider.toggleJobSelection('job-1');
-
     final firstOperation = provider.removeSelectedJobs();
     final duplicateOutcome = await provider.removeSelectedJobs();
-
     expect(duplicateOutcome.ignored, isTrue);
     expect(gateway.removedJobIds, ['job-1']);
     expect(provider.isMutatingJobs, isTrue);
     expect(provider.selectedJobIds, {'job-1'});
-
     removal.complete();
     final firstOutcome = await firstOperation;
-
     expect(firstOutcome.succeeded, isTrue);
     expect(provider.isMutatingJobs, isFalse);
     expect(provider.selectedJobIds, isEmpty);
-
     provider.dispose();
   });
 
   test('bulk cancellation ignores a duplicate invocation while the first request is delayed', () async {
     final cancellation = Completer<AcquisitionJob>();
+
     final gateway = _FakeGateway(
       jobPages: [
         AcquisitionJobPage(items: [_job(status: AcquisitionJobStatus.downloading)], total: 1, limit: 100, offset: 0),
       ],
       cancelCompleter: cancellation,
     );
+
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     await provider.refreshJobs();
     provider.toggleJobSelection('job-1');
-
     final firstOperation = provider.cancelSelectedJobs();
     final duplicateOutcome = await provider.cancelSelectedJobs();
-
     expect(duplicateOutcome.ignored, isTrue);
     expect(gateway.cancelledJobIds, ['job-1']);
     expect(provider.isMutatingJobs, isTrue);
-
     cancellation.complete(_job(status: AcquisitionJobStatus.cancelled));
     final firstOutcome = await firstOperation;
-
     expect(firstOutcome.succeeded, isTrue);
     expect(provider.isMutatingJobs, isFalse);
     expect(provider.selectedJobIds, isEmpty);
-
     provider.dispose();
   });
 
@@ -496,31 +456,25 @@ void main() {
         ),
       ],
     );
-    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
 
+    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     await provider.refreshJobs();
     provider.toggleJobSelection('job-2');
     await provider.cancelJob('job-1');
-
     expect(gateway.cancelledJobIds, ['job-1']);
     expect(provider.jobs.where((job) => job.id == 'job-1').single.status, AcquisitionJobStatus.cancelled);
     expect(provider.selectedJobIds, {'job-2'});
-
     provider.dispose();
   });
 
   test('successful single cancellation clears a pre-existing provider error', () async {
     final gateway = _FakeGateway(filesError: StateError('https://download-client.local/files?token=secret'));
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
-
     await provider.listJobFiles('job-1');
     expect(provider.error, 'Could not load download files. Try again.');
-
     await provider.cancelJob('job-1');
-
     expect(provider.error, isNull);
     expect(provider.jobById('job-1')?.status, AcquisitionJobStatus.cancelled);
-
     provider.dispose();
   });
 
@@ -533,7 +487,9 @@ void main() {
         ],
       ),
     );
+
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
+
     const releases = [
       TorrentRelease(title: 'One', releaseToken: 'token-1', protocol: 'torrent', indexer: 'Prowlarr'),
       TorrentRelease(title: 'Two', releaseToken: 'token-2', protocol: 'torrent', indexer: 'Prowlarr'),
@@ -543,7 +499,6 @@ void main() {
     provider.toggleReleaseSelection('token-1');
     provider.toggleReleaseSelection('token-2');
     final outcome = await provider.submitSelectedReleases('endpoint-1');
-
     expect(gateway.submittedTokens, ['token-1', 'token-2']);
     expect(provider.jobs.single.status, AcquisitionJobStatus.submitted);
     expect(outcome.successfulCount, 1);
@@ -553,7 +508,6 @@ void main() {
     expect(provider.submissionErrorsByReleaseToken, outcome.failuresByReleaseToken);
     expect(provider.submissionErrors, ['This release could not be sent to the download client.']);
     expect(provider.selectedReleaseTokens, {'token-2'});
-
     provider.dispose();
   });
 
@@ -574,7 +528,9 @@ void main() {
         ],
       ),
     );
+
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
+
     const releases = [
       TorrentRelease(title: 'One', releaseToken: 'token-1', protocol: 'torrent', indexer: 'Prowlarr'),
       TorrentRelease(title: 'Two', releaseToken: 'token-2', protocol: 'torrent', indexer: 'Prowlarr'),
@@ -583,13 +539,11 @@ void main() {
     provider.setRemoteResults('query', releases);
     provider.selectAllRemoteReleases();
     final outcome = await provider.submitSelectedReleases('endpoint-1');
-
     expect(outcome.successfulCount, 2);
     expect(outcome.failuresByReleaseToken, isEmpty);
     expect(outcome.allSucceeded, isTrue);
     expect(provider.selectedReleaseTokens, isEmpty);
     expect(provider.jobs, hasLength(2));
-
     provider.dispose();
   });
 
@@ -602,7 +556,9 @@ void main() {
         ],
       ),
     );
+
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
+
     const releases = [
       TorrentRelease(title: 'One', releaseToken: 'token-1', protocol: 'torrent', indexer: 'Prowlarr'),
       TorrentRelease(title: 'Two', releaseToken: 'token-2', protocol: 'torrent', indexer: 'Prowlarr'),
@@ -611,13 +567,11 @@ void main() {
     provider.setRemoteResults('query', releases);
     provider.selectAllRemoteReleases();
     final outcome = await provider.submitSelectedReleases('endpoint-1');
-
     expect(outcome.successfulCount, 0);
     expect(outcome.failedCount, 2);
     expect(outcome.allSucceeded, isFalse);
     expect(provider.selectedReleaseTokens, {'token-1', 'token-2'});
     expect(provider.jobs, isEmpty);
-
     provider.dispose();
   });
 
@@ -638,14 +592,12 @@ void main() {
         ),
       ],
     );
+
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
-
     await provider.refreshJobs();
-
     expect(provider.jobs.map((job) => job.id), containsAll(['job-new', 'job-active']));
     expect(provider.activeCount, 1);
     expect(gateway.jobOffsets, [0, 1]);
-
     provider.dispose();
   });
 
@@ -657,19 +609,18 @@ void main() {
     const release = TorrentRelease(title: 'One', releaseToken: 'token-1', protocol: 'torrent', indexer: 'Prowlarr');
     provider.setRemoteResults('query', const [release]);
     provider.toggleReleaseSelection('token-1');
-
     final operation = provider.submitSelectedReleases('endpoint-1');
     provider.setGateway(secondGateway);
+
     submission.complete(
       BatchSubmissionResponse(
         items: [BatchSubmissionItem(index: 0, job: _job(status: AcquisitionJobStatus.submitted), error: null)],
       ),
     );
-    await operation;
 
+    await operation;
     expect(provider.jobs, isEmpty);
     expect(firstGateway.closed, isTrue);
-
     provider.dispose();
   });
 
@@ -678,7 +629,6 @@ void main() {
     final gateway = _FakeGateway(batchCompleter: submission);
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     const release = TorrentRelease(title: 'One', releaseToken: 'token-1', protocol: 'torrent', indexer: 'Prowlarr');
-
     provider.setRemoteResults('query', const [release]);
     provider.toggleReleaseSelection('token-1');
     final operation = provider.submitSelectedReleases('endpoint-1');
@@ -687,11 +637,10 @@ void main() {
     submission.complete(
       const BatchSubmissionResponse(items: [BatchSubmissionItem(index: 0, job: null, error: 'rejected')]),
     );
-    await operation;
 
+    await operation;
     expect(provider.selectedReleaseTokens, {'token-1'});
     expect(provider.submissionErrorsByReleaseToken, {'token-1': 'The download client rejected this release.'});
-
     provider.dispose();
   });
 
@@ -700,6 +649,7 @@ void main() {
     final search = Completer<List<TorrentRelease>>();
     final gateway = _FakeGateway(batchCompleter: submission, searchCompleter: search);
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
+
     const oldReleases = [
       TorrentRelease(title: 'Old one', releaseToken: 'old-1', protocol: 'torrent', indexer: 'Prowlarr'),
       TorrentRelease(title: 'Old two', releaseToken: 'old-2', protocol: 'torrent', indexer: 'Prowlarr'),
@@ -713,6 +663,7 @@ void main() {
     search.complete(const [
       TorrentRelease(title: 'New', releaseToken: 'new-1', protocol: 'torrent', indexer: 'Prowlarr'),
     ]);
+
     await searchOperation;
     provider.toggleReleaseSelection('new-1');
 
@@ -724,14 +675,13 @@ void main() {
         ],
       ),
     );
-    await submissionOperation;
 
+    await submissionOperation;
     expect(provider.remoteQuery, 'new');
     expect(provider.remoteResults.single.releaseToken, 'new-1');
     expect(provider.selectedReleaseTokens, {'new-1'});
     expect(provider.submissionErrorsByReleaseToken, isEmpty);
     expect(provider.jobs, isEmpty);
-
     provider.dispose();
   });
 
@@ -744,21 +694,21 @@ void main() {
     provider.setRemoteResults('old', const [
       TorrentRelease(title: 'Old', releaseToken: 'old-token', protocol: 'torrent', indexer: 'Prowlarr'),
     ]);
+
     provider.toggleReleaseSelection('old-token');
     final oldOperation = provider.submitSelectedReleases('endpoint-1');
-
     expect(provider.isSubmitting, isTrue);
-
     provider.clearRemoteResults();
     expect(provider.isSubmitting, isFalse);
 
     provider.setRemoteResults('new', const [
       TorrentRelease(title: 'New', releaseToken: 'new-token', protocol: 'torrent', indexer: 'Prowlarr'),
     ]);
+
     provider.toggleReleaseSelection('new-token');
     final newOperation = provider.submitSelectedReleases('endpoint-1');
-
     expect(provider.isSubmitting, isTrue);
+
     expect(gateway.submittedTokenBatches, [
       ['old-token'],
       ['new-token'],
@@ -775,8 +725,8 @@ void main() {
         ],
       ),
     );
-    await oldOperation;
 
+    await oldOperation;
     expect(provider.isSubmitting, isTrue);
     expect(provider.remoteQuery, 'new');
     expect(provider.selectedReleaseTokens, {'new-token'});
@@ -793,12 +743,11 @@ void main() {
         ],
       ),
     );
-    await newOperation;
 
+    await newOperation;
     expect(provider.isSubmitting, isFalse);
     expect(provider.selectedReleaseTokens, isEmpty);
     expect(provider.jobs.map((job) => job.id), ['new-job']);
-
     provider.dispose();
   });
 
@@ -812,7 +761,9 @@ void main() {
         ],
       ),
     );
+
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
+
     const releases = [
       TorrentRelease(title: 'One', releaseToken: 'token-1', protocol: 'torrent', indexer: 'Prowlarr'),
       TorrentRelease(title: 'Two', releaseToken: 'token-2', protocol: 'torrent', indexer: 'Prowlarr'),
@@ -822,32 +773,32 @@ void main() {
     provider.setRemoteResults('query', releases);
     provider.selectAllRemoteReleases();
     final outcome = await provider.submitSelectedReleases('endpoint-1');
-
     expect(outcome.successfulCount, 1);
+
     expect(outcome.failuresByReleaseToken, {
       'token-2': 'The download client did not return a result for this release.',
       'token-3': 'The download client did not return a result for this release.',
     });
+
     expect(provider.selectedReleaseTokens, {'token-2', 'token-3'});
     expect(provider.jobs, hasLength(1));
-
     provider.dispose();
   });
 
   test('clears stale row errors when a new search starts', () async {
     final search = Completer<List<TorrentRelease>>();
+
     final gateway = _FakeGateway(
       batchResult: const BatchSubmissionResponse(items: [BatchSubmissionItem(index: 0, job: null, error: 'rejected')]),
       searchCompleter: search,
     );
+
     final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     const release = TorrentRelease(title: 'Old', releaseToken: 'token-old', protocol: 'torrent', indexer: 'Prowlarr');
-
     provider.setRemoteResults('old', const [release]);
     provider.toggleReleaseSelection('token-old');
     await provider.submitSelectedReleases('endpoint-1');
     final operation = provider.searchRemote(' new ');
-
     expect(provider.remoteQuery, 'new');
     expect(provider.remoteResults, isEmpty);
     expect(provider.submissionErrorsByReleaseToken, isEmpty);
@@ -856,19 +807,16 @@ void main() {
     search.complete(const [
       TorrentRelease(title: 'New', releaseToken: 'token-new', protocol: 'torrent', indexer: 'Prowlarr'),
     ]);
+
     await operation;
-
     expect(provider.remoteResults.single.releaseToken, 'token-new');
-
     provider.dispose();
   });
 
   test('makes submission outcome failures immutable at the boundary', () {
     final failures = {'token-1': 'failed'};
     final outcome = AcquisitionSubmissionOutcome(successfulCount: 0, failuresByReleaseToken: failures);
-
     failures['token-2'] = 'later mutation';
-
     expect(outcome.failuresByReleaseToken, {'token-1': 'failed'});
     expect(() => outcome.failuresByReleaseToken['token-3'] = 'not allowed', throwsUnsupportedError);
   });
@@ -882,32 +830,28 @@ void main() {
         offset: 0,
       ),
     );
+
     final provider = AcquisitionDownloadsProvider(
       gateway: gateway,
       visiblePollingInterval: const Duration(seconds: 2),
       foregroundPollingInterval: const Duration(seconds: 10),
     );
-    provider.setLibraryVisible(true);
 
+    provider.setLibraryVisible(true);
     await provider.refreshJobs();
     expect(gateway.listJobCalls, 1);
-
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
     expect(gateway.listJobCalls, 2);
-
     provider.didChangeAppLifecycleState(AppLifecycleState.paused);
     await tester.pump(const Duration(seconds: 4));
     expect(gateway.listJobCalls, 2);
-
     provider.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await tester.pump();
     expect(gateway.listJobCalls, 3);
-
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
     expect(gateway.listJobCalls, 4);
-
     provider.dispose();
   });
 
@@ -923,6 +867,7 @@ void main() {
         ),
       ],
     );
+
     final provider = AcquisitionDownloadsProvider(
       gateway: gateway,
       visiblePollingInterval: const Duration(seconds: 2),
@@ -930,19 +875,14 @@ void main() {
     );
 
     expect(provider.jobs, isEmpty);
-
     provider.setLibraryVisible(true);
     await tester.pump();
-
     expect(gateway.listJobCalls, 1);
     expect(provider.jobs, isEmpty);
-
     await tester.pump(const Duration(seconds: 2));
     await tester.pump();
-
     expect(gateway.listJobCalls, 2);
     expect(provider.jobs.single.id, 'external-job');
-
     provider.dispose();
   });
 
@@ -955,6 +895,7 @@ void main() {
         offset: 0,
       ),
     );
+
     final provider = AcquisitionDownloadsProvider(
       gateway: gateway,
       visiblePollingInterval: const Duration(seconds: 2),
@@ -963,19 +904,17 @@ void main() {
 
     await provider.refreshJobs();
     expect(gateway.listJobCalls, 1);
-
     await tester.pump(const Duration(seconds: 9));
     expect(gateway.listJobCalls, 1);
-
     await tester.pump(const Duration(seconds: 1));
     await tester.pump();
     expect(gateway.listJobCalls, 2);
-
     provider.dispose();
   });
 
   testWidgets('stops foreground polling when the hidden provider has no active jobs', (tester) async {
     final gateway = _FakeGateway();
+
     final provider = AcquisitionDownloadsProvider(
       gateway: gateway,
       visiblePollingInterval: const Duration(seconds: 2),
@@ -984,16 +923,15 @@ void main() {
 
     await provider.refreshJobs();
     expect(gateway.listJobCalls, 1);
-
     await tester.pump(const Duration(seconds: 20));
     await tester.pump();
     expect(gateway.listJobCalls, 1);
-
     provider.dispose();
   });
 
   testWidgets('resume performs one hidden empty discovery refresh without leaving a timer', (tester) async {
     final gateway = _FakeGateway();
+
     final provider = AcquisitionDownloadsProvider(
       gateway: gateway,
       visiblePollingInterval: const Duration(seconds: 2),
@@ -1003,13 +941,10 @@ void main() {
     provider.didChangeAppLifecycleState(AppLifecycleState.paused);
     provider.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await tester.pump();
-
     expect(gateway.listJobCalls, 1);
-
     await tester.pump(const Duration(seconds: 10));
     await tester.pump();
     expect(gateway.listJobCalls, 1);
-
     provider.dispose();
   });
 
@@ -1022,7 +957,9 @@ void main() {
         offset: 0,
       ),
     );
+
     final replacementGateway = _FakeGateway();
+
     final provider = AcquisitionDownloadsProvider(
       gateway: oldGateway,
       visiblePollingInterval: const Duration(seconds: 2),
@@ -1032,13 +969,10 @@ void main() {
     await provider.refreshJobs();
     provider.setGateway(replacementGateway);
     await tester.pump();
-
     expect(oldGateway.listJobCalls, 1);
     expect(replacementGateway.listJobCalls, 1);
-
     await tester.pump(const Duration(seconds: 10));
     await tester.pump();
-
     expect(oldGateway.listJobCalls, 1);
     expect(replacementGateway.listJobCalls, 1);
 
@@ -1050,18 +984,17 @@ void main() {
         offset: 0,
       ),
     );
+
     final disposableProvider = AcquisitionDownloadsProvider(
       gateway: disposalGateway,
       foregroundPollingInterval: const Duration(seconds: 10),
     );
+
     await disposableProvider.refreshJobs();
     disposableProvider.dispose();
-
     await tester.pump(const Duration(seconds: 10));
     await tester.pump();
-
     expect(disposalGateway.listJobCalls, 1);
-
     provider.dispose();
   });
 
@@ -1077,19 +1010,16 @@ void main() {
         ),
       ],
     );
-    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
 
+    final provider = AcquisitionDownloadsProvider(gateway: gateway, pollingInterval: Duration.zero);
     provider.setLibraryVisible(true);
     await tester.pump();
     expect(provider.jobs, isEmpty);
-
     provider.didChangeAppLifecycleState(AppLifecycleState.paused);
     provider.didChangeAppLifecycleState(AppLifecycleState.resumed);
     await tester.pump();
-
     expect(gateway.listJobCalls, 2);
     expect(provider.jobs.single.id, 'resumed-job');
-
     provider.dispose();
   });
 }
@@ -1164,24 +1094,29 @@ class _FakeGateway implements AcquisitionDownloadsGateway {
   Future<AcquisitionJobPage> listJobs({int limit = 50, int offset = 0}) async {
     listJobCalls += 1;
     jobOffsets.add(offset);
+
     if (jobListError case final error?) {
       throw error;
     }
+
     if (_jobResponses.isNotEmpty) {
       final response = _jobResponses.removeAt(0);
 
       if (response is Future<AcquisitionJobPage>) {
         return response;
       }
+
       if (response is AcquisitionJobPage) {
         return response;
       }
 
       throw response;
     }
+
     if (jobPages.isNotEmpty) {
       return jobPages.removeAt(0);
     }
+
     return repeatedJobPage ?? const AcquisitionJobPage(items: [], total: 0, limit: 50, offset: 0);
   }
 
@@ -1192,21 +1127,25 @@ class _FakeGateway implements AcquisitionDownloadsGateway {
   }) async {
     submittedTokens = releases.map((release) => release.releaseToken).toList();
     submittedTokenBatches.add([...submittedTokens]);
+
     if (_batchResponses.isNotEmpty) {
       final response = _batchResponses.removeAt(0);
 
       if (response is Future<BatchSubmissionResponse>) {
         return response;
       }
+
       if (response is BatchSubmissionResponse) {
         return response;
       }
 
       throw response;
     }
+
     if (batchCompleter case final completer?) {
       return completer.future;
     }
+
     return batchResult;
   }
 
@@ -1222,6 +1161,7 @@ class _FakeGateway implements AcquisitionDownloadsGateway {
       if (response is Future<List<TorrentRelease>>) {
         return response;
       }
+
       if (response is List<TorrentRelease>) {
         return response;
       }

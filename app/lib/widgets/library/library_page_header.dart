@@ -63,13 +63,17 @@ class LibraryPageHeader extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
             child: LayoutBuilder(
               builder: (context, constraints) {
-                if (actions.isEmpty) return heading;
+                if (actions.isEmpty) {
+                  return heading;
+                }
+
                 final actionGroup = Wrap(
                   spacing: Spacing.xs,
                   runSpacing: Spacing.sm,
                   crossAxisAlignment: WrapCrossAlignment.center,
                   children: actions,
                 );
+
                 if (constraints.maxWidth < Breakpoints.tablet || MediaQuery.textScalerOf(context).scale(1) > 1.4) {
                   return Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -80,6 +84,7 @@ class LibraryPageHeader extends StatelessWidget {
                     ],
                   );
                 }
+
                 return Row(
                   children: [
                     Expanded(child: heading),
@@ -108,6 +113,7 @@ class LibraryMobileToolbar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final menu = IconButton(icon: const Icon(Icons.menu), onPressed: onMenuPressed, tooltip: 'Library sections');
+
     return Row(
       children: [
         if (searchBuilder != null) Expanded(child: searchBuilder!(menu)) else ...[menu, const Spacer()],
@@ -126,14 +132,20 @@ class LibraryToolbar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (actions.isEmpty) return search ?? const SizedBox.shrink();
+    if (actions.isEmpty) {
+      return search ?? const SizedBox.shrink();
+    }
+
     final actionGroup = Wrap(
       spacing: Spacing.sm,
       runSpacing: Spacing.sm,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: actions,
     );
-    if (search == null) return Align(alignment: Alignment.centerRight, child: actionGroup);
+
+    if (search == null) {
+      return Align(alignment: Alignment.centerRight, child: actionGroup);
+    }
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -147,6 +159,7 @@ class LibraryToolbar extends StatelessWidget {
             ],
           );
         }
+
         return Row(
           children: [
             Expanded(child: search!),

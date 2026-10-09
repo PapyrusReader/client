@@ -13,7 +13,10 @@ class ReadingSettingsSection extends StatelessWidget {
   const ReadingSettingsSection({super.key, this.isDesktop = false});
 
   static String capitalize(String s) {
-    if (s.isEmpty) return s;
+    if (s.isEmpty) {
+      return s;
+    }
+
     return s[0].toUpperCase() + s.substring(1);
   }
 
@@ -22,6 +25,7 @@ class ReadingSettingsSection extends StatelessWidget {
     if (isDesktop) {
       return _buildDesktop(context);
     }
+
     return _buildMobile(context);
   }
 
@@ -171,6 +175,7 @@ class ReadingSettingsSection extends StatelessWidget {
         Row(
           children: highlightColors.entries.map((entry) {
             final isSelected = prefs.defaultHighlightColor == entry.key;
+
             return Padding(
               padding: const EdgeInsets.only(right: Spacing.sm),
               child: GestureDetector(
@@ -219,7 +224,9 @@ class ReadingSettingsSection extends StatelessWidget {
             return DropdownMenuEntry(value: option, label: displayLabel);
           }).toList(),
           onSelected: (selected) {
-            if (selected != null) onChanged(selected);
+            if (selected != null) {
+              onChanged(selected);
+            }
           },
         ),
       ],

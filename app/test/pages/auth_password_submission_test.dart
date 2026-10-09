@@ -92,26 +92,22 @@ void main() {
   testWidgets('login submits password exactly as typed', (tester) async {
     setViewport(tester);
     final repository = await pumpAuthPage(tester, const LoginPage());
-
     await tester.enterText(find.widgetWithText(TextFormField, 'Email address'), 'reader@example.com');
     await tester.enterText(find.widgetWithText(TextFormField, 'Password'), ' NewSecureP@ss123 ');
     await tester.tap(find.text('Continue'));
     await tester.pump();
-
     expect(repository.loginPassword, ' NewSecureP@ss123 ');
   });
 
   testWidgets('register submits password exactly as typed', (tester) async {
     setViewport(tester);
     final repository = await pumpAuthPage(tester, const RegisterPage());
-
     await tester.enterText(find.widgetWithText(TextFormField, 'Display name'), 'Reader');
     await tester.enterText(find.widgetWithText(TextFormField, 'Email address'), 'reader@example.com');
     await tester.enterText(find.widgetWithText(TextFormField, 'Password'), ' NewSecureP@ss123 ');
     await tester.enterText(find.widgetWithText(TextFormField, 'Confirm password'), ' NewSecureP@ss123 ');
     await tester.tap(find.text('Continue'));
     await tester.pump();
-
     expect(repository.registerPassword, ' NewSecureP@ss123 ');
   });
 }

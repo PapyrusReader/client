@@ -18,12 +18,14 @@ import 'package:papyrus/widgets/shared/searchable_books_field.dart';
 
 void main() {
   final now = DateTime.now().toUtc();
+
   final book = Book(
     id: 'book',
     title: 'A very long book title that would otherwise wrap across several lines in the scope label',
     author: '',
     addedAt: now,
   );
+
   final short = ReadingGoal(
     id: 'short',
     type: GoalType.minutes,
@@ -34,6 +36,7 @@ void main() {
     startDate: now,
     endDate: now.add(const Duration(days: 1)),
   );
+
   final days = ReadingGoal(
     id: 'days',
     type: GoalType.days,
@@ -51,6 +54,7 @@ void main() {
 
   Future<void> showSheet(WidgetTester tester, void Function(BuildContext) show, {ThemeData? theme}) async {
     await size(tester);
+
     await tester.pumpWidget(
       MaterialApp(
         theme: theme ?? AppTheme.dark,
@@ -61,6 +65,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
   }
@@ -76,12 +81,14 @@ void main() {
     await size(tester);
     final store = DataStore()..loadData(books: [book], readingGoals: [short, days]);
     addTearDown(store.dispose);
+
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: store,
         child: MaterialApp(theme: AppTheme.dark, home: const GoalsPage()),
       ),
     );
+
     await tester.pumpAndSettle();
     final left = tester.getRect(find.byKey(const ValueKey('goal-card-short')));
     final right = tester.getRect(find.byKey(const ValueKey('goal-card-days')));
@@ -102,9 +109,11 @@ void main() {
     final store = DataStore()..loadData(readingGoals: [short]);
     final goals = provider(store);
     await showSheet(tester, (context) => GoalDetailsSheet.show(context, goal: short, provider: goals));
+
     for (final label in ['Edit goal', 'Pause goal', 'Archive goal']) {
       expect(tester.getSize(find.widgetWithText(OutlinedButton, label)).width, lessThan(300));
     }
+
     expect(tester.takeException(), isNull);
   });
 
@@ -112,32 +121,39 @@ void main() {
     final store = DataStore()..loadData(books: [book]);
     final goals = provider(store);
     await showSheet(tester, (context) => LogReadingSheet.show(context, provider: goals, book: book));
+
     for (final icon in [Icons.event_outlined, Icons.schedule]) {
       expect(tester.getSize(find.widgetWithIcon(OutlinedButton, icon)).width, lessThan(300));
     }
+
     for (final label in ['Minutes read', 'Pages read']) {
       expect(
         tester.getSize(find.byWidgetPredicate((w) => w is TextField && w.decoration?.labelText == label)).width,
         lessThanOrEqualTo(220),
       );
     }
+
     expect(tester.takeException(), isNull);
   });
 
   testWidgets('goal form uses device timezone without an advanced settings section', (tester) async {
     final store = DataStore()..loadData();
     final goals = provider(store);
+
     await showSheet(
       tester,
       (context) => AddGoalSheet.show(context, provider: goals, preset: 0, initialTimezone: 'Europe/Vilnius'),
     );
+
     expect(find.text('Advanced settings'), findsNothing);
     expect(find.byKey(const Key('goal-timezone-button')), findsNothing);
     expect(find.text('Repeat each period'), findsOneWidget);
+
     expect(
       tester.getTopLeft(find.widgetWithText(TextFormField, 'Name (optional)')).dy,
       lessThan(tester.getTopLeft(find.widgetWithText(DropdownButtonFormField<GoalType>, 'Measure')).dy),
     );
+
     await tester.tap(find.widgetWithText(FilledButton, 'Create goal'));
     await tester.pumpAndSettle();
     expect(store.goalDefinitions.single.timezone, 'Europe/Vilnius');
@@ -146,6 +162,7 @@ void main() {
 
   testWidgets('deletion confirms directly from the card menu and preserves activity', (tester) async {
     await size(tester);
+
     final entry = ReadingActivity(
       id: 'entry',
       bookId: book.id,
@@ -155,15 +172,18 @@ void main() {
       createdAt: now,
       pages: 5,
     );
+
     final store = DataStore()..loadData(books: [book], readingGoals: [short]);
     await store.commitTracking(activities: [entry]);
     addTearDown(store.dispose);
+
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: store,
         child: MaterialApp(theme: AppTheme.dark, home: const GoalsPage()),
       ),
     );
+
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Goal actions'));
     await tester.pumpAndSettle();
@@ -199,12 +219,14 @@ void main() {
     tester.view.viewInsets = const FakeViewPadding(bottom: 280);
     await tester.pumpAndSettle();
     final search = find.byWidgetPredicate((w) => w is TextField && w.decoration?.hintText == 'Search books');
+
     for (final query in ['dune', 'herbert', '9780441172719']) {
       await tester.enterText(search, query);
       await tester.pumpAndSettle();
       expect(find.widgetWithText(ListTile, 'Dune'), findsOneWidget);
       expect(find.widgetWithText(ListTile, book.title), findsNothing);
     }
+
     expect(tester.getRect(find.widgetWithText(ListTile, 'Dune')).bottom, lessThanOrEqualTo(564));
     await tester.tap(find.widgetWithText(ListTile, 'Dune'));
     await tester.pumpAndSettle();
@@ -227,6 +249,7 @@ void main() {
       addTearDown(tester.view.reset);
       final store = DataStore()..loadData();
       final goals = provider(store);
+
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark,
@@ -244,6 +267,7 @@ void main() {
           ),
         ),
       );
+
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
       final cancel = find.widgetWithText(OutlinedButton, 'Cancel');
@@ -300,11 +324,13 @@ void main() {
   testWidgets('e-ink reopens goal creation without animation', (tester) async {
     final store = DataStore()..loadData();
     final goals = provider(store);
+
     await showSheet(
       tester,
       (context) => AddGoalSheet.show(context, provider: goals, initialTimezone: 'UTC'),
       theme: AppTheme.eink,
     );
+
     final chooser = find.widgetWithText(ListTile, 'Reading time');
     final chooserRoute = ModalRoute.of(tester.element(chooser))!;
     await tester.tap(chooser);
@@ -321,9 +347,11 @@ void main() {
     final store = DataStore()..loadData();
     final goals = provider(store);
     var finished = false;
+
     await showSheet(tester, (context) {
       AddGoalSheet.show(context, provider: goals, initialTimezone: 'UTC').then((_) => finished = true);
     });
+
     await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
     await tester.pumpAndSettle();
     expect(finished, isTrue);
@@ -332,6 +360,7 @@ void main() {
     expect(store.goalDefinitions, isEmpty);
     expect(tester.takeException(), isNull);
   });
+
   testWidgets('book selection survives searching and bounds the editable completion target', (tester) async {
     final other = Book(id: 'other', title: 'Dune', author: 'Frank Herbert', addedAt: now);
     final store = DataStore()..loadData(books: [book, other]);
@@ -383,12 +412,14 @@ void main() {
 
   testWidgets('editing keeps the schedule and replaces a goal when a selected book is removed', (tester) async {
     final other = Book(id: 'other', title: 'Dune', author: 'Frank Herbert', addedAt: now);
+
     final goal = short.copyWith(
       type: GoalType.books,
       targetValue: 2,
       period: GoalPeriod.yearly,
       bookIds: ['book', 'other'],
     );
+
     final store = DataStore()..loadData(books: [book, other], readingGoals: [goal]);
     final goals = provider(store);
     await showSheet(tester, (context) => AddGoalSheet.show(context, provider: goals, editing: goal));
@@ -418,10 +449,12 @@ void main() {
   testWidgets('goal targets and deadline controls stay bounded', (tester) async {
     final store = DataStore()..loadData(books: [book]);
     final goals = provider(store);
+
     await showSheet(
       tester,
       (context) => AddGoalSheet.show(context, provider: goals, preset: 4, initialTimezone: 'UTC'),
     );
+
     final target = find.byWidgetPredicate((w) => w is TextFormField && w.key == const Key('goal-target-input'));
     expect(tester.getSize(target).width, lessThanOrEqualTo(220));
     expect(tester.getSize(find.widgetWithIcon(OutlinedButton, Icons.event_outlined)).width, lessThan(500));
@@ -458,6 +491,7 @@ void main() {
       addTearDown(tester.view.reset);
       final date = DateTime.utc(2026, 10, 7);
       DateTime? selected;
+
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.eink,
@@ -483,6 +517,7 @@ void main() {
           ),
         ),
       );
+
       await tester.pumpAndSettle();
       expect(tester.getSize(find.byKey(const Key('reading-activity-heatmap'))).width, width);
       expect(find.text('1 active day'), findsOneWidget);
@@ -499,6 +534,7 @@ void main() {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(320, 1000);
     addTearDown(tester.view.reset);
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.eink,
@@ -518,6 +554,7 @@ void main() {
         ),
       ),
     );
+
     await tester.pumpAndSettle();
     final cell = find.byWidgetPredicate((w) => w is Tooltip && w.message == 'Oct 7, 2026: No reading');
     expect(tester.getSize(find.text('M')).height, lessThanOrEqualTo(tester.getSize(cell).height + 3));
@@ -529,6 +566,7 @@ void main() {
     final store = DataStore()..loadData(books: [book]);
     final goals = provider(store);
     final date = now.subtract(const Duration(minutes: 10));
+
     final entries = [
       for (var i = 0; i < 2; i++)
         ReadingActivity(
@@ -542,6 +580,7 @@ void main() {
           createdAt: now,
         ),
     ];
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark,
@@ -550,6 +589,7 @@ void main() {
         ),
       ),
     );
+
     await tester.pumpAndSettle();
     expect(find.text(book.title), findsOneWidget);
     expect(find.text('2m · Reader'), findsOneWidget);
@@ -566,6 +606,7 @@ void main() {
     await size(tester);
     final store = DataStore()..loadData(books: [book]);
     final goals = provider(store);
+
     final entries = [
       for (var i = 0; i < 3; i++)
         ReadingActivity(
@@ -579,6 +620,7 @@ void main() {
           pages: i == 2 ? 10 : 0,
         ),
     ];
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark,
@@ -587,6 +629,7 @@ void main() {
         ),
       ),
     );
+
     expect(find.text(book.title), findsOneWidget);
     expect(find.text('1 min · Reader'), findsOneWidget);
     expect(find.text('2 min · Reader · Corrected'), findsOneWidget);

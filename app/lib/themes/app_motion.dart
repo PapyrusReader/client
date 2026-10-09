@@ -34,6 +34,7 @@ class AppMotionScope extends StatelessWidget {
   Widget build(BuildContext context) {
     final media = MediaQuery.of(context);
     final disabled = reduceAnimations || AppMotion.disabled(context);
+
     return MediaQuery(
       data: media.copyWith(disableAnimations: disabled),
       child: HeroMode(enabled: !disabled, child: child),

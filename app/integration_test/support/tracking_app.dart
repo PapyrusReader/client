@@ -24,6 +24,7 @@ import 'package:powersync/powersync.dart' hide Column;
 class NoNetworkConnector extends PowerSyncBackendConnector {
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async => null;
+
   @override
   Future<void> uploadData(PowerSyncDatabase database) async {}
 }
@@ -31,6 +32,7 @@ class NoNetworkConnector extends PowerSyncBackendConnector {
 class FixtureMediaCache extends MediaCacheService {
   FixtureMediaCache(this.bytes);
   final Map<String, Uint8List> bytes;
+
   @override
   Future<Uint8List> ensureBookFileCached(
     Book book, {
@@ -43,6 +45,7 @@ class FixtureMediaCache extends MediaCacheService {
 class FixtureAuth extends ChangeNotifier implements AuthProvider {
   @override
   Future<Uint8List> downloadMedia(String assetId) async => Uint8List(0);
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
@@ -55,21 +58,31 @@ class TrackingValidationApp {
   late final GoRouter router;
   final bytes = <String, Uint8List>{};
   final fixtureAuth = FixtureAuth();
+
   Future<void> initialize() async {
     const origin = String.fromEnvironment('TRACKING_FIXTURE_ORIGIN', defaultValue: 'http://127.0.0.1:7311');
+
     for (final format in ['epub', 'pdf']) {
       final response = await http.get(Uri.parse('$origin/reader.$format'));
-      if (response.statusCode != 200) throw StateError('Fixture $format could not load');
+
+      if (response.statusCode != 200) {
+        throw StateError('Fixture $format could not load');
+      }
+
       bytes[format] = response.bodyBytes;
     }
+
     final suffix = DateTime.now().microsecondsSinceEpoch;
     final root = kIsWeb ? '' : (await getApplicationSupportDirectory()).path;
+
     database = PapyrusPowerSyncService(
       connectorFactory: NoNetworkConnector.new,
       connectAuthenticated: false,
       pathResolver: (_, _, _) async => '${root.isEmpty ? '' : '$root/'}goals-validation-$suffix.db',
     );
+
     await database.activateGuest();
+
     for (final format in [BookFormat.epub, BookFormat.pdf]) {
       await database.upsert(
         Book(
@@ -84,6 +97,7 @@ class TrackingValidationApp {
         ),
       );
     }
+
     store = DataStore(bookRepository: database);
     await store.waitUntilLoaded();
     goals = GoalsProvider(watchClock: false)..attach(store);
@@ -93,6 +107,7 @@ class TrackingValidationApp {
     final prefs = await SharedPreferences.getInstance();
     await ReadingDeviceIdentity.initialize(prefs);
     preferences = PreferencesProvider(prefs);
+
     router = GoRouter(
       routes: [
         GoRoute(
@@ -142,6 +157,7 @@ class TrackingValidationApp {
       ),
     ),
   );
+
   Future<void> close() async {
     goals.dispose();
     router.dispose();

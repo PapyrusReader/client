@@ -9,6 +9,7 @@ import 'package:papyrus/providers/enums/library_reading_status.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
   test('manual, reader completion and undo use a persistent installation identity', () async {
     SharedPreferences.setMockInitialValues({ReadingDeviceIdentity.preferenceKey: 'installation-one'});
     final preferences = await SharedPreferences.getInstance();
@@ -22,15 +23,18 @@ void main() {
     await provider.logReading(book: book, end: now, minutes: 10);
     expect(store.readingActivities.single.deviceId, 'installation-one');
     expect(store.readingActivities.single.source, 'manual');
+
     final completion = store
         .completionChanges(book.copyWith(readingStatus: LibraryReadingStatus.completed), book, source: 'reader')
         .single;
+
     expect(completion.source, 'reader');
     expect(completion.deviceId, 'installation-one');
     expect(store.reversalFor(completion).deviceId, 'installation-one');
     await ReadingDeviceIdentity.initialize(preferences);
     expect(ReadingDeviceIdentity.current, 'installation-one');
   });
+
   test('correcting duplicate completions only clears status after the last confirmation', () async {
     var now = DateTime.utc(2026, 10, 5, 12);
     final book = Book(id: 'book', title: 'Book', author: '', addedAt: now);
@@ -43,7 +47,7 @@ void main() {
     await provider.logReading(book: store.getBook(book.id)!, end: now, finished: true);
     now = now.add(const Duration(minutes: 1));
     await provider.logReading(book: store.getBook(book.id)!, end: now, finished: true);
-    final confirmations = store.effectiveReadingActivities.where((a) => a.kind == 'completion').toList();
+    final confirmations = store.effectiveReadingActivities.where((activity) => activity.kind == 'completion').toList();
     final completedAt = store.getBook(book.id)!.completedAt;
     await provider.logReading(book: store.getBook(book.id)!, end: now, minutes: 30, correcting: confirmations.first);
     expect(store.getBook(book.id)!.readingStatus, LibraryReadingStatus.completed);
@@ -54,6 +58,7 @@ void main() {
     expect(store.getBook(book.id)!.completedAt, isNull);
     expect(provider.current.single.finishedBooks, 0);
   });
+
   test('configuration replacement archives the old rules and starts at the replacement cutoff', () async {
     var now = DateTime.utc(2026, 10, 5, 12);
     final book = Book(id: 'book', title: 'Book', author: '', addedAt: now);
@@ -66,6 +71,7 @@ void main() {
     now = now.add(const Duration(hours: 1));
     await provider.logReading(book: book, end: now, minutes: 10, pages: 12);
     now = now.add(const Duration(hours: 1));
+
     await expectLater(
       provider.createGoal(
         type: GoalType.pages,
@@ -77,7 +83,9 @@ void main() {
       ),
       throwsArgumentError,
     );
+
     expect(store.goalDefinitions.single.isArchived, isFalse);
+
     await provider.createGoal(
       type: GoalType.pages,
       target: 100,
@@ -87,6 +95,7 @@ void main() {
       replaceGoalId: original.id,
       timezone: 'UTC',
     );
+
     final retained = store.getReadingGoal(original.id)!;
     expect(retained.isArchived, isTrue);
     expect(retained.type, GoalType.minutes);
@@ -99,15 +108,19 @@ void main() {
     expect(provider.current.single.pages, 5);
     expect(provider.progress(retained).seconds, 600);
   });
+
   test('selected books are canonical, bounded, durable and exclude other completions', () async {
     var now = DateTime.utc(2026, 10, 5, 12);
+
     final books = [
       for (final id in ['a', 'b', 'c']) Book(id: id, title: id, author: '', addedAt: now),
     ];
+
     final store = DataStore()..loadData(books: books);
     final provider = GoalsProvider(now: () => now, watchClock: false)..attach(store);
     addTearDown(provider.dispose);
     addTearDown(store.dispose);
+
     await expectLater(
       provider.createGoal(
         type: GoalType.books,
@@ -119,6 +132,7 @@ void main() {
       ),
       throwsArgumentError,
     );
+
     await expectLater(
       provider.createGoal(
         type: GoalType.books,
@@ -130,6 +144,7 @@ void main() {
       ),
       throwsArgumentError,
     );
+
     await expectLater(
       provider.createGoal(
         type: GoalType.minutes,
@@ -141,6 +156,7 @@ void main() {
       ),
       throwsArgumentError,
     );
+
     await provider.createGoal(
       type: GoalType.books,
       target: 2,
@@ -149,16 +165,23 @@ void main() {
       bookIds: ['b', 'a', 'a'],
       timezone: 'UTC',
     );
+
     final goal = store.goalDefinitions.single;
     expect(goal.scopeId, 'a');
     expect(ReadingGoal.fromJson(goal.toJson()).selectedBookIds, ['a', 'b']);
     await expectLater(provider.updateGoal(goalId: goal.id, target: 3), throwsArgumentError);
     now = now.add(const Duration(minutes: 1));
+
     for (final book in books) {
       await provider.logReading(book: store.getBook(book.id)!, end: now, finished: true);
     }
+
     expect(provider.current.single.finishedBooks, 2);
-    final completion = store.effectiveReadingActivities.firstWhere((a) => a.kind == 'completion' && a.bookId == 'b');
+
+    final completion = store.effectiveReadingActivities.firstWhere(
+      (activity) => activity.kind == 'completion' && activity.bookId == 'b',
+    );
+
     await provider.reverseActivity(completion);
     expect(provider.current.single.finishedBooks, 1);
     final single = goal.copyWith(bookIds: [], scopeId: 'b');
@@ -190,7 +213,7 @@ void main() {
     expect(provider.history.single.goal.targetValue, 30);
     await provider.logReading(book: store.getBook(book.id)!, end: now, minutes: 20, finished: true);
     expect(store.getBook(book.id)!.readingStatus, LibraryReadingStatus.completed);
-    final completion = store.effectiveReadingActivities.firstWhere((a) => a.kind == 'completion');
+    final completion = store.effectiveReadingActivities.firstWhere((activity) => activity.kind == 'completion');
     await provider.reverseActivity(completion);
     expect(store.getBook(book.id)!.readingStatus, LibraryReadingStatus.inProgress);
     await provider.deleteGoal(store.goalDefinitions.single.id);

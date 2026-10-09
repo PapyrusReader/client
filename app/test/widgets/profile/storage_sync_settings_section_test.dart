@@ -20,10 +20,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class _MemoryStorage implements RefreshTokenStorage {
   String? token;
+
   @override
   Future<void> delete() async => token = null;
+
   @override
   Future<String?> read() async => token;
+
   @override
   Future<void> write(String val) async => token = val;
 }
@@ -42,6 +45,7 @@ class _MockAuthRepo extends AuthRepository {
 class _OfflineConnector extends PowerSyncBackendConnector {
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async => null;
+
   @override
   Future<void> uploadData(PowerSyncDatabase database) async {}
 }
@@ -77,6 +81,7 @@ void main() {
       await authProvider.bootstrap();
       authProvider.setOfflineMode(true);
       powerSync = _MockPowerSyncService();
+
       syncSettings = SyncSettingsProvider(
         prefs,
         officialConfig: PapyrusApiConfig(
@@ -84,6 +89,7 @@ void main() {
           powerSyncServiceUri: Uri.parse('https://data-sync.test'),
         ),
       );
+
       dataStore = DataStore();
       uploadQueue = MediaUploadQueue(prefs);
       prefsProvider = PreferencesProvider(prefs);
@@ -112,7 +118,6 @@ void main() {
 
     testWidgets('renders desktop offline storage card and actions', (tester) async {
       await tester.pumpWidget(buildSection(isDesktop: true));
-
       expect(find.text('Library storage'), findsOneWidget);
       expect(find.text('Your library is stored on this device.'), findsOneWidget);
       expect(find.text('Export backup'), findsOneWidget);
@@ -122,7 +127,6 @@ void main() {
 
     testWidgets('renders mobile storage settings rows', (tester) async {
       await tester.pumpWidget(buildSection(isDesktop: false));
-
       expect(find.text('Storage'), findsOneWidget);
       expect(find.text('Library'), findsOneWidget);
       expect(find.text('Stored on this device'), findsOneWidget);

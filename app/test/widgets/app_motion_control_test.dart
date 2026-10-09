@@ -7,7 +7,6 @@ import 'package:papyrus/widgets/shared/app_motion_control.dart';
 
 void main() {
   final themes = {'light': AppTheme.light, 'dark': AppTheme.dark, 'eink': AppTheme.eink};
-
   ToggleableStateMixin toggleState(WidgetTester tester) => tester.allStates.whereType<ToggleableStateMixin>().single;
 
   testWidgets('chip motion refreshes across theme switches and retains keyboard focus', (tester) async {
@@ -17,6 +16,7 @@ void main() {
     addTearDown(theme.dispose);
     addTearDown(selected.dispose);
     addTearDown(focus.dispose);
+
     await tester.pumpWidget(
       ValueListenableBuilder<ThemeData>(
         valueListenable: theme,
@@ -44,6 +44,7 @@ void main() {
         ),
       ),
     );
+
     focus.requestFocus();
     await tester.pumpAndSettle();
     await tester.sendKeyEvent(LogicalKeyboardKey.space);
@@ -81,6 +82,7 @@ void main() {
       testWidgets('${theme.key} $kind paints changed values with the expected motion', (tester) async {
         final value = ValueNotifier(false);
         addTearDown(value.dispose);
+
         await tester.pumpWidget(
           MaterialApp(
             theme: theme.value,
@@ -96,10 +98,12 @@ void main() {
                         onChanged: (changed) => value.value = changed,
                       );
                     }
+
                     return AppMotionControl(
                       value: selected,
                       builder: (focusNode) {
                         void changed(bool? changed) => value.value = changed!;
+
                         return switch (kind) {
                           'checkbox' => Checkbox(value: selected, onChanged: changed, focusNode: focusNode),
                           'switch' => Switch(value: selected, onChanged: changed, focusNode: focusNode),
@@ -124,6 +128,7 @@ void main() {
             ),
           ),
         );
+
         await tester.pumpAndSettle();
         expect(toggleState(tester).position.value, 0);
         final target = kind.contains('checkbox') ? find.byType(Checkbox) : find.byType(Switch);
@@ -131,6 +136,7 @@ void main() {
         await tester.pump();
         await tester.pump();
         expect(value.value, isTrue);
+
         if (theme.key == 'eink') {
           expect(toggleState(tester).position.value, 1);
           expect(toggleState(tester).positionController.isAnimating, isFalse);
@@ -138,12 +144,17 @@ void main() {
           await tester.pump(const Duration(milliseconds: 40));
           expect(toggleState(tester).position.value, inExclusiveRange(0, 1));
         }
+
         await tester.pumpAndSettle();
         await tester.tap(target);
         await tester.pump();
         await tester.pump();
         expect(value.value, isFalse);
-        if (theme.key == 'eink') expect(toggleState(tester).position.value, 0);
+
+        if (theme.key == 'eink') {
+          expect(toggleState(tester).position.value, 0);
+        }
+
         await tester.pumpAndSettle();
       });
     }
@@ -155,6 +166,7 @@ void main() {
       final focus = FocusNode();
       addTearDown(value.dispose);
       addTearDown(focus.dispose);
+
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.eink,
@@ -177,8 +189,10 @@ void main() {
           ),
         ),
       );
+
       focus.requestFocus();
       await tester.pumpAndSettle();
+
       for (final expected in [true, false, true]) {
         await tester.sendKeyEvent(LogicalKeyboardKey.space);
         await tester.pump();
@@ -195,6 +209,7 @@ void main() {
       testWidgets('${theme.key} $kind chip selection uses the expected animation style', (tester) async {
         final value = ValueNotifier(false);
         addTearDown(value.dispose);
+
         await tester.pumpWidget(
           MaterialApp(
             theme: theme.value,
@@ -204,6 +219,7 @@ void main() {
                   valueListenable: value,
                   builder: (context, selected, _) {
                     final style = appChipAnimationStyle(context);
+
                     return AppMotionControl(
                       value: null,
                       builder: (focusNode) => switch (kind) {
@@ -236,14 +252,17 @@ void main() {
             ),
           ),
         );
+
         await tester.pumpAndSettle();
         await tester.tap(find.text('Option'));
         await tester.pump();
         await tester.pump();
         expect(value.value, isTrue);
         final chip = tester.widget<RawChip>(find.byType(RawChip));
+
         if (theme.key == 'eink') {
           final style = chip.chipAnimationStyle!;
+
           for (final animation in [
             style.enableAnimation,
             style.selectAnimation,
@@ -253,6 +272,7 @@ void main() {
             expect(animation!.duration, Duration.zero);
             expect(animation.reverseDuration, Duration.zero);
           }
+
           final immediateWidth = tester.getSize(find.byType(RawChip)).width;
           await tester.pumpAndSettle();
           expect(tester.getSize(find.byType(RawChip)).width, immediateWidth);

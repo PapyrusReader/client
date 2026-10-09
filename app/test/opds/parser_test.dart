@@ -45,6 +45,7 @@ void main() {
       uri,
       contentType: 'application/octet-stream',
     );
+
     expect(feed.title, 'Catalog');
     expect(feed.navigation.single.title, 'Fiction');
     expect(feed.navigation.single.uri.toString(), 'https://books.example/root/genres/fiction');
@@ -69,6 +70,7 @@ void main() {
           <opds:indirectAcquisition type="application/epub+zip"/>
         </link>
       </entry>''', uri).publications.single;
+
     expect(publication.id, 'urn:book:1');
     expect(publication.authors, ['Alice', 'Bob']);
     expect(publication.description, 'A story.');
@@ -96,6 +98,7 @@ void main() {
           <link rel="$acquisition" href="2.pdf" type="application/pdf"/>
         </entry>
       </feed>''', uri);
+
     expect(feed.facets.single.title, 'Language');
     expect(feed.facets.single.links.single.title, 'English');
     expect(feed.groups.single.title, 'Featured');
@@ -165,6 +168,7 @@ void main() {
       uri,
       contentType: 'text/plain',
     );
+
     expect(feed.title, 'Catalog');
     expect(feed.nextLink!.uri.query, 'page=2');
     expect(feed.previousLink!.uri.query, 'page=0');
@@ -189,6 +193,7 @@ void main() {
       uri,
       contentType: 'application/opds-publication+json',
     );
+
     expect(feed.publications.single.title, 'A book');
     expect(feed.publications.single.links.single.indirect, isTrue);
     expect(feed.publications.single.links.single.supportedExtension, isNull);
@@ -215,6 +220,7 @@ void main() {
   test('models expose only supported direct downloadable acquisitions', () {
     OpdsLink link(String href, String? type, {String rel = acquisition, bool indirect = false}) =>
         OpdsLink(uri: uri.resolve(href), type: type, rels: [rel], indirect: indirect);
+
     expect(link('download', 'application/epub+zip').supportedExtension, 'epub');
     expect(link('FILE.CBZ?token=x', null).supportedExtension, 'cbz');
     expect(link('book.mobi', 'application/octet-stream').supportedExtension, 'mobi');
@@ -245,15 +251,18 @@ void main() {
       expect(link.isAcquisition, isTrue, reason: rel);
       expect(link.supportedExtension, 'epub', reason: rel);
     }
+
     for (final rel in ['buy', 'borrow', 'subscribe']) {
       final link = OpdsLink(uri: uri.resolve('book.epub'), rels: [rel]);
       expect(link.isAcquisition, isTrue, reason: rel);
       expect(link.supportedExtension, isNull, reason: rel);
     }
+
     final feed = OpdsParser.parse('''{
       "metadata":{"title":"Book"},
       "links":[{"rel":"download","href":"book.epub"}]
     }''', uri);
+
     expect(feed.publications.single.title, 'Book');
   });
 
@@ -268,6 +277,7 @@ void main() {
     ]) {
       final feed = OpdsParser.parse('''<entry xmlns="http://www.w3.org/2005/Atom">
         <title>Book</title>$content</entry>''', uri);
+
       expect(feed.publications.single.description, 'One\n\nTwo & three');
     }
   });
@@ -277,11 +287,14 @@ void main() {
       OpdsSearch.expand('https://example.test/search{?query,author}', 'A & B/ž'),
       'https://example.test/search?query=A%20%26%20B%2F%C5%BE',
     );
+
     expect(
       OpdsSearch.expand('https://example.test/search?format=json{&query,lang}', 'a+b'),
       'https://example.test/search?format=json&query=a%2Bb',
     );
+
     expect(OpdsSearch.expand('https://example.test/search?q={query}', 'a b'), 'https://example.test/search?q=a%20b');
+
     expect(
       OpdsSearch.expand(Uri.parse('https://example.test/search{?query}').toString(), 'book'),
       'https://example.test/search?query=book',
@@ -296,6 +309,7 @@ void main() {
       ),
       'https://example.test/?q=tea%20%26%20coffee&start=1&page=1&n=&lang=&encoding=UTF-8',
     );
+
     expect(() => OpdsSearch.expand('https://example.test/?q={unknown}', 'book'), throwsFormatException);
   });
 
@@ -318,6 +332,7 @@ void main() {
         <Url type="application/atom+xml;profile=opds-catalog" xml:base="v1/"
           template="search?q={searchTerms}&amp;page={startPage?}"/>
       </OpenSearchDescription>''', uri);
+
     expect(link.templated, isTrue);
     expect(link.hasRel('search'), isTrue);
     expect(OpdsSearch.expand(link.template, 'two words'), 'https://books.example/v1/search?q=two%20words&page=');

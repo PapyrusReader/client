@@ -5,13 +5,16 @@ import 'package:papyrus/themes/design_tokens.dart';
 class GoalControls extends StatelessWidget {
   const GoalControls({super.key, required this.child});
   final Widget child;
+
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
     const compact = ButtonStyle(
       minimumSize: WidgetStatePropertyAll(Size(0, ComponentSizes.buttonHeightMobile)),
       shape: WidgetStatePropertyAll(StadiumBorder()),
     );
+
     return Theme(
       data: theme.copyWith(
         outlinedButtonTheme: OutlinedButtonThemeData(style: compact.merge(theme.outlinedButtonTheme.style)),

@@ -10,7 +10,6 @@ class Tag {
 
   const Tag({required this.id, required this.name, required this.colorHex, this.description, required this.createdAt});
 
-  /// Get the color from hex string.
   Color get color {
     try {
       final hex = colorHex.replaceFirst('#', '');
@@ -38,7 +37,6 @@ class Tag {
     );
   }
 
-  /// Convert to JSON for API/storage.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -49,7 +47,6 @@ class Tag {
     };
   }
 
-  /// Create from JSON.
   factory Tag.fromJson(Map<String, dynamic> json) {
     return Tag(
       id: json['id'] as String,

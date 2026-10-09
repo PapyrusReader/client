@@ -8,6 +8,7 @@ import 'package:papyrus/themes/app_theme.dart';
 
 Future<Uint8List> _pixels(WidgetTester tester, GlobalKey key) async {
   final boundary = key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+
   return (await tester.runAsync(() async {
     final image = await boundary.toImage();
     final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
@@ -24,6 +25,7 @@ void main() {
       final controller = TextEditingController();
       addTearDown(focus.dispose);
       addTearDown(controller.dispose);
+
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.eink,
@@ -49,6 +51,7 @@ void main() {
           ),
         ),
       );
+
       await tester.pumpAndSettle();
       final initialSize = tester.getSize(find.byType(TextField));
       final unfocused = await _pixels(tester, key);
@@ -59,11 +62,13 @@ void main() {
       final focused = await _pixels(tester, key);
       expect(listEquals(unfocused, focused), isFalse, reason: 'Keyboard focus must remain visibly distinct');
       await tester.pump(const Duration(milliseconds: 80));
+
       expect(
         listEquals(focused, await _pixels(tester, key)),
         isTrue,
         reason: 'Focus must not interpolate the border or label',
       );
+
       await tester.pump(const Duration(milliseconds: 200));
       expect(listEquals(focused, await _pixels(tester, key)), isTrue);
       expect(tester.getSize(find.byType(TextField)), initialSize);
@@ -87,6 +92,7 @@ void main() {
       final key = GlobalKey();
       final focus = FocusNode();
       addTearDown(focus.dispose);
+
       await tester.pumpWidget(
         MaterialApp(
           theme: dark ? AppTheme.dark : AppTheme.light,
@@ -107,6 +113,7 @@ void main() {
           ),
         ),
       );
+
       await tester.pumpAndSettle();
       focus.requestFocus();
       await tester.pump();
@@ -127,6 +134,7 @@ void main() {
     addTearDown(eink.dispose);
     addTearDown(focus.dispose);
     addTearDown(controller.dispose);
+
     await tester.pumpWidget(
       ValueListenableBuilder<bool>(
         valueListenable: eink,
@@ -147,6 +155,7 @@ void main() {
         ),
       ),
     );
+
     focus.requestFocus();
     await tester.pump();
     controller.selection = const TextSelection(baseOffset: 1, extentOffset: 4);

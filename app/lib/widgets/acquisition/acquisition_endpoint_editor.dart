@@ -41,6 +41,7 @@ Future<bool?> showAcquisitionEndpointEditor({
 }) async {
   final busy = ValueNotifier(false);
   final editorKey = GlobalKey();
+
   final editor = AcquisitionEndpointEditor(
     key: editorKey,
     endpoint: endpoint,
@@ -324,13 +325,17 @@ class _AcquisitionEndpointEditorState extends State<AcquisitionEndpointEditor> {
   }
 
   Future<void> _testConnection() async {
-    if (!(_urlFieldKey.currentState?.validate() ?? false)) return;
+    if (!(_urlFieldKey.currentState?.validate() ?? false)) {
+      return;
+    }
 
     final baseUrl = Uri.parse(_urlController.text.trim());
+
     setState(() {
       _testing = true;
       _message = null;
     });
+
     widget.onBusyChanged(_busy);
 
     try {
@@ -341,14 +346,19 @@ class _AcquisitionEndpointEditorState extends State<AcquisitionEndpointEditor> {
         username: _usesUsername ? _optional(_usernameController.text) : null,
         password: _usesPassword ? _optional(_passwordController.text) : null,
       );
-      if (!mounted) return;
+
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _message = 'Connection successful.';
         _messageIsError = false;
       });
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _message = error is AuthApiException ? error.message : 'Could not connect to this integration.';
@@ -363,13 +373,17 @@ class _AcquisitionEndpointEditorState extends State<AcquisitionEndpointEditor> {
   }
 
   Future<void> _save() async {
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
 
     var saved = false;
+
     setState(() {
       _saving = true;
       _message = null;
     });
+
     widget.onBusyChanged(_busy);
 
     try {
@@ -383,12 +397,17 @@ class _AcquisitionEndpointEditorState extends State<AcquisitionEndpointEditor> {
         username: _usesUsername ? _optional(_usernameController.text) : null,
         password: _usesPassword ? _optional(_passwordController.text) : null,
       );
-      if (!mounted) return;
+
+      if (!mounted) {
+        return;
+      }
 
       Navigator.pop(context, true);
       saved = true;
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _message = error is AuthApiException ? error.message : 'Could not save this integration.';
@@ -404,9 +423,11 @@ class _AcquisitionEndpointEditorState extends State<AcquisitionEndpointEditor> {
 
   String? _validateUrl(String? value) {
     final uri = Uri.tryParse(value?.trim() ?? '');
+
     if (uri == null || !uri.hasScheme || uri.host.isEmpty || uri.userInfo.isNotEmpty) {
       return 'Enter a valid server URL';
     }
+
     return null;
   }
 

@@ -18,9 +18,11 @@ class SidebarProvider extends ChangeNotifier {
   void toggleCollapsed() {
     _isCollapsed = !_isCollapsed;
     // When collapsing, also collapse library submenu
+
     if (_isCollapsed) {
       _isLibraryExpanded = false;
     }
+
     notifyListeners();
   }
 
@@ -28,9 +30,11 @@ class SidebarProvider extends ChangeNotifier {
   void setCollapsed(bool collapsed) {
     if (_isCollapsed != collapsed) {
       _isCollapsed = collapsed;
+
       if (_isCollapsed) {
         _isLibraryExpanded = false;
       }
+
       notifyListeners();
     }
   }

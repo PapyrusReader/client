@@ -22,10 +22,13 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class _MemoryStorage implements RefreshTokenStorage {
   String? token;
+
   @override
   Future<void> delete() async => token = null;
+
   @override
   Future<String?> read() async => token;
+
   @override
   Future<void> write(String val) async => token = val;
 }
@@ -58,6 +61,7 @@ class _MockAuthRepo extends AuthRepository {
 class _OfflineConnector extends PowerSyncBackendConnector {
   @override
   Future<PowerSyncCredentials?> fetchCredentials() async => null;
+
   @override
   Future<void> uploadData(PowerSyncDatabase database) async {}
 }
@@ -92,6 +96,7 @@ void main() {
       authProvider = AuthProvider(prefs, repository: _MockAuthRepo(), bootstrapOnCreate: false);
       await authProvider.bootstrap();
       powerSync = _MockPowerSyncService();
+
       syncSettings = SyncSettingsProvider(
         prefs,
         officialConfig: PapyrusApiConfig(
@@ -99,6 +104,7 @@ void main() {
           powerSyncServiceUri: Uri.parse('https://data-sync.test'),
         ),
       );
+
       dataStore = DataStore();
       uploadQueue = MediaUploadQueue(prefs);
       prefsProvider = PreferencesProvider(prefs);
@@ -129,45 +135,32 @@ void main() {
     testWidgets('mobile layout renders all sections and displays logout dialog', (tester) async {
       await tester.binding.setSurfaceSize(const Size(400, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
-
       await tester.pumpWidget(buildApp(screenSize: const Size(400, 900)));
       await tester.pumpAndSettle();
-
       expect(find.text('Profile'), findsOneWidget);
       expect(find.text('Reader Profile'), findsOneWidget);
       expect(find.text('reader@example.com'), findsOneWidget);
-
       await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Account'), 300);
       expect(find.text('Change password'), findsOneWidget);
-
       await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Appearance'), 300);
       expect(find.text('Theme'), findsOneWidget);
-
       await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Reading'), 300);
       expect(find.text('Default font'), findsOneWidget);
-
       await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Library'), 300);
       expect(find.text('Default view'), findsOneWidget);
-
       await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Notifications'), 300);
       expect(find.text('Goal reminders'), findsOneWidget);
-
       await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Storage'), 300);
       expect(find.text('Clear local library'), findsOneWidget);
-
       await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Privacy & data'), 300);
       expect(find.text('Analytics'), findsOneWidget);
-
       await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Accessibility'), 300);
       expect(find.text('Reduce animations'), findsOneWidget);
-
       await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'About'), 300);
       expect(find.text('Version'), findsOneWidget);
-
       await tester.scrollUntilVisible(find.widgetWithText(ProfileMenuItem, 'Log out'), 300);
       await tester.tap(find.widgetWithText(ProfileMenuItem, 'Log out'));
       await tester.pumpAndSettle();
-
       expect(find.text('Are you sure you want to log out?'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
@@ -177,7 +170,6 @@ void main() {
     testWidgets('desktop layout navigates across all sections correctly', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1200, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
-
       await tester.pumpWidget(buildApp(screenSize: const Size(1200, 900)));
       await tester.pumpAndSettle();
 

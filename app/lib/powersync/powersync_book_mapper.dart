@@ -138,12 +138,15 @@ class PowerSyncBookMapper {
     }
 
     final decoded = Map<String, dynamic>.from(data);
+
     if (decoded.containsKey('co_authors') && decoded['co_authors'] != null) {
       decoded['co_authors'] = _decodeStringList(decoded['co_authors']);
     }
+
     if (decoded.containsKey('custom_metadata') && decoded['custom_metadata'] != null) {
       decoded['custom_metadata'] = _decodeObject(decoded['custom_metadata']);
     }
+
     return decoded;
   }
 
@@ -172,6 +175,7 @@ WHERE id = ?
 
   static String? _remoteCoverUrl(String? coverUrl) {
     final uri = coverUrl == null ? null : Uri.tryParse(coverUrl);
+
     if (uri == null || !{'http', 'https'}.contains(uri.scheme) || uri.host.isEmpty) {
       return null;
     }

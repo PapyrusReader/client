@@ -28,7 +28,6 @@ void main() {
     );
 
     final branding = find.byType(AuthBranding);
-
     expect(find.text('Papyrus'), findsOneWidget);
     expect(branding, findsOneWidget);
     expect(tester.getTopLeft(branding).dx, Spacing.xl);
@@ -50,7 +49,6 @@ void main() {
     );
 
     final branding = find.byType(AuthBranding);
-
     expect(find.text('Papyrus'), findsOneWidget);
     expect(branding, findsOneWidget);
     expect(tester.getCenter(branding).dx, moreOrLessEquals(195));
@@ -78,9 +76,9 @@ void main() {
           ),
         ),
       );
+
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -700));
       await tester.pumpAndSettle();
-
       final button = find.widgetWithText(TextButton, 'Continue offline');
       expect(tester.getRect(button).bottom, lessThanOrEqualTo(keyboard ? 400 : 652));
       expect(tester.takeException(), isNull);
@@ -91,7 +89,6 @@ void main() {
 
   testWidgets('desktop swap button is focused after form controls', (tester) async {
     setViewport(tester, const Size(1200, 800));
-
     final firstFocusNode = FocusNode(debugLabel: 'first');
     final secondFocusNode = FocusNode(debugLabel: 'second');
     final submitFocusNode = FocusNode(debugLabel: 'submit');
@@ -123,24 +120,20 @@ void main() {
 
     firstFocusNode.requestFocus();
     await tester.pump();
-
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
     expect(secondFocusNode.hasFocus, isTrue);
-
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
     expect(submitFocusNode.hasFocus, isTrue);
-
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
     expect(footerFocusNode.hasFocus, isTrue);
-
     await tester.sendKeyEvent(LogicalKeyboardKey.tab);
     await tester.pump();
-
     final focusedContext = FocusManager.instance.primaryFocus?.context;
     expect(focusedContext, isNotNull);
+
     expect(
       find.descendant(of: find.byWidget(focusedContext!.widget), matching: find.byIcon(Icons.swap_horiz)),
       findsOneWidget,

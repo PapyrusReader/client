@@ -41,7 +41,6 @@ void main() {
 
     testWidgets('renders the current filter, sort, and view categories', (tester) async {
       await pumpChips(tester);
-
       expect(find.text('Status'), findsOneWidget);
       expect(find.text(LibrarySortOption.dateAddedNewest.label), findsOneWidget);
       expect(find.text('Favorites'), findsOneWidget);
@@ -55,8 +54,8 @@ void main() {
 
     testWidgets('uses a horizontal list with fixed height', (tester) async {
       await pumpChips(tester);
-
       final listView = tester.widget<ListView>(find.byType(ListView));
+
       final container = tester.widget<SizedBox>(
         find.ancestor(of: find.byType(AnimatedSwitcher), matching: find.byType(SizedBox)).first,
       );
@@ -67,23 +66,18 @@ void main() {
 
     testWidgets('shows active multi-select categories first with a count label', (tester) async {
       libraryProvider.setStatusFilters({LibraryReadingStatus.inProgress, LibraryReadingStatus.completed});
-
       await pumpChips(tester);
-
       expect(find.text('Status · 2'), findsOneWidget);
       expect(libraryProvider.activeFilterCount, 1);
     });
 
     testWidgets('favorite selection sheet updates the shared filter model', (tester) async {
       await pumpChips(tester);
-
       await tester.tap(find.text('Favorites'));
       await tester.pumpAndSettle();
       expect(find.text('Favorite state'), findsOneWidget);
-
       await tester.tap(find.text('Favorites').last);
       await tester.pumpAndSettle();
-
       expect(libraryProvider.favoriteFilter, FavoriteFilter.favorites);
     });
 
@@ -94,6 +88,7 @@ void main() {
         addTearDown(tester.view.reset);
         final store = DataStore()..loadData(books: createTestBooks().take(2).toList());
         addTearDown(store.dispose);
+
         await tester.pumpWidget(
           createTestApp(
             libraryProvider: libraryProvider,
@@ -102,6 +97,7 @@ void main() {
             child: const LibraryFilterChips(),
           ),
         );
+
         await tester.scrollUntilVisible(find.text(category), 150, scrollable: find.byType(Scrollable));
         await Scrollable.ensureVisible(tester.element(find.text(category)), alignment: .5);
         await tester.pumpAndSettle();
@@ -119,14 +115,11 @@ void main() {
 
     testWidgets('view selection sheet updates the shared view mode', (tester) async {
       await pumpChips(tester);
-
       await tester.tap(find.text(LibraryViewMode.grid.label));
       await tester.pumpAndSettle();
       expect(find.text('View mode'), findsOneWidget);
-
       await tester.tap(find.text(LibraryViewMode.list.label).last);
       await tester.pumpAndSettle();
-
       expect(libraryProvider.viewMode, LibraryViewMode.list);
     });
 
@@ -158,6 +151,7 @@ void main() {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = Size(layout.screenWidth, 1000);
         addTearDown(tester.view.reset);
+
         await tester.pumpWidget(
           createTestApp(
             libraryProvider: libraryProvider,
@@ -174,6 +168,7 @@ void main() {
             ),
           ),
         );
+
         await tester.scrollUntilVisible(find.text('Grid'), 300, scrollable: find.byType(Scrollable));
         await Scrollable.ensureVisible(tester.element(find.byTooltip('Change view mode')), alignment: .5);
         await tester.pumpAndSettle();
@@ -181,12 +176,15 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.text('View mode'), findsOneWidget);
         final options = bookGridSizeOptions(layout.contentWidth - 2 * layout.padding);
+
         final choices = tester
             .widgetList<ChoiceChip>(find.byType(ChoiceChip))
             .where((chip) => (chip.label as Text).data!.contains('column'));
+
         expect(choices.map((chip) => (chip.label as Text).data), [
           for (final option in options) '${option.columns} ${option.columns == 1 ? 'column' : 'columns'}',
         ]);
+
         expect(tester.takeException(), isNull);
       });
     }
@@ -195,11 +193,9 @@ void main() {
       libraryProvider.setStatusFilters({LibraryReadingStatus.inProgress});
       libraryProvider.setSortOption(LibrarySortOption.titleAZ);
       libraryProvider.setViewMode(LibraryViewMode.list);
-
       await pumpChips(tester);
       await tester.tap(find.text('Clear all'));
       await tester.pumpAndSettle();
-
       expect(libraryProvider.filters.isEmpty, isTrue);
       expect(libraryProvider.sortOption, LibrarySortOption.dateAddedNewest);
       expect(libraryProvider.viewMode, LibraryViewMode.grid);

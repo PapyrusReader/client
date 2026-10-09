@@ -46,13 +46,16 @@ class _ReaderPageState extends State<ReaderPage> {
   @override
   void initState() {
     super.initState();
+
     _foreground =
         WidgetsBinding.instance.lifecycleState == null ||
         WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed;
+
     _lifecycle = AppLifecycleListener(
       onStateChange: (state) {
         _foreground = state == AppLifecycleState.resumed;
         _tracker?.setForeground(_foreground && !_promptOpen);
+
         if (!_foreground) {
           _finishTimer?.cancel();
           _finishTimer = null;
@@ -64,7 +67,10 @@ class _ReaderPageState extends State<ReaderPage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (_startedLoading) return;
+
+    if (_startedLoading) {
+      return;
+    }
 
     _startedLoading = true;
     _load();
@@ -75,13 +81,16 @@ class _ReaderPageState extends State<ReaderPage> {
     final repository = dataStore.requireBookRepository();
     final trackingRepository = dataStore.trackingRepository;
     var book = dataStore.getBook(widget.bookId);
-
     book ??= await repository.getById(widget.bookId);
+
     if (book == null && !dataStore.isLoaded) {
       await dataStore.waitUntilLoaded();
       book = dataStore.getBook(widget.bookId);
     }
-    if (!mounted) return;
+
+    if (!mounted) {
+      return;
+    }
 
     if (book == null) {
       setState(() => _error = 'Book not found.');
@@ -89,48 +98,69 @@ class _ReaderPageState extends State<ReaderPage> {
     }
 
     final format = ReaderBookAdapter.formatFor(book.fileFormat);
+
     if (format == null) {
       setState(() {
         _book = book;
         _error = 'This book format is not supported yet.';
       });
+
       return;
     }
 
     try {
       final importService = context.read<BookImportService>();
+
       final bytes = await context.read<MediaCacheService>().ensureBookFileCached(
         book,
         readLocalBookFile: importService.getBookFile,
         writeLocalBookFile: importService.storeBookFile,
         downloadMedia: context.read<AuthProvider>().downloadMedia,
       );
-      if (!mounted) return;
 
-      if (!dataStore.isBookRepositoryCurrent(repository)) return;
+      if (!mounted) {
+        return;
+      }
+
+      if (!dataStore.isBookRepositoryCurrent(repository)) {
+        return;
+      }
+
       ReadingActivityTracker? tracker;
+
       if (trackingRepository != null) {
-        if (!mounted || !trackingRepository.isCurrent) return;
+        if (!mounted || !trackingRepository.isCurrent) {
+          return;
+        }
+
         tracker = ReadingActivityTracker(
           repository: trackingRepository,
           book: book,
           shelfIds: dataStore.getShelfIdsForBook(book.id),
           deviceId: ReadingDeviceIdentity.current,
           onError: (error) {
-            if (!mounted || _trackingError != null) return;
+            if (!mounted || _trackingError != null) {
+              return;
+            }
+
             _trackingError = error.toString();
+
             ScaffoldMessenger.maybeOf(
               context,
             )?.showSnackBar(const SnackBar(content: Text('Reading activity could not be saved. Retrying.')));
           },
         );
+
         tracker.setForeground(_foreground);
       }
+
       _tracker = tracker;
+
       if (tracker != null) {
         _trackingStore = dataStore;
         dataStore.addListener(_scopeChanged);
       }
+
       final session = ReaderSession(
         book: book,
         tracker: tracker,
@@ -144,6 +174,7 @@ class _ReaderPageState extends State<ReaderPage> {
 
       setState(() {
         _book = book;
+
         _document = ReaderDocument(
           id: book!.id,
           format: format,
@@ -151,12 +182,16 @@ class _ReaderPageState extends State<ReaderPage> {
           author: book.author,
           loadBytes: () async => bytes,
         );
+
         _initialLocator = ReaderBookAdapter.restoreLocator(book);
         _initialPreferences = preferences;
         _session = session;
       });
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+
       setState(() => _error = 'Could not open this book file.');
     }
   }
@@ -175,6 +210,7 @@ class _ReaderPageState extends State<ReaderPage> {
   @override
   Widget build(BuildContext context) {
     final error = _error;
+
     if (error != null) {
       return Scaffold(
         appBar: AppBar(leading: const BackButton()),
@@ -190,6 +226,7 @@ class _ReaderPageState extends State<ReaderPage> {
     final book = _book;
     final document = _document;
     final preferences = _initialPreferences;
+
     if (book == null || document == null || preferences == null) {
       return Scaffold(
         appBar: AppBar(leading: BackButton(onPressed: _close)),
@@ -212,12 +249,18 @@ class _ReaderPageState extends State<ReaderPage> {
 
   void _onActivity(ReaderActivityEvent event) {
     _tracker?.onActivity(event);
+
     if (!event.atEnd || !event.visible || !event.ready) {
       _finishTimer?.cancel();
       _finishTimer = null;
-      if (!event.atEnd) _finishPrompted = false;
+
+      if (!event.atEnd) {
+        _finishPrompted = false;
+      }
+
       return;
     }
+
     if (_foreground &&
         !_finishPrompted &&
         _finishTimer == null &&
@@ -228,10 +271,15 @@ class _ReaderPageState extends State<ReaderPage> {
 
   Future<void> _confirmFinished() async {
     _finishTimer = null;
-    if (!mounted || !_foreground || _tracker?.repository.isCurrent == false) return;
+
+    if (!mounted || !_foreground || _tracker?.repository.isCurrent == false) {
+      return;
+    }
+
     _finishPrompted = true;
     _promptOpen = true;
     _tracker?.setForeground(false);
+
     final finished = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -243,11 +291,16 @@ class _ReaderPageState extends State<ReaderPage> {
         ],
       ),
     );
-    if (!mounted) return;
+
+    if (!mounted) {
+      return;
+    }
+
     try {
       if (finished == true && _tracker?.repository.isCurrent != false) {
         final store = context.read<DataStore>();
         final book = store.getBook(widget.bookId);
+
         if (book != null) {
           await store.updateBookAndWait(
             book.copyWith(readingStatus: LibraryReadingStatus.completed, completedAt: DateTime.now()),
@@ -271,6 +324,7 @@ class _ReaderPageState extends State<ReaderPage> {
 
   Future<void> _close() async {
     _finishTimer?.cancel();
+
     try {
       await _tracker?.close();
       await _session?.flush();
@@ -280,9 +334,14 @@ class _ReaderPageState extends State<ReaderPage> {
           context,
         )?.showSnackBar(const SnackBar(content: Text('Could not save reading activity. Please try leaving again.')));
       }
+
       return;
     }
-    if (!mounted) return;
+
+    if (!mounted) {
+      return;
+    }
+
     if (context.canPop()) {
       context.pop();
       return;

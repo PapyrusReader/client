@@ -16,6 +16,7 @@ void main() {
         'metadata_source': 'Open Library',
         'annotation_export_format': 'Markdown',
       });
+
       final prefs = await SharedPreferences.getInstance();
       prefsProvider = PreferencesProvider(prefs);
     });
@@ -31,7 +32,6 @@ void main() {
 
     testWidgets('renders mobile library settings and rows', (tester) async {
       await tester.pumpWidget(buildSection(isDesktop: false));
-
       expect(find.text('Library'), findsOneWidget);
       expect(find.text('Default view'), findsOneWidget);
       expect(find.text('Default sort'), findsOneWidget);
@@ -41,7 +41,6 @@ void main() {
 
     testWidgets('renders desktop display and data configuration cards', (tester) async {
       await tester.pumpWidget(buildSection(isDesktop: true));
-
       expect(find.text('Display'), findsOneWidget);
       expect(find.text('Default view mode'), findsOneWidget);
       expect(find.text('Default sort order'), findsOneWidget);

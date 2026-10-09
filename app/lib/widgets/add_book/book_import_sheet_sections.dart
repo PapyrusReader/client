@@ -38,6 +38,7 @@ class BookImportSelectingSection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasFiles = files.isNotEmpty;
+
     return AddBookSheetScaffold(
       title: 'Import books',
       footerPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
@@ -56,6 +57,7 @@ class BookImportSelectingSection extends StatelessWidget {
 
   Widget _buildBrowseOnly(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return Padding(
       padding: const EdgeInsets.all(Spacing.lg),
       child: Column(
@@ -79,6 +81,7 @@ class BookImportSelectingSection extends StatelessWidget {
 
   Widget _buildFileList(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return ListView(
       shrinkWrap: context.findAncestorWidgetOfExactType<ExpandableBottomSheet>() != null,
       controller: scrollController,
@@ -148,6 +151,7 @@ class BookImportProcessingSection extends StatelessWidget {
         separatorBuilder: (_, _) => const SizedBox(height: Spacing.xs),
         itemBuilder: (context, index) {
           final item = items[index];
+
           return BookImportItemCard(
             key: ValueKey(item.id),
             item: item,
@@ -187,6 +191,7 @@ class BookImportSummarySection extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final hasFailures = failureCount > 0;
+
     return AddBookSheetScaffold(
       title: 'Import complete',
       footerPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
@@ -285,13 +290,20 @@ class _FileSelectCard extends StatelessWidget {
 }
 
 String _formatSize(int bytes) {
-  if (bytes < 1024) return '$bytes B';
-  if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  if (bytes < 1024) {
+    return '$bytes B';
+  }
+
+  if (bytes < 1024 * 1024) {
+    return '${(bytes / 1024).toStringAsFixed(1)} KB';
+  }
+
   return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
 }
 
 IconData _iconForExtension(String name) {
   final extension = name.toLowerCase().split('.').last;
+
   return switch (extension) {
     'pdf' => Icons.picture_as_pdf,
     'epub' || 'mobi' || 'azw3' => Icons.menu_book,

@@ -27,7 +27,6 @@ void main() {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
     addTearDown(tester.view.reset);
-
     final dataStore = DataStore()..loadData(readingGoals: const []);
     addTearDown(dataStore.dispose);
     await tester.pumpWidget(createTestPage(page: const GoalsPage(), dataStore: dataStore, screenSize: size));
@@ -37,29 +36,34 @@ void main() {
   for (final size in [const Size(400, 800), const Size(1200, 800), const Size(1600, 800)]) {
     testWidgets('empty state keeps creation and logging actions available at ${size.width.toInt()}px', (tester) async {
       await pumpEmptyGoalsPage(tester, size);
-
       final placeholder = find.byKey(const Key('goals-empty-state'));
       final viewport = tester.getRect(find.byType(TabBarView));
       expect(tester.getRect(placeholder), viewport);
       final iconTop = tester.getRect(find.byIcon(Icons.emoji_events_outlined)).top;
+
       final actionBottom = tester
           .getRect(find.descendant(of: placeholder, matching: find.byType(EmptyStateAction)))
           .bottom;
+
       expect((iconTop + actionBottom) / 2, closeTo(viewport.center.dy, 1));
       expect(find.text('Goals'), findsNothing);
       // Only the tab divider remains; there is no separate header border.
       expect(find.byType(Divider), findsOneWidget);
+
       const referenceRail = BookDetailsTabRail(
         tabs: [
           Tab(text: 'Details'),
           Tab(text: 'Notes'),
         ],
       );
+
       expect(tester.getSize(find.byType(TabBar)).height, referenceRail.preferredSize.height);
+
       expect(
         tester.getRect(find.byType(TabBar)).top,
         libraryPageHorizontalPadding(tester.element(find.byType(TabBar))),
       );
+
       if (size.width < 840) {
         expect(find.byTooltip('New goal').hitTestable(), findsOneWidget);
         expect(find.byTooltip('Log reading').hitTestable(), findsOneWidget);
@@ -71,10 +75,12 @@ void main() {
         final create = find.widgetWithText(FilledButton, 'New goal').first;
         expect(tester.getRect(create).top, Spacing.lg);
         final log = find.widgetWithText(OutlinedButton, 'Log reading');
+
         expect(
           tester.widget<FilledButton>(create).style!.minimumSize!.resolve({})!.height,
           TouchTargets.desktopRecommended,
         );
+
         expect(tester.getSize(log).height, TouchTargets.desktopRecommended);
         expect(tester.getSize(create).height, TouchTargets.desktopRecommended);
         final divider = tester.getRect(find.byType(Divider));
@@ -88,6 +94,7 @@ void main() {
         expect(tester.getRect(create).right, size.width - Spacing.lg);
         expect(find.widgetWithText(LibraryAddButton, 'New goal'), findsOneWidget);
       }
+
       expect(find.byType(ActionChip), findsNothing);
       expect(find.byType(AppBar), findsNothing);
       expect(find.text('Create a goal to track your reading progress.'), findsOneWidget);
@@ -97,12 +104,14 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
   testWidgets('desktop sidebar width and large text keep tab actions compact', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(900, 800);
     addTearDown(tester.view.reset);
     final store = DataStore()..loadData(readingGoals: const []);
     addTearDown(store.dispose);
+
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: store,
@@ -116,6 +125,7 @@ void main() {
         ),
       ),
     );
+
     await tester.pumpAndSettle();
     expect(find.byType(FloatingActionButton), findsNothing);
     expect(find.byTooltip('Log reading').hitTestable(), findsOneWidget);
@@ -127,6 +137,7 @@ void main() {
     expect(find.text('Books finished'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
   testWidgets('mobile header actions and FAB open their sheets on both tabs above the safe area', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(390, 844);
@@ -135,12 +146,14 @@ void main() {
     addTearDown(tester.view.reset);
     final store = DataStore()..loadData(readingGoals: const []);
     addTearDown(store.dispose);
+
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: store,
         child: MaterialApp(theme: AppTheme.dark, home: const GoalsPage()),
       ),
     );
+
     await tester.pumpAndSettle();
     final log = find.byTooltip('Log reading');
     final fab = find.byTooltip('New goal');
@@ -150,6 +163,7 @@ void main() {
     expect(tester.getCenter(log).dy, closeTo(tester.getCenter(find.text('Overview')).dy, 1));
     expect(tester.getSize(log).width, lessThanOrEqualTo(48));
     expect(tester.getRect(fab).bottom, lessThanOrEqualTo(812));
+
     for (final tab in ['Overview', 'Activity']) {
       await tester.tap(find.text(tab));
       await tester.pumpAndSettle();
@@ -165,8 +179,10 @@ void main() {
       await tester.tap(find.byTooltip('Close'));
       await tester.pumpAndSettle();
     }
+
     expect(tester.takeException(), isNull);
   });
+
   for (final theme in [AppTheme.dark, AppTheme.light, AppTheme.eink]) {
     testWidgets('goal tabs swipe both ways and retain activity scroll in ${theme.brightness}', (tester) async {
       tester.view.devicePixelRatio = 1;
@@ -174,12 +190,14 @@ void main() {
       addTearDown(tester.view.reset);
       final store = DataStore()..loadData(readingGoals: const []);
       addTearDown(store.dispose);
+
       await tester.pumpWidget(
         ChangeNotifierProvider.value(
           value: store,
           child: MaterialApp(theme: theme, home: const GoalsPage()),
         ),
       );
+
       await tester.pumpAndSettle();
       final pages = find.byType(TabBarView);
       final controller = tester.widget<TabBarView>(pages).controller!;
@@ -188,9 +206,11 @@ void main() {
       await tester.pumpAndSettle();
       expect(controller.index, 1);
       expect(find.text('No goals yet'), findsNothing);
+
       final activityScroll = find
           .descendant(of: find.byKey(const PageStorageKey('goals-activity-scroll')), matching: find.byType(Scrollable))
           .first;
+
       await tester.scrollUntilVisible(find.text('Filter dates'), 180, scrollable: activityScroll);
       await tester.pumpAndSettle();
       final offset = tester.state<ScrollableState>(activityScroll).position.pixels;
@@ -209,11 +229,13 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
   testWidgets('activity keeps recurring goal periods inspectable on a phone', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(400, 900);
     addTearDown(tester.view.reset);
     final now = DateTime.now().toUtc();
+
     final store = DataStore()
       ..loadData(
         readingGoals: [
@@ -227,17 +249,21 @@ void main() {
           ),
         ],
       );
+
     addTearDown(store.dispose);
+
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: store,
         child: MaterialApp(theme: AppTheme.dark, home: const GoalsPage()),
       ),
     );
+
     await tester.pumpAndSettle();
     await tester.tap(find.text('Activity'));
     await tester.pumpAndSettle();
     final history = find.byKey(const PageStorageKey('goal-period-history'));
+
     await tester.scrollUntilVisible(
       history,
       250,
@@ -245,6 +271,7 @@ void main() {
           .descendant(of: find.byKey(const PageStorageKey('goals-activity-scroll')), matching: find.byType(Scrollable))
           .first,
     );
+
     await tester.ensureVisible(history);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Goal history'));
@@ -252,11 +279,13 @@ void main() {
     expect(find.text('Missed'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
+
   testWidgets('archived goals appear once below their heading with periods available in details', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1200, 2400);
     addTearDown(tester.view.reset);
     final now = DateTime.now().toUtc();
+
     final store = DataStore()
       ..loadData(
         readingGoals: [
@@ -275,13 +304,16 @@ void main() {
             ),
         ],
       );
+
     addTearDown(store.dispose);
+
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: store,
         child: MaterialApp(theme: AppTheme.dark, home: const GoalsPage()),
       ),
     );
+
     await tester.pumpAndSettle();
     await tester.tap(find.text('Activity'));
     await tester.pumpAndSettle();
@@ -289,10 +321,12 @@ void main() {
     await tester.pumpAndSettle();
     final heading = tester.getRect(find.text('Archived goals'));
     expect(find.byType(GoalCard), findsNWidgets(2));
+
     for (final id in ['first', 'second']) {
       expect(find.text('Archived $id'), findsOneWidget);
       expect(tester.getRect(find.text('Archived $id')).top, greaterThan(heading.bottom));
     }
+
     await tester.tap(find.text('Archived first'));
     await tester.pumpAndSettle();
     expect(find.text('Previous periods'), findsOneWidget);
@@ -300,12 +334,14 @@ void main() {
     expect(find.textContaining('Missed'), findsWidgets);
     expect(tester.takeException(), isNull);
   });
+
   testWidgets('archived goal activity restores scroll and expansion independently', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1200, 800);
     addTearDown(tester.view.reset);
     final yesterday = DateTime.now().toUtc().subtract(const Duration(days: 1));
     final now = DateTime.utc(yesterday.year, yesterday.month, yesterday.day, 12);
+
     final store = DataStore()
       ..loadData(
         readingGoals: [
@@ -323,6 +359,7 @@ void main() {
           ),
         ],
       );
+
     await store.commitTracking(
       activities: [
         ReadingActivity(
@@ -335,8 +372,10 @@ void main() {
         ),
       ],
     );
+
     addTearDown(store.dispose);
     final bucket = PageStorageBucket();
+
     Future<void> openPage(int revision) async {
       await tester.pumpWidget(
         ChangeNotifierProvider.value(
@@ -350,6 +389,7 @@ void main() {
           ),
         ),
       );
+
       await tester.pumpAndSettle();
       await tester.tap(find.text('Activity'));
       await tester.pumpAndSettle();
@@ -362,7 +402,6 @@ void main() {
     bucket.writeState(tester.element(scrollKey), 0.0);
     await openPage(1);
     expect(tester.takeException(), isNull);
-
     final scrollable = find.descendant(of: scrollKey, matching: find.byType(Scrollable)).first;
     final bookRow = find.widgetWithText(ExpansionTile, 'Alice');
     await tester.scrollUntilVisible(bookRow, 200, scrollable: scrollable);
@@ -376,7 +415,6 @@ void main() {
     expect(find.text('Archived goals'), findsOneWidget);
     final offset = tester.state<ScrollableState>(scrollable).position.pixels;
     expect(offset, greaterThan(0));
-
     await openPage(2);
     expect(tester.takeException(), isNull);
     expect(tester.state<ScrollableState>(scrollable).position.pixels, closeTo(offset, 1));
@@ -388,6 +426,7 @@ void main() {
     expect(expandedChild.hitTestable(), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
+
   testWidgets('overview ranks real progress across schedules and updates after undo', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1200, 2400);
@@ -396,6 +435,7 @@ void main() {
     final now = DateTime.utc(2026, 10, 8, 12);
     final created = now.subtract(const Duration(hours: 1));
     final book = Book(id: 'alice', title: 'Alice', author: 'Lewis Carroll', addedAt: created);
+
     ReadingGoal goal(String id, GoalType type, int target, GoalPeriod period, {bool active = true}) => ReadingGoal(
       id: id,
       title: id,
@@ -411,6 +451,7 @@ void main() {
       scope: GoalScope.book,
       scopeId: book.id,
     );
+
     final store = DataStore()
       ..loadData(
         books: [book],
@@ -423,7 +464,9 @@ void main() {
           goal('Just begun', GoalType.minutes, 100, GoalPeriod.weekly),
         ],
       );
+
     addTearDown(store.dispose);
+
     final completion = ReadingActivity(
       id: 'finished',
       bookId: book.id,
@@ -433,6 +476,7 @@ void main() {
       endTime: now,
       createdAt: now,
     );
+
     await store.commitTracking(
       activities: [
         completion,
@@ -446,6 +490,7 @@ void main() {
         ),
       ],
     );
+
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: store,
@@ -455,8 +500,10 @@ void main() {
         ),
       ),
     );
+
     await tester.pumpAndSettle();
     List<String> cardIds() => tester.widgetList<GoalCard>(find.byType(GoalCard)).map((card) => card.goal.id).toList();
+
     // Reading days require 20 minutes so this period has not qualified yet.
     expect(cardIds(), [
       'Nearly finished',
@@ -466,9 +513,11 @@ void main() {
       'Finished target',
       'On hold',
     ]);
+
     for (final label in ['In progress', 'Not started', 'Completed', 'Paused']) {
       expect(find.text(label), findsWidgets);
     }
+
     expect(find.text('Longer-term goals'), findsNothing);
     expect(find.text('Today'), findsNothing);
     expect(find.textContaining('Finish confirmation required'), findsNothing);
@@ -491,11 +540,13 @@ void main() {
     expect(store.readingActivities.any((entry) => entry.id == completion.id), isTrue);
     expect(tester.takeException(), isNull);
   });
+
   testWidgets('hiding the only completed goal keeps the filter and creation action available', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(390, 844);
     addTearDown(tester.view.reset);
     final now = DateTime.now().toUtc();
+
     final goal = ReadingGoal(
       id: 'done',
       type: GoalType.books,
@@ -504,8 +555,10 @@ void main() {
       startDate: now.subtract(const Duration(hours: 1)),
       endDate: now.add(const Duration(days: 1)),
     );
+
     final store = DataStore()..loadData(readingGoals: [goal]);
     addTearDown(store.dispose);
+
     await store.commitTracking(
       activities: [
         ReadingActivity(
@@ -519,12 +572,14 @@ void main() {
         ),
       ],
     );
+
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: store,
         child: MaterialApp(theme: AppTheme.dark, home: const GoalsPage()),
       ),
     );
+
     await tester.pumpAndSettle();
     expect(find.text('Completed'), findsOneWidget);
     expect(find.byType(Switch), findsNothing);
@@ -540,6 +595,7 @@ void main() {
     expect(find.text('All goals completed'), findsNothing);
     expect(tester.takeException(), isNull);
   });
+
   for (final theme in [AppTheme.light, AppTheme.dark, AppTheme.eink]) {
     for (final size in [const Size(320, 720), const Size(768, 1024), const Size(1440, 1000)]) {
       testWidgets('active Goals supports large text at $size in ${theme.brightness}', (tester) async {
@@ -547,6 +603,7 @@ void main() {
         tester.view.physicalSize = size;
         addTearDown(tester.view.reset);
         final now = DateTime.now().toUtc();
+
         final store = DataStore()
           ..loadData(
             readingGoals: [
@@ -570,7 +627,9 @@ void main() {
               ),
             ],
           );
+
         addTearDown(store.dispose);
+
         await tester.pumpWidget(
           ChangeNotifierProvider.value(
             value: store,
@@ -584,7 +643,9 @@ void main() {
             ),
           ),
         );
+
         await tester.pumpAndSettle();
+
         if (size.width < 840) {
           expect(find.byTooltip('New goal').hitTestable(), findsOneWidget);
           expect(find.byTooltip('Log reading').hitTestable(), findsOneWidget);
@@ -592,10 +653,12 @@ void main() {
           expect(find.text('New goal').hitTestable(), findsOneWidget);
           expect(find.text('Log reading').hitTestable(), findsOneWidget);
         }
+
         expect(find.text('Goals'), findsNothing);
         expect(find.text('Activity').hitTestable(), findsOneWidget);
         await tester.tap(find.text('Activity'));
         await tester.pumpAndSettle();
+
         await tester.scrollUntilVisible(
           find.text('Filter dates'),
           200,
@@ -606,6 +669,7 @@ void main() {
               )
               .first,
         );
+
         await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Filter dates'));
         await tester.pumpAndSettle();
         expect(find.text('Filter dates').hitTestable(), findsOneWidget);

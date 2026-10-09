@@ -82,10 +82,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
     );
   }
 
-  // ===========================================================================
-  // LAYOUT
-  // ===========================================================================
-
   Widget _buildMobileBody(BuildContext context) {
     return SingleChildScrollView(padding: const EdgeInsets.all(Spacing.md), child: _buildForm(context));
   }
@@ -99,10 +95,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
     );
   }
-
-  // ===========================================================================
-  // FORM
-  // ===========================================================================
 
   Widget _buildForm(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -132,9 +124,11 @@ class _EditProfilePageState extends State<EditProfilePage> {
               if (value == null || value.trim().isEmpty) {
                 return 'Name cannot be empty';
               }
+
               if (value.trim().length > 100) {
                 return 'Name is too long';
               }
+
               return null;
             },
             autovalidateMode: AutovalidateMode.onUserInteraction,
@@ -170,10 +164,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
       ),
     );
   }
-
-  // ===========================================================================
-  // AVATAR
-  // ===========================================================================
 
   Widget _buildAvatarEditor(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -235,6 +225,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
     // Show existing network photo if not removed.
     if (!_photoRemoved) {
       final photoUrl = context.read<AuthProvider>().user?.avatarUrl;
+
       if (photoUrl != null && photoUrl.isNotEmpty) {
         return Image.network(
           photoUrl,
@@ -250,8 +241,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   }
 
   bool get _hasExistingPhoto {
-    if (_photoRemoved) return false;
-    if (_pickedImageBytes != null) return true;
+    if (_photoRemoved) {
+      return false;
+    }
+
+    if (_pickedImageBytes != null) {
+      return true;
+    }
+
     final photoUrl = context.read<AuthProvider>().user?.avatarUrl;
     return photoUrl != null && photoUrl.isNotEmpty;
   }
@@ -287,6 +284,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
                 title: Text('Remove photo', style: TextStyle(color: Theme.of(context).colorScheme.error)),
                 onTap: () {
                   Navigator.pop(sheetContext);
+
                   setState(() {
                     _pickedImageBytes = null;
                     _photoRemoved = true;
@@ -302,13 +300,14 @@ class _EditProfilePageState extends State<EditProfilePage> {
   Future<void> _pickImage() async {
     try {
       final result = await FilePicker.platform.pickFiles(type: FileType.image, withData: true);
+
       if (result != null && result.files.single.bytes != null) {
         setState(() {
           _pickedImageBytes = result.files.single.bytes;
           _photoRemoved = false;
         });
       }
-    } catch (e) {
+    } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           snackBarAnimationStyle: AppMotion.animationStyle(context),
@@ -318,12 +317,10 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  // ===========================================================================
-  // ACTIONS
-  // ===========================================================================
-
   Future<void> _handleSave(BuildContext context) async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() {
       _isSaving = true;
@@ -339,6 +336,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
           _errorMessage = 'Not signed in';
           _isSaving = false;
         });
+
         return;
       }
 
@@ -353,6 +351,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
             _errorMessage = authProvider.error ?? 'Failed to update profile';
             _isSaving = false;
           });
+
           return;
         }
       }
@@ -360,7 +359,7 @@ class _EditProfilePageState extends State<EditProfilePage> {
       if (context.mounted) {
         context.pop();
       }
-    } catch (e) {
+    } catch (error) {
       setState(() {
         _errorMessage = 'Failed to update profile';
         _isSaving = false;
@@ -393,23 +392,29 @@ class _EditProfilePageState extends State<EditProfilePage> {
     }
   }
 
-  // ===========================================================================
-  // HELPERS
-  // ===========================================================================
-
   String _getEmail() {
     final email = context.read<AuthProvider>().user?.email;
-    if (email == null || email.trim().isEmpty) return 'No email provided';
+
+    if (email == null || email.trim().isEmpty) {
+      return 'No email provided';
+    }
+
     return email;
   }
 
   String get _initials {
     final name = _nameController.text.trim();
-    if (name.isEmpty) return '?';
+
+    if (name.isEmpty) {
+      return '?';
+    }
+
     final parts = name.split(' ');
+
     if (parts.length >= 2) {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
+
     return name[0].toUpperCase();
   }
 }

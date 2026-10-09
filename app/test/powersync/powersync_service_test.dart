@@ -26,10 +26,8 @@ void main() {
   test('pending refresh does not supersede a transport status event', () {
     final revisions = SyncStateRevisionCoordinator();
     final transportRevision = revisions.beginTransportUpdate();
-
     expect(revisions.observeForPendingRefresh(), transportRevision);
     expect(revisions.isCurrent(transportRevision), isTrue);
-
     revisions.beginTransportUpdate();
     expect(revisions.isCurrent(transportRevision), isFalse);
   });
@@ -38,12 +36,9 @@ void main() {
     final updates = StreamController<SyncState>.broadcast(sync: true);
     addTearDown(updates.close);
     var current = const SyncState();
-
     current = const SyncState(connected: true);
     updates.add(current);
-
     final received = await streamWithCurrentValue(currentValue: () => current, updates: updates.stream).first;
-
     expect(received.connected, isTrue);
   });
 
@@ -73,16 +68,15 @@ void main() {
     await first.activateGuest();
     await first.upsert(_book('guest-book'));
     await first.close();
-
     final second = service();
     await second.activateGuest();
-
     expect((await second.getById('guest-book'))?.title, 'Persistent guest book');
     await second.close();
   });
 
   test('getById waits for database activation', () async {
     final allowPathResolution = Completer<void>();
+
     final first = PapyrusPowerSyncService(
       connectorFactory: OfflineConnector.new,
       connectAuthenticated: false,
@@ -95,7 +89,6 @@ void main() {
     final activation = first.activateGuest();
     final lookup = first.getById('missing-book');
     allowPathResolution.complete();
-
     await activation;
     expect(await lookup, isNull);
     await first.close();
@@ -104,6 +97,7 @@ void main() {
   test('activation emits the database snapshot instead of a synthetic empty snapshot', () async {
     final allowPathResolution = Completer<void>();
     final firstSnapshot = Completer<List<Book>>();
+
     final first = PapyrusPowerSyncService(
       connectorFactory: OfflineConnector.new,
       connectAuthenticated: false,
@@ -112,18 +106,19 @@ void main() {
         return path.join(directory.path, 'snapshot-guest.db');
       },
     );
+
     final subscription = first.watchAll().listen((books) {
-      if (!firstSnapshot.isCompleted) firstSnapshot.complete(books);
+      if (!firstSnapshot.isCompleted) {
+        firstSnapshot.complete(books);
+      }
     });
 
     final activation = first.activateGuest();
     await Future<void>.delayed(Duration.zero);
-
     expect(firstSnapshot.isCompleted, isFalse);
     allowPathResolution.complete();
     await activation;
     expect(await firstSnapshot.future, isEmpty);
-
     await subscription.cancel();
     await first.close();
   });
@@ -134,10 +129,8 @@ void main() {
     await first.upsert(_book('account-book'));
     await first.deactivate();
     await first.close();
-
     final second = service();
     await second.activateAuthenticated('user-one');
-
     expect(await second.getById('account-book'), isNull);
     await second.close();
   });
@@ -145,9 +138,7 @@ void main() {
   test('authenticated writes expose the affected book as pending', () async {
     final first = service();
     await first.activateAuthenticated('user-one');
-
     await first.upsert(_book('account-book'));
-
     expect(first.bookMetadataSyncState.pendingBookIds, contains('account-book'));
     await first.close();
   });
@@ -156,9 +147,7 @@ void main() {
     final first = service();
     await first.activateGuest();
     await first.upsert(_book('guest-book'));
-
     await first.clearGuestLibrary();
-
     expect(await first.getById('guest-book'), isNull);
     await first.close();
   });
@@ -167,9 +156,7 @@ void main() {
     final first = service();
     await first.activateAuthenticated('user-one');
     await first.upsert(_book('account-book'));
-
     await first.clearAuthenticatedCache();
-
     expect(first.mode, LibraryDatabaseMode.authenticated);
     expect(await first.getById('account-book'), isNull);
     await first.close();
@@ -178,7 +165,6 @@ void main() {
   test('reconnect requires an authenticated database', () async {
     final first = service();
     await first.activateGuest();
-
     expect(first.reconnect(), throwsStateError);
     await first.close();
   });
@@ -187,14 +173,10 @@ void main() {
     final first = service();
     await first.activateAuthenticated('user-one', profileKey: 'official');
     await first.upsert(_book('official-book'));
-
     await first.activateAuthenticated('user-one', profileKey: 'custom-local');
-
     expect(await first.getById('official-book'), isNull);
     await first.upsert(_book('custom-book'));
-
     await first.activateAuthenticated('user-one', profileKey: 'official');
-
     expect((await first.getById('official-book'))?.title, 'Persistent guest book');
     expect(await first.getById('custom-book'), isNull);
     await first.close();

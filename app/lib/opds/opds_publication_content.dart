@@ -12,8 +12,11 @@ class OpdsPublicationContent {
 
   factory OpdsPublicationContent.from(OpdsCatalog catalog, OpdsPublication publication) {
     final information = <String, String>{};
+
     void add(String label, String? value) {
-      if (value != null && value.trim().isNotEmpty) information[label] = value.trim();
+      if (value != null && value.trim().isNotEmpty) {
+        information[label] = value.trim();
+      }
     }
 
     final formats = publication.links
@@ -21,8 +24,15 @@ class OpdsPublicationContent {
         .map((link) => link.supportedExtension?.toUpperCase())
         .whereType<String>()
         .toSet();
-    if (formats.isNotEmpty) add('Formats', formats.join(', '));
-    if (publication.numberOfPages != null) add('Pages', '${publication.numberOfPages}');
+
+    if (formats.isNotEmpty) {
+      add('Formats', formats.join(', '));
+    }
+
+    if (publication.numberOfPages != null) {
+      add('Pages', '${publication.numberOfPages}');
+    }
+
     add('Publisher', publication.publisher);
     add('Published', _date(publication.published));
     add('ISBN', publication.isbn);
@@ -31,6 +41,7 @@ class OpdsPublicationContent {
     final subjects = publication.subjects.where((subject) => subject.trim().isNotEmpty).toSet();
     final original = publication.description?.trim();
     final host = catalog.uri.host.toLowerCase();
+
     if (original == null || original.isEmpty || !(host == 'gutenberg.org' || host.endsWith('.gutenberg.org'))) {
       return OpdsPublicationContent._(original, information, subjects.toList());
     }
@@ -39,6 +50,7 @@ class OpdsPublicationContent {
     // its known labels; do not infer metadata from arbitrary catalogs or prose.
     final paragraphs = original.split(RegExp(r'\n\s*\n'));
     final labeled = RegExp(r'^([^:\n]{1,30}):\s*([\s\S]+)$');
+
     final known = {
       'Summary',
       'Title',
@@ -55,31 +67,43 @@ class OpdsPublicationContent {
       'LoCC',
       'Category',
     };
+
     final recognized = paragraphs.where((paragraph) => known.contains(labeled.firstMatch(paragraph)?[1])).length;
-    if (recognized < 2) return OpdsPublicationContent._(original, information, subjects.toList());
+
+    if (recognized < 2) {
+      return OpdsPublicationContent._(original, information, subjects.toList());
+    }
 
     final summary = <String>[];
     final prose = <String>[];
     final extracted = <String, String>{};
+
     void extract(String label, String value) {
       extracted[label] = _combine(extracted[label], value);
     }
 
     for (final paragraph in paragraphs) {
       final match = labeled.firstMatch(paragraph);
+
       if (match == null) {
         prose.add(paragraph);
         continue;
       }
+
       final label = match[1]!;
       final value = match[2]!.trim();
+
       switch (label) {
         case 'Summary':
           summary.add(value);
         case 'Title':
-          if (value != publication.title) extract('Catalog title', value);
+          if (value != publication.title) {
+            extract('Catalog title', value);
+          }
         case 'Author':
-          if (!publication.authors.contains(value)) extract('Author', value);
+          if (!publication.authors.contains(value)) {
+            extract('Author', value);
+          }
         case 'Subject':
           subjects.add(value);
         case 'EBook No.':
@@ -97,6 +121,7 @@ class OpdsPublicationContent {
           prose.add(paragraph);
       }
     }
+
     for (final entry in extracted.entries) {
       final label = switch (entry.key) {
         'EBook No.' => 'Gutenberg ID',
@@ -104,8 +129,10 @@ class OpdsPublicationContent {
         'LoCC' => 'Classification',
         _ => entry.key,
       };
+
       final value = label == 'Published' ? _date(entry.value)! : entry.value;
       final existing = information[label];
+
       if (label == 'Language' && existing != null && existing != value) {
         information[label] = '$value ($existing)';
       } else {
@@ -114,21 +141,26 @@ class OpdsPublicationContent {
     }
     // These category labels can also appear among Atom subjects. They now have
     // dedicated metadata rows, so avoid repeating them as subject chips.
+
     for (final label in ['Classification', 'Category']) {
       subjects.removeAll(information[label]?.split('\n') ?? const []);
     }
+
     return OpdsPublicationContent._([...summary, ...prose].join('\n\n'), information, subjects.toList());
   }
 
-  static String _combine(String? existing, String value) => existing == null
-      ? value
-      : existing == value || existing.split('\n').contains(value)
-      ? existing
-      : '$existing\n$value';
+  static String _combine(String? existing, String value) => switch (existing) {
+    null => value,
+    final current when current == value || current.split('\n').contains(value) => current,
+    final current => '$current\n$value',
+  };
 
   static String? _date(String? value) {
-    if (value == null) return null;
+    if (value == null) {
+      return null;
+    }
     // Partial dates (e.g. just a year) keep their original precision.
+
     final date = RegExp(r'^\d{4}-\d{2}-\d{2}(?:T.*)?$').hasMatch(value) ? DateTime.tryParse(value) : null;
     return date == null ? value : DateFormat.yMMMMd().format(date);
   }

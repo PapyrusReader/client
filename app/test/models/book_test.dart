@@ -75,7 +75,6 @@ void main() {
       test('creates copy with updated fields', () {
         final book = buildTestBook(title: 'Original', isFavorite: false);
         final copy = book.copyWith(title: 'Updated', isFavorite: true);
-
         expect(copy.title, 'Updated');
         expect(copy.isFavorite, true);
         expect(copy.id, book.id); // unchanged
@@ -85,21 +84,18 @@ void main() {
       test('clearCoverUrl sets coverUrl to null', () {
         final book = buildTestBook(coverUrl: 'http://example.com/cover.jpg');
         final copy = book.copyWith(clearCoverUrl: true);
-
         expect(copy.coverUrl, isNull);
       });
 
       test('clearCoverUrl false preserves existing coverUrl', () {
         final book = buildTestBook(coverUrl: 'http://example.com/cover.jpg');
         final copy = book.copyWith(clearCoverUrl: false);
-
         expect(copy.coverUrl, 'http://example.com/cover.jpg');
       });
 
       test('coverUrl parameter overrides clearCoverUrl', () {
         final book = buildTestBook(coverUrl: 'http://example.com/old.jpg');
         final copy = book.copyWith(coverUrl: 'http://example.com/new.jpg');
-
         expect(copy.coverUrl, 'http://example.com/new.jpg');
       });
     });
@@ -107,6 +103,7 @@ void main() {
     group('toJson', () {
       test('serializes all fields with snake_case keys', () {
         final now = DateTime(2025, 6, 15, 10, 30);
+
         final book = Book(
           id: 'test-id',
           title: 'Test Title',
@@ -142,7 +139,6 @@ void main() {
         );
 
         final json = book.toJson();
-
         expect(json['id'], 'test-id');
         expect(json['title'], 'Test Title');
         expect(json['subtitle'], 'Test Subtitle');
@@ -179,7 +175,6 @@ void main() {
       test('null optional fields serialize as null', () {
         final book = buildTestBook();
         final json = book.toJson();
-
         expect(json['subtitle'], isNull);
         expect(json['isbn'], isNull);
         expect(json['file_path'], isNull);
@@ -229,7 +224,6 @@ void main() {
         };
 
         final book = Book.fromJson(json);
-
         expect(book.id, 'test-id');
         expect(book.title, 'Test Title');
         expect(book.subtitle, 'Sub');
@@ -262,9 +256,7 @@ void main() {
 
       test('defaults for missing optional fields', () {
         final json = {'id': 'test', 'title': 'Title', 'author': 'Author', 'added_at': '2025-01-01T00:00:00.000'};
-
         final book = Book.fromJson(json);
-
         expect(book.coAuthors, isEmpty);
         expect(book.isPhysical, false);
         expect(book.readingStatus, LibraryReadingStatus.unread);
@@ -296,7 +288,6 @@ void main() {
         );
 
         final restored = Book.fromJson(original.toJson());
-
         expect(restored.id, original.id);
         expect(restored.title, original.title);
         expect(restored.coAuthors, original.coAuthors);

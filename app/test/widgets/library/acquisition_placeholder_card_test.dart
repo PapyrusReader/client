@@ -72,7 +72,6 @@ void main() {
     for (final entry in expectedLabels.entries) {
       testWidgets('renders ${entry.key.name}', (tester) async {
         await tester.pumpWidget(_buildCard(job: _job(status: entry.key)));
-
         expect(find.text('A Downloading Book'), findsOneWidget);
         expect(find.text(entry.value), findsOneWidget);
       });
@@ -105,10 +104,8 @@ void main() {
 
       try {
         await tester.pumpWidget(_buildCard(job: _job(status: AcquisitionJobStatus.failed)));
-
         final status = tester.widget<Text>(find.text('Download failed'));
         final node = tester.getSemantics(find.byKey(const ValueKey('acquisition-placeholder-card-job-1')));
-
         expect(find.text('Disk full'), findsNothing);
         expect(node.label, isNot(contains('Disk full')));
         expect(status.style?.color, AppTheme.light.colorScheme.error);
@@ -119,7 +116,6 @@ void main() {
 
     testWidgets('uses a neutral cover rather than release artwork', (tester) async {
       await tester.pumpWidget(_buildCard(job: _job()));
-
       expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
       expect(find.byType(CoverImage), findsNothing);
     });
@@ -141,17 +137,14 @@ void main() {
 
         final finder = find.byKey(const ValueKey('acquisition-placeholder-card-job-1'));
         final node = tester.getSemantics(finder);
-
         expect(node.label, contains('A Downloading Book'));
         expect(node.label, contains('Downloading 42%'));
         expect(node.flagsCollection.isButton, isTrue);
         expect(node.flagsCollection.isSelected, Tristate.isTrue);
         expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
         expect(node.getSemanticsData().hasAction(SemanticsAction.longPress), isTrue);
-
         await tester.tap(finder);
         await tester.longPress(finder);
-
         expect(taps, 1);
         expect(longPresses, 1);
       } finally {
@@ -168,7 +161,6 @@ void main() {
       );
 
       await tester.tap(find.byKey(const ValueKey('acquisition-placeholder-card-job-1')));
-
       expect(taps, 0);
       expect(toggles, 1);
     });
@@ -191,7 +183,6 @@ void main() {
 
         tester.semantics.tap(find.semantics.byLabel('Select A Downloading Book'));
         await tester.tap(find.byIcon(Icons.radio_button_unchecked));
-
         expect(selections, 2);
         expect(details, 0);
       } finally {
@@ -212,12 +203,9 @@ void main() {
       final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await pointer.addPointer(location: tester.getCenter(find.byType(AcquisitionPlaceholderCard)));
       await tester.pumpAndSettle();
-
       expect(tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity, 1);
-
       await pointer.moveTo(tester.getCenter(find.byKey(const ValueKey('acquisition-selector-job-1'))));
       await tester.pumpAndSettle();
-
       expect(tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity, 1);
     });
 
@@ -226,9 +214,7 @@ void main() {
 
       try {
         await tester.pumpWidget(_buildCard(job: _job()));
-
         final node = tester.getSemantics(find.byKey(const ValueKey('acquisition-placeholder-card-job-1')));
-
         expect(node.flagsCollection.isButton, isFalse);
         expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isFalse);
         expect(node.getSemanticsData().hasAction(SemanticsAction.longPress), isFalse);
@@ -239,13 +225,11 @@ void main() {
 
     testWidgets('matches selected BookCard Card treatment in the light theme', (tester) async {
       await tester.pumpWidget(_buildCardPair(theme: AppTheme.light));
-
       _expectCardParity(tester, AppTheme.light);
     });
 
     testWidgets('matches selected BookCard Card treatment in the e-ink theme', (tester) async {
       await tester.pumpWidget(_buildCardPair(theme: AppTheme.eink));
-
       _expectCardParity(tester, AppTheme.eink);
     });
 
@@ -305,11 +289,12 @@ void _expectCardParity(WidgetTester tester, ThemeData theme) {
   final bookMaterial = tester.widget<Material>(_cardMaterial(bookRoot));
   final placeholderMaterial = tester.widget<Material>(_cardMaterial(placeholderRoot));
   final bookMargin = tester.widget<Padding>(find.descendant(of: bookRoot, matching: find.byType(Padding)).first);
+
   final placeholderMargin = tester.widget<Padding>(
     find.descendant(of: placeholderRoot, matching: find.byType(Padding)).first,
   );
-  final selectionColor = theme.colorScheme.primary.withValues(alpha: 0.15);
 
+  final selectionColor = theme.colorScheme.primary.withValues(alpha: 0.15);
   expect(tester.getSize(bookRoot), tester.getSize(placeholderRoot));
   expect(placeholderCard.margin, bookCard.margin);
   expect(placeholderCard.elevation, bookCard.elevation);

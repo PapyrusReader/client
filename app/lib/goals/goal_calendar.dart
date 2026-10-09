@@ -13,8 +13,12 @@ class GoalRange {
 class GoalCalendar {
   static String systemTimezone = 'UTC';
   static bool _initialized = false;
+
   static void initialize() {
-    if (_initialized) return;
+    if (_initialized) {
+      return;
+    }
+
     data.initializeTimeZones();
     _initialized = true;
   }
@@ -33,6 +37,7 @@ class GoalCalendar {
   }
 
   static DateTime local(DateTime date, String zone) => tz.TZDateTime.from(date, location(zone));
+
   static DateTime midnight(DateTime date, String zone) {
     final day = local(date, zone);
     return tz.TZDateTime(location(zone), day.year, day.month, day.day).toUtc();
@@ -54,6 +59,7 @@ class GoalCalendar {
   static GoalRange calendarPeriod(GoalPeriod period, DateTime date, String zone) {
     final day = local(date, zone);
     final loc = location(zone);
+
     final start = switch (period) {
       GoalPeriod.daily => tz.TZDateTime(loc, day.year, day.month, day.day),
       GoalPeriod.weekly => tz.TZDateTime(loc, day.year, day.month, day.day - day.weekday + 1),
@@ -61,6 +67,7 @@ class GoalCalendar {
       GoalPeriod.yearly => tz.TZDateTime(loc, day.year),
       GoalPeriod.custom => throw ArgumentError('A deadline needs explicit dates'),
     };
+
     final end = switch (period) {
       GoalPeriod.daily => tz.TZDateTime(loc, start.year, start.month, start.day + 1),
       GoalPeriod.weekly => tz.TZDateTime(loc, start.year, start.month, start.day + 7),
@@ -68,24 +75,33 @@ class GoalCalendar {
       GoalPeriod.yearly => tz.TZDateTime(loc, start.year + 1),
       GoalPeriod.custom => throw ArgumentError('A deadline needs explicit dates'),
     };
+
     return GoalRange(start.toUtc(), end.toUtc());
   }
 
   static DateTime effectiveNow(ReadingGoal goal, DateTime now) =>
       goal.isArchived && goal.rules.isNotEmpty && goal.rules.last.at.isBefore(now) ? goal.rules.last.at : now;
+
   static GoalRange currentPeriod(ReadingGoal goal, DateTime now) =>
       goal.isRecurring && goal.period != GoalPeriod.custom && !now.isBefore(goal.startDate)
       ? calendarPeriod(goal.period, effectiveNow(goal, now), goal.timezone)
       : GoalRange(goal.startDate, goal.endDate);
+
   static List<GoalRange> pastPeriods(ReadingGoal goal, DateTime now) {
     now = effectiveNow(goal, now);
     final result = <GoalRange>[];
     var period = GoalRange(goal.startDate, goal.endDate);
+
     while (!period.end.isAfter(now)) {
       result.add(period);
-      if (!goal.isRecurring || goal.period == GoalPeriod.custom) break;
+
+      if (!goal.isRecurring || goal.period == GoalPeriod.custom) {
+        break;
+      }
+
       period = calendarPeriod(goal.period, period.end, goal.timezone);
     }
+
     return result;
   }
 }

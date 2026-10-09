@@ -19,7 +19,6 @@ class BookInfoGrid extends StatelessWidget {
 
   List<_InfoEntry> _buildEntries() {
     final entries = <_InfoEntry>[];
-
     entries.add(_InfoEntry('Format', book.formatLabel));
 
     if (book.totalPages != null) {
@@ -49,6 +48,7 @@ class BookInfoGrid extends StatelessWidget {
       final seriesValue = book.seriesNumber != null
           ? '${book.seriesName} #${_formatSeriesNumber(book.seriesNumber!)}'
           : book.seriesName!;
+
       entries.add(_InfoEntry('Series', seriesValue));
     } else if (book.seriesNumber != null) {
       entries.add(_InfoEntry('Series', '#${_formatSeriesNumber(book.seriesNumber!)}'));
@@ -74,6 +74,7 @@ class BookInfoGrid extends StatelessWidget {
       final lentValue = book.lentAt != null
           ? '${book.lentTo!} (since ${DateFormat.yMMMd().format(book.lentAt!)})'
           : book.lentTo!;
+
       entries.add(_InfoEntry('Lent to', lentValue));
     }
 

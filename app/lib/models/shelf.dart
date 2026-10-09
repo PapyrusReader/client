@@ -79,13 +79,18 @@ class Shelf {
 
   /// Get display text for book count.
   String get bookCountLabel {
-    if (bookCount == 1) return '1 book';
+    if (bookCount == 1) {
+      return '1 book';
+    }
+
     return '$bookCount books';
   }
 
-  /// Get the color from hex string.
   Color? get color {
-    if (colorHex == null) return null;
+    if (colorHex == null) {
+      return null;
+    }
+
     try {
       final hex = colorHex!.replaceFirst('#', '');
       return Color(int.parse('FF$hex', radix: 16));
@@ -141,9 +146,9 @@ class Shelf {
     );
   }
 
-  /// Convert to JSON for API/storage.
   Map<String, dynamic> toJson() {
     final descriptor = iconDescriptor;
+
     return {
       'id': id,
       'name': name,
@@ -162,9 +167,9 @@ class Shelf {
     };
   }
 
-  /// Create from JSON.
   factory Shelf.fromJson(Map<String, dynamic> json) {
     final codePoint = json['icon'] as int?;
+
     final descriptor = codePoint == null
         ? null
         : ShelfIconDescriptor(
@@ -176,6 +181,7 @@ class Shelf {
             fontPackage: json['icon_font_package'] as String?,
             matchTextDirection: json['icon_match_text_direction'] as bool? ?? false,
           );
+
     return Shelf(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -195,12 +201,18 @@ class Shelf {
   /// Resolve a stored descriptor to a constant display icon.
   /// Only returns icons from availableIcons to allow tree shaking.
   static IconData? _iconFromDescriptor(ShelfIconDescriptor? descriptor) {
-    if (descriptor == null) return null;
+    if (descriptor == null) {
+      return null;
+    }
     // Look up in available icons only (for tree shaking compatibility)
+
     for (final icon in availableIcons) {
-      if (descriptor.matches(icon)) return icon;
+      if (descriptor.matches(icon)) {
+        return icon;
+      }
     }
     // Return default icon if not found (instead of creating non-const IconData)
+
     return Icons.folder_outlined;
   }
 
@@ -251,6 +263,7 @@ class Shelf {
   /// Sample shelves for backwards compatibility.
   static List<Shelf> get sampleShelves {
     final now = DateTime.now();
+
     return [
       Shelf(
         id: 'shelf-1',

@@ -30,16 +30,19 @@ class RemoteReleaseList extends StatelessWidget {
         final selected = selectedReleaseTokens.contains(release.releaseToken);
         final trimmedError = errorsByReleaseToken[release.releaseToken]?.trim();
         final error = trimmedError == null || trimmedError.isEmpty ? null : trimmedError;
+
         final formatHints = release.formatHints
             .map((format) => format.trim().toUpperCase())
             .where((format) => format.isNotEmpty)
             .join(', ');
+
         final details = <String>[
           release.indexer.trim(),
           if (formatHints.isNotEmpty) formatHints,
           if (release.sizeBytes != null) _formatBytes(release.sizeBytes!),
           if (release.seeders != null) '${release.seeders} seeders',
         ].where((detail) => detail.isNotEmpty).toList();
+
         final semanticLabel = _semanticLabel(release.title, details, error);
 
         return Semantics(

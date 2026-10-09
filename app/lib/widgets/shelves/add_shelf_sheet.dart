@@ -67,6 +67,7 @@ class _AddShelfSheetState extends State<AddShelfSheet> with PersistentSave<AddSh
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+
     return AppBottomSheet(
       title: _isEditing ? 'Edit shelf' : 'Create new shelf',
       onClose: () => Navigator.of(context).pop(),
@@ -261,7 +262,10 @@ class _AddShelfSheetState extends State<AddShelfSheet> with PersistentSave<AddSh
 
   Future<void> _onSave() async {
     final name = _nameController.text.trim();
-    if (name.isEmpty) return;
+
+    if (name.isEmpty) {
+      return;
+    }
 
     final saved = await persist(
       () => widget.onSave?.call(
@@ -271,6 +275,9 @@ class _AddShelfSheetState extends State<AddShelfSheet> with PersistentSave<AddSh
         _selectedIcon,
       ),
     );
-    if (saved && mounted) Navigator.of(context).pop();
+
+    if (saved && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 }

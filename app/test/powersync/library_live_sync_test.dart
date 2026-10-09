@@ -19,10 +19,13 @@ import 'package:uuid/uuid.dart';
 
 class _MemoryRefreshStorage implements RefreshTokenStorage {
   String? token;
+
   @override
   Future<String?> read() async => token;
+
   @override
   Future<void> write(String refreshToken) async => token = refreshToken;
+
   @override
   Future<void> delete() async => token = null;
 }
@@ -33,7 +36,11 @@ class _DiagnosticClient extends http.BaseClient {
   @override
   Future<http.StreamedResponse> send(http.BaseRequest request) async {
     final response = await _client.send(request);
-    if (response.statusCode < 400 || !request.url.path.endsWith('/powersync-upload')) return response;
+
+    if (response.statusCode < 400 || !request.url.path.endsWith('/powersync-upload')) {
+      return response;
+    }
+
     final body = await response.stream.toBytes();
     stderr.writeln('Sync upload failed (${response.statusCode}): ${utf8.decode(body)}');
     return http.StreamedResponse(Stream.value(body), response.statusCode, headers: response.headers, request: request);
@@ -45,10 +52,15 @@ class _DiagnosticClient extends http.BaseClient {
 
 Future<void> _eventually(Future<bool> Function() condition, String description) async {
   final deadline = DateTime.now().add(const Duration(seconds: 90));
+
   while (DateTime.now().isBefore(deadline)) {
-    if (await condition()) return;
+    if (await condition()) {
+      return;
+    }
+
     await Future<void>.delayed(const Duration(milliseconds: 100));
   }
+
   fail('Timed out: $description');
 }
 
@@ -59,23 +71,28 @@ void main() {
       final directory = await Directory.systemTemp.createTemp('papyrus-live-library-');
       final client = _DiagnosticClient();
       final config = PapyrusApiConfig(serverBaseUri: Uri.parse('http://localhost:8080'));
+
       AuthRepository auth() => AuthRepository(
         apiClient: AuthApiClient(config: config, httpClient: client),
         tokenStore: TokenStore(_MemoryRefreshStorage()),
       );
+
       final firstAuth = auth();
       final secondAuth = auth();
       final otherAuth = auth();
       final suffix = const Uuid().v4();
       final email = 'sync-check-$suffix@example.com';
       final password = 'SyncCheck-$suffix';
+
       final owner = await firstAuth.register(
         email: email,
         password: password,
         displayName: 'Sync validation',
         clientType: 'desktop',
       );
+
       await secondAuth.login(email: email, password: password, clientType: 'desktop');
+
       final other = await otherAuth.register(
         email: 'other-$email',
         password: password,
@@ -85,6 +102,7 @@ void main() {
 
       PapyrusPowerSyncService device(String name, AuthRepository repository, {bool connect = true}) {
         late PapyrusPowerSyncService result;
+
         result = PapyrusPowerSyncService(
           connectAuthenticated: connect,
           connectorFactory: () => PapyrusPowerSyncConnector(
@@ -94,6 +112,7 @@ void main() {
           ),
           pathResolver: (_, _, _) async => '${directory.path}/$name.db',
         );
+
         return result;
       }
 
@@ -107,10 +126,12 @@ void main() {
       final annotationId = const Uuid().v4();
       final bookmarkId = const Uuid().v4();
       final now = DateTime.now().toUtc();
+
       try {
         await first.activateAuthenticated(owner.user.userId);
         await second.activateAuthenticated(owner.user.userId);
         await outsider.activateAuthenticated(other.user.userId);
+
         await first.upsert(
           Book(
             id: bookId,
@@ -122,9 +143,11 @@ void main() {
             physicalLocation: 'Room A',
           ),
         );
+
         await first.shelves.upsert(Shelf(id: shelfId, name: 'Shelf', createdAt: now, updatedAt: now));
         await first.tags.upsert(Tag(id: tagId, name: 'Topic', colorHex: '#123456', createdAt: now));
         await first.notes.upsert(Note(id: noteId, bookId: bookId, title: 'Note', content: 'Original', createdAt: now));
+
         await first.bookmarks.upsert(
           Bookmark(
             id: bookmarkId,
@@ -136,6 +159,7 @@ void main() {
             createdAt: now,
           ),
         );
+
         await first.annotations.upsert(
           Annotation(
             id: annotationId,
@@ -146,33 +170,38 @@ void main() {
             createdAt: now,
           ),
         );
+
         await first.memberships.updateMemberships(bookIds: {bookId}, shelfIds: [shelfId], tagIds: [tagId]);
 
         await _eventually(
           () async => await second.bookTags.getById('$bookId:$tagId') != null,
           'all domain rows reach device two',
         );
+
         expect((await second.shelves.getById(shelfId))?.name, 'Shelf');
         expect((await second.tags.getById(tagId))?.name, 'Topic');
         expect((await second.annotations.getById(annotationId))?.note, 'Attached');
         expect((await second.getById(bookId))?.publicationDate, DateTime.utc(2020));
         expect(await second.bookShelves.getById('$bookId:$shelfId'), isNotNull);
+
         await _eventually(
           () async => await second.bookmarks.getById(bookmarkId) != null,
           'bookmark reaches device two',
         );
-        expect((await second.bookmarks.getById(bookmarkId))?.pageNumber, 15);
 
+        expect((await second.bookmarks.getById(bookmarkId))?.pageNumber, 15);
         await second.setOnline(false);
         final baselineNote = (await second.notes.getById(noteId))!;
         final baselineBook = (await second.getById(bookId))!;
         final baselineBookmark = (await second.bookmarks.getById(bookmarkId))!;
         await second.bookmarks.upsert(baselineBookmark.copyWith(note: null), previous: baselineBookmark);
         await second.notes.upsert(baselineNote.copyWith(content: 'Offline edit'), previous: baselineNote);
+
         await second.scopedBooks.update(
           baselineBook.copyWith(physicalLocation: 'Room B', isFavorite: true),
           previous: baselineBook,
         );
+
         await second.close();
         second = device('two', secondAuth, connect: false);
         await second.activateAuthenticated(owner.user.userId);
@@ -187,20 +216,25 @@ void main() {
         await first.bookmarks.upsert(onlineBookmark.copyWith(colorHex: '#2196F3'), previous: onlineBookmark);
         await _eventually(() async => !first.syncState.hasPendingWrites, 'online writes upload');
         await second.setOnline(true);
+
         await _eventually(
           () async => (await first.notes.getById(noteId))?.content == 'Offline edit',
           'offline writes upload after restart',
         );
+
         await _eventually(
           () async => (await second.notes.getById(noteId))?.title == 'Remote title',
           'different fields merge',
         );
+
         expect((await first.getById(bookId))?.physicalLocation, 'Room B');
         await _eventually(() async => (await second.getById(bookId))?.lentTo == 'Reader', 'promoted book fields merge');
+
         await _eventually(
           () async => (await first.getById(bookId))?.isFavorite == true,
           'favorite syncs after restart',
         );
+
         await _eventually(
           () async =>
               (await first.bookmarks.getById(bookmarkId))?.note == null &&
@@ -217,17 +251,19 @@ void main() {
         await first.scopedBooks.update(beforeClear.copyWith(clearLentTo: true), previous: beforeClear);
         await _eventually(() async => !first.syncState.hasPendingWrites, 'first competing edit uploads');
         await second.setOnline(true);
+
         await _eventually(
           () async => (await first.notes.getById(noteId))?.content == 'Last accepted',
           'same-field conflicts follow server acceptance order',
         );
-        await _eventually(() async => (await second.getById(bookId))?.lentTo == null, 'explicit null clears remotely');
 
+        await _eventually(() async => (await second.getById(bookId))?.lentTo == null, 'explicit null clears remotely');
         final topic = (await first.tags.getById(tagId))!;
         await first.tags.upsert(topic.copyWith(name: 'Renamed topic'), previous: topic);
         final annotation = (await first.annotations.getById(annotationId))!;
         await first.annotations.upsert(annotation.copyWith(note: 'Edited attachment'), previous: annotation);
         await first.memberships.updateMemberships(bookIds: {bookId}, shelfIds: [], previousShelfIds: {shelfId});
+
         await _eventually(
           () async =>
               await second.bookShelves.getById('$bookId:$shelfId') == null &&
@@ -245,7 +281,6 @@ void main() {
         expect(await outsider.bookmarks.getById(bookmarkId), isNull);
         expect(await outsider.bookShelves.getById('$bookId:$shelfId'), isNull);
         expect(await outsider.bookTags.getById('$bookId:$tagId'), isNull);
-
         await second.setOnline(false);
         final stale = (await second.notes.getById(noteId))!;
         await second.notes.upsert(stale.copyWith(content: 'Stale after deletion'), previous: stale);
@@ -254,15 +289,19 @@ void main() {
         await first.delete(bookId);
         await _eventually(() async => !first.syncState.hasPendingWrites, 'book deletion uploads');
         await second.setOnline(true);
+
         await _eventually(
           () async => await second.getById(bookId) == null && await second.notes.getById(noteId) == null,
           'deletion wins against offline edit',
         );
+
         expect(await second.annotations.getById(annotationId), isNull);
+
         await _eventually(
           () async => await second.bookmarks.getById(bookmarkId) == null,
           'bookmark deletion defeats stale edits',
         );
+
         expect(await second.bookShelves.getById('$bookId:$shelfId'), isNull);
         expect(await second.bookTags.getById('$bookId:$tagId'), isNull);
         await _eventually(() async => !second.syncState.hasPendingWrites, 'stale write queue drains');
@@ -273,6 +312,7 @@ void main() {
         await first.close();
         await second.close();
         await outsider.close();
+
         for (final repository in [firstAuth, otherAuth]) {
           final response = await client.delete(
             config.endpoint('/users/me'),
@@ -282,8 +322,10 @@ void main() {
             },
             body: jsonEncode({'password': password}),
           );
+
           expect(response.statusCode, 204);
         }
+
         client.close();
         await directory.delete(recursive: true);
       }

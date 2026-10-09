@@ -66,15 +66,12 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
           if (isDesktop) {
             return _buildDesktopLayout(context, provider);
           }
+
           return _buildMobileLayout(context, provider);
         },
       ),
     );
   }
-
-  // ============================================================================
-  // MOBILE LAYOUT
-  // ============================================================================
 
   Widget _buildMobileLayout(BuildContext context, AnnotationsProvider provider) {
     return Scaffold(
@@ -111,10 +108,6 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
     );
   }
 
-  // ============================================================================
-  // DESKTOP LAYOUT
-  // ============================================================================
-
   Widget _buildDesktopLayout(BuildContext context, AnnotationsProvider provider) {
     return Scaffold(
       body: Column(
@@ -140,10 +133,6 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
       ),
     );
   }
-
-  // ============================================================================
-  // SHARED WIDGETS
-  // ============================================================================
 
   Widget _buildSearchField(AnnotationsProvider provider, {Widget? leading}) {
     return TextField(
@@ -283,6 +272,7 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
 
     for (final entry in groups.entries) {
       final isCollapsed = _collapsedGroups.contains(entry.key);
+
       items.add(
         BookGroupHeader(
           bookId: entry.key,
@@ -303,6 +293,7 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
           },
         ),
       );
+
       if (!isCollapsed) {
         for (final annotation in entry.value) {
           items.add(
@@ -323,10 +314,6 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
     );
   }
 
-  // ============================================================================
-  // ACTIONS
-  // ============================================================================
-
   void _navigateToBook(BuildContext context, String bookId) {
     context.goNamed('BOOK_DETAILS', pathParameters: {'bookId': bookId});
   }
@@ -335,7 +322,9 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
     final repository = context.read<DataStore>().libraryRepository?.annotations;
     final action = await AnnotationActionSheet.show(context, annotation: annotation);
 
-    if (action == null || !mounted) return;
+    if (action == null || !mounted) {
+      return;
+    }
 
     switch (action) {
       case AnnotationAction.edit:
@@ -347,13 +336,17 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
 
   void _onEditAnnotation(Annotation annotation, EntityRepository<Annotation>? repository) async {
     final store = context.read<DataStore>();
+
     await AnnotationDialog.show(
       context,
       bookId: annotation.bookId,
       existingAnnotation: annotation,
       onSave: (updated) => store.updateAnnotation(updated, previous: annotation, repository: repository),
     );
-    if (!mounted) return;
+
+    if (!mounted) {
+      return;
+    }
   }
 
   void _onDeleteAnnotation(
@@ -363,6 +356,7 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
   ) async {
     final bookTitle = provider.getBookTitle(annotation.bookId);
     final confirmed = await DeleteAnnotationDialog.show(context, annotation: annotation, bookTitle: bookTitle);
+
     if (confirmed && mounted) {
       try {
         await provider.deleteAnnotation(annotation.id, repository: repository);
@@ -373,6 +367,7 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
             const SnackBar(content: Text('Could not delete. Please try again.')),
           );
         }
+
         return;
       }
     }

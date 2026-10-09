@@ -39,6 +39,7 @@ class AcquisitionAvailabilityProvider extends ChangeNotifier {
       if (_state == AcquisitionAvailabilityState.loading) {
         return _refreshOperation ?? Future<void>.value();
       }
+
       if (!force && _state != AcquisitionAvailabilityState.unknown) {
         return Future<void>.value();
       }
@@ -51,9 +52,9 @@ class AcquisitionAvailabilityProvider extends ChangeNotifier {
     final generation = ++_generation;
     _state = AcquisitionAvailabilityState.loading;
     notifyListeners();
-
     final operation = _load(serverBaseUri, generation);
     _refreshOperation = operation;
+
     return operation.whenComplete(() {
       if (identical(_refreshOperation, operation)) {
         _refreshOperation = null;
@@ -80,6 +81,7 @@ class AcquisitionAvailabilityProvider extends ChangeNotifier {
       final capabilities = await (_loadCapabilities != null
           ? _loadCapabilities(serverBaseUri)
           : _loadFromServer(serverBaseUri));
+
       if (generation != _generation || _serverBaseUri != serverBaseUri) {
         return;
       }

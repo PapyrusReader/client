@@ -194,6 +194,7 @@ class AuthProvider extends ChangeNotifier {
         _error = _messageFor(error);
         _setStatus(AuthStatus.signedOut);
       }
+
       rethrow;
     }
   }

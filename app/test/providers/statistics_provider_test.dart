@@ -7,10 +7,12 @@ import 'package:papyrus/providers/enums/library_reading_status.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
+
   test('historical completion dates survive the ledger upgrade without resurrecting undone entries', () async {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
     final previousMonth = DateTime(now.year, now.month - 1, 15);
+
     Book completed(String id, DateTime at) => Book(
       id: id,
       title: id,
@@ -19,6 +21,7 @@ void main() {
       readingStatus: LibraryReadingStatus.completed,
       completedAt: at,
     );
+
     final store = DataStore()
       ..loadData(
         books: [
@@ -28,7 +31,9 @@ void main() {
           completed('undone', today),
         ],
       );
+
     addTearDown(store.dispose);
+
     ReadingActivity completion(String id, String bookId) => ReadingActivity(
       id: id,
       bookId: bookId,
@@ -38,7 +43,9 @@ void main() {
       createdAt: today,
       kind: 'completion',
     );
+
     final undone = completion('undone-entry', 'undone');
+
     await store.commitTracking(
       activities: [
         completion('tracked-one', 'tracked'),
@@ -47,6 +54,7 @@ void main() {
         store.reversalFor(undone),
       ],
     );
+
     final provider = StatisticsProvider()..attach(store);
     addTearDown(provider.dispose);
     provider.setPeriod(StatsPeriod.allTime);
@@ -56,6 +64,6 @@ void main() {
     expect(provider.readingTimeData.last.booksRead, unorderedEquals(['legacy-today', 'tracked']));
     provider.setCustomDateRange(previousMonth, previousMonth);
     expect(provider.totalBooks, 1);
-    expect(store.readingActivities.where((a) => a.bookId.startsWith('legacy')), isEmpty);
+    expect(store.readingActivities.where((activity) => activity.bookId.startsWith('legacy')), isEmpty);
   });
 }

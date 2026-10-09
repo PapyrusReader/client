@@ -31,10 +31,6 @@ class BookEditProvider extends ChangeNotifier {
 
   BookEditProvider({MetadataService? metadataService}) : _metadataService = metadataService ?? MetadataService();
 
-  // ============================================================================
-  // GETTERS
-  // ============================================================================
-
   Book? get originalBook => _originalBook;
   Book? get editedBook => _editedBook;
   bool get isLoading => _isLoading;
@@ -52,18 +48,20 @@ class BookEditProvider extends ChangeNotifier {
 
   /// Whether there are unsaved changes.
   bool get hasUnsavedChanges {
-    if (_originalBook == null || _editedBook == null) return false;
+    if (_originalBook == null || _editedBook == null) {
+      return false;
+    }
     // Check for local cover image as well
-    if (_coverImageBytes != null) return true;
+
+    if (_coverImageBytes != null) {
+      return true;
+    }
+
     return _originalBook != _editedBook;
   }
 
   /// Whether the form can be saved.
   bool get canSave => hasUnsavedChanges && !_isSaving;
-
-  // ============================================================================
-  // DATA STORE
-  // ============================================================================
 
   /// Set the data store reference.
   void setDataStore(DataStore dataStore) {
@@ -87,18 +85,20 @@ class BookEditProvider extends ChangeNotifier {
       final repository = dataStore.requireBookRepository();
       _repository = repository;
       var book = dataStore.getBook(bookId) ?? await repository.getById(bookId);
+
       if (book == null && !dataStore.isLoaded) {
         await dataStore.waitUntilLoaded();
         book = dataStore.getBook(bookId) ?? await repository.getById(bookId);
       }
+
       if (book == null) {
         _error = 'Book not found';
       } else {
         _originalBook = book;
         _editedBook = book;
       }
-    } catch (e) {
-      _error = 'Failed to load book: $e';
+    } catch (error) {
+      _error = 'Failed to load book: $error';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -107,7 +107,9 @@ class BookEditProvider extends ChangeNotifier {
 
   /// Save the edited book to the data store.
   Future<bool> save() async {
-    if (_dataStore == null || _editedBook == null) return false;
+    if (_dataStore == null || _editedBook == null) {
+      return false;
+    }
 
     _isSaving = true;
     _error = null;
@@ -121,8 +123,8 @@ class BookEditProvider extends ChangeNotifier {
       _isSaving = false;
       notifyListeners();
       return true;
-    } catch (e) {
-      _error = 'Failed to save book: $e';
+    } catch (error) {
+      _error = 'Failed to save book: $error';
       _isSaving = false;
       notifyListeners();
       return false;
@@ -137,84 +139,115 @@ class BookEditProvider extends ChangeNotifier {
     }
   }
 
-  // ============================================================================
-  // FIELD UPDATES
-  // ============================================================================
-
   void updateTitle(String value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     _editedBook = _editedBook!.copyWith(title: value);
     notifyListeners();
   }
 
   void updateSubtitle(String? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     final shouldClear = value == null || value.isEmpty;
     _editedBook = _editedBook!.copyWith(subtitle: shouldClear ? null : value, clearSubtitle: shouldClear);
     notifyListeners();
   }
 
   void updateAuthor(String value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     _editedBook = _editedBook!.copyWith(author: value);
     notifyListeners();
   }
 
   void updateCoAuthors(List<String> value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     _editedBook = _editedBook!.copyWith(coAuthors: value);
     notifyListeners();
   }
 
   void updatePublisher(String? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     final shouldClear = value == null || value.isEmpty;
     _editedBook = _editedBook!.copyWith(publisher: shouldClear ? null : value, clearPublisher: shouldClear);
     notifyListeners();
   }
 
   void updateLanguage(String? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     final shouldClear = value == null || value.isEmpty;
     _editedBook = _editedBook!.copyWith(language: shouldClear ? null : value, clearLanguage: shouldClear);
     notifyListeners();
   }
 
   void updatePageCount(int? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     _editedBook = _editedBook!.copyWith(pageCount: value, clearPageCount: value == null);
     notifyListeners();
   }
 
   void updateIsbn(String? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     final shouldClear = value == null || value.isEmpty;
     _editedBook = _editedBook!.copyWith(isbn: shouldClear ? null : value, clearIsbn: shouldClear);
     notifyListeners();
   }
 
   void updateIsbn13(String? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     final shouldClear = value == null || value.isEmpty;
     _editedBook = _editedBook!.copyWith(isbn13: shouldClear ? null : value, clearIsbn13: shouldClear);
     notifyListeners();
   }
 
   void updateDescription(String? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     final shouldClear = value == null || value.isEmpty;
     _editedBook = _editedBook!.copyWith(description: shouldClear ? null : value, clearDescription: shouldClear);
     notifyListeners();
   }
 
   void updateCoverUrl(String? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     final shouldClear = value == null || value.isEmpty;
     _editedBook = _editedBook!.copyWith(coverUrl: shouldClear ? null : value, clearCoverUrl: shouldClear);
     // Clear local bytes when URL is set
+
     if (value != null && value.isNotEmpty) {
       _coverImageBytes = null;
     }
+
     notifyListeners();
   }
 
@@ -222,69 +255,93 @@ class BookEditProvider extends ChangeNotifier {
   void updateCoverFromFile(Uint8List? bytes) {
     _coverImageBytes = bytes;
     // Clear URL when file is uploaded
+
     if (bytes != null && _editedBook != null) {
       _editedBook = _editedBook!.copyWith(clearCoverUrl: true);
     }
+
     notifyListeners();
   }
 
   void updatePublicationDate(DateTime? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     _editedBook = _editedBook!.copyWith(publicationDate: value, clearPublicationDate: value == null);
     notifyListeners();
   }
 
   void updateRating(int? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     _editedBook = _editedBook!.copyWith(rating: value, clearRating: value == null);
     notifyListeners();
   }
 
   void updateSeriesName(String? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     final shouldClear = value == null || value.isEmpty;
     _editedBook = _editedBook!.copyWith(seriesName: shouldClear ? null : value, clearSeriesName: shouldClear);
     notifyListeners();
   }
 
   void updateSeriesNumber(double? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     _editedBook = _editedBook!.copyWith(seriesNumber: value, clearSeriesNumber: value == null);
     notifyListeners();
   }
 
   void updateIsPhysical(bool value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     _editedBook = _editedBook!.copyWith(isPhysical: value);
     notifyListeners();
   }
 
   void updatePhysicalLocation(String? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     final shouldClear = value == null || value.isEmpty;
+
     _editedBook = _editedBook!.copyWith(
       physicalLocation: shouldClear ? null : value,
       clearPhysicalLocation: shouldClear,
     );
+
     notifyListeners();
   }
 
   void updateLentTo(String? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     final shouldClear = value == null || value.isEmpty;
     _editedBook = _editedBook!.copyWith(lentTo: shouldClear ? null : value, clearLentTo: shouldClear);
     notifyListeners();
   }
 
   void updateLentAt(DateTime? value) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
+
     _editedBook = _editedBook!.copyWith(lentAt: value, clearLentAt: value == null);
     notifyListeners();
   }
-
-  // ============================================================================
-  // METADATA FETCH
-  // ============================================================================
 
   /// Set the metadata source for searches.
   void setMetadataSource(MetadataSource source) {
@@ -294,7 +351,9 @@ class BookEditProvider extends ChangeNotifier {
 
   /// Search for book metadata by query.
   Future<void> searchMetadata(String query) async {
-    if (query.trim().isEmpty) return;
+    if (query.trim().isEmpty) {
+      return;
+    }
 
     _fetchState = MetadataFetchState.loading;
     _fetchError = null;
@@ -305,6 +364,7 @@ class BookEditProvider extends ChangeNotifier {
       final results = await _metadataService.search(query, _selectedSource);
       _fetchedResults = results;
       _fetchState = results.isEmpty ? MetadataFetchState.error : MetadataFetchState.success;
+
       if (results.isEmpty) {
         _fetchError = 'No results found';
       }
@@ -318,7 +378,9 @@ class BookEditProvider extends ChangeNotifier {
 
   /// Search for book metadata by ISBN.
   Future<void> searchMetadataByIsbn(String isbn) async {
-    if (isbn.trim().isEmpty) return;
+    if (isbn.trim().isEmpty) {
+      return;
+    }
 
     _fetchState = MetadataFetchState.loading;
     _fetchError = null;
@@ -329,6 +391,7 @@ class BookEditProvider extends ChangeNotifier {
       final results = await _metadataService.searchByIsbn(isbn, _selectedSource);
       _fetchedResults = results;
       _fetchState = results.isEmpty ? MetadataFetchState.error : MetadataFetchState.success;
+
       if (results.isEmpty) {
         _fetchError = 'No results found for ISBN';
       }
@@ -342,25 +405,37 @@ class BookEditProvider extends ChangeNotifier {
 
   /// Try to parse a date string in various formats (yyyy-MM-dd, yyyy-MM, yyyy).
   DateTime? _tryParseDate(String? dateStr) {
-    if (dateStr == null || dateStr.isEmpty) return null;
+    if (dateStr == null || dateStr.isEmpty) {
+      return null;
+    }
     // Try full date: yyyy-MM-dd
+
     final fullDate = DateTime.tryParse(dateStr);
-    if (fullDate != null) return fullDate;
+
+    if (fullDate != null) {
+      return fullDate;
+    }
     // Try year-month: yyyy-MM
+
     if (RegExp(r'^\d{4}-\d{2}$').hasMatch(dateStr)) {
       return DateTime.tryParse('$dateStr-01');
     }
     // Try year only: yyyy
+
     final year = int.tryParse(dateStr);
+
     if (year != null && year > 0 && year < 10000) {
       return DateTime(year);
     }
+
     return null;
   }
 
   /// Apply fetched metadata to the edited book.
   void applyMetadata(BookMetadataResult result) {
-    if (_editedBook == null) return;
+    if (_editedBook == null) {
+      return;
+    }
 
     final parsedDate = _tryParseDate(result.publishedDate);
 

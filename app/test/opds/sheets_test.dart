@@ -60,9 +60,13 @@ class _PendingHttp extends OpdsHttpClient {
     int maxBytes = 8 * 1024 * 1024,
   }) {
     progress = onProgress;
+
     cancellation?.addListener(() {
-      if (!response.isCompleted) response.completeError(const OpdsCancelled());
+      if (!response.isCompleted) {
+        response.completeError(const OpdsCancelled());
+      }
     });
+
     onProgress?.call(20, 100);
     return response.future;
   }
@@ -80,6 +84,7 @@ Future<void> _mountDownloads(WidgetTester tester, OpdsDownloads downloads, Value
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
+
   await tester.pumpWidget(
     MaterialApp(
       theme: AppTheme.eink,
@@ -90,10 +95,12 @@ Future<void> _mountDownloads(WidgetTester tester, OpdsDownloads downloads, Value
       ),
     ),
   );
+
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     downloads.dispose();
   });
+
   await tester.pumpAndSettle();
 }
 
@@ -106,6 +113,7 @@ void main() {
     final store = _PendingStore(await SharedPreferences.getInstance());
     final catalogs = OpdsCatalogs(store)..setScope('local--guest');
     var sidebarTaps = 0;
+
     final router = GoRouter(
       routes: [
         ShellRoute(
@@ -137,17 +145,18 @@ void main() {
         ),
       ],
     );
+
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
       router.dispose();
       catalogs.dispose();
     });
+
     await tester.pumpWidget(MaterialApp.router(theme: AppTheme.light, routerConfig: router));
     await tester.pumpAndSettle();
     final sidebarPosition = tester.getCenter(find.text('Sidebar action'));
     await tester.tap(find.text('Open editor'));
     await tester.pumpAndSettle();
-
     expect(AppMotion.disabled(tester.element(find.byType(CatalogEditor))), isTrue);
     final barrier = tester.getRect(find.byWidgetPredicate((widget) => widget is ModalBarrier && widget.color != null));
     expect(barrier.left, 0);
@@ -160,7 +169,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(sidebarTaps, 0);
     expect(find.byType(BottomSheet), findsOneWidget);
-
     store.finish.completeError(const OpdsException('Save failed.'));
     await tester.pumpAndSettle();
     await tester.tapAt(sidebarPosition);
@@ -179,8 +187,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetViewInsets);
     SharedPreferences.setMockInitialValues({});
+
     final catalogs = OpdsCatalogs(OpdsCatalogStore(await SharedPreferences.getInstance(), secrets: MemorySecrets()))
       ..setScope('local--guest');
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.eink,
@@ -198,6 +208,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open editor'));
     await tester.pumpAndSettle();
     final title = tester.getRect(find.text('Add catalog'));
@@ -212,10 +223,12 @@ void main() {
     expect(tester.getSize(cancel).height, tester.getSize(save).height);
     tester.view.viewInsets = const FakeViewPadding(bottom: 300);
     await tester.pumpAndSettle();
+
     for (final label in ['Cancel', 'Save']) {
       expect(find.text(label).hitTestable(), findsOneWidget);
       expect(tester.getBottomLeft(find.text(label)).dy, lessThan(340));
     }
+
     expect(tester.takeException(), isNull);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
@@ -228,6 +241,7 @@ void main() {
     final downloads = OpdsDownloads(httpClient: gateway, captureImport: _unusedSession);
     final operation = downloads.start(_catalog, _publication, _link);
     gateway.progress!(20, null);
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
@@ -239,12 +253,14 @@ void main() {
         ),
       ),
     );
+
     addTearDown(() async {
       downloads.cancel(downloads.jobs.single.key);
       await tester.pump();
       await tester.pumpWidget(const SizedBox.shrink());
       downloads.dispose();
     });
+
     await tester.tap(find.byTooltip('Downloads'));
     await tester.pump();
     final progress = find.byType(AppLinearProgressIndicator);
@@ -261,6 +277,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final store = _PendingStore(await SharedPreferences.getInstance());
     final catalogs = OpdsCatalogs(store)..setScope('local--guest');
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.eink,
@@ -274,6 +291,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open editor'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('opds-name')), 'My catalog');
@@ -307,8 +325,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     addTearDown(tester.view.resetViewInsets);
     SharedPreferences.setMockInitialValues({});
+
     final catalogs = OpdsCatalogs(OpdsCatalogStore(await SharedPreferences.getInstance(), secrets: MemorySecrets()))
       ..setScope('local--guest');
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.eink,
@@ -322,6 +342,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open editor'));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('opds-sheet-header')), findsOneWidget);
@@ -398,6 +419,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final gateway = _PendingHttp();
     final finish = Completer<Book>();
+
     final downloads = OpdsDownloads(
       httpClient: gateway,
       captureImport: () => BookImportSession(
@@ -414,7 +436,9 @@ void main() {
         isCurrent: () => true,
       ),
     );
+
     final operation = downloads.start(_catalog, _publication, _link);
+
     final router = GoRouter(
       routes: [
         GoRoute(
@@ -429,6 +453,7 @@ void main() {
         ),
       ],
     );
+
     await tester.pumpWidget(
       MaterialApp.router(
         theme: AppTheme.eink,
@@ -439,6 +464,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.byTooltip('Downloads'));
     await tester.pumpAndSettle();
     gateway.response.complete(OpdsResponse(uri: _link.uri, bytes: Uint8List.fromList([1, 2, 3]), headers: const {}));

@@ -19,7 +19,6 @@ void main() {
 
     await tester.tap(find.text('Add annotation'));
     await tester.pumpAndSettle();
-
     expect(find.byType(DraggableScrollableSheet), findsNothing);
     expect(find.text('New annotation'), findsOneWidget);
     await tester.drag(find.byType(ListView), const Offset(0, -300));

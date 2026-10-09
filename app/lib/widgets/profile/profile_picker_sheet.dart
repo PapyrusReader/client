@@ -23,6 +23,7 @@ void showProfilePickerSheet(
         children: items.map((item) {
           final colorScheme = Theme.of(sheetContext).colorScheme;
           final isSelected = selected == item.$2;
+
           return ListTile(
             title: Text(item.$1),
             leading: Icon(

@@ -58,6 +58,7 @@ Future<void> _mount(
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
   final transfers = downloads ?? OpdsDownloads(captureImport: () => throw StateError('Unused import'));
+
   await tester.pumpWidget(
     ChangeNotifierProvider.value(
       value: transfers,
@@ -74,10 +75,12 @@ Future<void> _mount(
       ),
     ),
   );
+
   addTearDown(() async {
     await tester.pumpWidget(const SizedBox.shrink());
     transfers.dispose();
   });
+
   await _settle(tester);
 }
 
@@ -107,8 +110,11 @@ class _PendingHttp extends OpdsHttpClient {
     int maxBytes = 8 * 1024 * 1024,
   }) {
     cancellation?.addListener(() {
-      if (!response.isCompleted) response.completeError(const OpdsCancelled());
+      if (!response.isCompleted) {
+        response.completeError(const OpdsCancelled());
+      }
     });
+
     onProgress?.call(512, 1024);
     return response.future;
   }
@@ -130,6 +136,7 @@ void main() {
   ]) {
     testWidgets('catalog details fit $size at text scale $textScale with bottom navigation', (tester) async {
       final downloads = OpdsDownloads(captureImport: _unusedSession);
+
       await _mount(
         tester,
         Scaffold(
@@ -158,6 +165,7 @@ void main() {
         textScale: textScale,
         downloads: downloads,
       );
+
       expect(tester.takeException(), isNull);
 
       // Exercise the exact boundary that previously made the fixed tab row
@@ -171,17 +179,18 @@ void main() {
       expect(tester.takeException(), isNull);
       tester.view.physicalSize = size;
       await _settle(tester);
-
       final rail = find.byType(BookDetailsTabRail);
       final navigationTop = tester.getTopLeft(find.byType(NavigationBar)).dy;
       await tester.dragFrom(Offset(size.width / 2, navigationTop - 30), const Offset(0, -1000));
       await _settle(tester);
       expect(tester.getTopLeft(rail).dy, appBarBottom);
       expect(tester.getBottomLeft(rail).dy, lessThan(navigationTop));
+
       final contentViewport = find.descendant(
         of: find.byType(TabBarView),
         matching: find.byType(SingleChildScrollView),
       );
+
       expect(tester.getTopLeft(contentViewport).dy, tester.getBottomLeft(rail).dy);
       expect(tester.getBottomLeft(contentViewport).dy, navigationTop);
       expect(tester.takeException(), isNull);
@@ -191,6 +200,7 @@ void main() {
   for (final width in [360.0, 424.0]) {
     testWidgets('mobile $width details rail stays below the header while content scrolls', (tester) async {
       final downloads = OpdsDownloads(captureImport: _unusedSession);
+
       await _mount(
         tester,
         Scaffold(
@@ -208,6 +218,7 @@ void main() {
         width: width,
         downloads: downloads,
       );
+
       final rail = find.byType(BookDetailsTabRail);
       final headerBottom = tester.getBottomLeft(find.byType(AppBar)).dy;
       final description = find.byKey(const Key('opds-description'));
@@ -257,6 +268,7 @@ void main() {
       theme: AppTheme.dark,
       width: 424,
     );
+
     final card = find.byKey(const ValueKey('one'));
     final title = find.descendant(of: card, matching: find.text('Short title'));
     expect(tester.getSize(title).height, lessThan(26));
@@ -264,19 +276,24 @@ void main() {
     expect(tester.getTopLeft(author).dy - tester.getBottomLeft(title).dy, lessThanOrEqualTo(8));
     expect(tester.widget<Text>(find.descendant(of: card, matching: find.text(_epub.title!))).maxLines, 2);
     final cover = tester.getRect(find.descendant(of: card, matching: find.byType(OpdsCover)));
+
     final other = tester.getRect(
       find.descendant(of: find.byKey(const ValueKey('two')), matching: find.byType(OpdsCover)),
     );
+
     expect(cover.height, closeTo(cover.width * 1.5, 1));
     expect(cover.size, other.size);
+
     expect(
       tester
           .getRect(find.byTooltip('List view'))
           .overlaps(tester.getRect(find.text('Pride and Prejudice by Jane Austen'))),
       isFalse,
     );
+
     expect(tester.takeException(), isNull);
   });
+
   testWidgets('relay failure offers retry without a manual browser download', (tester) async {
     final downloads = OpdsDownloads(
       captureImport: _unusedSession,
@@ -286,6 +303,7 @@ void main() {
         }),
       ),
     );
+
     await downloads.start(_catalog, _publication(), _epub);
     await _mount(tester, _panel(downloads), theme: AppTheme.light, downloads: downloads);
     await tester.tap(find.byTooltip('Downloads'));
@@ -297,12 +315,14 @@ void main() {
   });
 
   final themes = [('light', AppTheme.light), ('dark', AppTheme.dark), ('eink', AppTheme.eink)];
+
   for (final (name, theme) in themes) {
     for (final width in [360.0, 1280.0]) {
       testWidgets('$name $width feed switches grid/list and keeps navigation and pagination usable', (tester) async {
         var grid = true;
         Uri? navigated;
         Uri? paged;
+
         final feed = OpdsFeed(
           uri: _catalog.uri,
           title: 'Popular books',
@@ -323,6 +343,7 @@ void main() {
             OpdsLink(uri: Uri.parse('https://books.test/feed?page=3'), rels: ['next']),
           ],
         );
+
         await _mount(
           tester,
           Padding(
@@ -344,17 +365,20 @@ void main() {
           theme: theme,
           width: width,
         );
+
         expect(find.text('Jane Austen · novels and stories'), findsOneWidget);
         expect(find.byIcon(Icons.folder_outlined), findsNothing);
         final first = find.byKey(const ValueKey('one'));
         final second = find.byKey(const ValueKey('two'));
         expect(tester.getTopLeft(first).dy, tester.getTopLeft(second).dy);
         expect(tester.getTopLeft(second).dx, greaterThan(tester.getTopLeft(first).dx));
+
         expect(
           tester.getBottomLeft(find.descendant(of: first, matching: find.byType(OpdsCover))).dy,
           tester.getBottomLeft(find.descendant(of: second, matching: find.byType(OpdsCover))).dy,
           reason: 'Grid covers align when titles occupy different numbers of lines.',
         );
+
         await tester.tap(find.text('An author collection'));
         expect(navigated, Uri.parse('https://books.test/author'));
         expect(find.byType(SegmentedButton<bool>), findsNothing);
@@ -389,8 +413,10 @@ void main() {
           (index) =>
               'Paragraph ${index + 1}. This edition includes notes about the story, its characters, and the original publication.',
         ).join('\n\n');
+
         final selected = <OpdsLink>[];
         final downloads = OpdsDownloads(captureImport: _unusedSession);
+
         await _mount(
           tester,
           Padding(
@@ -408,6 +434,7 @@ void main() {
           width: width,
           downloads: downloads,
         );
+
         expect(find.byType(Dialog), findsNothing);
         expect(find.byType(BottomSheet), findsNothing);
         expect(find.text(_catalog.name), findsNothing);
@@ -420,6 +447,7 @@ void main() {
         expect(find.text('Download options'), findsOneWidget);
         await tester.tap(find.text('Download EPUB'));
         expect(selected, [_epub]);
+
         if (OpdsDownloads.supports(_pdf)) {
           await tester.tap(find.text('Download PDF'));
           expect(selected, [_epub, _pdf]);
@@ -429,6 +457,7 @@ void main() {
           await _settle(tester);
           expect(find.textContaining('cannot be imported'), findsOneWidget);
         }
+
         await tester.tap(find.text('Close'));
         await _settle(tester);
         expect(find.byType(BottomSheet), findsNothing);
@@ -470,12 +499,14 @@ void main() {
     final downloads = OpdsDownloads(httpClient: gateway, captureImport: _unusedSession);
     final operation = downloads.start(_catalog, _publication(), _epub);
     final retried = <OpdsDownloadJob>[];
+
     await _mount(
       tester,
       _panel(downloads, onRetry: retried.add),
       theme: AppTheme.dark,
       downloads: downloads,
     );
+
     gateway.response.completeError(const OpdsException('The catalog could not send this book.'));
     await operation;
     await _settle(tester);
@@ -496,6 +527,7 @@ void main() {
   for (final width in [360.0, 424.0, 1280.0]) {
     testWidgets('$width download panel keeps completed actions beside the book and protects commit', (tester) async {
       final finish = Completer<Book>();
+
       final downloads = OpdsDownloads(
         httpClient: _gateway,
         captureImport: () => BookImportSession(
@@ -512,6 +544,7 @@ void main() {
           commit: (_, _) => finish.future,
         ),
       );
+
       final operation = downloads.start(_catalog, _publication(), _epub);
       await _mount(tester, _panel(downloads), theme: AppTheme.light, width: width, downloads: downloads);
       expect(downloads.jobs.single.status, OpdsDownloadStatus.committing);
@@ -527,14 +560,17 @@ void main() {
       await _settle(tester);
       expect(find.text('Added to library'), findsOneWidget);
       expect(find.text('Open book'), findsOneWidget);
+
       expect(
         tester.getCenter(find.text('Open book')).dy,
         lessThan(tester.getBottomLeft(find.text('Added to library')).dy),
       );
+
       expect(
         tester.getCenter(find.text('Open book')).dy,
         greaterThan(tester.getTopLeft(find.text('Pride and Prejudice')).dy),
       );
+
       await tester.tap(find.byTooltip('Dismiss download'));
       await tester.pumpAndSettle();
       expect(downloads.jobs, isEmpty);

@@ -79,17 +79,9 @@ class _ShelvesPageState extends State<ShelvesPage> {
     );
   }
 
-  // ============================================================================
-  // LOADING STATE
-  // ============================================================================
-
   Widget _buildLoadingState(BuildContext context) {
     return const Scaffold(body: Center(child: AppCircularProgressIndicator()));
   }
-
-  // ============================================================================
-  // MOBILE LAYOUT
-  // ============================================================================
 
   Widget _buildMobileLayout(BuildContext context, ShelvesProvider provider) {
     final shelves = provider.shelves;
@@ -126,10 +118,6 @@ class _ShelvesPageState extends State<ShelvesPage> {
     );
   }
 
-  // ============================================================================
-  // DESKTOP LAYOUT
-  // ============================================================================
-
   Widget _buildDesktopLayout(BuildContext context, ShelvesProvider provider) {
     final shelves = provider.shelves;
 
@@ -158,10 +146,6 @@ class _ShelvesPageState extends State<ShelvesPage> {
     );
   }
 
-  // ============================================================================
-  // HEADER CONTROLS
-  // ============================================================================
-
   Widget _buildSearchField(ShelvesProvider provider, {Widget? leading}) {
     return TextField(
       controller: _searchController,
@@ -186,20 +170,19 @@ class _ShelvesPageState extends State<ShelvesPage> {
     );
   }
 
-  // ============================================================================
-  // SHARED WIDGETS
-  // ============================================================================
-
   Widget _buildShelfResults(BuildContext context, ShelvesProvider provider, List<Shelf> shelves) {
     if (!provider.hasAnyShelves) {
       return _buildEmptyState(context);
     }
+
     if (shelves.isEmpty) {
       return _buildNoResultsState(context);
     }
+
     if (provider.viewMode == LibraryViewMode.list) {
       return _buildShelfList(context, shelves);
     }
+
     return _buildShelfGrid(context, shelves, provider.gridItemWidth);
   }
 
@@ -224,6 +207,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
           itemCount: shelves.length,
           itemBuilder: (context, index) {
             final shelf = shelves[index];
+
             return ShelfCard(
               shelf: shelf,
               onTap: () => _showShelfDetail(context, shelf),
@@ -242,6 +226,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
       itemCount: shelves.length,
       itemBuilder: (context, index) {
         final shelf = shelves[index];
+
         return ShelfCard(
           shelf: shelf,
           isListItem: true,
@@ -270,12 +255,9 @@ class _ShelvesPageState extends State<ShelvesPage> {
     );
   }
 
-  // ============================================================================
-  // ACTIONS
-  // ============================================================================
-
   void _showAddShelfSheet(BuildContext context) {
     final repository = context.read<DataStore>().libraryRepository?.shelves;
+
     AddShelfSheet.show(
       context,
       onSave: (name, description, colorHex, icon) async {
@@ -292,6 +274,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
 
   void _showEditShelfSheet(BuildContext context, ShelfData shelf) {
     final repository = context.read<DataStore>().libraryRepository?.shelves;
+
     AddShelfSheet.show(
       context,
       shelf: shelf,
@@ -374,7 +357,10 @@ class _ShelvesPageState extends State<ShelvesPage> {
             onPressed: () async {
               try {
                 await _provider.deleteShelf(shelf.id, repository: repository);
-                if (context.mounted) Navigator.of(context).pop();
+
+                if (context.mounted) {
+                  Navigator.of(context).pop();
+                }
               } catch (_) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

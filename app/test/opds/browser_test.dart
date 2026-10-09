@@ -14,9 +14,11 @@ import 'relay_fixture_client.dart';
 
 void main() {
   final catalog = OpdsCatalog(id: 'c', name: 'Books', uri: Uri.parse('https://books.test/feed'));
+
   Future<OpdsResourceCache> warmCache() async {
     SharedPreferences.setMockInitialValues({});
     final cache = OpdsResourceCache(await SharedPreferences.getInstance())..setScope('alice');
+
     await cache.write(
       cache.capture(catalog, catalog.uri)!,
       OpdsResponse(
@@ -27,15 +29,18 @@ void main() {
         headers: {'content-type': 'application/opds+json'},
       ),
     );
+
     return cache;
   }
 
   test('shows cached feed immediately with redirect base while refreshing', () async {
     final cache = await warmCache();
     final response = Completer<http.Response>();
+
     final browser = OpdsBrowser(
       httpClient: OpdsHttpClient(cache: cache, clientFactory: () => MockRelayClient((_) => response.future)),
     );
+
     final load = browser.load(catalog, catalog.uri);
     expect(browser.feed?.title, 'Cached');
     expect(browser.feed?.navigation.single.uri.toString(), 'https://cdn.test/redirect/next');
@@ -54,12 +59,14 @@ void main() {
   for (final status in [500, 401, 403]) {
     test('revalidation HTTP $status ${status == 500 ? 'retains' : 'invalidates'} protected cached feed', () async {
       final cache = await warmCache();
+
       final browser = OpdsBrowser(
         httpClient: OpdsHttpClient(
           cache: cache,
           clientFactory: () => MockRelayClient((_) async => http.Response('failure', status)),
         ),
       );
+
       await browser.load(catalog, catalog.uri);
       expect(browser.error, isNotNull);
       expect(browser.feed?.title, status == 500 ? 'Cached' : null);
@@ -71,9 +78,11 @@ void main() {
   test('scope A to B to A rejects a late feed and cache write', () async {
     final cache = await warmCache();
     final response = Completer<http.Response>();
+
     final browser = OpdsBrowser(
       httpClient: OpdsHttpClient(cache: cache, clientFactory: () => MockRelayClient((_) => response.future)),
     );
+
     final load = browser.load(catalog, catalog.uri);
     await Future<void>.delayed(Duration.zero);
     cache.setScope('bob');
@@ -87,6 +96,7 @@ void main() {
 
   test('one browser authorization failure immediately clears another idle feed', () async {
     final cache = await warmCache();
+
     final client = OpdsHttpClient(
       cache: cache,
       clientFactory: () => MockRelayClient(
@@ -95,6 +105,7 @@ void main() {
             : http.Response('{"metadata":{"title":"Private"},"navigation":[]}', 200),
       ),
     );
+
     final parent = OpdsBrowser(httpClient: client);
     final details = OpdsBrowser(httpClient: client);
     await parent.load(catalog, catalog.uri);
@@ -118,6 +129,7 @@ void main() {
 
   test('scope switch clears an idle feed immediately and unsubscribes on disposal', () async {
     final cache = await warmCache();
+
     final browser = OpdsBrowser(
       httpClient: OpdsHttpClient(
         cache: cache,
@@ -125,6 +137,7 @@ void main() {
             MockRelayClient((_) async => http.Response('{"metadata":{"title":"Private"},"navigation":[]}', 200)),
       ),
     );
+
     await browser.load(catalog, catalog.uri);
     var notifications = 0;
     browser.addListener(() => notifications++);
@@ -143,11 +156,13 @@ void main() {
     final cache = await warmCache();
     final parentResponse = Completer<http.Response>();
     final detailResponse = Completer<http.Response>();
+
     final client = OpdsHttpClient(
       cache: cache,
       clientFactory: () =>
           MockRelayClient((request) => request.url.path == '/details' ? detailResponse.future : parentResponse.future),
     );
+
     final parent = OpdsBrowser(httpClient: client);
     final details = OpdsBrowser(httpClient: client);
     final parentLoad = parent.load(catalog, catalog.uri);
@@ -169,6 +184,7 @@ void main() {
 
   test('invalidating another catalog retains the loaded feed', () async {
     final cache = await warmCache();
+
     final browser = OpdsBrowser(
       httpClient: OpdsHttpClient(
         cache: cache,
@@ -176,6 +192,7 @@ void main() {
             MockRelayClient((_) async => http.Response('{"metadata":{"title":"Private"},"navigation":[]}', 200)),
       ),
     );
+
     await browser.load(catalog, catalog.uri);
     await cache.invalidateCatalog(OpdsCatalog(id: 'another', name: 'Other', uri: catalog.uri));
     expect(browser.feed?.title, 'Private');
@@ -185,12 +202,14 @@ void main() {
 
   test('unsupported responses never replace the cached parsed feed', () async {
     final cache = await warmCache();
+
     final browser = OpdsBrowser(
       httpClient: OpdsHttpClient(
         cache: cache,
         clientFactory: () => MockRelayClient((_) async => http.Response('<html>Login</html>', 200)),
       ),
     );
+
     await browser.load(catalog, catalog.uri);
     expect(browser.feed?.title, 'Cached');
     expect(browser.error, isNotNull);
@@ -204,21 +223,26 @@ void main() {
 
   test('root search and OpenSearch remain usable offline with redirected bases', () async {
     final cache = await warmCache();
+
     Future<void> store(Uri requested, Uri finalUri, String body) => cache.write(
       cache.capture(catalog, requested)!,
       OpdsResponse(uri: finalUri, bytes: Uint8List.fromList(utf8.encode(body)), headers: {}),
     );
+
     await store(
       catalog.uri,
       Uri.parse('https://cdn.test/base/feed'),
       '{"metadata":{"title":"Root"},"links":[{"rel":"search","href":"search.xml","type":"application/opensearchdescription+xml"}],"navigation":[]}',
     );
+
     await store(
       Uri.parse('https://cdn.test/base/search.xml'),
       Uri.parse('https://search.test/redirect/description.xml'),
       '<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/"><Url type="application/atom+xml" template="results?q={searchTerms}"/></OpenSearchDescription>',
     );
+
     var requests = 0;
+
     final browser = OpdsBrowser(
       httpClient: OpdsHttpClient(
         cache: cache,
@@ -228,6 +252,7 @@ void main() {
         }),
       ),
     );
+
     await browser.load(catalog, catalog.uri.resolve('section'));
     expect((await browser.search('some books')).toString(), 'https://search.test/redirect/results?q=some%20books');
     expect(requests, 1);
@@ -236,6 +261,7 @@ void main() {
 
   test('authorization failure resolving search clears the previous feed', () async {
     final cache = await warmCache();
+
     final browser = OpdsBrowser(
       httpClient: OpdsHttpClient(
         cache: cache,
@@ -246,6 +272,7 @@ void main() {
         ),
       ),
     );
+
     // Remove the cached root so resolving search must ask the server.
     await cache.remove(cache.capture(catalog, catalog.uri)!);
     await browser.load(catalog, catalog.uri.resolve('section'));
@@ -255,16 +282,22 @@ void main() {
     expect(browser.authorizationFailed, isTrue);
     browser.dispose();
   });
+
   test('late feed results cannot replace the current navigation', () async {
     final oldResponse = Completer<http.Response>();
+
     final browser = OpdsBrowser(
       httpClient: OpdsHttpClient(
         clientFactory: () => MockRelayClient((request) async {
-          if (request.url.path == '/old') return oldResponse.future;
+          if (request.url.path == '/old') {
+            return oldResponse.future;
+          }
+
           return http.Response('{"metadata":{"title":"New"},"navigation":[]}', 200);
         }),
       ),
     );
+
     final old = browser.load(catalog, Uri.parse('https://books.test/old'));
     await Future<void>.delayed(Duration.zero);
     await browser.load(catalog, Uri.parse('https://books.test/new'));
@@ -287,6 +320,7 @@ void main() {
         }),
       ),
     );
+
     await browser.load(catalog, Uri.parse('https://books.test/section'));
     final uri = await browser.search('a & b');
     expect(uri.queryParameters['query'], 'a & b');

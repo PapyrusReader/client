@@ -47,7 +47,10 @@ const _fontDirectory = String.fromEnvironment('FLUTTER_FONT_DIR');
 final _boundary = GlobalKey();
 
 ThemeData _captureTheme(ThemeData theme) {
-  if (_fontDirectory.isEmpty) return theme;
+  if (_fontDirectory.isEmpty) {
+    return theme;
+  }
+
   // Explicit component styles omit a font family in the app. Flutter's test
   // fallback is Ahem rather than the platform font, so resolve it for captures.
   ButtonStyle? font(ButtonStyle? style) => style?.copyWith(
@@ -55,6 +58,7 @@ ThemeData _captureTheme(ThemeData theme) {
       (states) => style.textStyle?.resolve(states)?.copyWith(fontFamily: 'Roboto'),
     ),
   );
+
   return theme.copyWith(
     appBarTheme: theme.appBarTheme.copyWith(
       titleTextStyle: theme.appBarTheme.titleTextStyle?.copyWith(fontFamily: 'Roboto'),
@@ -71,16 +75,22 @@ Future<void> _settle(WidgetTester tester) async {
     await tester.pumpAndSettle();
     await tester.runAsync(() => Future<void>.delayed(Duration.zero));
   }
+
   await tester.pumpAndSettle();
   expect(tester.takeException(), isNull);
 }
 
 Future<void> _snapshot(WidgetTester tester, String name) async {
   await _settle(tester);
-  if (!_capture) return;
+
+  if (!_capture) {
+    return;
+  }
+
   // Image codecs run outside the widget-test fake clock.
   await tester.runAsync(() => Future<void>.delayed(const Duration(milliseconds: 120)));
   await tester.pumpAndSettle();
+
   await tester.runAsync(() async {
     final boundary = _boundary.currentContext!.findRenderObject()! as RenderRepaintBoundary;
     final image = await boundary.toImage();
@@ -99,6 +109,7 @@ void main() {
           family,
         )..addFont(Future.value(ByteData.sublistView(File('$_fontDirectory/$file').readAsBytesSync())))).load();
       }
+
       await (FontLoader('MadimiOne')..addFont(rootBundle.load('fonts/MadimiOne-Regular.ttf'))).load();
     }
   });
@@ -122,36 +133,46 @@ void main() {
               ? 951
               : 900,
         );
+
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
         addTearDown(tester.view.resetViewInsets);
         SharedPreferences.setMockInitialValues({});
         final store = OpdsCatalogStore(await SharedPreferences.getInstance(), secrets: MemorySecrets());
+
         await store.save(
           'local--guest',
           OpdsCatalog(id: 'gutenberg', name: 'Project Gutenberg', uri: Uri.parse('https://www.gutenberg.org/feed')),
         );
+
         await store.save(
           'local--guest',
           OpdsCatalog(id: 'standard', name: 'Standard Ebooks', uri: Uri.parse('https://standard.test/opds')),
         );
+
         final dataStore = DataStore();
         final opdsLibrary = OpdsLibrary(await SharedPreferences.getInstance(), dataStore: dataStore);
         final cache = OpdsResourceCache(await SharedPreferences.getInstance());
         final catalogs = OpdsCatalogs(store, library: opdsLibrary, cache: cache)..setScope('local--guest');
         final cover = File('assets/images/book_placeholder.jpg').readAsBytesSync();
         var offline = false;
+
         final gateway = OpdsHttpClient(
           cache: cache,
           clientFactory: () => MockRelayClient((request) async {
-            if (offline) throw http.ClientException('Offline');
+            if (offline) {
+              throw http.ClientException('Offline');
+            }
+
             if (request.url.path.endsWith('.jpg')) {
               return http.Response.bytes(cover, 200, headers: {'content-type': 'image/jpeg'});
             }
+
             if (request.url.path.endsWith('.epub')) {
               return http.Response('Review book bytes', 200, headers: {'content-type': 'application/epub+zip'});
             }
+
             return http.Response(
               jsonEncode({
                 'metadata': {
@@ -231,6 +252,7 @@ void main() {
             );
           }),
         );
+
         final downloads = OpdsDownloads(
           library: opdsLibrary,
           httpClient: gateway,
@@ -252,19 +274,23 @@ void main() {
                 author: 'Jane Austen',
                 addedAt: DateTime(2026),
               );
+
               dataStore.replaceBooksFromSync([book]);
               return book;
             },
           ),
         );
+
         final sidebar = SidebarProvider();
         final library = LibraryProvider();
+
         final reference = Book(
           id: 'reference',
           title: 'Pride and Prejudice',
           author: 'Jane Austen',
           addedAt: DateTime(2026),
         );
+
         final router = GoRouter(
           initialLocation: '/library/catalogs',
           routes: [
@@ -306,6 +332,7 @@ void main() {
             ),
           ],
         );
+
         await tester.pumpWidget(
           MultiProvider(
             providers: [
@@ -330,6 +357,7 @@ void main() {
             ),
           ),
         );
+
         addTearDown(() async {
           await tester.pumpWidget(const SizedBox.shrink());
           router.dispose();
@@ -341,14 +369,17 @@ void main() {
           sidebar.dispose();
           library.dispose();
         });
+
         final label = '$name-${width.toInt()}-${scale.toInt()}x';
         await _snapshot(tester, '$label-sources');
+
         if (width < 840) {
           expect(find.byKey(const Key('catalog-mobile-header')), findsNothing);
           expect(find.byType(LibraryMobileToolbar), findsOneWidget);
           expect(find.byTooltip('Library sections').hitTestable(), findsOneWidget);
           expect(find.byKey(const Key('catalog-header-divider')), findsNothing);
           expect(find.byTooltip('Catalog options'), findsNothing);
+
           for (final (direction, action) in [(1.0, 'edit'), (-1.0, 'delete')]) {
             final sourceRect = tester.getRect(find.byType(CatalogSourceTile).first);
             final gesture = await tester.startGesture(sourceRect.center);
@@ -360,19 +391,24 @@ void main() {
             await gesture.up();
             await _settle(tester);
             expect(find.byType(BottomSheet), findsOneWidget);
+
             if (action == 'edit') {
               expect(find.byKey(const Key('opds-name')), findsOneWidget);
             } else {
               expect(find.text('Remove catalog'), findsOneWidget);
             }
+
             await tester.tap(find.text('Cancel'));
             await _settle(tester);
           }
+
           expect(find.byType(FloatingActionButton), findsOneWidget);
+
           expect(
             tester.getBottomRight(find.byType(FloatingActionButton)).dy,
             lessThan(tester.getTopLeft(find.byType(NavigationBar)).dy),
           );
+
           expect(
             tester.getCenter(find.byTooltip('Downloads')).dy,
             tester.getCenter(find.byTooltip('Library sections')).dy,
@@ -381,12 +417,15 @@ void main() {
           expect(find.byType(FloatingActionButton), findsNothing);
           expect(find.widgetWithText(FilledButton, 'Add catalog'), findsOneWidget);
         }
+
         await tester.tap(find.text('Project Gutenberg'));
         await _snapshot(tester, '$label-feed');
+
         if (width < 840) {
           expect(find.byKey(const Key('catalog-mobile-header')), findsOneWidget);
           expect(find.byTooltip('Back').hitTestable(), findsOneWidget);
         }
+
         offline = true;
         await tester.tap(find.byTooltip('Refresh catalog'));
         await _snapshot(tester, '$label-cached-feed');
@@ -395,39 +434,49 @@ void main() {
         await tester.tap(find.text('Retry'));
         await _settle(tester);
         expect(find.byType(FloatingActionButton), findsNothing);
+
         expect(
           find.text('Popular books'),
           findsOneWidget,
-          reason: tester.widgetList<Text>(find.byType(Text)).map((t) => t.data).join(' | '),
+          reason: tester.widgetList<Text>(find.byType(Text)).map((item) => item.data).join(' | '),
         );
+
         await tester.scrollUntilVisible(
           find.text('Next'),
           200,
           scrollable: find.descendant(of: find.byType(CustomScrollView), matching: find.byType(Scrollable)).first,
         );
+
         await _snapshot(tester, '$label-pagination');
+
         tester
             .state<ScrollableState>(
               find.descendant(of: find.byType(CustomScrollView), matching: find.byType(Scrollable)).first,
             )
             .position
             .jumpTo(0);
+
         await tester.pumpAndSettle();
+
         router.go(
           Uri(path: '/library/catalogs/gutenberg', queryParameters: {'feed': 'https://books.test/editions'}).toString(),
         );
+
         await _snapshot(tester, '$label-editions');
         expect(find.text('Pride and Prejudice'), findsNWidgets(2));
         router.go('/library/catalogs/gutenberg');
         await _settle(tester);
+
         await tester.scrollUntilVisible(
           find.text('Pride and Prejudice'),
           200,
           scrollable: find.descendant(of: find.byType(CustomScrollView), matching: find.byType(Scrollable)).first,
         );
+
         await tester.pumpAndSettle();
         await tester.tap(find.text('Pride and Prejudice'));
         await _snapshot(tester, '$label-details');
+
         if (width < 840) {
           final header = find.byKey(const Key('catalog-book-mobile-header'));
           expect(tester.getSize(header).height, kToolbarHeight);
@@ -440,13 +489,16 @@ void main() {
           expect(tester.getTopLeft(rail).dy, tester.getBottomLeft(header).dy);
           await _snapshot(tester, '$label-details-scrolled');
         }
+
         expect(find.text('Details'), findsOneWidget);
         await tester.ensureVisible(find.text('Description'));
         await _snapshot(tester, '$label-details-content');
+
         if (find.byType(NestedScrollView).evaluate().isNotEmpty) {
           await tester.dragFrom(Offset(width / 2, 200), const Offset(0, 2500));
           await tester.pumpAndSettle();
         }
+
         await tester.ensureVisible(find.text('Add to library'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Add to library'));
@@ -454,6 +506,7 @@ void main() {
         await tester.ensureVisible(find.textContaining('Other catalog options'));
         await tester.tap(find.textContaining('Other catalog options'));
         await _snapshot(tester, '$label-formats-expanded');
+
         if (_capture && width >= 840) {
           final mouse = await tester.createGesture(kind: ui.PointerDeviceKind.mouse);
           await mouse.addPointer(location: Offset.zero);
@@ -461,6 +514,7 @@ void main() {
           await _snapshot(tester, '$label-formats-hover');
           await mouse.removePointer();
         }
+
         await tester.tap(find.text('Close'));
         await tester.pumpAndSettle();
         final selected = tester.widget<OpdsPublicationDetails>(find.byType(OpdsPublicationDetails)).publication;
@@ -482,17 +536,20 @@ void main() {
         await tester.tap(find.text('Close'));
         router.go('/library/catalogs');
         await _settle(tester);
+
         await tester.tap(
           find.byType(FloatingActionButton).evaluate().isNotEmpty
               ? find.byTooltip('Add catalog')
               : find.text('Add catalog'),
         );
+
         await _snapshot(tester, '$label-editor');
         tester.view.viewInsets = const FakeViewPadding(bottom: 300);
         await _snapshot(tester, '$label-editor-keyboard');
         tester.view.resetViewInsets();
         await tester.tap(find.text('Cancel'));
         await _settle(tester);
+
         if (_capture && width >= 1280 && scale == 1) {
           router.go('/reference');
           await _snapshot(tester, '$label-library-reference');

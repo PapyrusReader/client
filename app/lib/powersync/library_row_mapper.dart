@@ -50,9 +50,11 @@ final tagRowMapper = LibraryRowMapper<Tag>(
 
 Map<String, Object?> _locatedRow(Map<String, dynamic> json, BookLocation? location) {
   final row = Map<String, Object?>.from(json);
+
   for (final key in ['chapter', 'chapter_title', 'page_number', 'percentage']) {
     row.remove(key);
   }
+
   row['location'] = location == null
       ? null
       : {
@@ -61,13 +63,18 @@ Map<String, Object?> _locatedRow(Map<String, dynamic> json, BookLocation? locati
           'page_number': location.pageNumber,
           'percentage': location.percentage,
         };
+
   return encodeLibraryRow(row);
 }
 
 Map<String, dynamic> _locatedJson(Map<String, dynamic> row) {
   final json = decodeLibraryRow(row);
   final location = json.remove('location');
-  if (location is Map) json.addAll(Map<String, dynamic>.from(location));
+
+  if (location is Map) {
+    json.addAll(Map<String, dynamic>.from(location));
+  }
+
   return json;
 }
 
@@ -93,8 +100,14 @@ final bookTagRowMapper = LibraryRowMapper<BookTagRelation>(
 );
 
 Map<String, Object?> encodeLibraryRow(Map<String, Object?> row) => row.map((key, value) {
-  if (value is bool) return MapEntry(key, value ? 1 : 0);
-  if (value is List || value is Map) return MapEntry(key, jsonEncode(value));
+  if (value is bool) {
+    return MapEntry(key, value ? 1 : 0);
+  }
+
+  if (value is List || value is Map) {
+    return MapEntry(key, jsonEncode(value));
+  }
+
   return MapEntry(key, value);
 });
 
@@ -102,8 +115,10 @@ Map<String, dynamic> decodeLibraryRow(Map<String, dynamic> row) => row.map((key,
   if (['is_smart', 'is_pinned', 'icon_match_text_direction'].contains(key)) {
     return MapEntry(key, value == true || value == 1);
   }
+
   if (['tags', 'location', 'payload'].contains(key) && value is String) {
     return MapEntry(key, jsonDecode(value));
   }
+
   return MapEntry(key, value);
 });

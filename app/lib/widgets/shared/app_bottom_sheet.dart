@@ -42,6 +42,7 @@ class AppBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final mobile = MediaQuery.sizeOf(context).width < Breakpoints.tablet;
     final expandable = mobile && expandOnScroll && ModalRoute.of(context) is ModalBottomSheetRoute;
+
     Widget buildFrame(ScrollController? controller, double availableHeight) => SafeArea(
       top: false,
       bottom: footer == null,
@@ -51,6 +52,7 @@ class AppBottomSheet extends StatelessWidget {
               // A short, content-sized sheet still needs normal header spacing.
               // Compress only when the available viewport is actually small.
               availableHeight < 280 || (MediaQuery.textScalerOf(context).scale(16) > 20 && availableHeight < 600);
+
           return Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -98,6 +100,7 @@ class AppBottomSheet extends StatelessWidget {
         },
       ),
     );
+
     return Padding(
       padding: EdgeInsets.only(bottom: avoidKeyboard ? MediaQuery.viewInsetsOf(context).bottom : 0),
       child: LayoutBuilder(
