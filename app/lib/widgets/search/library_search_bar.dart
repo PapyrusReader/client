@@ -35,6 +35,7 @@ class _LibrarySearchBarState extends State<LibrarySearchBar> {
   @override
   void didUpdateWidget(LibrarySearchBar oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (widget.initialQuery != oldWidget.initialQuery && !_focusNode.hasFocus) {
       _controller.text = widget.initialQuery;
     }
@@ -61,6 +62,7 @@ class _LibrarySearchBarState extends State<LibrarySearchBar> {
   Widget _buildFilterButton(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final hasActiveFilters = widget.activeFilterCount > 0;
+
     final semanticLabel = hasActiveFilters
         ? 'Advanced filters, ${widget.activeFilterCount} active'
         : 'Advanced filters';

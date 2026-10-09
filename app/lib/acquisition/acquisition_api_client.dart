@@ -25,6 +25,7 @@ class AcquisitionApiClient {
       config.endpoint('/acquisition/capabilities'),
       headers: _headers(accessToken),
     );
+
     return AcquisitionCapabilities.fromJson(_decodeObject(response));
   }
 
@@ -56,6 +57,7 @@ class AcquisitionApiClient {
         'password': ?password,
       }),
     );
+
     return AcquisitionEndpoint.fromJson(_decodeObject(response));
   }
 
@@ -83,6 +85,7 @@ class AcquisitionApiClient {
         'enabled': ?enabled,
       }),
     );
+
     return AcquisitionEndpoint.fromJson(_decodeObject(response));
   }
 
@@ -107,7 +110,9 @@ class AcquisitionApiClient {
         'password': ?password,
       }),
     );
+
     final result = _decodeObject(response);
+
     if (result['ok'] != true) {
       throw const AuthApiException(statusCode: 502, message: 'Connection test returned an invalid response');
     }
@@ -118,7 +123,11 @@ class AcquisitionApiClient {
       config.endpoint('/acquisition/endpoints/$endpointId'),
       headers: _headers(accessToken),
     );
-    if (response.statusCode >= 200 && response.statusCode < 300) return;
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return;
+    }
+
     _decodeObject(response);
   }
 
@@ -132,6 +141,7 @@ class AcquisitionApiClient {
       headers: _headers(accessToken),
       body: jsonEncode({'query': query, 'endpoint_ids': ?endpointIds}),
     );
+
     return _decodeList(response).map(TorrentRelease.fromJson).toList();
   }
 
@@ -148,6 +158,7 @@ class AcquisitionApiClient {
         'release_tokens': releases.map((release) => release.releaseToken).toList(),
       }),
     );
+
     return BatchSubmissionResponse.fromJson(_decodeObject(response));
   }
 
@@ -172,13 +183,11 @@ class AcquisitionApiClient {
   Future<AcquisitionJobPage> listJobs({required String accessToken, int limit = 50, int offset = 0}) async {
     final uri = config.endpoint('/acquisition/jobs').replace(queryParameters: {'limit': '$limit', 'offset': '$offset'});
     final response = await _httpClient.get(uri, headers: _headers(accessToken));
-
     return AcquisitionJobPage.fromJson(_decodeObject(response));
   }
 
   Future<AcquisitionJob> getJob({required String accessToken, required String jobId}) async {
     final response = await _httpClient.get(config.endpoint('/acquisition/jobs/$jobId'), headers: _headers(accessToken));
-
     return AcquisitionJob.fromJson(_decodeObject(response));
   }
 
@@ -247,6 +256,7 @@ class AcquisitionApiClient {
       headers: _headers(accessToken),
       body: jsonEncode({'command': command, 'ids': ids}),
     );
+
     return AcquisitionJob.fromJson(_decodeObject(response));
   }
 
@@ -258,16 +268,21 @@ class AcquisitionApiClient {
 
   Map<String, dynamic> _decodeObject(http.Response response) {
     final decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body) as Map<String, dynamic>;
-    if (response.statusCode >= 200 && response.statusCode < 300) return decoded;
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return decoded;
+    }
+
     final error = decoded['error'];
     final detail = decoded['detail'];
+
     throw AuthApiException(
       statusCode: response.statusCode,
-      message: error is Map<String, dynamic>
-          ? error['message'] as String? ?? 'Acquisition request failed'
-          : detail is String
-          ? detail
-          : 'Acquisition request failed',
+      message: switch (error is Map<String, dynamic>) {
+        true => error['message'] as String? ?? 'Acquisition request failed',
+        false when detail is String => detail,
+        false => 'Acquisition request failed',
+      },
     );
   }
 
@@ -275,6 +290,7 @@ class AcquisitionApiClient {
     if (response.statusCode < 200 || response.statusCode >= 300) {
       _decodeObject(response);
     }
+
     return (jsonDecode(response.body) as List<dynamic>).cast<Map<String, dynamic>>();
   }
 }

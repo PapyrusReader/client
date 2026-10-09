@@ -49,12 +49,16 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   Future<void> _handleResetPassword() async {
-    if (_isLoading) return;
+    if (_isLoading) {
+      return;
+    }
 
     // Hide keyboard
     FocusScope.of(context).unfocus();
 
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -62,7 +66,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     try {
       final message = await context.read<AuthProvider>().forgotPassword(_emailController.text.trim());
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       setState(() {
         _isLoading = false;
@@ -72,18 +78,22 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       if (message != null) {
         _showSuccessSnackBar(message);
       }
-    } catch (e) {
-      if (!mounted) return;
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
       setState(() => _isLoading = false);
       _showErrorSnackBar('An error occurred. Please try again.');
     }
   }
 
   Future<void> _handleSetNewPassword() async {
-    if (_isLoading) return;
+    if (_isLoading) {
+      return;
+    }
 
     FocusScope.of(context).unfocus();
-
     final resetToken = widget.resetToken;
 
     if (resetToken == null || resetToken.isEmpty) {
@@ -91,7 +101,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       return;
     }
 
-    if (!_resetFormKey.currentState!.validate()) return;
+    if (!_resetFormKey.currentState!.validate()) {
+      return;
+    }
 
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -102,7 +114,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         password: _passwordController.text,
       );
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (message == null) {
         _showErrorSnackBar(context.read<AuthProvider>().error ?? 'Failed to reset password.');
@@ -114,9 +128,13 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         _isLoading = false;
         _passwordReset = true;
       });
+
       _showSuccessSnackBar(message);
-    } catch (e) {
-      if (!mounted) return;
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
       setState(() => _isLoading = false);
       _showErrorSnackBar('An error occurred. Please try again.');
     }
@@ -191,6 +209,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     if (_emailSent) {
       return _EmailSentConfirmation(email: _emailController.text.trim());
     }
+
     return _ForgotPasswordForm(
       formKey: _formKey,
       emailController: _emailController,
@@ -211,9 +230,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   @override
   Widget build(BuildContext context) {
     final heading = widget.isResetLink ? 'Create new password' : 'Reset password';
+
     final subtitle = widget.isResetLink
         ? 'Enter a new password for your account'
         : 'Enter your email to receive a password reset link';
+
     final showHeader = !_emailSent && !_passwordReset;
 
     return ResponsiveBuilder(
@@ -234,10 +255,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 }
-
-// =============================================================================
-// FORGOT PASSWORD FORM
-// =============================================================================
 
 /// Forgot password form with a single email field.
 class _ForgotPasswordForm extends StatelessWidget {
@@ -279,10 +296,6 @@ class _ForgotPasswordForm extends StatelessWidget {
     );
   }
 }
-
-// =============================================================================
-// EMAIL SENT CONFIRMATION
-// =============================================================================
 
 /// Confirmation view shown after the reset email has been sent.
 class _EmailSentConfirmation extends StatelessWidget {

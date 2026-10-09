@@ -177,7 +177,6 @@ class _DesktopAuthLayoutState extends State<DesktopAuthLayout> {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
     final isSwapped = DesktopAuthLayout._isSwapped;
-
     final hero = Expanded(flex: 6, child: AuthHeroPanel(isDark: isDark));
     final form = Expanded(flex: 4, child: _buildFormPanel(theme));
 

@@ -23,6 +23,7 @@ class MobileBottomNav extends StatelessWidget {
       onDestinationSelected: (index) {
         final item = mainItems[index];
         // For library, navigate to books subpage
+
         if (item.path == '/library') {
           onNavigate('/library/books');
         } else {
@@ -45,6 +46,7 @@ class MobileBottomNav extends StatelessWidget {
         return i;
       }
     }
+
     return 0;
   }
 }

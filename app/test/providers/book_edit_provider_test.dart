@@ -14,9 +14,7 @@ void main() {
     final storedBook = buildTestBook(id: 'repository-book', title: 'Stored Book');
     final dataStore = DataStore(bookRepository: _LookupBookRepository(storedBook));
     final provider = BookEditProvider()..setDataStore(dataStore);
-
     await provider.loadBook(storedBook.id);
-
     expect(provider.editedBook, storedBook);
     expect(provider.error, isNull);
   });
@@ -26,16 +24,12 @@ void main() {
     final repository = _DelayedSnapshotBookRepository();
     final dataStore = DataStore(bookRepository: repository);
     final provider = BookEditProvider()..setDataStore(dataStore);
-
     final load = provider.loadBook(storedBook.id);
     await Future<void>.delayed(Duration.zero);
-
     expect(provider.isLoading, isTrue);
     expect(provider.error, isNull);
-
     repository.controller.add([storedBook]);
     await load;
-
     expect(provider.editedBook, storedBook);
     expect(provider.error, isNull);
     await dataStore.disposeBookRepository();
@@ -44,18 +38,17 @@ void main() {
 
   test('saving a picked cover keeps image bytes out of synced book metadata', () async {
     final dataStore = DataStore();
+
     final original = buildTestBook(
       id: 'book-1',
       coverUrl: 'https://example.com/original.jpg',
     ).copyWith(coverMediaId: 'original-cover');
-    dataStore.addBook(original);
 
+    dataStore.addBook(original);
     final provider = BookEditProvider()..setDataStore(dataStore);
     await provider.loadBook(original.id);
     provider.updateCoverFromFile(Uint8List.fromList([1, 2, 3]));
-
     expect(await provider.save(), isTrue);
-
     final saved = dataStore.getBook(original.id)!;
     expect(saved.coverUrl, isNull);
     expect(saved.coverMediaId, 'original-cover');
@@ -64,6 +57,7 @@ void main() {
 
   test('saving cleared optional form fields removes their previous values', () async {
     final dataStore = DataStore();
+
     final original = Book(
       id: 'book-1',
       title: 'Book',
@@ -86,8 +80,8 @@ void main() {
       seriesNumber: 2,
       addedAt: DateTime.utc(2026),
     );
-    dataStore.addBook(original);
 
+    dataStore.addBook(original);
     final provider = BookEditProvider()..setDataStore(dataStore);
     await provider.loadBook(original.id);
     provider.updateSubtitle('');
@@ -105,7 +99,6 @@ void main() {
     provider.updateRating(null);
     provider.updateSeriesName('');
     provider.updateSeriesNumber(null);
-
     expect(await provider.save(), isTrue);
     final saved = dataStore.getBook(original.id)!;
     expect(saved.subtitle, isNull);
@@ -133,15 +126,15 @@ void main() {
     final provider = BookEditProvider()..setDataStore(dataStore);
     await provider.loadBook(original.id);
     provider.updateTitle('Updated title');
-
     var completed = false;
+
     final save = provider.save().then((result) {
       completed = true;
       return result;
     });
+
     await repository.upsertStarted.future;
     await Future<void>.delayed(Duration.zero);
-
     expect(completed, isFalse);
     repository.allowUpsert.complete();
     expect(await save, isTrue);

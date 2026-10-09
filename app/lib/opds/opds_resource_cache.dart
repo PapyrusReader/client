@@ -49,7 +49,10 @@ class OpdsResourceCache extends ChangeNotifier {
   int _epoch = 0;
 
   void setScope(String? scope) {
-    if (_scope == scope) return;
+    if (_scope == scope) {
+      return;
+    }
+
     _scope = scope;
     _epoch++;
     notifyListeners();
@@ -57,10 +60,15 @@ class OpdsResourceCache extends ChangeNotifier {
 
   OpdsCacheToken? capture(OpdsCatalog catalog, Uri uri) {
     final scope = _scope;
-    if (scope == null) return null;
+
+    if (scope == null) {
+      return null;
+    }
+
     OpdsHttpClient.validateUri(catalog.uri);
     OpdsHttpClient.validateUri(uri);
     final catalogKey = jsonEncode([scope, catalog.id]);
+
     return OpdsCacheToken._(
       this,
       scope,
@@ -79,9 +87,16 @@ class OpdsResourceCache extends ChangeNotifier {
       token._generation == (_generations[token._catalogKey] ?? 0);
 
   OpdsCachedResource? read(OpdsCacheToken token) {
-    if (!isCurrent(token)) return null;
+    if (!isCurrent(token)) {
+      return null;
+    }
+
     final entry = _entries.remove(token._key);
-    if (entry == null) return null;
+
+    if (entry == null) {
+      return null;
+    }
+
     try {
       final resource = _decode(entry);
       _entries[token._key] = entry;
@@ -92,9 +107,13 @@ class OpdsResourceCache extends ChangeNotifier {
   }
 
   Future<void> write(OpdsCacheToken token, OpdsResponse response) {
-    if (!isCurrent(token) || response.bytes.length > maxEntryBytes || maxEntries <= 0) return Future.value();
+    if (!isCurrent(token) || response.bytes.length > maxEntryBytes || maxEntries <= 0) {
+      return Future.value();
+    }
+
     try {
       OpdsHttpClient.validateUri(response.uri);
+
       final entry = <String, dynamic>{
         'key': token._key,
         'uri': response.uri.toString(),
@@ -102,7 +121,11 @@ class OpdsResourceCache extends ChangeNotifier {
         'bytes': base64Encode(response.bytes),
         'at': DateTime.now().toUtc().millisecondsSinceEpoch,
       };
-      if (utf8.encode(jsonEncode(entry)).length > maxEntryBytes) return Future.value();
+
+      if (utf8.encode(jsonEncode(entry)).length > maxEntryBytes) {
+        return Future.value();
+      }
+
       _entries.remove(token._key);
       _entries[token._key] = entry;
       _trim();
@@ -113,20 +136,29 @@ class OpdsResourceCache extends ChangeNotifier {
   }
 
   Future<void> remove(OpdsCacheToken token) {
-    if (!isCurrent(token)) return Future.value();
+    if (!isCurrent(token)) {
+      return Future.value();
+    }
+
     _entries.remove(token._key);
     return _persist();
   }
 
   Future<void> invalidateCatalog(OpdsCatalog catalog, {String? scope}) {
     scope ??= _scope;
-    if (scope == null) return Future.value();
+
+    if (scope == null) {
+      return Future.value();
+    }
+
     final catalogKey = jsonEncode([scope, catalog.id]);
     _generations[catalogKey] = (_generations[catalogKey] ?? 0) + 1;
+
     _entries.removeWhere((key, _) {
       final parts = jsonDecode(key) as List;
       return parts[0] == scope && parts[1] == catalog.id;
     });
+
     notifyListeners();
     return _persist();
   }
@@ -141,11 +173,19 @@ class OpdsResourceCache extends ChangeNotifier {
 
   OpdsCachedResource _decode(Map<String, dynamic> entry) {
     final parts = jsonDecode(entry['key'] as String) as List;
-    if (parts.length != 4 || parts.any((part) => part is! String)) throw const FormatException('Invalid cache key');
+
+    if (parts.length != 4 || parts.any((part) => part is! String)) {
+      throw const FormatException('Invalid cache key');
+    }
+
     OpdsHttpClient.validateUri(Uri.parse(parts[2] as String));
     OpdsHttpClient.validateUri(Uri.parse(parts[3] as String));
     final bytes = base64Decode(entry['bytes'] as String);
-    if (bytes.length > maxEntryBytes) throw const FormatException('Oversized cache entry');
+
+    if (bytes.length > maxEntryBytes) {
+      throw const FormatException('Oversized cache entry');
+    }
+
     return OpdsCachedResource(
       response: OpdsResponse(
         uri: OpdsHttpClient.validateUri(Uri.parse(entry['uri'] as String)),
@@ -159,19 +199,32 @@ class OpdsResourceCache extends ChangeNotifier {
   void _restore() {
     try {
       final raw = _prefs.getString(_storageKey);
-      if (raw == null || utf8.encode(raw).length > maxBytes) return;
+
+      if (raw == null || utf8.encode(raw).length > maxBytes) {
+        return;
+      }
+
       final payload = jsonDecode(raw) as Map;
-      if (payload['version'] != 1) return;
+
+      if (payload['version'] != 1) {
+        return;
+      }
+
       for (final rawEntry in payload['entries'] as List) {
         try {
           final entry = Map<String, dynamic>.from(rawEntry as Map);
-          if (utf8.encode(jsonEncode(entry)).length > maxEntryBytes) continue;
+
+          if (utf8.encode(jsonEncode(entry)).length > maxEntryBytes) {
+            continue;
+          }
+
           _decode(entry);
           _entries[entry['key'] as String] = entry;
         } catch (_) {
           // One damaged entry does not discard other catalogs.
         }
       }
+
       _trim();
     } catch (_) {
       _entries.clear();
@@ -183,11 +236,15 @@ class OpdsResourceCache extends ChangeNotifier {
     _pending = _pending.then((_) async {
       try {
         final payload = _serialize();
+
         if (_entries.isEmpty || utf8.encode(payload).length > maxBytes) {
           await _prefs.remove(_storageKey);
         } else {
           final saved = await _prefs.setString(_storageKey, payload);
-          if (!saved) await _prefs.remove(_storageKey);
+
+          if (!saved) {
+            await _prefs.remove(_storageKey);
+          }
         }
       } catch (_) {
         // Prefer a missing disk cache to old protected data after invalidation.
@@ -198,6 +255,7 @@ class OpdsResourceCache extends ChangeNotifier {
         }
       }
     });
+
     return _pending;
   }
 }

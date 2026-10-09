@@ -19,6 +19,7 @@ void main() {
       addTearDown(tester.view.reset);
       final now = DateTime.now().toUtc();
       final book = Book(id: 'book', title: 'Alice’s Adventures in Wonderland', author: 'Lewis Carroll', addedAt: now);
+
       final entry = ReadingActivity(
         id: 'entry',
         bookId: book.id,
@@ -29,11 +30,13 @@ void main() {
         createdAt: now,
         note: 'A lovely ending.',
       );
+
       final store = DataStore()..loadData(books: [book]);
       await store.commitTracking(activities: [entry]);
       final provider = GoalsProvider(watchClock: false)..attach(store);
       addTearDown(provider.dispose);
       addTearDown(store.dispose);
+
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.dark,
@@ -46,6 +49,7 @@ void main() {
           ),
         ),
       );
+
       await tester.tap(find.text(book.title));
       await tester.pumpAndSettle();
       expect(find.text(book.author), findsOneWidget);
@@ -63,16 +67,23 @@ void main() {
       expect(find.text('Undo reading entry?'), findsOneWidget);
       await tester.tap(find.widgetWithText(FilledButton, 'Undo entry'));
       await tester.pumpAndSettle();
-      expect(store.readingActivities.any((a) => a.kind == 'reversal' && a.correctionOf == entry.id), isTrue);
+
+      expect(
+        store.readingActivities.any((activity) => activity.kind == 'reversal' && activity.correctionOf == entry.id),
+        isTrue,
+      );
+
       expect(tester.takeException(), isNull);
     });
   }
+
   testWidgets('correction uses fixed book context and saves to the original book', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(1200, 1000);
     addTearDown(tester.view.reset);
     final now = DateTime.now().toUtc();
     final book = Book(id: 'alice', title: 'Alice’s Adventures in Wonderland', author: 'Lewis Carroll', addedAt: now);
+
     final entry = ReadingActivity(
       id: 'entry',
       bookId: book.id,
@@ -82,11 +93,13 @@ void main() {
       endTime: now,
       createdAt: now,
     );
+
     final store = DataStore()..loadData(books: [book]);
     await store.commitTracking(activities: [entry]);
     final provider = GoalsProvider(watchClock: false)..attach(store);
     addTearDown(provider.dispose);
     addTearDown(store.dispose);
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark,
@@ -100,6 +113,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Correct'));
     await tester.pumpAndSettle();
     expect(find.byType(SearchableBookField), findsNothing);
@@ -107,20 +121,29 @@ void main() {
     expect(find.text(book.title), findsOneWidget);
     expect(find.text(book.author), findsOneWidget);
     expect(find.byType(CoverImagePreview), findsOneWidget);
+
     final note = find.byWidgetPredicate(
       (widget) => widget is TextField && widget.decoration?.labelText == 'Note (optional)',
     );
+
     await tester.enterText(note, 'Updated note');
     await tester.tap(find.widgetWithText(FilledButton, 'Save reading'));
     await tester.pumpAndSettle();
-    expect(store.readingActivities.where((a) => a.kind == 'reversal' && a.correctionOf == entry.id), hasLength(1));
-    final replacement = store.readingActivities.singleWhere((a) => a.note == 'Updated note');
+
+    expect(
+      store.readingActivities.where((activity) => activity.kind == 'reversal' && activity.correctionOf == entry.id),
+      hasLength(1),
+    );
+
+    final replacement = store.readingActivities.singleWhere((activity) => activity.note == 'Updated note');
     expect(replacement.bookId, book.id);
     expect(replacement.kind, 'completion');
     expect(tester.takeException(), isNull);
   });
+
   testWidgets('removed book retains title and precise reader duration without correction controls', (tester) async {
     final now = DateTime.now().toUtc();
+
     final entry = ReadingActivity(
       id: 'entry',
       bookId: 'removed',
@@ -130,10 +153,12 @@ void main() {
       endTime: now,
       createdAt: now,
     );
+
     final store = DataStore();
     final provider = GoalsProvider(watchClock: false)..attach(store);
     addTearDown(provider.dispose);
     addTearDown(store.dispose);
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
@@ -142,6 +167,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text(entry.bookTitle));
     await tester.pumpAndSettle();
     expect(find.text(entry.bookTitle), findsWidgets);

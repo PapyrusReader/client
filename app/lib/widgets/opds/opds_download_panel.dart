@@ -29,6 +29,7 @@ class OpdsDownloadsButton extends StatelessWidget {
     builder: (context, _) {
       final active = downloads.jobs.where((job) => job.isActive).length;
       final failed = downloads.jobs.any((job) => job.status == OpdsDownloadStatus.failed);
+
       final icon = Badge(
         isLabelVisible: active > 0,
         label: Text('$active'),
@@ -37,9 +38,11 @@ class OpdsDownloadsButton extends StatelessWidget {
           color: failed ? Theme.of(context).colorScheme.error : null,
         ),
       );
+
       if (compact ?? MediaQuery.sizeOf(context).width < 600) {
         return IconButton(tooltip: 'Downloads', onPressed: () => _show(context), icon: icon);
       }
+
       return Tooltip(
         message: 'Downloads',
         child: TextButton.icon(onPressed: () => _show(context), icon: icon, label: const Text('Downloads')),
@@ -58,9 +61,11 @@ class _DownloadsList extends StatelessWidget {
     animation: downloads,
     builder: (context, _) {
       final jobs = downloads.jobs;
+
       if (jobs.isEmpty) {
         return const EmptyState.compact(icon: Icons.downloading_outlined, title: 'No downloads yet');
       }
+
       return ListView.separated(
         shrinkWrap: true,
         padding: EdgeInsets.zero,
@@ -76,6 +81,7 @@ class _DownloadsList extends StatelessWidget {
 
   Widget _job(BuildContext context, OpdsDownloadJob job) {
     final theme = Theme.of(context);
+
     final info = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -89,14 +95,19 @@ class _DownloadsList extends StatelessWidget {
         ),
       ],
     );
+
     return Column(
       key: ValueKey(job.key),
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         LayoutBuilder(
           builder: (context, constraints) {
-            if (!job.isCancellable && job.isActive) return info;
+            if (!job.isCancellable && job.isActive) {
+              return info;
+            }
+
             final actions = _actions(context, job);
+
             if (job.isCancellable || constraints.maxWidth >= 300 * MediaQuery.textScalerOf(context).scale(1)) {
               return Row(
                 children: [
@@ -106,6 +117,7 @@ class _DownloadsList extends StatelessWidget {
                 ],
               );
             }
+
             return Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

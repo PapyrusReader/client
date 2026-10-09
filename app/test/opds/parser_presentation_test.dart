@@ -39,6 +39,7 @@ void main() {
           <h:p>Language: English</h:p><h:p>Subject: Fiction</h:p>
         </h:div></content>
       </entry>''', uri);
+
     expect(
       feed.publications.single.description,
       'This edition has images.\n\nTitle: Book one\n\nSummary: A story with some emphasis.\n\n'
@@ -52,6 +53,7 @@ void main() {
       "publications":[{"metadata":{"title":"Book one",
         "description":"<p>First paragraph.</p><p>Second &amp; last paragraph.</p>"}}]
     }''', uri);
+
     expect(feed.publications.single.description, 'First paragraph.\n\nSecond & last paragraph.');
   });
 
@@ -64,6 +66,7 @@ void main() {
           <link rel="http://opds-spec.org/image" href="covers/1.jpg" type="image/jpeg"/>
         </entry>
       </feed>''', uri);
+
     final book = feed.publications.single;
     expect(feed.navigation, isEmpty);
     expect(book.title, 'Book one');
@@ -84,6 +87,7 @@ void main() {
           <link rel="subsection" type="application/atom+xml;kind=acquisition" href="author"/>
         </entry>
       </feed>''', uri);
+
     expect(feed.publications, isEmpty);
     expect(feed.navigation.map((link) => link.title), ['Fiction', 'Books by this author']);
     expect(feed.navigation.first.description, 'Stories to explore.');
@@ -102,6 +106,7 @@ void main() {
           <link rel="http://opds-spec.org/image/thumbnail" type="image/png" href="data:image/png;base64,AA=="/>
         </entry>
       </feed>''', Uri.parse('https://www.gutenberg.org/ebooks/search.opds/'));
+
     expect(feed.publications, isEmpty);
     final link = feed.navigation.single;
     expect(link.title, 'Pride and Prejudice');
@@ -117,6 +122,7 @@ void main() {
         "description":"<p>Stories to explore.</p>",
         "images":[{"href":"covers/fiction.jpg","type":"image/jpeg"}]}]
     }''', uri);
+
     expect(feed.navigation.single.description, 'Stories to explore.');
     expect(feed.navigation.single.imageUri, uri.resolve('covers/fiction.jpg'));
   });

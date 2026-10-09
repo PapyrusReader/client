@@ -30,8 +30,14 @@ class StorageSyncController {
   bool get isSignedOut => !authProvider.isSignedIn && !authProvider.isOfflineMode;
 
   String get modeLabel {
-    if (isGuest) return 'Guest local';
-    if (isAuthenticated) return 'Account synced';
+    if (isGuest) {
+      return 'Guest local';
+    }
+
+    if (isAuthenticated) {
+      return 'Account synced';
+    }
+
     return 'Signed out';
   }
 
@@ -47,13 +53,22 @@ class StorageSyncController {
   }
 
   String get backendLabel {
-    if (isAuthenticated) return syncSettings.activeServerLabel;
-    if (isGuest) return 'Local only';
+    if (isAuthenticated) {
+      return syncSettings.activeServerLabel;
+    }
+
+    if (isGuest) {
+      return 'Local only';
+    }
+
     return 'Not connected';
   }
 
   String get dataSyncLabel {
-    if (isGuest) return 'Data sync off';
+    if (isGuest) {
+      return 'Data sync off';
+    }
+
     return syncSettings.activeServerLabel;
   }
 
@@ -61,30 +76,59 @@ class StorageSyncController {
 
   String get fileStorageLabel {
     final usage = mediaStorageUsage;
+
     if (isAuthenticated && usage != null) {
       return syncSettings.fileStorageLabel(usedBytes: usage.usedBytes, quotaBytesOverride: usage.quotaBytes);
     }
+
     return syncSettings.fileStorageLabel(usedBytes: fileStorageUsedBytes);
   }
 
   String get statusLabel {
-    if (isGuest) return 'Guest local';
-    if (isSignedOut) return 'Signed out';
-    if (syncState.uploadError != null || syncState.downloadError != null) return 'Error';
-    if (syncState.connecting) return 'Connecting';
-    if (syncState.uploading || syncState.downloading) return 'Syncing';
+    if (isGuest) {
+      return 'Guest local';
+    }
+
+    if (isSignedOut) {
+      return 'Signed out';
+    }
+
+    if (syncState.uploadError != null || syncState.downloadError != null) {
+      return 'Error';
+    }
+
+    if (syncState.connecting) {
+      return 'Connecting';
+    }
+
+    if (syncState.uploading || syncState.downloading) {
+      return 'Syncing';
+    }
+
     if (syncState.connected) {
       return syncState.hasPendingWrites ? 'Waiting to sync' : 'Connected';
     }
+
     return 'Offline';
   }
 
   String get syncDetail {
     final error = syncState.uploadError ?? syncState.downloadError;
-    if (error != null) return 'Sync error: $error';
-    if (syncState.hasPendingWrites) return 'Changes will sync automatically';
+
+    if (error != null) {
+      return 'Sync error: $error';
+    }
+
+    if (syncState.hasPendingWrites) {
+      return 'Changes will sync automatically';
+    }
+
     final lastSyncedAt = syncState.lastSyncedAt;
-    if (lastSyncedAt == null) return 'No completed sync yet';
+
+    if (lastSyncedAt == null) {
+      return 'No completed sync yet';
+    }
+
     return 'Last sync: ${lastSyncedAt.toLocal()}';
   }
 
@@ -94,7 +138,10 @@ class StorageSyncController {
   bool get hasFailedMediaUploads => failedMediaUploadCount > 0;
 
   String get failedMediaUploadLabel {
-    if (failedMediaUploadCount == 1) return '1 failed';
+    if (failedMediaUploadCount == 1) {
+      return '1 failed';
+    }
+
     return '$failedMediaUploadCount failed';
   }
 

@@ -28,28 +28,41 @@ class ReadingSession {
 
   /// Duration of the session in minutes.
   int get durationMinutes {
-    if (recordedSeconds != null) return recordedSeconds! ~/ 60;
-    if (endTime == null) return 0;
+    if (recordedSeconds != null) {
+      return recordedSeconds! ~/ 60;
+    }
+
+    if (endTime == null) {
+      return 0;
+    }
+
     return endTime!.difference(startTime).inMinutes;
   }
 
   /// Duration as a formatted string.
   String get durationLabel {
     final minutes = durationMinutes;
+
     if (minutes < 60) {
       return '$minutes min';
     }
+
     final hours = minutes ~/ 60;
     final remainingMinutes = minutes % 60;
+
     if (remainingMinutes == 0) {
       return '$hours hr';
     }
+
     return '$hours hr $remainingMinutes min';
   }
 
   /// Progress made during this session.
   double get progressMade {
-    if (endPosition == null) return 0;
+    if (endPosition == null) {
+      return 0;
+    }
+
     return (endPosition! - startPosition).clamp(0.0, 1.0);
   }
 
@@ -83,7 +96,6 @@ class ReadingSession {
     );
   }
 
-  /// Convert to JSON for API/storage.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -99,7 +111,6 @@ class ReadingSession {
     };
   }
 
-  /// Create from JSON.
   factory ReadingSession.fromJson(Map<String, dynamic> json) {
     return ReadingSession(
       id: json['id'] as String,

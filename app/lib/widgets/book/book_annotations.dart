@@ -82,6 +82,7 @@ class _BookAnnotationsState extends State<BookAnnotations> {
 
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
+
       result = result.where((annotation) {
         return annotation.highlightText.toLowerCase().contains(query) ||
             (annotation.note?.toLowerCase().contains(query) ?? false) ||
@@ -89,16 +90,16 @@ class _BookAnnotationsState extends State<BookAnnotations> {
       }).toList();
     }
 
-    result.sort((a, b) {
+    result.sort((left, right) {
       switch (_sortOption) {
         case _AnnotationSort.dateNewest:
-          return b.createdAt.compareTo(a.createdAt);
+          return right.createdAt.compareTo(left.createdAt);
         case _AnnotationSort.dateOldest:
-          return a.createdAt.compareTo(b.createdAt);
+          return left.createdAt.compareTo(right.createdAt);
         case _AnnotationSort.position:
-          return a.location.pageNumber.compareTo(b.location.pageNumber);
+          return left.location.pageNumber.compareTo(right.location.pageNumber);
         case _AnnotationSort.color:
-          return a.color.index.compareTo(b.color.index);
+          return left.color.index.compareTo(right.color.index);
       }
     });
 
@@ -125,7 +126,10 @@ class _BookAnnotationsState extends State<BookAnnotations> {
       return EmptyAnnotationsState(isPhysical: widget.isPhysical, onAddAnnotation: widget.onAddAnnotation);
     }
 
-    if (isDesktop) return _buildDesktopLayout(context);
+    if (isDesktop) {
+      return _buildDesktopLayout(context);
+    }
+
     return _buildMobileLayout(context);
   }
 
@@ -241,6 +245,7 @@ class _BookAnnotationsState extends State<BookAnnotations> {
       separatorBuilder: (_, _) => SizedBox(height: separatorHeight),
       itemBuilder: (context, index) {
         final annotation = annotations[index];
+
         return AnnotationCard(
           annotation: annotation,
           showActionMenu: showActionMenu,

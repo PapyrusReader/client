@@ -14,6 +14,7 @@ void main() {
   test('uses the currently selected server for subsequent requests', () async {
     final seen = <http.Request>[];
     var server = 'https://papyrus.test';
+
     final gateway = OpdsHttpClient(
       apiConfig: () => PapyrusApiConfig(serverBaseUri: Uri.parse(server)),
       clientFactory: () => MockClient((request) async {
@@ -21,6 +22,7 @@ void main() {
         return http.Response('book', 200, headers: {'x-opds-url': 'https://cdn.test/book.epub'});
       }),
     );
+
     final response = await gateway.get(catalog, catalog.uri, credentials: credentials);
     server = 'https://custom.test';
     await gateway.get(catalog, catalog.uri);
@@ -34,6 +36,7 @@ void main() {
 
   test('reports authentication errors without exposing credentials', () async {
     final gateway = OpdsHttpClient(clientFactory: () => MockClient((_) async => http.Response('private', 401)));
+
     await expectLater(
       gateway.get(catalog, catalog.uri, credentials: credentials),
       throwsA(isA<OpdsException>().having((e) => e.message, 'message', contains('credentials'))),
@@ -46,8 +49,10 @@ void main() {
         throw http.ClientException('Failed to fetch');
       }),
     );
+
     await expectLater(gateway.get(catalog, catalog.uri), throwsA(isA<OpdsConnectionException>()));
     final denied = OpdsHttpClient(clientFactory: () => MockClient((_) async => http.Response('', 403)));
+
     await expectLater(
       denied.get(catalog, catalog.uri),
       throwsA(isA<OpdsException>().having((error) => error is OpdsConnectionException, 'connection failure', isFalse)),
@@ -56,6 +61,7 @@ void main() {
 
   test('rejects unsafe and credential-bearing resource URLs', () async {
     final gateway = OpdsHttpClient();
+
     for (final url in ['file:///etc/passwd', 'https://reader:secret@books.test/opds']) {
       await expectLater(gateway.get(catalog, Uri.parse(url)), throwsA(isA<OpdsException>()));
     }
@@ -66,6 +72,7 @@ void main() {
       clientFactory: () =>
           MockClient((_) async => http.Response('12345', 200, headers: {'x-opds-url': catalog.uri.toString()})),
     );
+
     await expectLater(gateway.get(catalog, catalog.uri, maxBytes: 4), throwsA(isA<OpdsException>()));
     final progress = <int>[];
     await gateway.get(catalog, catalog.uri, onProgress: (received, total) => progress.add(received));
@@ -74,6 +81,7 @@ void main() {
 
   test('cancelled operations cannot start requests', () async {
     final cancellation = OpdsCancellation()..cancel();
+
     await expectLater(
       OpdsHttpClient().get(catalog, catalog.uri, cancellation: cancellation),
       throwsA(isA<OpdsCancelled>()),

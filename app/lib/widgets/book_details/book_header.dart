@@ -37,6 +37,7 @@ class BookHeader extends StatelessWidget {
     if (isDesktop) {
       return _buildDesktopHeader(context);
     }
+
     return _buildMobileHeader(context);
   }
 
@@ -219,6 +220,7 @@ class _ReadingError extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: Spacing.xs,

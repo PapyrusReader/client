@@ -21,17 +21,34 @@ class _ExpandableBottomSheetState extends State<ExpandableBottomSheet> {
   bool _measurementScheduled = false;
 
   void _measureContent() {
-    if (_measurementScheduled) return;
+    if (_measurementScheduled) {
+      return;
+    }
+
     _measurementScheduled = true;
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _measurementScheduled = false;
-      if (!mounted) return;
+
+      if (!mounted) {
+        return;
+      }
+
       final box = _contentKey.currentContext?.findRenderObject();
       final controller = _scrollController;
-      if (box is! RenderBox || !box.hasSize) return;
+
+      if (box is! RenderBox || !box.hasSize) {
+        return;
+      }
+
       final position = controller != null && controller.positions.length == 1 ? controller.position : null;
-      if (position != null && !position.hasContentDimensions) return;
+
+      if (position != null && !position.hasContentDimensions) {
+        return;
+      }
+
       final height = box.size.height + math.max(0, position?.maxScrollExtent ?? 0);
+
       if (_contentHeight == null || (height - _contentHeight!).abs() > 1) {
         setState(() => _contentHeight = height);
       }
@@ -46,6 +63,7 @@ class _ExpandableBottomSheetState extends State<ExpandableBottomSheet> {
       // When the keyboard leaves little room, use all of the available height.
       final initialSize = math.min(availableHeight < 400 ? 1.0 : .8, maxSize);
       _measureContent();
+
       return DraggableScrollableSheet(
         expand: false,
         initialChildSize: initialSize,
@@ -54,9 +72,13 @@ class _ExpandableBottomSheetState extends State<ExpandableBottomSheet> {
         shouldCloseOnMinExtent: widget.canClose,
         builder: (context, controller) {
           _scrollController = controller;
+
           return NotificationListener<ScrollMetricsNotification>(
             onNotification: (notification) {
-              if (notification.depth == 0) _measureContent();
+              if (notification.depth == 0) {
+                _measureContent();
+              }
+
               return false;
             },
             child: NotificationListener<SizeChangedLayoutNotification>(

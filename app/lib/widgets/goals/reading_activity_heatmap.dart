@@ -18,6 +18,7 @@ class ReadingActivityHeatmap extends StatefulWidget {
     required this.onDaySelected,
     this.selectedDay,
   });
+
   final List<ReadingActivity> activities;
   final int year;
   final String timezone;
@@ -25,6 +26,7 @@ class ReadingActivityHeatmap extends StatefulWidget {
   final ValueChanged<int> onYearChanged;
   final ValueChanged<DateTime> onDaySelected;
   final DateTime? selectedDay;
+
   @override
   State<ReadingActivityHeatmap> createState() => _ReadingActivityHeatmapState();
 }
@@ -33,10 +35,14 @@ class _ReadingActivityHeatmapState extends State<ReadingActivityHeatmap> {
   final _scroll = ScrollController();
   bool _positionPending = true;
   double? _lastStride;
+
   @override
   void didUpdateWidget(ReadingActivityHeatmap oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.year != widget.year || oldWidget.timezone != widget.timezone) _positionPending = true;
+
+    if (oldWidget.year != widget.year || oldWidget.timezone != widget.timezone) {
+      _positionPending = true;
+    }
   }
 
   @override
@@ -55,22 +61,26 @@ class _ReadingActivityHeatmapState extends State<ReadingActivityHeatmap> {
     final texts = Theme.of(context).textTheme;
     final range = GoalCalendar.calendarPeriod(GoalPeriod.yearly, DateTime.utc(widget.year, 1, 2), widget.timezone);
     final first = range.start;
+
     final activity = readingActivityCalendar(
       widget.activities,
       range: range,
       timezone: widget.timezone,
       now: widget.now,
     );
+
     final firstLocal = GoalCalendar.local(first, widget.timezone);
     final gridStart = GoalCalendar.dayOffset(first, 1 - firstLocal.weekday, widget.timezone);
     final dayCount = DateTime.utc(widget.year + 1).difference(DateTime.utc(widget.year)).inDays;
     final columns = ((firstLocal.weekday - 1 + dayCount) / 7).ceil();
     final currentYear = GoalCalendar.local(widget.now, widget.timezone).year;
+
     final years = <int>{
       currentYear,
       widget.year,
       for (final a in widget.activities) GoalCalendar.local(a.startTime, widget.timezone).year,
-    }.where((year) => year <= currentYear).toList()..sort((a, b) => b.compareTo(a));
+    }.where((year) => year <= currentYear).toList()..sort((left, right) => right.compareTo(left));
+
     return Container(
       key: const Key('reading-activity-heatmap'),
       padding: const EdgeInsets.all(Spacing.lg),
@@ -102,7 +112,9 @@ class _ReadingActivityHeatmapState extends State<ReadingActivityHeatmap> {
                       decoration: const InputDecoration(labelText: 'Year', isDense: true),
                       items: [for (final year in years) DropdownMenuItem(value: year, child: Text('$year'))],
                       onChanged: (year) {
-                        if (year != null) widget.onYearChanged(year);
+                        if (year != null) {
+                          widget.onYearChanged(year);
+                        }
                       },
                     ),
                   ),
@@ -114,31 +126,44 @@ class _ReadingActivityHeatmapState extends State<ReadingActivityHeatmap> {
               builder: (context, constraints) {
                 const gap = 3.0;
                 final labelWidth = MediaQuery.textScalerOf(context).scale(24);
+
                 final labelPainter = TextPainter(
                   text: TextSpan(text: 'M', style: texts.labelSmall),
                   textDirection: Directionality.of(context),
                   textScaler: MediaQuery.textScalerOf(context),
                 )..layout();
+
                 final minCell = math.max(11.0, labelPainter.height + 2 - gap);
                 labelPainter.dispose();
+
                 final cell = ((constraints.maxWidth - labelWidth) / columns - gap)
                     .clamp(minCell, math.max(20.0, minCell))
                     .toDouble();
+
                 final stride = cell + gap;
+
                 if (_lastStride != stride) {
                   _lastStride = stride;
                   _positionPending = true;
                 }
+
                 if (_positionPending) {
                   _positionPending = false;
+
                   WidgetsBinding.instance.addPostFrameCallback((_) {
-                    if (!mounted || !_scroll.hasClients) return;
+                    if (!mounted || !_scroll.hasClients) {
+                      return;
+                    }
+
                     final today = GoalCalendar.local(widget.now, widget.timezone);
+
                     final visibleDay = widget.year == today.year
                         ? DateTime.utc(today.year, today.month, today.day)
                         : DateTime.utc(widget.year, 12, 31);
+
                     final week =
                         (visibleDay.difference(DateTime.utc(widget.year)).inDays + firstLocal.weekday - 1) ~/ 7;
+
                     _scroll.jumpTo(
                       (labelWidth + (week + 1) * stride - constraints.maxWidth).clamp(
                         0,
@@ -147,7 +172,9 @@ class _ReadingActivityHeatmapState extends State<ReadingActivityHeatmap> {
                     );
                   });
                 }
+
                 final headingHeight = MediaQuery.textScalerOf(context).scale(20);
+
                 return Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -274,7 +301,11 @@ class _ReadingActivityHeatmapState extends State<ReadingActivityHeatmap> {
 
   Widget? _monthLabel(int week, DateTime start, TextTheme texts) {
     final date = GoalCalendar.local(GoalCalendar.dayOffset(start, week * 7, widget.timezone), widget.timezone);
-    if (date.year != widget.year || (date.day > 7 && week != 0)) return null;
+
+    if (date.year != widget.year || (date.day > 7 && week != 0)) {
+      return null;
+    }
+
     return Text(DateFormat.MMM().format(date), style: texts.labelSmall);
   }
 
@@ -290,15 +321,19 @@ class _ReadingActivityHeatmapState extends State<ReadingActivityHeatmap> {
     final future = day.isAfter(widget.now);
     final value = activity[day];
     final seconds = value?.seconds ?? 0;
-    final duration = seconds == 0
-        ? value?.hasActivity == true
-              ? 'Reading logged'
-              : 'No reading'
-        : seconds < 60
-        ? '$seconds sec'
-        : '${seconds ~/ 60} min';
+
+    final duration = switch (seconds == 0) {
+      true => switch (value?.hasActivity == true) {
+        true => 'Reading logged',
+        false => 'No reading',
+      },
+      false when seconds < 60 => '$seconds sec',
+      false => '${seconds ~/ 60} min',
+    };
+
     final label =
         '${DateFormat.yMMMd().format(GoalCalendar.local(day, widget.timezone))}: ${future ? 'Future date' : duration}';
+
     return SizedBox(
       width: size,
       height: size,

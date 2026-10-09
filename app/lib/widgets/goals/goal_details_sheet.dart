@@ -19,6 +19,7 @@ class GoalDetailsSheet extends StatefulWidget {
   final ReadingGoal goal;
   final GoalsProvider provider;
   final GoalProgress? historical;
+
   static Future<void> show(
     BuildContext context, {
     required ReadingGoal goal,
@@ -33,6 +34,7 @@ class GoalDetailsSheet extends StatefulWidget {
     sheetAnimationStyle: AppMotion.animationStyle(context),
     builder: (_) => GoalDetailsSheet(goal: goal, provider: provider, historical: historical),
   );
+
   @override
   State<GoalDetailsSheet> createState() => _GoalDetailsSheetState();
 }
@@ -41,12 +43,14 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
   late final TrackingRepository? _repository = widget.provider.store.trackingRepository;
   bool _saving = false;
   String? _error;
+
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
     animation: widget.provider,
     builder: (context, _) {
       final goal = widget.provider.store.getReadingGoal(widget.goal.id) ?? widget.goal;
       final history = widget.historical;
+
       final progress = history == null
           ? widget.provider.progress(goal)
           : projectGoal(
@@ -55,8 +59,10 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
               widget.provider.now,
               period: history.range,
             );
+
       final periods = widget.provider.history.where((period) => period.goal.id == goal.id).toList();
       final canRestore = goal.isArchived && widget.provider.store.getReadingGoal(goal.id) != null;
+
       return GoalControls(
         child: AppBottomSheet(
           title: 'Goal details',
@@ -169,18 +175,20 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
       );
     },
   );
+
   Widget _progressSummary(BuildContext context, GoalProgress progress) {
     final goal = progress.projected;
     final texts = Theme.of(context).textTheme;
     final colors = Theme.of(context).colorScheme;
     final ended = !progress.range.end.isAfter(widget.provider.now);
-    final status = goal.isArchived
-        ? 'Archived'
-        : !goal.isActive
-        ? 'Paused'
-        : ended
-        ? (progress.reached ? 'Achieved' : 'Missed')
-        : goalRemaining(progress);
+
+    final status = switch (goal.isArchived) {
+      true => 'Archived',
+      false when !goal.isActive => 'Paused',
+      false when ended => (progress.reached ? 'Achieved' : 'Missed'),
+      false => goalRemaining(progress),
+    };
+
     final scope = switch (goal.scope) {
       GoalScope.library => 'Whole library',
       GoalScope.book =>
@@ -189,8 +197,10 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
             : widget.provider.store.getBook(goal.scopeId!)?.title ?? 'Removed book',
       GoalScope.shelf => widget.provider.store.getShelf(goal.scopeId!)?.name ?? 'Removed shelf',
     };
+
     final start = GoalCalendar.local(progress.range.start, goal.timezone);
     final end = GoalCalendar.local(progress.range.end.subtract(const Duration(microseconds: 1)), goal.timezone);
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -215,13 +225,12 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
               children: [
                 if (progress.reached || !goal.isActive || goal.isArchived || ended) ...[
                   Icon(
-                    goal.isArchived
-                        ? Icons.archive_outlined
-                        : !goal.isActive
-                        ? Icons.pause_circle_outline
-                        : progress.reached
-                        ? Icons.check_circle_outline
-                        : Icons.event_outlined,
+                    switch (goal.isArchived) {
+                      true => Icons.archive_outlined,
+                      false when !goal.isActive => Icons.pause_circle_outline,
+                      false when progress.reached => Icons.check_circle_outline,
+                      false => Icons.event_outlined,
+                    },
                     size: IconSizes.small,
                   ),
                   const SizedBox(width: Spacing.xs),
@@ -271,6 +280,7 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
   Widget _readingDay(BuildContext context, GoalProgress progress, DateTime day) {
     final date = GoalCalendar.local(day, progress.goal.timezone);
     final qualified = progress.qualifiedDays.contains(day);
+
     return Semantics(
       label: '${DateFormat.yMMMd().format(date)}: ${qualified ? 'Reading day' : 'Daily minimum not reached'}',
       excludeSemantics: true,
@@ -290,20 +300,30 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
       _saving = true;
       _error = null;
     });
+
     try {
       await action();
     } catch (error) {
       _error = error.toString();
     } finally {
-      if (mounted) setState(() => _saving = false);
+      if (mounted) {
+        setState(() => _saving = false);
+      }
     }
   }
 
   Future<void> _delete() async {
     final confirmed = await confirmGoalDeletion(context);
-    if (confirmed != true || !mounted) return;
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
     await _action(() => widget.provider.deleteGoal(widget.goal.id, repository: _repository));
-    if (mounted && _error == null) Navigator.pop(context);
+
+    if (mounted && _error == null) {
+      Navigator.pop(context);
+    }
   }
 }
 

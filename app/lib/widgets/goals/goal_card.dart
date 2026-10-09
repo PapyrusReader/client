@@ -12,10 +12,17 @@ IconData goalIcon(GoalType type) => switch (type) {
   GoalType.days => Icons.calendar_today_outlined,
 };
 String goalTime(int seconds) {
-  if (seconds == 0) return '0 sec';
+  if (seconds == 0) {
+    return '0 sec';
+  }
+
   final minutes = seconds ~/ 60;
   final remainder = seconds % 60;
-  if (minutes == 0) return '$remainder sec';
+
+  if (minutes == 0) {
+    return '$remainder sec';
+  }
+
   return remainder == 0 ? formatDuration(minutes) : '${formatDuration(minutes)} ${remainder}s';
 }
 
@@ -23,11 +30,12 @@ String goalCount(GoalProgress progress) => progress.goal.type == GoalType.minute
     ? '${goalTime(progress.seconds)} / ${formatDuration(progress.goal.targetValue)}'
     : '${progress.value} / ${progress.goal.targetValue} ${progress.goal.unitLabel(progress.goal.targetValue)}';
 
-String goalRemaining(GoalProgress progress) => progress.reached
-    ? 'Target reached'
-    : progress.goal.type == GoalType.minutes
-    ? '${goalTime((progress.goal.targetValue * 60 - progress.seconds).clamp(0, progress.goal.targetValue * 60))} to go'
-    : progress.projected.statusText;
+String goalRemaining(GoalProgress progress) => switch (progress.reached) {
+  true => 'Target reached',
+  false when progress.goal.type == GoalType.minutes =>
+    '${goalTime((progress.goal.targetValue * 60 - progress.seconds).clamp(0, progress.goal.targetValue * 60))} to go',
+  false => progress.projected.statusText,
+};
 
 class GoalCard extends StatelessWidget {
   const GoalCard({
@@ -41,6 +49,7 @@ class GoalCard extends StatelessWidget {
     this.fillHeight = false,
     this.showReadingDays = false,
   });
+
   final ReadingGoal goal;
   final GoalProgress? progress;
   final VoidCallback? onTap;
@@ -49,6 +58,7 @@ class GoalCard extends StatelessWidget {
   final bool isDesktop;
   final bool fillHeight;
   final bool showReadingDays;
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -56,17 +66,16 @@ class GoalCard extends StatelessWidget {
     final projected = progress?.projected ?? goal;
     final today = GoalCalendar.midnight(DateTime.now(), goal.timezone);
     final expired = progress?.range.end.isAfter(DateTime.now().toUtc()) == false;
-    final state = projected.isArchived
-        ? 'Archived'
-        : !projected.isActive
-        ? 'Paused'
-        : expired
-        ? projected.isCompleted
-              ? 'Achieved'
-              : 'Missed'
-        : projected.isCompleted
-        ? 'Target reached'
-        : null;
+
+    final state = switch (projected) {
+      _ when projected.isArchived => 'Archived',
+      _ when !projected.isActive => 'Paused',
+      _ when expired && projected.isCompleted => 'Achieved',
+      _ when expired => 'Missed',
+      _ when projected.isCompleted => 'Target reached',
+      _ => null,
+    };
+
     return Card(
       semanticContainer: false,
       margin: EdgeInsets.zero,
@@ -159,11 +168,11 @@ class GoalCard extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          projected.isCompleted
-                              ? Icons.check_circle_outline
-                              : goal.isActive
-                              ? Icons.event_outlined
-                              : Icons.pause_circle_outline,
+                          switch (projected.isCompleted) {
+                            true => Icons.check_circle_outline,
+                            false when goal.isActive => Icons.event_outlined,
+                            false => Icons.pause_circle_outline,
+                          },
                           size: 16,
                         ),
                         const SizedBox(width: Spacing.xs),
@@ -216,6 +225,7 @@ class GoalCard extends StatelessWidget {
     final localDate = GoalCalendar.dayOffset(start, index, goal.timezone);
     final done = progress!.qualifiedDays.contains(localDate);
     final colors = Theme.of(context).colorScheme;
+
     return Tooltip(
       message:
           '${DateFormat.yMMMd().format(GoalCalendar.local(localDate, goal.timezone))}: ${done ? 'qualified' : 'not qualified'}',

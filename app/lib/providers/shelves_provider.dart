@@ -55,6 +55,7 @@ class ShelvesProvider extends ChangeNotifier {
     if (_selectedShelf != null) {
       _selectedShelf = _dataStore?.getShelf(_selectedShelf!.id);
     }
+
     notifyListeners();
   }
 
@@ -63,10 +64,6 @@ class ShelvesProvider extends ChangeNotifier {
     _dataStore?.removeListener(_onDataStoreChanged);
     super.dispose();
   }
-
-  // ============================================================================
-  // GETTERS
-  // ============================================================================
 
   bool get isLoading => _isLoading;
   String? get error => _error;
@@ -78,7 +75,11 @@ class ShelvesProvider extends ChangeNotifier {
 
   void setGridItemWidth(double width) {
     final normalized = BookGridSize.normalize(width);
-    if (_gridItemWidth == normalized) return;
+
+    if (_gridItemWidth == normalized) {
+      return;
+    }
+
     _gridItemWidth = normalized;
     notifyListeners();
   }
@@ -94,10 +95,15 @@ class ShelvesProvider extends ChangeNotifier {
 
   /// Get all shelves, filtered and sorted according to current settings.
   List<Shelf> get shelves {
-    if (_dataStore == null) return [];
+    if (_dataStore == null) {
+      return [];
+    }
+
     var list = List<Shelf>.from(_dataStore!.shelves);
+
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
+
       list = list.where((shelf) {
         return shelf.name.toLowerCase().contains(query) || (shelf.description?.toLowerCase().contains(query) ?? false);
       }).toList();
@@ -137,13 +143,12 @@ class ShelvesProvider extends ChangeNotifier {
 
   /// Get total book count across all shelves.
   int get totalBookCount {
-    if (_dataStore == null) return 0;
+    if (_dataStore == null) {
+      return 0;
+    }
+
     return _dataStore!.shelves.fold(0, (sum, shelf) => sum + _dataStore!.getBookCountForShelf(shelf.id));
   }
-
-  // ============================================================================
-  // METHODS
-  // ============================================================================
 
   /// Loads all shelves data. With DataStore, this is instant since data is already loaded.
   Future<void> loadShelves() async {
@@ -154,11 +159,10 @@ class ShelvesProvider extends ChangeNotifier {
     try {
       // Simulate network delay for realistic UX
       await Future.delayed(const Duration(milliseconds: 100));
-
       _isLoading = false;
       notifyListeners();
-    } catch (e) {
-      _error = 'Failed to load shelves: $e';
+    } catch (error) {
+      _error = 'Failed to load shelves: $error';
       _isLoading = false;
       notifyListeners();
     }
@@ -206,7 +210,9 @@ class ShelvesProvider extends ChangeNotifier {
 
   /// Sets the shelf sort option and its explicit direction.
   void setShelfSortOption(ShelfSortOption option, {required bool ascending}) {
-    if (_shelfSortOption == option && _shelfSortAscending == ascending) return;
+    if (_shelfSortOption == option && _shelfSortAscending == ascending) {
+      return;
+    }
 
     _shelfSortOption = option;
     _shelfSortAscending = ascending;
@@ -225,27 +231,32 @@ class ShelvesProvider extends ChangeNotifier {
 
   /// Applies the current sorting to a shelves list.
   void _applySorting(List<Shelf> list) {
-    list.sort((a, b) {
+    list.sort((left, right) {
       int result;
+
       switch (_shelfSortOption) {
         case ShelfSortOption.name:
-          result = a.name.toLowerCase().compareTo(b.name.toLowerCase());
+          result = left.name.toLowerCase().compareTo(right.name.toLowerCase());
         case ShelfSortOption.bookCount:
-          final aCount = _dataStore?.getBookCountForShelf(a.id) ?? 0;
-          final bCount = _dataStore?.getBookCountForShelf(b.id) ?? 0;
+          final aCount = _dataStore?.getBookCountForShelf(left.id) ?? 0;
+          final bCount = _dataStore?.getBookCountForShelf(right.id) ?? 0;
           result = aCount.compareTo(bCount);
         case ShelfSortOption.dateCreated:
-          result = a.createdAt.compareTo(b.createdAt);
+          result = left.createdAt.compareTo(right.createdAt);
         case ShelfSortOption.dateModified:
-          result = a.updatedAt.compareTo(b.updatedAt);
+          result = left.updatedAt.compareTo(right.updatedAt);
       }
+
       return _shelfSortAscending ? result : -result;
     });
   }
 
   /// Gets child shelves of a parent shelf.
   List<Shelf> getChildShelves(String parentShelfId) {
-    if (_dataStore == null) return [];
+    if (_dataStore == null) {
+      return [];
+    }
+
     return _dataStore!.getChildShelves(parentShelfId);
   }
 
@@ -268,6 +279,7 @@ class ShelvesProvider extends ChangeNotifier {
     }
 
     final now = DateTime.now();
+
     final newShelf = Shelf(
       id: const Uuid().v4(),
       name: name,
@@ -299,6 +311,7 @@ class ShelvesProvider extends ChangeNotifier {
     }
 
     final shelf = previous ?? _dataStore!.getShelf(shelfId);
+
     if (shelf == null) {
       throw Exception('Shelf not found');
     }
@@ -327,6 +340,7 @@ class ShelvesProvider extends ChangeNotifier {
     }
 
     final shelf = _dataStore!.getShelf(shelfId);
+
     if (shelf == null) {
       throw Exception('Shelf not found');
     }
@@ -349,6 +363,7 @@ class ShelvesProvider extends ChangeNotifier {
 
     // Update the shelf's updatedAt timestamp
     final shelf = _dataStore!.getShelf(shelfId);
+
     if (shelf != null) {
       await _dataStore!.updateShelf(shelf.copyWith(updatedAt: DateTime.now()), previous: shelf);
     }
@@ -364,6 +379,7 @@ class ShelvesProvider extends ChangeNotifier {
 
     // Update the shelf's updatedAt timestamp
     final shelf = _dataStore!.getShelf(shelfId);
+
     if (shelf != null) {
       await _dataStore!.updateShelf(shelf.copyWith(updatedAt: DateTime.now()), previous: shelf);
     }
@@ -371,14 +387,17 @@ class ShelvesProvider extends ChangeNotifier {
 
   /// Reorders shelves (drag and drop).
   Future<void> reorderShelves(int oldIndex, int newIndex) async {
-    if (_dataStore == null) return;
+    if (_dataStore == null) {
+      return;
+    }
 
     final shelfList = List<Shelf>.from(_dataStore!.shelves);
-    shelfList.sort((a, b) => a.sortOrder.compareTo(b.sortOrder));
+    shelfList.sort((left, right) => left.sortOrder.compareTo(right.sortOrder));
 
     if (oldIndex < newIndex) {
       newIndex -= 1;
     }
+
     final shelf = shelfList.removeAt(oldIndex);
     shelfList.insert(newIndex, shelf);
 
@@ -390,13 +409,19 @@ class ShelvesProvider extends ChangeNotifier {
 
   /// Get book count for a specific shelf.
   int getBookCountForShelf(String shelfId) {
-    if (_dataStore == null) return 0;
+    if (_dataStore == null) {
+      return 0;
+    }
+
     return _dataStore!.getBookCountForShelf(shelfId);
   }
 
   /// Get cover previews for a shelf.
   List<CoverPreview> getCoverPreviewsForShelf(String shelfId) {
-    if (_dataStore == null) return [];
+    if (_dataStore == null) {
+      return [];
+    }
+
     return _dataStore!.getCoverPreviewsForShelf(shelfId);
   }
 

@@ -72,7 +72,6 @@ void main() {
       test('sets each view mode explicitly', () {
         provider.setViewMode(LibraryViewMode.list);
         expect(provider.viewMode, LibraryViewMode.list);
-
         provider.setViewMode(LibraryViewMode.grid);
         expect(provider.viewMode, LibraryViewMode.grid);
       });
@@ -80,9 +79,7 @@ void main() {
       test('does not notify when the view mode is unchanged', () {
         var notifications = 0;
         provider.addListener(() => notifications++);
-
         provider.setViewMode(LibraryViewMode.grid);
-
         expect(notifications, 0);
       });
     });
@@ -96,7 +93,6 @@ void main() {
         provider.setFormatFilters({' EPUB '});
         provider.setShelfFilters({'shelf-1'});
         provider.setTopicFilters({'topic-1'});
-
         expect(provider.selectedStatuses, {LibraryReadingStatus.inProgress, LibraryReadingStatus.completed});
         expect(provider.favoriteFilter, FavoriteFilter.favorites);
         expect(provider.selectedAuthors, {'j.r.r. tolkien'});
@@ -110,6 +106,7 @@ void main() {
       test('applyFilters replaces the entire filter draft with one notification', () {
         var notifications = 0;
         provider.addListener(() => notifications++);
+
         final filters = LibraryFilters(
           authors: {'frank herbert'},
           statuses: {LibraryReadingStatus.completed},
@@ -117,7 +114,6 @@ void main() {
         );
 
         provider.applyFilters(filters);
-
         expect(provider.filters, filters);
         expect(provider.activeFilterCount, 3);
         expect(notifications, 1);
@@ -127,9 +123,7 @@ void main() {
         provider.setSearchQuery('dune');
         provider.setStatusFilters({LibraryReadingStatus.completed});
         provider.setFavoriteFilter(FavoriteFilter.notFavorites);
-
         provider.clearFilters();
-
         expect(provider.filters.isEmpty, isTrue);
         expect(provider.searchQuery, 'dune');
       });
@@ -138,9 +132,7 @@ void main() {
         provider.setStatusFilters({LibraryReadingStatus.inProgress});
         provider.setSortOption(LibrarySortOption.titleAZ);
         provider.setViewMode(LibraryViewMode.list);
-
         provider.resetQuickFilters();
-
         expect(provider.filters.isEmpty, isTrue);
         expect(provider.sortOption, LibrarySortOption.dateAddedNewest);
         expect(provider.viewMode, LibraryViewMode.grid);
@@ -151,9 +143,7 @@ void main() {
       test('sets and clears plain text search independently', () {
         provider.setStatusFilters({LibraryReadingStatus.inProgress});
         provider.setSearchQuery('tolkien');
-
         provider.clearSearch();
-
         expect(provider.searchQuery, isEmpty);
         expect(provider.selectedStatuses, {LibraryReadingStatus.inProgress});
       });
@@ -162,9 +152,7 @@ void main() {
         provider.setSearchQuery('test');
         var notifications = 0;
         provider.addListener(() => notifications++);
-
         provider.setSearchQuery('test');
-
         expect(notifications, 0);
       });
     });
@@ -176,9 +164,7 @@ void main() {
         provider.setSearchQuery('tolkien');
         provider.setStatusFilters({LibraryReadingStatus.inProgress});
         provider.setFavoriteFilter(FavoriteFilter.favorites);
-
         final filtered = provider.filterBooks(books, dataStore: dataStore);
-
         expect(filtered.map((book) => book.id), ['book-1']);
       });
 
@@ -186,9 +172,7 @@ void main() {
         final books = createTestBooks();
         final dataStore = createTestDataStore(books: books);
         provider.setStatusFilters({LibraryReadingStatus.inProgress, LibraryReadingStatus.completed});
-
         final filtered = provider.filterBooks(books, dataStore: dataStore);
-
         expect(filtered.map((book) => book.id), ['book-1', 'book-2', 'book-5']);
       });
 
@@ -197,9 +181,7 @@ void main() {
         final dataStore = createTestDataStore(books: books);
         provider.setStatusFilters({LibraryReadingStatus.unread});
         final draft = LibraryFilters(favoriteFilter: FavoriteFilter.favorites);
-
         final preview = provider.filterBooks(books, dataStore: dataStore, filters: draft);
-
         expect(preview.map((book) => book.id), ['book-1', 'book-4']);
         expect(provider.selectedStatuses, {LibraryReadingStatus.unread});
       });

@@ -27,13 +27,10 @@ void main() {
 
     expect(find.byKey(const Key('add-book-sheet-header')), findsOneWidget);
     expect(find.byKey(const Key('add-book-sheet-footer')), findsOneWidget);
-
     final headerTopBeforeScroll = tester.getTopLeft(find.byKey(const Key('add-book-sheet-header'))).dy;
     final footerTopBeforeScroll = tester.getTopLeft(find.byKey(const Key('add-book-sheet-footer'))).dy;
-
     await tester.drag(find.byKey(const Key('scrolling-body')), const Offset(0, -300));
     await tester.pumpAndSettle();
-
     expect(scrollController.offset, greaterThan(0));
     expect(tester.getTopLeft(find.byKey(const Key('add-book-sheet-header'))).dy, headerTopBeforeScroll);
     expect(tester.getTopLeft(find.byKey(const Key('add-book-sheet-footer'))).dy, footerTopBeforeScroll);

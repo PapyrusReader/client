@@ -17,12 +17,10 @@ class BookShelfRelation {
     );
   }
 
-  /// Convert to JSON for API/storage.
   Map<String, dynamic> toJson() {
     return {'book_id': bookId, 'shelf_id': shelfId, 'added_at': addedAt.toIso8601String(), 'sort_order': sortOrder};
   }
 
-  /// Create from JSON.
   factory BookShelfRelation.fromJson(Map<String, dynamic> json) {
     return BookShelfRelation(
       bookId: json['book_id'] as String,
@@ -34,7 +32,10 @@ class BookShelfRelation {
 
   @override
   bool operator ==(Object other) {
-    if (identical(this, other)) return true;
+    if (identical(this, other)) {
+      return true;
+    }
+
     return other is BookShelfRelation && other.bookId == bookId && other.shelfId == shelfId;
   }
 

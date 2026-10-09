@@ -19,10 +19,6 @@ class SampleData {
   static DateTime _daysAgo(int days) => DateTime.now().subtract(Duration(days: days));
   static DateTime _hoursAgo(int hours) => DateTime.now().subtract(Duration(hours: hours));
 
-  // ============================================================
-  // Books (15 books)
-  // ============================================================
-
   static List<Book> get books {
     return [
       Book(
@@ -360,12 +356,9 @@ class SampleData {
     ];
   }
 
-  // ============================================================
-  // Shelves (8 shelves)
-  // ============================================================
-
   static List<Shelf> get shelves {
     final now = DateTime.now();
+
     return [
       Shelf(
         id: 'shelf-1',
@@ -458,10 +451,6 @@ class SampleData {
     ];
   }
 
-  // ============================================================
-  // Tags (5 tags / topics)
-  // ============================================================
-
   static List<Tag> get tags {
     return [
       Tag(
@@ -502,10 +491,6 @@ class SampleData {
     ];
   }
 
-  // ============================================================
-  // Series (3 series)
-  // ============================================================
-
   static List<Series> get seriesList {
     return [
       Series(
@@ -540,10 +525,6 @@ class SampleData {
       ),
     ];
   }
-
-  // ============================================================
-  // Book-Shelf Relations
-  // ============================================================
 
   static List<BookShelfRelation> get bookShelfRelations {
     return [
@@ -596,10 +577,6 @@ class SampleData {
     ];
   }
 
-  // ============================================================
-  // Book-Tag Relations
-  // ============================================================
-
   static List<BookTagRelation> get bookTagRelations {
     return [
       // Programming (tag-1)
@@ -630,10 +607,6 @@ class SampleData {
       BookTagRelation(bookId: 'book-15', tagId: 'tag-5', createdAt: _daysAgo(30)),
     ];
   }
-
-  // ============================================================
-  // Annotations
-  // ============================================================
 
   static List<Annotation> get annotations {
     return [
@@ -710,10 +683,6 @@ class SampleData {
     ];
   }
 
-  // ============================================================
-  // Notes
-  // ============================================================
-
   static List<Note> get notes {
     return [
       Note(
@@ -764,10 +733,6 @@ class SampleData {
     ];
   }
 
-  // ============================================================
-  // Bookmarks
-  // ============================================================
-
   static List<Bookmark> get bookmarks {
     return [
       Bookmark(
@@ -799,10 +764,6 @@ class SampleData {
     ];
   }
 
-  // ============================================================
-  // Reading Sessions (30+ sessions over past month)
-  // ============================================================
-
   static List<ReadingSession> get readingSessions {
     final sessions = <ReadingSession>[];
     var sessionId = 1;
@@ -812,12 +773,18 @@ class SampleData {
       final date = _daysAgo(day);
 
       // Skip some days to make it realistic
-      if (day % 7 == 6) continue; // Skip Sundays
-      if (day == 5 || day == 12 || day == 19) continue; // Random skips
+      if (day % 7 == 6) {
+        continue;
+      } // Skip Sundays
+
+      if (day == 5 || day == 12 || day == 19) {
+        continue;
+      } // Random skips
 
       // Morning session (book-1 or book-8)
       if (day % 2 == 0) {
         final startTime = DateTime(date.year, date.month, date.day, 7, 30);
+
         sessions.add(
           ReadingSession(
             id: 'session-${sessionId++}',
@@ -837,6 +804,7 @@ class SampleData {
       // Evening session (book-3 or book-7)
       if (day < 20) {
         final startTime = DateTime(date.year, date.month, date.day, 21, 0);
+
         sessions.add(
           ReadingSession(
             id: 'session-${sessionId++}',
@@ -857,12 +825,9 @@ class SampleData {
     return sessions;
   }
 
-  // ============================================================
-  // Reading Goals (4 active + 2 completed)
-  // ============================================================
-
   static List<ReadingGoal> get readingGoals {
     final now = DateTime.now();
+
     return [
       // Active goals
       ReadingGoal(

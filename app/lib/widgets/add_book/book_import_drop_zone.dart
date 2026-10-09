@@ -39,13 +39,19 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
     final supportsDrop = _supportsFileDrop(theme.platform) && MediaQuery.sizeOf(context).width >= Breakpoints.tablet;
-    if (!supportsDrop) return _buildFilePicker(context);
+
+    if (!supportsDrop) {
+      return _buildFilePicker(context);
+    }
+
     final isActive = _isDragging || _isFocused;
-    final backgroundColor = _isDragging
-        ? colorScheme.primaryContainer.withValues(alpha: 0.18)
-        : _isFocused
-        ? colorScheme.surfaceContainerHighest.withValues(alpha: 0.35)
-        : Colors.transparent;
+
+    final backgroundColor = switch (_isDragging) {
+      true => colorScheme.primaryContainer.withValues(alpha: 0.18),
+      false when _isFocused => colorScheme.surfaceContainerHighest.withValues(alpha: 0.35),
+      false => Colors.transparent,
+    };
+
     final borderColor = isActive ? colorScheme.primary : colorScheme.outlineVariant;
 
     final surface = FocusableActionDetector(
@@ -84,6 +90,7 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final minimumHeight = constraints.hasBoundedHeight ? constraints.maxHeight : 0.0;
+
                   return SingleChildScrollView(
                     child: ConstrainedBox(
                       constraints: BoxConstraints(minHeight: minimumHeight),
@@ -145,6 +152,7 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
 
   Widget _buildFilePicker(BuildContext context) {
     final theme = Theme.of(context);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         return SingleChildScrollView(
@@ -187,11 +195,16 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
   }
 
   void _browse() {
-    if (!_isBusy) widget.onBrowse();
+    if (!_isBusy) {
+      widget.onBrowse();
+    }
   }
 
   Future<void> _readDroppedFiles(DropDoneDetails details) async {
-    if (_isBusy) return;
+    if (_isBusy) {
+      return;
+    }
+
     final supportedItems = details.files.whereType<DropItemFile>().where(_isSupportedBook).toList(growable: false);
     final skippedFiles = supportedItems.length != details.files.length;
 
@@ -207,7 +220,11 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
     }
 
     final files = await Future.wait(supportedItems.map(_readBookFile));
-    if (!mounted) return;
+
+    if (!mounted) {
+      return;
+    }
+
     setState(() => _isReadingDrop = false);
     widget.onDroppedFiles(files, feedback: skippedFiles ? _skippedFilesMessage : null);
   }
@@ -215,17 +232,23 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
   bool _isSupportedBook(DropItemFile item) {
     final name = item.name.toLowerCase();
     final separator = name.lastIndexOf('.');
-    if (separator < 0 || separator == name.length - 1) return false;
+
+    if (separator < 0 || separator == name.length - 1) {
+      return false;
+    }
+
     return bookImportNativeExtensions.contains(name.substring(separator + 1));
   }
 
   Future<SelectedBookFile> _readBookFile(DropItemFile item) async {
     final bookmark = item.extraAppleBookmark;
     var hasSecurityScopedAccess = false;
+
     try {
       if (bookmark != null && bookmark.isNotEmpty) {
         hasSecurityScopedAccess = await DesktopDrop.instance.startAccessingSecurityScopedResource(bookmark: bookmark);
       }
+
       return SelectedBookFile(name: item.name, bytes: await item.readAsBytes());
     } catch (_) {
       return SelectedBookFile(name: item.name, bytes: null);
@@ -253,10 +276,14 @@ class _DashedRoundedBorderPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    if (size.isEmpty) return;
+    if (size.isEmpty) {
+      return;
+    }
+
     final inset = strokeWidth / 2;
     final bounds = Rect.fromLTWH(inset, inset, size.width - strokeWidth, size.height - strokeWidth);
     final path = Path()..addRRect(RRect.fromRectAndRadius(bounds, Radius.circular(radius - inset)));
+
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
@@ -265,6 +292,7 @@ class _DashedRoundedBorderPainter extends CustomPainter {
 
     for (final metric in path.computeMetrics()) {
       var distance = 0.0;
+
       while (distance < metric.length) {
         canvas.drawPath(metric.extractPath(distance, math.min(distance + 8, metric.length)), paint);
         distance += 14;

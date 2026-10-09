@@ -5,6 +5,7 @@ import 'package:papyrus/models/reading_activity.dart';
 
 void main() {
   final start = DateTime.utc(2026, 10, 7);
+
   ReadingActivity entry(String id, int from, int to, {String kind = 'reading', String? correctionOf, int pages = 0}) =>
       ReadingActivity(
         id: id,
@@ -21,12 +22,14 @@ void main() {
 
   test('heatmap unions device overlap and retries, excludes corrections and panel gaps', () {
     final a = entry('a', 0, 10);
+
     final days = readingActivityCalendar(
       [a, a, entry('b', 5, 15), entry('c', 30, 35), entry('undo', 36, 36, kind: 'reversal', correctionOf: 'c')],
       range: GoalRange(start, start.add(const Duration(days: 1))),
       timezone: 'UTC',
       now: start.add(const Duration(hours: 1)),
     );
+
     expect(days[start]!.seconds, 15 * 60);
     expect(days[start]!.level, 2);
   });
@@ -38,6 +41,7 @@ void main() {
       timezone: 'UTC',
       now: start.add(const Duration(days: 2)),
     );
+
     expect(days.length, 2);
     expect(days.values.every((day) => day.seconds == 0 && day.level == 1), isTrue);
   });
@@ -46,6 +50,7 @@ void main() {
     const timezone = 'Europe/Vilnius';
     final beginning = DateTime.utc(2026, 3, 28, 21, 50); // 23:50 before the spring change
     final finish = DateTime.utc(2026, 3, 29, 22); // 01:00 after the change
+
     final days = readingActivityCalendar(
       [
         ReadingActivity(
@@ -61,6 +66,7 @@ void main() {
       timezone: timezone,
       now: DateTime.utc(2026, 3, 29, 21, 30),
     );
+
     expect(days[DateTime.utc(2026, 3, 28, 22)]!.seconds, 23 * 3600);
     expect(days[DateTime.utc(2026, 3, 27, 22)]!.seconds, 10 * 60);
     expect(days[DateTime.utc(2026, 3, 29, 21)]!.seconds, 30 * 60);

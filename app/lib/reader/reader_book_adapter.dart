@@ -19,14 +19,19 @@ final class ReaderBookAdapter {
 
   static ReaderLocator? restoreLocator(Book book) {
     final stored = book.customMetadata?[locatorMetadataKey];
-    if (stored is! Map) return null;
+
+    if (stored is! Map) {
+      return null;
+    }
 
     try {
       final locator = ReaderLocator.fromJson(stored.map((key, value) => MapEntry(key.toString(), value)));
       final format = formatFor(book.fileFormat);
+
       if (format == ReaderFormat.epub && locator is! EpubReaderLocator) {
         return null;
       }
+
       if (format == ReaderFormat.pdf && locator is! PdfReaderLocator) {
         return null;
       }
@@ -40,16 +45,18 @@ final class ReaderBookAdapter {
   static Book applyLocator(Book book, ReaderLocator locator, {required DateTime now}) {
     final metadata = Map<String, dynamic>.from(book.customMetadata ?? const {});
     metadata[locatorMetadataKey] = locator.toJson();
-
     final position = _totalProgression(locator);
+
     final page = switch (locator) {
       EpubReaderLocator() => book.currentPage,
       PdfReaderLocator(:final pageIndex) => pageIndex + 1,
     };
+
     final cfi = switch (locator) {
       EpubReaderLocator(:final cfi) => cfi,
       PdfReaderLocator() => null,
     };
+
     final status = book.readingStatus == LibraryReadingStatus.unread && position > 0
         ? LibraryReadingStatus.inProgress
         : book.readingStatus;
@@ -89,9 +96,11 @@ final class ReaderBookAdapter {
 
   static void persistPreferences(PreferencesProvider target, ReaderPreferences preferences) {
     final fontFamily = preferences.fontFamily;
+
     if (fontFamily != null && target.defaultFont != fontFamily) {
       target.defaultFont = fontFamily;
     }
+
     if (target.defaultFontSize != preferences.fontSize) {
       target.defaultFontSize = preferences.fontSize;
     }
@@ -101,21 +110,25 @@ final class ReaderBookAdapter {
       > 1.6 => 'relaxed',
       _ => 'normal',
     };
+
     if (target.lineSpacing != lineSpacing) {
       target.lineSpacing = lineSpacing;
     }
 
     final margin = preferences.pageMargins.left;
+
     final margins = switch (margin) {
       < 20 => 'small',
       > 32 => 'large',
       _ => 'medium',
     };
+
     if (target.margins != margins) {
       target.margins = margins;
     }
 
     final readingMode = preferences.layoutMode == ReaderLayoutMode.scroll ? 'scroll' : 'paginated';
+
     if (target.readingMode != readingMode) {
       target.readingMode = readingMode;
     }

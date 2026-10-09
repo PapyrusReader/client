@@ -31,6 +31,7 @@ class AppearanceSettingsSection extends StatelessWidget {
     if (isDesktop) {
       return _buildDesktop(context);
     }
+
     return _buildMobile(context);
   }
 
@@ -85,7 +86,9 @@ class AppearanceSettingsSection extends StatelessWidget {
         groupValue: prefs.themeModePref,
         // ignore: deprecated_member_use
         onChanged: (newValue) {
-          if (newValue != null) prefs.themeModePref = newValue;
+          if (newValue != null) {
+            prefs.themeModePref = newValue;
+          }
         },
       ),
       onTap: () => prefs.themeModePref = value,

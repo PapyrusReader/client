@@ -24,6 +24,7 @@ import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 class GoalsPage extends StatefulWidget {
   const GoalsPage({super.key, this.now});
   final DateTime Function()? now;
+
   @override
   State<GoalsPage> createState() => _GoalsPageState();
 }
@@ -33,6 +34,7 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
   bool _activity = false;
   bool _hideCompleted = false;
   late TabController _tabs;
+
   @override
   void initState() {
     super.initState();
@@ -41,17 +43,21 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
   }
 
   void _onTabChanged() {
-    if (_activity != (_tabs.index == 1)) setState(() => _activity = _tabs.index == 1);
+    if (_activity != (_tabs.index == 1)) {
+      setState(() => _activity = _tabs.index == 1);
+    }
   }
 
   String? _filterGoal;
   DateTimeRange? _filterDates;
   int? _activityYear;
   String _activityKind = 'all';
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final duration = AppMotion.duration(context, kTabScrollDuration);
+
     if (_tabs.animationDuration != duration) {
       final index = _tabs.index;
       _tabs.removeListener(_onTabChanged);
@@ -59,6 +65,7 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
       _tabs = TabController(length: 2, vsync: this, initialIndex: index, animationDuration: duration);
       _tabs.addListener(_onTabChanged);
     }
+
     _provider.attach(context.read<DataStore>());
   }
 
@@ -86,6 +93,7 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
           child: LayoutBuilder(
             builder: (context, constraints) {
               final padding = libraryPageHorizontalPadding(context);
+
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
@@ -123,10 +131,12 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
           ),
         );
       }
+
       if (_hideCompleted && _provider.current.every((progress) => progress.reached)) {
         return const EmptyState.compact(icon: Icons.check_circle_outline, title: 'All goals completed');
       }
     }
+
     return ListView(
       key: PageStorageKey(activity ? 'goals-activity-scroll' : 'goals-overview-scroll'),
       padding: EdgeInsets.fromLTRB(
@@ -258,7 +268,9 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
         ],
       );
     }
+
     final colors = Theme.of(context).colorScheme;
+
     return Wrap(
       spacing: Spacing.sm,
       children: [
@@ -287,29 +299,43 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
     final current = _provider.current;
     // Recurrence describes a goal's schedule; activity determines its place here.
     final groups = <String, List<GoalProgress>>{'In progress': [], 'Not started': [], 'Completed': [], 'Paused': []};
+
     for (final progress in current) {
-      if (_hideCompleted && progress.reached) continue;
-      final status = !progress.projected.isActive
-          ? 'Paused'
-          : progress.reached
-          ? 'Completed'
-          : progress.fraction > 0
-          ? 'In progress'
-          : 'Not started';
+      if (_hideCompleted && progress.reached) {
+        continue;
+      }
+
+      final status = switch (!progress.projected.isActive) {
+        true => 'Paused',
+        false when progress.reached => 'Completed',
+        false when progress.fraction > 0 => 'In progress',
+        false => 'Not started',
+      };
+
       groups[status]!.add(progress);
     }
+
     for (final goals in groups.values) {
-      goals.sort((a, b) {
-        final progress = b.fraction.compareTo(a.fraction);
-        if (progress != 0) return progress;
-        final deadline = a.range.end.compareTo(b.range.end);
-        if (deadline != 0) return deadline;
-        final created = a.goal.createdAt.compareTo(b.goal.createdAt);
-        return created != 0 ? created : a.goal.id.compareTo(b.goal.id);
+      goals.sort((left, right) {
+        final progress = right.fraction.compareTo(left.fraction);
+
+        if (progress != 0) {
+          return progress;
+        }
+
+        final deadline = left.range.end.compareTo(right.range.end);
+
+        if (deadline != 0) {
+          return deadline;
+        }
+
+        final created = left.goal.createdAt.compareTo(right.goal.createdAt);
+        return created != 0 ? created : left.goal.id.compareTo(right.goal.id);
       });
     }
 
     final texts = Theme.of(context).textTheme;
+
     return [
       for (final group in groups.entries)
         if (group.value.isNotEmpty) ...[
@@ -329,6 +355,7 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
   }) => LayoutBuilder(
     builder: (context, constraints) {
       final columns = constraints.maxWidth >= 760 && MediaQuery.textScalerOf(context).scale(16) <= 24 ? 2 : 1;
+
       Widget card(GoalProgress progress) => GoalCard(
         key: ValueKey('goal-card-${progress.goal.id}${historical ? '-${progress.range.start.toIso8601String()}' : ''}'),
         fillHeight: columns == 2,
@@ -343,6 +370,7 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
         ),
         onMenu: historical ? null : (action) => _goalAction(progress.goal, action),
       );
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -366,6 +394,7 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
       );
     },
   );
+
   String _scopeLabel(ReadingGoal goal) => switch (goal.scope) {
     GoalScope.library => 'Whole library',
     GoalScope.book =>
@@ -374,35 +403,48 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
           : _provider.store.getBook(goal.scopeId!)?.title ?? 'Removed book',
     GoalScope.shelf => _provider.store.getShelf(goal.scopeId!)?.name ?? 'Removed shelf',
   };
+
   List<Widget> _activityContent(BuildContext context) {
     final periods = _provider.history;
+
     final names = <String, String>{
       for (final record in periods) record.goal.id: record.goal.displayTitle,
       for (final goal in _provider.store.goalDefinitions) goal.id: goal.displayTitle,
     };
-    if (!names.containsKey(_filterGoal)) _filterGoal = null;
+
+    if (!names.containsKey(_filterGoal)) {
+      _filterGoal = null;
+    }
+
     final selected = _filterGoal == null
         ? null
-        : _provider.store.getReadingGoal(_filterGoal!) ?? periods.where((p) => p.goal.id == _filterGoal).first.goal;
+        : _provider.store.getReadingGoal(_filterGoal!) ??
+              periods.where((item) => item.goal.id == _filterGoal).first.goal;
+
     final timezone = selected?.timezone ?? GoalCalendar.systemTimezone;
     final now = _provider.now;
     final year = _activityYear ?? GoalCalendar.local(now, timezone).year;
     final yearRange = GoalCalendar.calendarPeriod(GoalPeriod.yearly, DateTime.utc(year, 1, 2), timezone);
+
     final dateRange = _filterDates == null
         ? yearRange
         : GoalRange(
             GoalCalendar.dayOffset(GoalCalendar.deadline(_filterDates!.start, timezone), -1, timezone),
             GoalCalendar.deadline(_filterDates!.end, timezone),
           );
+
     final range = dateRange;
+
     final scoped = _provider.store.readingActivities
-        .where((a) => selected == null || matchesGoal(selected, a))
+        .where((activity) => selected == null || matchesGoal(selected, activity))
         .toList();
+
     final corrected = _provider.store.readingActivities
-        .where((a) => a.kind == 'reversal')
-        .map((a) => a.correctionOf)
+        .where((activity) => activity.kind == 'reversal')
+        .map((activity) => activity.correctionOf)
         .whereType<String>()
         .toSet();
+
     bool matchesKind(ReadingActivity a) => switch (_activityKind) {
       'reader' => a.source == 'reader',
       'manual' => a.source != 'reader',
@@ -411,15 +453,22 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
       _ => true,
     };
     // Apply reversals before source filters: a manual correction can undo reader activity.
-    final effective = effectiveActivities(scoped).where((a) => _activityKind != 'corrected' && matchesKind(a)).toList();
+
+    final effective = effectiveActivities(
+      scoped,
+    ).where((activity) => _activityKind != 'corrected' && matchesKind(activity)).toList();
+
     final visible =
-        (_activityKind == 'corrected' ? scoped.where((a) => a.kind != 'reversal' && matchesKind(a)) : effective)
+        (_activityKind == 'corrected'
+                ? scoped.where((activity) => activity.kind != 'reversal' && matchesKind(activity))
+                : effective)
             .where(
-              (a) => (a.kind == 'reading' && a.endTime.isAfter(a.startTime)
-                  ? a.endTime.isAfter(range.start) && a.startTime.isBefore(range.end)
-                  : range.contains(a.endTime)),
+              (activity) => (activity.kind == 'reading' && activity.endTime.isAfter(activity.startTime)
+                  ? activity.endTime.isAfter(range.start) && activity.startTime.isBefore(range.end)
+                  : range.contains(activity.endTime)),
             )
             .toList();
+
     final totals = projectGoal(
       ReadingGoal(
         id: 'activity-summary',
@@ -436,22 +485,26 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
       now,
       period: range,
     );
+
     final archivedIds = _provider.store.goalDefinitions.where((goal) => goal.isArchived).map((goal) => goal.id).toSet();
     // Archived goals have one summary below; their previous periods remain
     // inspectable in goal details rather than appearing as duplicate cards.
+
     final filtered = periods
         .where(
-          (p) =>
-              !archivedIds.contains(p.goal.id) &&
-              (_filterGoal == null || p.goal.id == _filterGoal) &&
-              p.range.start.isBefore(range.end) &&
-              p.range.end.isAfter(range.start),
+          (item) =>
+              !archivedIds.contains(item.goal.id) &&
+              (_filterGoal == null || item.goal.id == _filterGoal) &&
+              item.range.start.isBefore(range.end) &&
+              item.range.end.isAfter(range.start),
         )
         .toList();
+
     final archived = _provider.store.goalDefinitions
         .where((goal) => goal.isArchived && (_filterGoal == null || _filterGoal == goal.id))
         .map(_provider.progress)
         .toList();
+
     return [
       ReadingActivityHeatmap(
         activities: effective,
@@ -522,6 +575,7 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
                 lastDate: DateTime.now(),
                 initialDateRange: _filterDates,
               );
+
               if (dates != null && mounted) {
                 setState(() {
                   _filterDates = dates;
@@ -531,11 +585,12 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
             },
             icon: const Icon(Icons.date_range_outlined),
             label: Text(
-              _filterDates == null
-                  ? 'Filter dates'
-                  : _filterDates!.start == _filterDates!.end
-                  ? DateFormat.MMMd().format(_filterDates!.start)
-                  : '${DateFormat.MMMd().format(_filterDates!.start)} – ${DateFormat.MMMd().format(_filterDates!.end)}',
+              switch (_filterDates == null) {
+                true => 'Filter dates',
+                false when _filterDates!.start == _filterDates!.end => DateFormat.MMMd().format(_filterDates!.start),
+                false =>
+                  '${DateFormat.MMMd().format(_filterDates!.start)} – ${DateFormat.MMMd().format(_filterDates!.end)}',
+              },
             ),
           ),
           if (_filterDates != null)
@@ -632,17 +687,25 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
       await AddGoalSheet.show(context, provider: _provider, editing: _provider.store.getReadingGoal(goal.id));
       return;
     }
+
     final repository = _provider.store.trackingRepository;
+
     try {
       if (action == 'delete') {
         if (await confirmGoalDeletion(context) && mounted) {
           await _provider.deleteGoal(goal.id, repository: repository);
         }
+
         return;
       }
-      if (action == 'pause') await _provider.pauseGoal(goal.id, goal.isActive);
+
+      if (action == 'pause') {
+        await _provider.pauseGoal(goal.id, goal.isActive);
+      }
+
       if (action == 'archive') {
         await _provider.archiveGoal(goal.id);
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
@@ -653,7 +716,9 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
         }
       }
     } catch (error) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error.toString())));
+      }
     }
   }
 

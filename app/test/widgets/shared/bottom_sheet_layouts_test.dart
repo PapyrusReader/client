@@ -25,6 +25,7 @@ GoalsProvider goalProvider(BuildContext context) {
 
 void main() {
   final book = buildTestBook(title: 'A long book title for checking compact sheet headers');
+
   final launchers = <String, void Function(BuildContext)>{
     'shelf assignment': (context) => MoveToShelfSheet.show(context, book: book),
     'topic assignment': (context) => ManageTopicsSheet.show(context, book: book),
@@ -51,6 +52,7 @@ void main() {
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
         final store = DataStore()..loadData(shelves: const [], tags: const []);
         addTearDown(store.dispose);
+
         await tester.pumpWidget(
           ChangeNotifierProvider.value(
             value: store,
@@ -64,6 +66,7 @@ void main() {
             ),
           ),
         );
+
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);

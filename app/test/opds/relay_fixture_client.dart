@@ -10,6 +10,7 @@ class MockRelayClient extends MockClient {
         final payload = jsonDecode(request.body) as Map<String, dynamic>;
         final upstream = http.Request('GET', Uri.parse(payload['url'] as String));
         final response = await handler(upstream);
+
         return http.Response.bytes(
           response.bodyBytes,
           response.statusCode,

@@ -18,6 +18,7 @@ void main() {
     final dataStore = DataStore(bookRepository: repository);
     final queue = MediaUploadQueue(prefs);
     await queue.activateScope(MediaStorageScope(profileKey: 'official', userId: 'user-1'));
+
     final book = Book(
       id: 'book-1',
       title: 'Book',
@@ -25,9 +26,9 @@ void main() {
       coverMediaId: 'cover-1',
       addedAt: DateTime.utc(2026),
     );
+
     final deletedLocalFiles = <String>[];
     final deletedCovers = <String>[];
-
     await repository.upsert(book);
     await pumpEventQueue();
     await queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
@@ -42,8 +43,8 @@ void main() {
       deleteGuestCover: (bookId) async => deletedCovers.add('guest:$bookId'),
       deleteCoverFile: (mediaId) async => deletedCovers.add('cached:$mediaId'),
     );
-    await pumpEventQueue();
 
+    await pumpEventQueue();
     expect(queue.pendingTasks, isEmpty);
     expect(deletedLocalFiles, [book.id]);
     expect(deletedCovers, ['pending:${book.id}', 'guest:${book.id}', 'cached:cover-1']);

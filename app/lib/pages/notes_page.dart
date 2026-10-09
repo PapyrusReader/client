@@ -64,15 +64,12 @@ class _NotesPageState extends State<NotesPage> {
           if (isDesktop) {
             return _buildDesktopLayout(context, provider);
           }
+
           return _buildMobileLayout(context, provider);
         },
       ),
     );
   }
-
-  // ============================================================================
-  // MOBILE LAYOUT
-  // ============================================================================
 
   Widget _buildMobileLayout(BuildContext context, NotesProvider provider) {
     return Scaffold(
@@ -109,10 +106,6 @@ class _NotesPageState extends State<NotesPage> {
     );
   }
 
-  // ============================================================================
-  // DESKTOP LAYOUT
-  // ============================================================================
-
   Widget _buildDesktopLayout(BuildContext context, NotesProvider provider) {
     return Scaffold(
       body: Column(
@@ -138,10 +131,6 @@ class _NotesPageState extends State<NotesPage> {
       ),
     );
   }
-
-  // ============================================================================
-  // SHARED WIDGETS
-  // ============================================================================
 
   Widget _buildSearchField(NotesProvider provider, {Widget? leading}) {
     return TextField(
@@ -272,6 +261,7 @@ class _NotesPageState extends State<NotesPage> {
 
     for (final entry in groups.entries) {
       final isCollapsed = _collapsedGroups.contains(entry.key);
+
       items.add(
         BookGroupHeader(
           bookId: entry.key,
@@ -292,6 +282,7 @@ class _NotesPageState extends State<NotesPage> {
           },
         ),
       );
+
       if (!isCollapsed) {
         for (final note in entry.value) {
           items.add(
@@ -311,10 +302,6 @@ class _NotesPageState extends State<NotesPage> {
     );
   }
 
-  // ============================================================================
-  // ACTIONS
-  // ============================================================================
-
   void _navigateToBook(BuildContext context, String bookId) {
     context.goNamed('BOOK_DETAILS', pathParameters: {'bookId': bookId});
   }
@@ -322,7 +309,10 @@ class _NotesPageState extends State<NotesPage> {
   void _showNoteActions(BuildContext context, NotesProvider provider, Note note) async {
     final repository = context.read<DataStore>().libraryRepository?.notes;
     final action = await NoteActionSheet.show(context, note: note);
-    if (!mounted || action == null) return;
+
+    if (!mounted || action == null) {
+      return;
+    }
 
     switch (action) {
       case NoteAction.edit:
@@ -344,6 +334,7 @@ class _NotesPageState extends State<NotesPage> {
                 const SnackBar(content: Text('Could not delete. Please try again.')),
               );
             }
+
             return;
           }
         }

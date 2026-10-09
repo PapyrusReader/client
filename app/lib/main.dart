@@ -57,6 +57,7 @@ Future main() async {
   } catch (_) {
     GoalCalendar.initialize();
   }
+
   final prefs = await SharedPreferences.getInstance();
   await ReadingDeviceIdentity.initialize(prefs);
   runApp(Papyrus(prefs: prefs));
@@ -131,6 +132,7 @@ class AcquisitionDownloadsComposition {
 
     final config = _activeApiConfig();
     final serverBaseUri = config.serverBaseUri;
+
     final available =
         _authProvider.isSignedIn && !_authProvider.isOfflineMode && _availabilityProvider.isAvailableFor(serverBaseUri);
 
@@ -196,11 +198,11 @@ class _PapyrusState extends State<Papyrus> {
   @override
   void initState() {
     super.initState();
-
     _officialApiConfig = PapyrusApiConfig.fromEnvironment();
     _syncSettingsProvider = SyncSettingsProvider(widget.prefs, officialConfig: _officialApiConfig);
     _activeProfileKey = _syncSettingsProvider.activeProfileKey;
     _authRepository = _buildAuthRepository(_syncSettingsProvider.activeApiConfig, _activeProfileKey);
+
     _profileSwitchQueue = SyncProfileSwitchQueue(
       initialProfileKey: _activeProfileKey,
       onError: (error, stackTrace) {
@@ -216,17 +218,23 @@ class _PapyrusState extends State<Papyrus> {
     _bookImportService = BookImportService();
     _authProvider = AuthProvider(widget.prefs, repository: _authRepository);
     _acquisitionAvailabilityProvider = AcquisitionAvailabilityProvider(authProvider: _authProvider);
+
     _acquisitionDownloadsComposition = AcquisitionDownloadsComposition(
       authProvider: _authProvider,
       availabilityProvider: _acquisitionAvailabilityProvider,
       activeApiConfig: () => _syncSettingsProvider.activeApiConfig,
     );
+
     _powerSyncService = PapyrusPowerSyncService(
       trackingCapability: () async {
         final response = await http
             .get(_syncSettingsProvider.activeApiConfig.endpoint('/sync/settings'))
             .timeout(const Duration(seconds: 5));
-        if (response.statusCode != 200) return 0;
+
+        if (response.statusCode != 200) {
+          return 0;
+        }
+
         return (jsonDecode(response.body) as Map)['tracking_schema_version'] as int? ?? 0;
       },
       connectorFactory: () => PapyrusPowerSyncConnector(
@@ -240,16 +248,19 @@ class _PapyrusState extends State<Papyrus> {
         },
       ),
     );
+
     _bookStorageStatusController = BookStorageStatusController(
       authProvider: _authProvider,
       powerSyncService: _powerSyncService,
       mediaUploadQueue: _mediaUploadQueue,
       hasBookFile: _bookImportService.hasBookFile,
     );
+
     _opdsLibrary = OpdsLibrary(widget.prefs, dataStore: _dataStore);
     final opdsCache = OpdsResourceCache(widget.prefs);
     _opdsCatalogs = OpdsCatalogs(OpdsCatalogStore(widget.prefs), library: _opdsLibrary, cache: opdsCache);
     _opdsHttpClient = OpdsHttpClient(apiConfig: () => _syncSettingsProvider.activeApiConfig, cache: opdsCache);
+
     _opdsDownloads = OpdsDownloads(
       library: _opdsLibrary,
       httpClient: _opdsHttpClient,
@@ -261,14 +272,17 @@ class _PapyrusState extends State<Papyrus> {
         powerSyncService: _powerSyncService,
       ),
     );
+
     _opdsCatalogs.addListener(_opdsDownloads.reset);
     unawaited(_dataStore.attachBookRepository(_powerSyncService));
+
     _appRouter = AppRouter(
       authProvider: _authProvider,
       preferencesProvider: _preferencesProvider,
       syncSettingsProvider: _syncSettingsProvider,
       acquisitionAvailabilityProvider: _acquisitionAvailabilityProvider,
     );
+
     _authProvider.addListener(_syncPowerSyncAuthState);
     _syncSettingsProvider.addListener(_handleSyncSettingsChanged);
     _syncPowerSyncAuthState();
@@ -296,6 +310,7 @@ class _PapyrusState extends State<Papyrus> {
 
   AuthRepository _buildAuthRepository(PapyrusApiConfig config, String profileKey) {
     final tokenStore = TokenStore(SecureRefreshTokenStorage.scoped(profileKey));
+
     return AuthRepository(
       apiClient: AuthApiClient(config: config),
       tokenStore: tokenStore,
@@ -310,6 +325,7 @@ class _PapyrusState extends State<Papyrus> {
 
   void _syncPowerSyncAuthState() {
     _updateOpdsScope();
+
     if (_authStateOperation != null) {
       _authStateUpdateQueued = true;
       return;
@@ -317,10 +333,12 @@ class _PapyrusState extends State<Papyrus> {
 
     final operation = _drainAuthStateUpdates();
     _authStateOperation = operation;
+
     operation.then(
       (_) => _clearAuthStateOperation(operation),
       onError: (Object error, StackTrace stackTrace) {
         _clearAuthStateOperation(operation);
+
         FlutterError.reportError(
           FlutterErrorDetails(exception: error, stack: stackTrace, library: 'papyrus media/auth lifecycle'),
         );
@@ -338,11 +356,13 @@ class _PapyrusState extends State<Papyrus> {
   Future<void> _applyPowerSyncAuthState() async {
     final user = _authProvider.user;
     final profileKey = _activeProfileKey;
+
     if (user != null && !_authProvider.isOfflineMode) {
       final userId = user.userId;
       final scope = MediaStorageScope(profileKey: profileKey, userId: userId);
       await _mediaUploadQueue.activateScope(scope);
       await _powerSyncService.activateAuthenticated(userId, profileKey: profileKey);
+
       if (!_switchingSyncProfile &&
           _activeProfileKey == profileKey &&
           _syncSettingsProvider.activeProfileKey == profileKey &&
@@ -351,6 +371,7 @@ class _PapyrusState extends State<Papyrus> {
           !_authProvider.isOfflineMode) {
         _opdsCatalogs.setScope(scope.persistenceKey);
       }
+
       await _refreshMediaUsage();
       await _processMediaUploads();
       return;
@@ -359,16 +380,19 @@ class _PapyrusState extends State<Papyrus> {
     if (_authProvider.isOfflineMode) {
       await _mediaUploadQueue.activateScope(null);
       await _powerSyncService.activateGuest();
+
       if (_authProvider.isOfflineMode &&
           !_switchingSyncProfile &&
           _activeProfileKey == profileKey &&
           _syncSettingsProvider.activeProfileKey == profileKey) {
         _opdsCatalogs.setScope(MediaStorageScope.localGuest.persistenceKey);
       }
+
       return;
     }
 
     await _mediaUploadQueue.activateScope(null);
+
     if (!_authProvider.isBootstrapping && _powerSyncService.mode != null) {
       await _powerSyncService.deactivate(clearAuthenticated: !_switchingSyncProfile);
     }
@@ -378,6 +402,7 @@ class _PapyrusState extends State<Papyrus> {
     if (identical(_authStateOperation, operation)) {
       _authStateOperation = null;
     }
+
     if (_authStateUpdateQueued) {
       _syncPowerSyncAuthState();
     }
@@ -387,12 +412,17 @@ class _PapyrusState extends State<Papyrus> {
     _acquisitionDownloadsComposition.handleServerChanged();
     final nextProfileKey = _syncSettingsProvider.activeProfileKey;
     final nextConfig = _syncSettingsProvider.activeApiConfig;
-    if (nextProfileKey != _activeProfileKey) _opdsCatalogs.setScope(null);
+
+    if (nextProfileKey != _activeProfileKey) {
+      _opdsCatalogs.setScope(null);
+    }
+
     _profileSwitchQueue.request(nextProfileKey, () => _switchActiveSyncProfile(nextProfileKey, nextConfig));
   }
 
   Future<void> _switchActiveSyncProfile(String nextProfileKey, PapyrusApiConfig nextConfig) async {
     _switchingSyncProfile = true;
+
     try {
       await _mediaUploadQueue.waitUntilIdle();
       await _mediaUploadQueue.activateScope(null);
@@ -413,21 +443,30 @@ class _PapyrusState extends State<Papyrus> {
         _authProvider.isBootstrapping) {
       _opdsCatalogs.setScope(null);
     } else if (_authProvider.isOfflineMode) {
-      if (_opdsCatalogs.scope != MediaStorageScope.localGuest.persistenceKey) _opdsCatalogs.setScope(null);
+      if (_opdsCatalogs.scope != MediaStorageScope.localGuest.persistenceKey) {
+        _opdsCatalogs.setScope(null);
+      }
     } else if (_authProvider.isSignedIn && _authProvider.user != null) {
       final expected = MediaStorageScope(
         profileKey: _activeProfileKey,
         userId: _authProvider.user!.userId,
       ).persistenceKey;
-      if (_opdsCatalogs.scope != expected) _opdsCatalogs.setScope(null);
+
+      if (_opdsCatalogs.scope != expected) {
+        _opdsCatalogs.setScope(null);
+      }
     } else {
       _opdsCatalogs.setScope(null);
     }
   }
 
   Future<void> _refreshMediaUsage() async {
-    if (!_authProvider.isSignedIn || _authProvider.isOfflineMode) return;
+    if (!_authProvider.isSignedIn || _authProvider.isOfflineMode) {
+      return;
+    }
+
     final repository = _authRepository;
+
     try {
       await _mediaUploadQueue.refreshUsage(repository.fetchMediaUsage);
     } catch (_) {
@@ -436,18 +475,28 @@ class _PapyrusState extends State<Papyrus> {
   }
 
   Future<void> _processMediaUploads() async {
-    if (_switchingSyncProfile || !_authProvider.isSignedIn || _authProvider.isOfflineMode) return;
+    if (_switchingSyncProfile || !_authProvider.isSignedIn || _authProvider.isOfflineMode) {
+      return;
+    }
+
     final user = _authProvider.user;
-    if (user == null) return;
+
+    if (user == null) {
+      return;
+    }
+
     final profileKey = _activeProfileKey;
     final repository = _authRepository;
     final scope = MediaStorageScope(profileKey: profileKey, userId: user.userId);
+
     if (_mediaUploadQueue.activeScope != scope) {
       await _mediaUploadQueue.activateScope(scope);
     }
+
     if (_switchingSyncProfile || profileKey != _activeProfileKey || !identical(repository, _authRepository)) {
       return;
     }
+
     await _mediaUploadQueue.processPending(
       dataStore: _dataStore,
       readBookFile: _bookImportService.getBookFile,
@@ -462,6 +511,7 @@ class _PapyrusState extends State<Papyrus> {
             if (error.statusCode == 409) {
               throw const MediaUploadException.storageFull();
             }
+
             rethrow;
           }
         },
@@ -473,6 +523,7 @@ class _PapyrusState extends State<Papyrus> {
         },
       ),
     );
+
     if (identical(repository, _authRepository) && _mediaUploadQueue.activeScope == scope) {
       await _refreshMediaUsage();
     }
@@ -508,6 +559,7 @@ class _PapyrusState extends State<Papyrus> {
       child: Consumer<PreferencesProvider>(
         builder: (context, preferencesProvider, child) {
           final isEink = preferencesProvider.isEinkMode;
+
           return MaterialApp.router(
             title: 'Papyrus',
             debugShowCheckedModeBanner: false,

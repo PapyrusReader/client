@@ -27,22 +27,26 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
   bool _isSigningIn = false;
 
   Future<void> _handleSignIn() async {
-    if (_isSigningIn) return;
+    if (_isSigningIn) {
+      return;
+    }
 
     setState(() => _isSigningIn = true);
 
     try {
       final provider = Provider.of<AuthProvider>(context, listen: false);
-
       final result = await provider.signInWithGoogle();
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (result) {
         widget.onSuccess?.call();
         context.goNamed('LIBRARY');
       } else if (provider.error != null) {
         widget.onError?.call();
+
         ScaffoldMessenger.of(context).showSnackBar(
           snackBarAnimationStyle: AppMotion.animationStyle(context),
           SnackBar(
@@ -53,9 +57,12 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
         );
       }
     } catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       widget.onError?.call();
+
       ScaffoldMessenger.of(context).showSnackBar(
         snackBarAnimationStyle: AppMotion.animationStyle(context),
         SnackBar(

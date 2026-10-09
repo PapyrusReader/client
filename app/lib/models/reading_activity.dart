@@ -9,11 +9,13 @@ class PageCoverage {
     required this.pagesPerUnit,
     this.estimated = false,
   });
+
   final String key;
   final double start;
   final double end;
   final double pagesPerUnit;
   final bool estimated;
+
   Map<String, dynamic> toJson() => {
     'key': key,
     'start': start,
@@ -21,6 +23,7 @@ class PageCoverage {
     'pages_per_unit': pagesPerUnit,
     'estimated': estimated,
   };
+
   factory PageCoverage.fromJson(Map<String, dynamic> json) => PageCoverage(
     key: json['key'] as String,
     start: (json['start'] as num).toDouble(),
@@ -51,6 +54,7 @@ class ReadingActivity {
     this.note,
     this.correctionOf,
   });
+
   final String? sessionId;
   final int? recordedSeconds;
   final List<String> constituentIds;
@@ -70,6 +74,7 @@ class ReadingActivity {
   final String? correctionOf;
   bool get isEstimated => coverage.any((value) => value.estimated);
   int get seconds => recordedSeconds ?? endTime.difference(startTime).inSeconds;
+
   ReadingSession get session => ReadingSession(
     id: id,
     bookId: bookId,
@@ -81,6 +86,7 @@ class ReadingActivity {
     deviceName: deviceId,
     createdAt: createdAt,
   );
+
   Map<String, dynamic> toJson() => {
     'id': id,
     'session_id': sessionId,
@@ -98,6 +104,7 @@ class ReadingActivity {
     'note': note,
     'correction_of': correctionOf,
   };
+
   factory ReadingActivity.fromJson(Map<String, dynamic> json) => ReadingActivity(
     id: json['id'] as String,
     sessionId: json['session_id'] as String?,
@@ -128,28 +135,41 @@ List<ReadingActivity> effectiveActivities(Iterable<ReadingActivity> activities) 
 /// Checkpoints remain immutable records; presentation groups a reader opening.
 List<ReadingActivity> groupReadingActivities(Iterable<ReadingActivity> ledger) {
   final groups = <String, List<ReadingActivity>>{};
+
   for (final entry in ledger) {
     final key = entry.source == 'reader' && entry.kind == 'reading' && entry.sessionId != null
         ? '${entry.bookId}:${entry.sessionId}'
         : entry.id;
+
     groups.putIfAbsent(key, () => []).add(entry);
   }
+
   final result = groups.values.map((entries) {
-    entries.sort((a, b) => a.startTime.compareTo(b.startTime));
-    if (entries.length == 1) return entries.first;
+    entries.sort((left, right) => left.startTime.compareTo(right.startTime));
+
+    if (entries.length == 1) {
+      return entries.first;
+    }
+
     final first = entries.first;
-    final ends = entries.map((a) => a.endTime).toList()..sort();
+    final ends = entries.map((activity) => activity.endTime).toList()..sort();
     var cursor = first.startTime;
     var end = first.endTime;
     var seconds = 0;
+
     for (final entry in entries.skip(1)) {
       if (entry.startTime.isAfter(end)) {
         seconds += end.difference(cursor).inSeconds;
         cursor = entry.startTime;
       }
-      if (entry.endTime.isAfter(end)) end = entry.endTime;
+
+      if (entry.endTime.isAfter(end)) {
+        end = entry.endTime;
+      }
     }
+
     seconds += end.difference(cursor).inSeconds;
+
     return ReadingActivity(
       id: first.id,
       sessionId: first.sessionId,
@@ -162,9 +182,10 @@ List<ReadingActivity> groupReadingActivities(Iterable<ReadingActivity> ledger) {
       deviceId: first.deviceId,
       shelfIds: first.shelfIds,
       recordedSeconds: seconds,
-      coverage: entries.expand((a) => a.coverage).toList(),
-      constituentIds: entries.map((a) => a.id).toList(),
+      coverage: entries.expand((activity) => activity.coverage).toList(),
+      constituentIds: entries.map((activity) => activity.id).toList(),
     );
-  }).toList()..sort((a, b) => b.endTime.compareTo(a.endTime));
+  }).toList()..sort((left, right) => right.endTime.compareTo(left.endTime));
+
   return result;
 }

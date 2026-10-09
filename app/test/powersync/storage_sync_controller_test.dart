@@ -72,6 +72,7 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final authProvider = AuthProvider(prefs, repository: _FakeAuthRepository(), bootstrapOnCreate: false);
     await authProvider.bootstrap();
+
     final controller = StorageSyncController(
       authProvider: authProvider,
       powerSyncService: _FakePowerSyncService(),

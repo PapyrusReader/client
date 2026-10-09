@@ -22,7 +22,11 @@ class BookImportItemCard extends StatelessWidget {
 
   String get _displayTitle {
     final result = item.result;
-    if (result != null && result.title.isNotEmpty) return result.title;
+
+    if (result != null && result.title.isNotEmpty) {
+      return result.title;
+    }
+
     return item.file.name;
   }
 
@@ -51,18 +55,18 @@ class BookImportItemCard extends StatelessWidget {
       duration: AppMotion.duration(context, const Duration(milliseconds: 250)),
       margin: const EdgeInsets.only(bottom: Spacing.xs),
       decoration: BoxDecoration(
-        color: _added
-            ? colorScheme.primaryContainer.withValues(alpha: 0.15)
-            : _failed
-            ? colorScheme.errorContainer.withValues(alpha: 0.15)
-            : colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        color: switch (_added) {
+          true => colorScheme.primaryContainer.withValues(alpha: 0.15),
+          false when _failed => colorScheme.errorContainer.withValues(alpha: 0.15),
+          false => colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
+        },
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
-          color: _added
-              ? colorScheme.primary.withValues(alpha: 0.3)
-              : _failed
-              ? colorScheme.error.withValues(alpha: 0.3)
-              : colorScheme.outlineVariant,
+          color: switch (_added) {
+            true => colorScheme.primary.withValues(alpha: 0.3),
+            false when _failed => colorScheme.error.withValues(alpha: 0.3),
+            false => colorScheme.outlineVariant,
+          },
         ),
       ),
       padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
@@ -124,11 +128,11 @@ class BookImportItemCard extends StatelessWidget {
         color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(AppRadius.md),
         border: Border.all(
-          color: _added
-              ? colorScheme.primary.withValues(alpha: 0.2)
-              : _failed
-              ? colorScheme.error.withValues(alpha: 0.2)
-              : colorScheme.outlineVariant,
+          color: switch (_added) {
+            true => colorScheme.primary.withValues(alpha: 0.2),
+            false when _failed => colorScheme.error.withValues(alpha: 0.2),
+            false => colorScheme.outlineVariant,
+          },
         ),
       ),
       child: Row(
@@ -248,11 +252,11 @@ class BookImportItemCard extends StatelessWidget {
       width: 40,
       height: 56,
       decoration: BoxDecoration(
-        color: _added
-            ? colorScheme.primaryContainer.withValues(alpha: 0.3)
-            : _failed
-            ? colorScheme.errorContainer.withValues(alpha: 0.3)
-            : colorScheme.surfaceContainerHighest,
+        color: switch (_added) {
+          true => colorScheme.primaryContainer.withValues(alpha: 0.3),
+          false when _failed => colorScheme.errorContainer.withValues(alpha: 0.3),
+          false => colorScheme.surfaceContainerHighest,
+        },
         borderRadius: BorderRadius.circular(AppRadius.sm),
       ),
       child: Icon(

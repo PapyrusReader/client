@@ -26,14 +26,22 @@ class _AppMotionControlState extends State<AppMotionControl> {
     final disabled = AppMotion.disabled(context);
     final focusNode = widget.focusNode ?? _ownedFocusNode;
     final key = ValueKey((disabled, disabled ? widget.value : null, disabled ? widget.enabled : null));
+
     if (_previousKey != null && key != _previousKey && focusNode.hasFocus) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted && focusNode.canRequestFocus) focusNode.requestFocus();
+        if (mounted && focusNode.canRequestFocus) {
+          focusNode.requestFocus();
+        }
       });
     }
+
     _previousKey = key;
     final child = KeyedSubtree(key: key, child: widget.builder(focusNode));
-    if (!disabled) return child;
+
+    if (!disabled) {
+      return child;
+    }
+
     return TickerMode(
       enabled: false,
       child: ListenableBuilder(

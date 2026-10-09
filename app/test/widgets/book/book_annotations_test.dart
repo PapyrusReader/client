@@ -68,25 +68,21 @@ void main() {
     group('rendering', () {
       testWidgets('displays search field with hint text', (tester) async {
         await tester.pumpWidget(buildAnnotations());
-
         expect(find.text('Search annotations...'), findsOneWidget);
       });
 
       testWidgets('displays sort button', (tester) async {
         await tester.pumpWidget(buildAnnotations());
-
         expect(find.byIcon(Icons.sort), findsOneWidget);
       });
 
       testWidgets('renders AnnotationCard for each annotation', (tester) async {
         await tester.pumpWidget(buildAnnotations());
-
         expect(find.byType(AnnotationCard), findsNWidgets(4));
       });
 
       testWidgets('shows empty state when annotations list is empty', (tester) async {
         await tester.pumpWidget(buildAnnotations(annotations: []));
-
         expect(find.text('No annotations yet'), findsOneWidget);
         expect(find.byIcon(Icons.highlight_outlined), findsOneWidget);
       });
@@ -95,19 +91,15 @@ void main() {
     group('search', () {
       testWidgets('filters by highlight text', (tester) async {
         await tester.pumpWidget(buildAnnotations());
-
         await tester.enterText(find.byType(TextField), 'Knowledge');
         await tester.pump();
-
         expect(find.byType(AnnotationCard), findsOneWidget);
       });
 
       testWidgets('filters by note content', (tester) async {
         await tester.pumpWidget(buildAnnotations());
-
         await tester.enterText(find.byType(TextField), 'foundational');
         await tester.pump();
-
         expect(find.byType(AnnotationCard), findsOneWidget);
       });
 
@@ -117,26 +109,21 @@ void main() {
         // BookLocation.displayLocation for ann-1: "Chapter 1, Page 10"
         await tester.enterText(find.byType(TextField), 'Page 55');
         await tester.pump();
-
         expect(find.byType(AnnotationCard), findsOneWidget);
       });
 
       testWidgets('shows no results when no matches', (tester) async {
         await tester.pumpWidget(buildAnnotations());
-
         await tester.enterText(find.byType(TextField), 'zzzznonexistent');
         await tester.pump();
-
         expect(find.text('No annotations found'), findsOneWidget);
       });
 
       testWidgets('clearing search restores all', (tester) async {
         await tester.pumpWidget(buildAnnotations());
-
         await tester.enterText(find.byType(TextField), 'Knowledge');
         await tester.pump();
         expect(find.byType(AnnotationCard), findsOneWidget);
-
         await tester.enterText(find.byType(TextField), '');
         await tester.pump();
         expect(find.byType(AnnotationCard), findsNWidgets(4));
@@ -146,10 +133,8 @@ void main() {
     group('sorting', () {
       testWidgets('sort menu shows 4 options', (tester) async {
         await tester.pumpWidget(buildAnnotations());
-
         await tester.tap(find.byIcon(Icons.sort));
         await tester.pumpAndSettle();
-
         expect(find.text('Newest first'), findsOneWidget);
         expect(find.text('Oldest first'), findsOneWidget);
         expect(find.text('By position'), findsOneWidget);
@@ -167,7 +152,6 @@ void main() {
 
       testWidgets('selecting by position reorders by page number', (tester) async {
         await tester.pumpWidget(buildAnnotations());
-
         await tester.tap(find.byIcon(Icons.sort));
         await tester.pumpAndSettle();
         await tester.tap(find.text('By position'));
@@ -181,7 +165,6 @@ void main() {
 
       testWidgets('selecting by color reorders by color enum index', (tester) async {
         await tester.pumpWidget(buildAnnotations());
-
         await tester.tap(find.byIcon(Icons.sort));
         await tester.pumpAndSettle();
         await tester.tap(find.text('By color'));
@@ -198,20 +181,16 @@ void main() {
       testWidgets('tap calls onAnnotationTap', (tester) async {
         Annotation? tappedAnnotation;
         await tester.pumpWidget(buildAnnotations(onAnnotationTap: (a) => tappedAnnotation = a));
-
         await tester.tap(find.byType(AnnotationCard).first);
         await tester.pump();
-
         expect(tappedAnnotation, isNotNull);
       });
 
       testWidgets('long press calls onAnnotationActions', (tester) async {
         Annotation? actionAnnotation;
         await tester.pumpWidget(buildAnnotations(onAnnotationActions: (a) => actionAnnotation = a));
-
         await tester.longPress(find.byType(AnnotationCard).first);
         await tester.pump();
-
         expect(actionAnnotation, isNotNull);
       });
     });
@@ -219,13 +198,11 @@ void main() {
     group('responsive', () {
       testWidgets('desktop layout shows action menu on items', (tester) async {
         await tester.pumpWidget(buildAnnotations(screenSize: const Size(1200, 800)));
-
         expect(find.byIcon(Icons.more_vert), findsAtLeastNWidgets(1));
       });
 
       testWidgets('mobile layout hides action menu on items', (tester) async {
         await tester.pumpWidget(buildAnnotations(screenSize: const Size(400, 800)));
-
         expect(find.byIcon(Icons.more_vert), findsNothing);
       });
     });

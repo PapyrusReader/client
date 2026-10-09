@@ -29,6 +29,7 @@ class CatalogsPage extends StatefulWidget {
   final Uri? feedUri;
   final String query;
   final OpdsHttpClient? httpClient;
+
   @override
   State<CatalogsPage> createState() => _CatalogsPageState();
 }
@@ -47,30 +48,56 @@ class _CatalogsPageState extends State<CatalogsPage> {
   @override
   void didUpdateWidget(covariant CatalogsPage oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.query != widget.query) _search.text = widget.query;
+
+    if (oldWidget.query != widget.query) {
+      _search.text = widget.query;
+    }
   }
 
   void _scheduleLoad(OpdsCatalogs catalogs) {
     final catalog = widget.catalogId == null ? null : catalogs.find(widget.catalogId!);
     final key = '${catalogs.scope}/${catalogs.revision}/${widget.catalogId}/${widget.feedUri ?? catalog?.uri}';
-    if (_loadKey == key && !_reloadRequested) return;
+
+    if (_loadKey == key && !_reloadRequested) {
+      return;
+    }
+
     final sameFeed = _loadKey == key;
     _feedForHeader = sameFeed ? (_browser.feed ?? _feedForHeader) : null;
     _reloadRequested = false;
     _loadKey = key;
     _credentials = null;
-    if (!sameFeed) _browser.clear();
-    if (catalog == null) return;
+
+    if (!sameFeed) {
+      _browser.clear();
+    }
+
+    if (catalog == null) {
+      return;
+    }
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || _loadKey != key) return;
-      if (_feedScroll.hasClients) _feedScroll.jumpTo(0);
+      if (!mounted || _loadKey != key) {
+        return;
+      }
+
+      if (_feedScroll.hasClients) {
+        _feedScroll.jumpTo(0);
+      }
+
       try {
         final credentials = await catalogs.credentials(catalog.id);
-        if (!mounted || _loadKey != key) return;
+
+        if (!mounted || _loadKey != key) {
+          return;
+        }
+
         _credentials = credentials;
         await _browser.load(catalog, widget.feedUri ?? catalog.uri, credentials: credentials);
       } catch (error) {
-        if (mounted && _loadKey == key) setState(() => _browser.error = opdsErrorMessage(error));
+        if (mounted && _loadKey == key) {
+          setState(() => _browser.error = opdsErrorMessage(error));
+        }
       }
     });
   }
@@ -81,6 +108,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
   Future<void> _remove(OpdsCatalogs catalogs, OpdsCatalog catalog) async {
     final scope = catalogs.scope;
     ScaffoldMessenger.of(context).clearSnackBars();
+
     final confirmed = await showOpdsSheet<bool>(
       context,
       title: 'Remove catalog',
@@ -92,17 +120,24 @@ class _CatalogsPageState extends State<CatalogsPage> {
         'Downloaded books will remain in your library.',
       ),
     );
-    if (confirmed != true || !mounted || catalogs.scope != scope) return;
+
+    if (confirmed != true || !mounted || catalogs.scope != scope) {
+      return;
+    }
+
     try {
       await catalogs.remove(catalog.id);
     } catch (error) {
-      if (mounted) _message(opdsErrorMessage(error));
+      if (mounted) {
+        _message(opdsErrorMessage(error));
+      }
     }
   }
 
   void _navigate(OpdsCatalog catalog, Uri uri, {String query = ''}) {
     try {
       OpdsHttpClient.validateUri(uri);
+
       context.push(
         Uri(
           path: '/library/catalogs/${Uri.encodeComponent(catalog.id)}',
@@ -116,6 +151,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
 
   void _back(OpdsCatalog? catalog) {
     final router = GoRouter.of(context);
+
     if (router.routerDelegate.currentConfiguration.last is ImperativeRouteMatch && router.canPop()) {
       router.pop();
     } else if (catalog != null && widget.feedUri != null && widget.feedUri != catalog.uri) {
@@ -128,17 +164,28 @@ class _CatalogsPageState extends State<CatalogsPage> {
   }
 
   Future<void> _submitSearch(OpdsCatalog catalog) async {
-    if (_searching || _search.text.trim().isEmpty) return;
+    if (_searching || _search.text.trim().isEmpty) {
+      return;
+    }
+
     final key = _loadKey;
     final query = _search.text.trim();
     setState(() => _searching = true);
+
     try {
       final uri = await _browser.search(query);
-      if (mounted && key == _loadKey) _navigate(catalog, uri, query: query);
+
+      if (mounted && key == _loadKey) {
+        _navigate(catalog, uri, query: query);
+      }
     } catch (error) {
-      if (mounted && key == _loadKey) _message(opdsErrorMessage(error));
+      if (mounted && key == _loadKey) {
+        _message(opdsErrorMessage(error));
+      }
     } finally {
-      if (mounted) setState(() => _searching = false);
+      if (mounted) {
+        setState(() => _searching = false);
+      }
     }
   }
 
@@ -159,11 +206,13 @@ class _CatalogsPageState extends State<CatalogsPage> {
     final catalogs = context.watch<OpdsCatalogs>();
     _scheduleLoad(catalogs);
     final catalog = widget.catalogId == null ? null : catalogs.find(widget.catalogId!);
+
     return SafeArea(
       child: LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < Breakpoints.tablet;
           final mobileHome = widget.catalogId == null && MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
+
           final body = Padding(
             padding: EdgeInsets.fromLTRB(
               compact ? Spacing.md : Spacing.lg,
@@ -183,7 +232,10 @@ class _CatalogsPageState extends State<CatalogsPage> {
                     onChanged: (_) => setState(() {}),
                     onClear: () {
                       setState(() {});
-                      if (widget.query.isNotEmpty) _navigate(catalog, catalog.uri);
+
+                      if (widget.query.isNotEmpty) {
+                        _navigate(catalog, catalog.uri);
+                      }
                     },
                     trailing: IconButton(
                       tooltip: 'Search catalog',
@@ -201,6 +253,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
               ],
             ),
           );
+
           final content = Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -208,7 +261,11 @@ class _CatalogsPageState extends State<CatalogsPage> {
               Expanded(child: body),
             ],
           );
-          if (!mobileHome) return content;
+
+          if (!mobileHome) {
+            return content;
+          }
+
           return Stack(
             fit: StackFit.expand,
             children: [
@@ -232,11 +289,13 @@ class _CatalogsPageState extends State<CatalogsPage> {
   Widget _header(OpdsCatalogs catalogs, OpdsCatalog? catalog) {
     final mobile = MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
     final downloads = context.watch<OpdsDownloads>();
+
     final downloadsButton = OpdsDownloadsButton(
       compact: mobile,
       downloads: downloads,
       onRetry: (job) => unawaited(retryOpdsDownload(context, job)),
     );
+
     if (mobile) {
       if (widget.catalogId == null) {
         return Padding(
@@ -247,6 +306,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
           ),
         );
       }
+
       return LibraryPageHeader(
         compact: true,
         key: const Key('catalog-mobile-header'),
@@ -263,6 +323,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
         ],
       );
     }
+
     if (widget.catalogId == null) {
       return Padding(
         padding: const EdgeInsets.only(top: Spacing.lg, left: Spacing.lg, right: Spacing.lg),
@@ -274,6 +335,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
         ),
       );
     }
+
     return LibraryPageHeader(
       title: catalog?.name ?? 'Catalogs',
       dividerKey: const Key('catalog-header-divider'),
@@ -300,7 +362,11 @@ class _CatalogsPageState extends State<CatalogsPage> {
         icon: Icons.cloud_off_outlined,
       );
     }
-    if (catalogs.scope == null) return const Center(child: Text('Waiting for your library…'));
+
+    if (catalogs.scope == null) {
+      return const Center(child: Text('Waiting for your library…'));
+    }
+
     if (widget.catalogId != null) {
       return _empty(
         'Catalog unavailable',
@@ -309,6 +375,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
         onAction: () => context.go('/library/catalogs'),
       );
     }
+
     if (catalogs.catalogs.isEmpty) {
       return _empty(
         'No catalogs yet',
@@ -318,6 +385,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
         onAction: () => _edit(catalogs),
       );
     }
+
     return ListView.separated(
       key: ValueKey(catalogs.scope),
       padding: EdgeInsets.only(bottom: MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall ? 96 : Spacing.lg),
@@ -325,6 +393,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
       separatorBuilder: (_, _) => const Divider(height: 1),
       itemBuilder: (_, index) {
         final catalog = catalogs.catalogs[index];
+
         return CatalogSourceTile(
           key: ValueKey(catalog.id),
           catalog: catalog,
@@ -340,6 +409,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
 
   Widget _feedView(OpdsCatalog catalog) {
     Widget? status;
+
     if (_browser.error != null && _browser.feed == null) {
       status = _empty(
         'Could not open this catalog',
@@ -351,8 +421,13 @@ class _CatalogsPageState extends State<CatalogsPage> {
     } else if (_browser.feed == null) {
       status = const Center(child: AppCircularProgressIndicator());
     }
+
     final feed = _browser.feed ?? _feedForHeader;
-    if (feed == null) return status ?? const SizedBox.shrink();
+
+    if (feed == null) {
+      return status ?? const SizedBox.shrink();
+    }
+
     return OpdsFeedView(
       libraryBookId: (publication) => context.read<OpdsDownloads>().libraryBookId(catalog, publication),
       status: _browser.feed != null && _browser.error != null

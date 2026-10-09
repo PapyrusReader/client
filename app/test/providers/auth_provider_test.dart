@@ -70,23 +70,21 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final repository = FakeAuthRepository()..bootstrapResult = _tokens('Bootstrap User');
     final provider = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
-
     await provider.bootstrap();
-
     expect(provider.isSignedIn, isTrue);
     expect(provider.user?.displayName, 'Bootstrap User');
   });
 
   test('clears auth state when refresh fails', () async {
     final prefs = await SharedPreferences.getInstance();
+
     final repository = FakeAuthRepository()
       ..bootstrapResult = _tokens('Bootstrap User')
       ..refreshError = const AuthApiException(statusCode: 401, message: 'Invalid refresh token');
-    final provider = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
 
+    final provider = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
     await provider.bootstrap();
     final refreshed = await provider.refresh();
-
     expect(refreshed, isFalse);
     expect(provider.isSignedIn, isFalse);
     expect(provider.user, isNull);
@@ -96,10 +94,8 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final repository = FakeAuthRepository()..bootstrapResult = _tokens('Bootstrap User');
     final provider = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
-
     await provider.bootstrap();
     provider.setOfflineMode(true);
-
     expect(provider.isOfflineMode, isTrue);
     expect(provider.isSignedIn, isFalse);
     expect(repository.clearCalled, isTrue);
@@ -110,10 +106,8 @@ void main() {
     final officialRepository = FakeAuthRepository()..bootstrapResult = _tokens('Official User');
     final customRepository = FakeAuthRepository()..bootstrapResult = _tokens('Custom User');
     final provider = AuthProvider(prefs, repository: officialRepository, bootstrapOnCreate: false);
-
     await provider.bootstrap();
     await provider.replaceRepository(customRepository);
-
     expect(officialRepository.clearCalled, isFalse);
     expect(provider.isSignedIn, isTrue);
     expect(provider.user?.displayName, 'Custom User');

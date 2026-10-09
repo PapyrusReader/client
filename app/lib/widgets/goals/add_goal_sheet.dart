@@ -23,11 +23,13 @@ class AddGoalSheet extends StatefulWidget {
     this.initialTimezone,
     this.initialMetric,
   });
+
   final GoalsProvider provider;
   final ReadingGoal? editing;
   final int? preset;
   final String? initialTimezone;
   final GoalType? initialMetric;
+
   static Future<void> show(
     BuildContext context, {
     required GoalsProvider provider,
@@ -36,8 +38,10 @@ class AddGoalSheet extends StatefulWidget {
     String? initialTimezone,
   }) async {
     GoalType? metric;
+
     if (editing == null && preset == null) {
       ModalBottomSheetRoute<GoalType>? chooserRoute;
+
       metric = await showModalBottomSheet<GoalType>(
         context: context,
         useRootNavigator: true,
@@ -51,10 +55,18 @@ class AddGoalSheet extends StatefulWidget {
         },
       );
       // Wait for the chooser to leave before presenting the differently sized form.
+
       await chooserRoute?.completed;
-      if (metric == null || !context.mounted) return;
+
+      if (metric == null || !context.mounted) {
+        return;
+      }
     }
-    if (!context.mounted) return;
+
+    if (!context.mounted) {
+      return;
+    }
+
     await showModalBottomSheet<void>(
       context: context,
       useRootNavigator: true,
@@ -93,21 +105,26 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
   bool _timezoneReady = false;
   String? _error;
   DateTime _deadline = DateTime.now().add(const Duration(days: 30));
+
   @override
   void initState() {
     super.initState();
     _repository = widget.provider.store.trackingRepository;
     _applyPreset(widget.preset ?? 0);
+
     if (widget.initialMetric case final type?) {
       _type = type;
       _period = GoalPeriod.daily;
+
       _target.text = switch (type) {
         GoalType.books || GoalType.days => '1',
         GoalType.minutes => '30',
         GoalType.pages => '100',
       };
     }
+
     final editing = widget.editing;
+
     if (editing != null) {
       _type = editing.type;
       _period = editing.period;
@@ -174,9 +191,11 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
     final editing = widget.editing != null;
     final colors = Theme.of(context).colorScheme;
     final store = widget.provider.store;
+
     final items = _scope == GoalScope.book
         ? {for (final book in store.books) book.id: book.title}
         : {for (final shelf in store.shelves) shelf.id: shelf.name};
+
     return GoalControls(
       child: AppBottomSheet(
         title: editing ? 'Edit goal' : 'New goal',
@@ -206,7 +225,10 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                     ? null
                     : (value) => setState(() {
                         _type = value!;
-                        if (_type == GoalType.books && _bookIds.isNotEmpty) _target.text = '${_bookIds.length}';
+
+                        if (_type == GoalType.books && _bookIds.isNotEmpty) {
+                          _target.text = '${_bookIds.length}';
+                        }
                       }),
               ),
               const SizedBox(height: Spacing.md),
@@ -220,13 +242,18 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                   decoration: InputDecoration(labelText: 'Target', suffixText: _typeLabel),
                   validator: (value) {
                     final error = _positive(value);
-                    if (error != null) return error;
+
+                    if (error != null) {
+                      return error;
+                    }
+
                     if (_type == GoalType.books &&
                         _scope == GoalScope.book &&
                         _bookIds.isNotEmpty &&
                         int.parse(value!) > _bookIds.length) {
                       return 'Choose a target of 1–${_bookIds.length}.';
                     }
+
                     return null;
                   },
                 ),
@@ -253,7 +280,10 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                           ? null
                           : (_) => setState(() {
                               _period = period;
-                              if (period == GoalPeriod.custom) _recurring = false;
+
+                              if (period == GoalPeriod.custom) {
+                                _recurring = false;
+                              }
                             }),
                     ),
                 ],
@@ -273,7 +303,10 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                                 firstDate: DateTime.now(),
                                 lastDate: DateTime.now().add(const Duration(days: 3650)),
                               );
-                              if (date != null && mounted) setState(() => _deadline = date);
+
+                              if (date != null && mounted) {
+                                setState(() => _deadline = date);
+                              }
                             },
                       icon: const Icon(Icons.event_outlined),
                       label: Text('Deadline: ${_deadline.day}/${_deadline.month}/${_deadline.year}'),
@@ -322,7 +355,10 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                   onChanged: (value) => setState(() {
                     _bookIds = value;
                     _scopeId = value.firstOrNull;
-                    if (_type == GoalType.books && value.isNotEmpty) _target.text = '${value.length}';
+
+                    if (_type == GoalType.books && value.isNotEmpty) {
+                      _target.text = '${value.length}';
+                    }
                   }),
                 ),
               ],
@@ -361,11 +397,11 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
         footer: BottomSheetFormActions(
           onCancel: _saving ? null : () => Navigator.pop(context),
           onSave: _saving || !_timezoneReady ? null : _save,
-          saveLabel: _saving
-              ? 'Saving…'
-              : editing
-              ? (_replacementNeeded ? 'Replace goal' : 'Save')
-              : 'Create goal',
+          saveLabel: switch (_saving) {
+            true => 'Saving…',
+            false when editing => (_replacementNeeded ? 'Replace goal' : 'Save'),
+            false => 'Create goal',
+          },
         ),
       ),
     );
@@ -404,14 +440,20 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
 
   bool get _replacementNeeded {
     final goal = widget.editing;
-    if (goal == null) return false;
+
+    if (goal == null) {
+      return false;
+    }
+
     final zone = _zone.text.trim();
     final originalDeadline = GoalCalendar.local(goal.endDate.subtract(const Duration(microseconds: 1)), goal.timezone);
+
     final deadlineChanged =
         _period == GoalPeriod.custom &&
         (_deadline.year != originalDeadline.year ||
             _deadline.month != originalDeadline.month ||
             _deadline.day != originalDeadline.day);
+
     return _type != goal.type ||
         _period != goal.period ||
         _scope != goal.scope ||
@@ -425,11 +467,15 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
   }
 
   Future<void> _save() async {
-    if (!_form.currentState!.validate()) return;
+    if (!_form.currentState!.validate()) {
+      return;
+    }
+
     setState(() {
       _saving = true;
       _error = null;
     });
+
     try {
       if (widget.editing != null && !_replacementNeeded) {
         await widget.provider.updateGoal(
@@ -455,7 +501,10 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
           repository: _repository,
         );
       }
-      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -480,6 +529,7 @@ class _GoalMetricSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+
     return GoalControls(
       child: AppBottomSheet(
         title: 'New goal',

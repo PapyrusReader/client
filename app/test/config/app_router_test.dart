@@ -81,6 +81,7 @@ void main() {
         await auth.bootstrap();
         final preferences = PreferencesProvider(prefs);
         final sync = _syncSettings(prefs);
+
         final availability = AcquisitionAvailabilityProvider(
           loadCapabilities: (_) async => const AcquisitionCapabilities(
             enabled: false,
@@ -91,16 +92,19 @@ void main() {
             arrCommands: {},
           ),
         );
+
         final appRouter = AppRouter(
           authProvider: auth,
           preferencesProvider: preferences,
           syncSettingsProvider: sync,
           acquisitionAvailabilityProvider: availability,
         );
+
         final store = createTestDataStore(books: [], shelves: []);
         final library = LibraryProvider();
         final sidebar = SidebarProvider();
         final catalogs = OpdsCatalogs(OpdsCatalogStore(prefs))..setScope('guest');
+
         addTearDown(() async {
           await tester.pumpWidget(const SizedBox.shrink());
           appRouter.router.dispose();
@@ -113,6 +117,7 @@ void main() {
           sidebar.dispose();
           catalogs.dispose();
         });
+
         await tester.pumpWidget(
           MultiProvider(
             providers: [
@@ -125,8 +130,10 @@ void main() {
             child: MaterialApp.router(theme: AppTheme.dark, routerConfig: appRouter.router),
           ),
         );
+
         await tester.pumpAndSettle();
         expect(appRouter.rootNavigatorKey.currentState!.widget.pages, everyElement(isA<NoTransitionPage>()));
+
         if (offline) {
           await tester.tap(find.text('Continue offline'));
         } else {
@@ -136,6 +143,7 @@ void main() {
           await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'SecureP@ss123');
           await tester.tap(find.text('Continue'));
         }
+
         await tester.pumpAndSettle();
         expect(appRouter.router.routeInformationProvider.value.uri.path, '/library/books');
         expect(find.byType(AdaptiveAppShell), findsOneWidget);
@@ -153,11 +161,8 @@ void main() {
   test('redirects signed-out users away from protected routes', () async {
     final prefs = await SharedPreferences.getInstance();
     final provider = AuthProvider(prefs, repository: FakeAuthRepository(), bootstrapOnCreate: false);
-
     await provider.bootstrap();
-
     final appRouter = await _buildRouter(authProvider: provider, prefs: prefs);
-
     expect(appRouter.redirectForPath('/library/books'), '/');
     expect(appRouter.redirectForPath('/login'), isNull);
     expect(appRouter.redirectForPath('/reset-password'), isNull);
@@ -167,11 +172,8 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final repository = FakeAuthRepository()..bootstrapResult = _tokens();
     final provider = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
-
     await provider.bootstrap();
-
     final appRouter = await _buildRouter(authProvider: provider, prefs: prefs);
-
     expect(appRouter.redirectForPath('/login'), '/library/books');
     expect(appRouter.redirectForPath('/reset-password'), '/library/books');
     expect(appRouter.redirectForPath('/library/books'), isNull);
@@ -180,12 +182,9 @@ void main() {
   test('offline mode bypasses protected-route auth redirect', () async {
     final prefs = await SharedPreferences.getInstance();
     final provider = AuthProvider(prefs, repository: FakeAuthRepository(), bootstrapOnCreate: false);
-
     await provider.bootstrap();
     provider.setOfflineMode(true);
-
     final appRouter = await _buildRouter(authProvider: provider, prefs: prefs);
-
     expect(appRouter.redirectForPath('/library/books'), isNull);
   });
 
@@ -193,7 +192,6 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final provider = AuthProvider(prefs, repository: FakeAuthRepository(), bootstrapOnCreate: false);
     final appRouter = await _buildRouter(authProvider: provider, prefs: prefs);
-
     expect(appRouter.router.namedLocation('BOOK_EDIT', pathParameters: {'bookId': 'book-1'}), '/library/edit/book-1');
   });
 
@@ -201,7 +199,6 @@ void main() {
     final prefs = await SharedPreferences.getInstance();
     final provider = AuthProvider(prefs, repository: FakeAuthRepository(), bootstrapOnCreate: false);
     final appRouter = await _buildRouter(authProvider: provider, prefs: prefs);
-
     expect(appRouter.router.namedLocation('BOOK_READER', pathParameters: {'bookId': 'book-1'}), '/library/read/book-1');
   });
 
@@ -211,6 +208,7 @@ void main() {
     final provider = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
     final preferences = PreferencesProvider(prefs);
     final syncSettings = _syncSettings(prefs);
+
     final availability = AcquisitionAvailabilityProvider(
       loadCapabilities: (_) async => const AcquisitionCapabilities(
         enabled: true,
@@ -232,19 +230,16 @@ void main() {
     );
 
     expect(appRouter.redirectForPath('/acquisition'), '/profile');
-
     preferences.acquisitionEnabled = true;
-
     expect(appRouter.redirectForPath('/acquisition'), '/profile');
-
     await availability.refresh(syncSettings.activeApiConfig.serverBaseUri);
-
     expect(appRouter.redirectForPath('/acquisition'), isNull);
   });
 }
 
 Future<AppRouter> _buildRouter({required AuthProvider authProvider, required SharedPreferences prefs}) async {
   final syncSettings = _syncSettings(prefs);
+
   return AppRouter(
     authProvider: authProvider,
     preferencesProvider: PreferencesProvider(prefs),

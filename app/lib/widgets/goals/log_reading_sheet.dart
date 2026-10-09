@@ -18,6 +18,7 @@ class LogReadingSheet extends StatefulWidget {
   final GoalsProvider provider;
   final Book? book;
   final ReadingActivity? correcting;
+
   static Future<void> show(
     BuildContext context, {
     required GoalsProvider provider,
@@ -32,6 +33,7 @@ class LogReadingSheet extends StatefulWidget {
     constraints: const BoxConstraints(maxWidth: 640),
     builder: (_) => LogReadingSheet(provider: provider, book: book, correcting: correcting),
   );
+
   @override
   State<LogReadingSheet> createState() => _LogReadingSheetState();
 }
@@ -47,6 +49,7 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
   bool _finished = false;
   bool _saving = false;
   String? _error;
+
   @override
   void initState() {
     super.initState();
@@ -56,6 +59,7 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
     _minutes.text = original == null ? '' : '${original.seconds ~/ 60}';
     _pages.text = original == null ? '' : '${original.pages}';
     _note.text = original?.note ?? '';
+
     if (original != null) {
       _end = original.endTime.toLocal();
       _finished = original.kind == 'completion';
@@ -71,7 +75,10 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
   }
 
   String? _nonNegative(String? value) {
-    if (value == null || value.isEmpty) return null;
+    if (value == null || value.isEmpty) {
+      return null;
+    }
+
     final n = int.tryParse(value);
     return n == null || n < 0 || n > 100000 ? 'Enter a number from 0 to 100,000.' : null;
   }
@@ -79,6 +86,7 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
   @override
   Widget build(BuildContext context) {
     final books = widget.provider.store.books;
+
     return GoalControls(
       child: AppBottomSheet(
         title: widget.correcting == null ? 'Log reading' : 'Correct reading entry',
@@ -124,6 +132,7 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
                                 firstDate: DateTime(1900),
                                 lastDate: DateTime.now(),
                               );
+
                               if (date != null && mounted) {
                                 setState(
                                   () => _end = DateTime(date.year, date.month, date.day, _end.hour, _end.minute),
@@ -145,6 +154,7 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
                                 animationStyle: AppMotion.animationStyle(context),
                                 builder: (_) => TimePickerDialog(initialTime: TimeOfDay.fromDateTime(_end)),
                               );
+
                               if (time != null && mounted) {
                                 setState(
                                   () => _end = DateTime(_end.year, _end.month, _end.day, time.hour, time.minute),
@@ -161,9 +171,11 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
               LayoutBuilder(
                 builder: (context, constraints) {
                   final enlarged = MediaQuery.textScalerOf(context).scale(16) > 24;
+
                   final width = enlarged
                       ? constraints.maxWidth
                       : ((constraints.maxWidth - Spacing.md) / 2).clamp(0, 220).toDouble();
+
                   return Wrap(
                     spacing: Spacing.md,
                     runSpacing: Spacing.md,
@@ -235,16 +247,22 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
   );
 
   Future<void> _save() async {
-    if (!_form.currentState!.validate()) return;
+    if (!_form.currentState!.validate()) {
+      return;
+    }
+
     final book = widget.provider.store.getBook(_bookId!);
+
     if (book == null) {
       setState(() => _error = 'This book no longer exists.');
       return;
     }
+
     setState(() {
       _saving = true;
       _error = null;
     });
+
     try {
       await widget.provider.logReading(
         book: book,
@@ -256,7 +274,10 @@ class _LogReadingSheetState extends State<LogReadingSheet> {
         correcting: widget.correcting,
         repository: _repository,
       );
-      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
     } catch (error) {
       if (mounted) {
         setState(() {
@@ -319,18 +340,22 @@ class ReadingActivityList extends StatelessWidget {
     this.correctedIds = const {},
     this.contributionLabel,
   });
+
   final String? Function(ReadingActivity)? contributionLabel;
   final List<ReadingActivity> activities;
   final GoalsProvider provider;
   final Set<String> correctedIds;
+
   @override
   Widget build(BuildContext context) {
-    final entries = [...activities]..sort((a, b) => b.endTime.compareTo(a.endTime));
+    final entries = [...activities]..sort((left, right) => right.endTime.compareTo(left.endTime));
     final groups = <String, List<ReadingActivity>>{};
+
     for (final entry in entries) {
       final day = DateFormat('yyyy-MM-dd').format(entry.endTime.toLocal());
       groups.putIfAbsent('${entry.bookId}:$day', () => []).add(entry);
     }
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -381,31 +406,33 @@ class ReadingActivityTile extends StatelessWidget {
     this.showBookTitle = true,
     this.contributionLabel,
   });
+
   final String? contributionLabel;
   final ReadingActivity activity;
   final GoalsProvider provider;
   final bool corrected;
   final bool showBookTitle;
+
   @override
   Widget build(BuildContext context) {
-    final label = activity.kind == 'completion'
-        ? 'Finished book'
-        : activity.kind == 'reversal'
-        ? 'Correction'
-        : [
-            if (activity.seconds > 0)
-              activity.seconds < 60 ? '${activity.seconds} sec' : '${activity.seconds ~/ 60} min',
-            if (activity.pages > 0) '${activity.pages} pages',
-            if (activity.coverage.isNotEmpty) activity.isEstimated ? 'Estimated pages' : 'PDF pages',
-          ].join(' · ');
+    final label = switch (activity.kind == 'completion') {
+      true => 'Finished book',
+      false when activity.kind == 'reversal' => 'Correction',
+      false => [
+        if (activity.seconds > 0) activity.seconds < 60 ? '${activity.seconds} sec' : '${activity.seconds ~/ 60} min',
+        if (activity.pages > 0) '${activity.pages} pages',
+        if (activity.coverage.isNotEmpty) activity.isEstimated ? 'Estimated pages' : 'PDF pages',
+      ].join(' · '),
+    };
+
     return ListTile(
       contentPadding: EdgeInsets.zero,
       leading: Icon(
-        activity.kind == 'completion'
-            ? Icons.check_circle_outline
-            : activity.source == 'reader'
-            ? Icons.auto_stories_outlined
-            : Icons.edit_outlined,
+        switch (activity.kind == 'completion') {
+          true => Icons.check_circle_outline,
+          false when activity.source == 'reader' => Icons.auto_stories_outlined,
+          false => Icons.edit_outlined,
+        },
       ),
       dense: !showBookTitle,
       title: Text(
@@ -415,13 +442,13 @@ class ReadingActivityTile extends StatelessWidget {
         maxLines: showBookTitle ? 2 : null,
         overflow: showBookTitle ? TextOverflow.ellipsis : null,
       ),
-      subtitle: showBookTitle
-          ? Text(
-              '$label · ${activity.source == 'reader' ? 'Reader' : 'Manual'}${corrected ? ' · Corrected' : ''}\n${DateFormat.yMMMd().add_Hm().format(activity.startTime.toLocal())}',
-            )
-          : contributionLabel == null
-          ? null
-          : Text(contributionLabel!),
+      subtitle: switch (showBookTitle) {
+        true => Text(
+          '$label · ${activity.source == 'reader' ? 'Reader' : 'Manual'}${corrected ? ' · Corrected' : ''}\n${DateFormat.yMMMd().add_Hm().format(activity.startTime.toLocal())}',
+        ),
+        false when contributionLabel == null => null,
+        false => Text(contributionLabel!),
+      },
       trailing: showBookTitle
           ? null
           : Text(DateFormat.Hm().format(activity.startTime.toLocal()), style: Theme.of(context).textTheme.bodySmall),
@@ -446,6 +473,7 @@ class _ActivityDetails extends StatefulWidget {
   final GoalsProvider provider;
   final ReadingActivity activity;
   final bool corrected;
+
   @override
   State<_ActivityDetails> createState() => _ActivityDetailsState();
 }
@@ -454,10 +482,12 @@ class _ActivityDetailsState extends State<_ActivityDetails> {
   late final TrackingRepository? _repository = widget.provider.store.trackingRepository;
   bool _saving = false;
   String? _error;
+
   @override
   Widget build(BuildContext context) {
     final activity = widget.activity;
     final book = widget.provider.store.getBook(activity.bookId);
+
     return GoalControls(
       child: AppBottomSheet(
         title: 'Reading activity',
@@ -537,7 +567,10 @@ class _ActivityDetailsState extends State<_ActivityDetails> {
   }
 
   String _duration(int seconds) {
-    if (seconds < 60) return '$seconds sec';
+    if (seconds < 60) {
+      return '$seconds sec';
+    }
+
     final hours = seconds ~/ 3600;
     final minutes = (seconds % 3600) ~/ 60;
     final remainder = seconds % 60;
@@ -550,6 +583,7 @@ class _ActivityDetailsState extends State<_ActivityDetails> {
       if (activity.pages > 0) '${activity.pages} ${activity.pages == 1 ? 'page' : 'pages'}',
       if (activity.coverage.isNotEmpty) activity.isEstimated ? 'Estimated EPUB pages' : 'PDF pages',
     ];
+
     return parts.isEmpty ? 'No reading time or pages recorded.' : parts.join(' · ');
   }
 
@@ -577,11 +611,19 @@ class _ActivityDetailsState extends State<_ActivityDetails> {
         ],
       ),
     );
-    if (confirmed != true || !mounted) return;
+
+    if (confirmed != true || !mounted) {
+      return;
+    }
+
     setState(() => _saving = true);
+
     try {
       await widget.provider.reverseActivity(widget.activity, repository: _repository);
-      if (mounted) Navigator.pop(context);
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
     } catch (error) {
       if (mounted) {
         setState(() {

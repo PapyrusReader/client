@@ -50,10 +50,6 @@ class _ShelfCardState extends State<ShelfCard> {
     );
   }
 
-  // ============================================================================
-  // GRID CARD
-  // ============================================================================
-
   Widget _buildGridCard(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
@@ -236,6 +232,7 @@ class _ShelfCardState extends State<ShelfCard> {
         builder: (context, constraints) {
           final showTitle = constraints.maxWidth >= 120 && constraints.maxHeight >= 160;
           final iconSize = (constraints.biggest.shortestSide * 0.5).clamp(0.0, IconSizes.display);
+
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -276,10 +273,6 @@ class _ShelfCardState extends State<ShelfCard> {
       ),
     );
   }
-
-  // ============================================================================
-  // LIST ITEM
-  // ============================================================================
 
   Widget _buildListItem(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;

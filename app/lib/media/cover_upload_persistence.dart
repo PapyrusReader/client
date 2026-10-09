@@ -20,7 +20,10 @@ Future<MediaAsset> uploadAndPersistCover({
   required CoverPromotionErrorHandler onPromotionError,
 }) async {
   final asset = await uploadMedia(payload);
-  if (payload.kind != MediaKind.coverImage) return asset;
+
+  if (payload.kind != MediaKind.coverImage) {
+    return asset;
+  }
 
   try {
     await promotePendingCover(scope, bookId: payload.bookId, mediaId: asset.assetId);
@@ -31,5 +34,6 @@ Future<MediaAsset> uploadAndPersistCover({
       // Reporting must not turn an accepted server upload into a retry.
     }
   }
+
   return asset;
 }

@@ -6,7 +6,6 @@ class _Sentinel {
 
 const _sentinel = _Sentinel();
 
-/// Bookmark data model for saved positions within books.
 class Bookmark {
   final String id;
   final String bookId;
@@ -28,7 +27,6 @@ class Bookmark {
     required this.createdAt,
   });
 
-  /// Get the color from hex string.
   Color get color {
     try {
       final hex = colorHex.replaceFirst('#', '');
@@ -43,9 +41,11 @@ class Bookmark {
     if (chapterTitle != null && pageNumber != null) {
       return '$chapterTitle, Page $pageNumber';
     }
+
     if (pageNumber != null) {
       return 'Page $pageNumber';
     }
+
     return '${(position * 100).round()}%';
   }
 
@@ -79,7 +79,6 @@ class Bookmark {
     );
   }
 
-  /// Convert to JSON for API/storage.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -93,7 +92,6 @@ class Bookmark {
     };
   }
 
-  /// Create from JSON.
   factory Bookmark.fromJson(Map<String, dynamic> json) {
     return Bookmark(
       id: json['id'] as String,

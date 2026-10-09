@@ -52,16 +52,22 @@ class PapyrusPowerSyncConnector extends PowerSyncBackendConnector {
 
       final version = supportsTracking?.call() == false ? 0 : trackingSchemaVersion?.call() ?? 2;
       final deferred = <CrudEntry>[];
+
       for (final entry in transaction.crud.where((entry) => trackingTableNames.contains(entry.table))) {
         final raw = entry.opData?['payload'];
         final payload = raw is String ? Map<String, dynamic>.from(jsonDecode(raw) as Map) : <String, dynamic>{};
-        if (requiredTrackingSchemaVersion(payload) > version) deferred.add(entry);
+
+        if (requiredTrackingSchemaVersion(payload) > version) {
+          deferred.add(entry);
+        }
       }
+
       if (deferred.isNotEmpty) {
         await database.writeTransaction((tx) async {
           for (final entry in deferred) {
             final row = await tx.getOptional('SELECT payload FROM ${entry.table} WHERE id = ?', [entry.id]);
             final payload = row?['payload'] as String? ?? jsonEncode({'id': entry.id});
+
             await tx.execute(
               'INSERT OR REPLACE INTO tracking_staging (id, table_name, row_id, payload, deleted) VALUES (?, ?, ?, ?, ?)',
               ['${entry.table}:${entry.id}', entry.table, entry.id, payload, row == null ? 1 : 0],
@@ -69,6 +75,7 @@ class PapyrusPowerSyncConnector extends PowerSyncBackendConnector {
           }
         });
       }
+
       final batch = powerSyncUploadBatchFromCrud(transaction.crud.where((entry) => !deferred.contains(entry)).toList());
 
       if (batch.isEmpty) {

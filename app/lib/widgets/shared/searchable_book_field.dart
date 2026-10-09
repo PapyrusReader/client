@@ -17,6 +17,7 @@ class SearchableBookField extends FormField<String> {
          validator: (value) => books.any((book) => book.id == value) ? null : 'Choose a book.',
          builder: (field) {
            final selected = books.where((book) => book.id == field.value).firstOrNull;
+
            return InkWell(
              onTap: !enabled || books.isEmpty
                  ? null
@@ -30,6 +31,7 @@ class SearchableBookField extends FormField<String> {
                        sheetAnimationStyle: AppMotion.animationStyle(field.context),
                        builder: (_) => _BookSearchSheet(books: books, selectedId: field.value),
                      );
+
                      if (book != null && field.mounted) {
                        field.didChange(book.id);
                        onChanged(book.id);
@@ -53,21 +55,25 @@ class _BookSearchSheet extends StatefulWidget {
   const _BookSearchSheet({required this.books, this.selectedId});
   final List<Book> books;
   final String? selectedId;
+
   @override
   State<_BookSearchSheet> createState() => _BookSearchSheetState();
 }
 
 class _BookSearchSheetState extends State<_BookSearchSheet> {
   String _query = '';
+
   @override
   Widget build(BuildContext context) {
     final query = _query.trim().toLowerCase();
+
     final books = widget.books
         .where(
           (book) =>
               '${book.title} ${book.allAuthors} ${book.isbn ?? ''} ${book.isbn13 ?? ''}'.toLowerCase().contains(query),
         )
         .toList();
+
     return AppBottomSheet(
       title: 'Choose a book',
       onClose: () => Navigator.pop(context),
@@ -89,6 +95,7 @@ class _BookSearchSheetState extends State<_BookSearchSheet> {
                     itemCount: books.length,
                     itemBuilder: (context, index) {
                       final book = books[index];
+
                       return ListTile(
                         contentPadding: EdgeInsets.zero,
                         title: Text(book.title, maxLines: 2, overflow: TextOverflow.ellipsis),

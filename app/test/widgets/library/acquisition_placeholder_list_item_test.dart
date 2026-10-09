@@ -27,7 +27,6 @@ void main() {
     for (final entry in expectedLabels.entries) {
       testWidgets('renders ${entry.key.name}', (tester) async {
         await tester.pumpWidget(_buildListItem(job: _job(status: entry.key)));
-
         expect(find.text('A Downloading Book'), findsOneWidget);
         expect(find.text(entry.value), findsOneWidget);
       });
@@ -60,10 +59,8 @@ void main() {
 
       try {
         await tester.pumpWidget(_buildListItem(job: _job(status: AcquisitionJobStatus.failed)));
-
         final status = tester.widget<Text>(find.text('Download failed'));
         final node = tester.getSemantics(find.byKey(const ValueKey('acquisition-placeholder-list-item-job-1')));
-
         expect(find.text('Disk full'), findsNothing);
         expect(node.label, isNot(contains('Disk full')));
         expect(status.style?.color, AppTheme.light.colorScheme.error);
@@ -74,7 +71,6 @@ void main() {
 
     testWidgets('uses a neutral cover rather than release artwork', (tester) async {
       await tester.pumpWidget(_buildListItem(job: _job()));
-
       expect(find.byIcon(Icons.menu_book_outlined), findsOneWidget);
       expect(find.byType(CoverImage), findsNothing);
     });
@@ -96,17 +92,14 @@ void main() {
 
         final finder = find.byKey(const ValueKey('acquisition-placeholder-list-item-job-1'));
         final node = tester.getSemantics(finder);
-
         expect(node.label, contains('A Downloading Book'));
         expect(node.label, contains('Downloading 42%'));
         expect(node.flagsCollection.isButton, isTrue);
         expect(node.flagsCollection.isSelected, Tristate.isTrue);
         expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
         expect(node.getSemanticsData().hasAction(SemanticsAction.longPress), isTrue);
-
         await tester.tap(finder);
         await tester.longPress(finder);
-
         expect(taps, 1);
         expect(longPresses, 1);
       } finally {
@@ -123,7 +116,6 @@ void main() {
       );
 
       await tester.tap(find.byKey(const ValueKey('acquisition-placeholder-list-item-job-1')));
-
       expect(taps, 0);
       expect(toggles, 1);
     });
@@ -133,9 +125,7 @@ void main() {
 
       try {
         await tester.pumpWidget(_buildListItem(job: _job()));
-
         final node = tester.getSemantics(find.byKey(const ValueKey('acquisition-placeholder-list-item-job-1')));
-
         expect(node.flagsCollection.isButton, isFalse);
         expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isFalse);
         expect(node.getSemanticsData().hasAction(SemanticsAction.longPress), isFalse);
@@ -172,15 +162,19 @@ void main() {
 
       final bookRoot = find.byType(BookListItem);
       final placeholderRoot = find.byType(AcquisitionPlaceholderListItem);
+
       final bookMaterial = tester.widget<Material>(
         find.descendant(of: bookRoot, matching: find.byType(Material)).first,
       );
+
       final placeholderMaterial = tester.widget<Material>(
         find.descendant(of: placeholderRoot, matching: find.byType(Material)).first,
       );
+
       final bookContainer = tester.widget<Container>(
         find.descendant(of: bookRoot, matching: find.byType(Container)).first,
       );
+
       final placeholderContainer = tester.widget<Container>(
         find.descendant(of: placeholderRoot, matching: find.byType(Container)).first,
       );

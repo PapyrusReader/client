@@ -53,7 +53,11 @@ class LibraryProvider extends ChangeNotifier {
 
   void setGridItemWidth(double width) {
     final normalized = BookGridSize.normalize(width);
-    if (gridItemWidth == normalized) return;
+
+    if (gridItemWidth == normalized) {
+      return;
+    }
+
     if (_preferences != null) {
       _preferences.gridItemWidth = normalized;
     } else if (_favoriteDelegate != null) {
@@ -94,7 +98,6 @@ class LibraryProvider extends ChangeNotifier {
     }
 
     _viewMode = mode;
-
     notifyListeners();
   }
 
@@ -178,6 +181,7 @@ class LibraryProvider extends ChangeNotifier {
       }
 
       final isFavorite = isBookFavorite(book.id, book.isFavorite);
+
       if (appliedFilters.favoriteFilter == FavoriteFilter.favorites && !isFavorite) {
         return false;
       }
@@ -230,6 +234,7 @@ class LibraryProvider extends ChangeNotifier {
 
       if (appliedFilters.ratings.isNotEmpty || appliedFilters.includeUnrated) {
         final rating = book.rating;
+
         if (rating == null ? !appliedFilters.includeUnrated : !appliedFilters.ratings.contains(rating)) {
           return false;
         }
@@ -254,39 +259,57 @@ class LibraryProvider extends ChangeNotifier {
   List<Book> sortBooks(List<Book> books) {
     final sorted = List<Book>.of(books);
 
-    sorted.sort((a, b) {
+    sorted.sort((left, right) {
       switch (_sortOption) {
         case LibrarySortOption.dateAddedNewest:
-          return b.addedAt.compareTo(a.addedAt);
+          return right.addedAt.compareTo(left.addedAt);
         case LibrarySortOption.dateAddedOldest:
-          return a.addedAt.compareTo(b.addedAt);
+          return left.addedAt.compareTo(right.addedAt);
         case LibrarySortOption.titleAZ:
-          return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+          return left.title.toLowerCase().compareTo(right.title.toLowerCase());
         case LibrarySortOption.titleZA:
-          return b.title.toLowerCase().compareTo(a.title.toLowerCase());
+          return right.title.toLowerCase().compareTo(left.title.toLowerCase());
         case LibrarySortOption.authorAZ:
-          return a.author.toLowerCase().compareTo(b.author.toLowerCase());
+          return left.author.toLowerCase().compareTo(right.author.toLowerCase());
         case LibrarySortOption.authorZA:
-          return b.author.toLowerCase().compareTo(a.author.toLowerCase());
+          return right.author.toLowerCase().compareTo(left.author.toLowerCase());
         case LibrarySortOption.lastRead:
-          if (a.lastReadAt == null && b.lastReadAt == null) return 0;
-          if (a.lastReadAt == null) return 1;
-          if (b.lastReadAt == null) return -1;
-          return b.lastReadAt!.compareTo(a.lastReadAt!);
+          if (left.lastReadAt == null && right.lastReadAt == null) {
+            return 0;
+          }
+          if (left.lastReadAt == null) {
+            return 1;
+          }
+          if (right.lastReadAt == null) {
+            return -1;
+          }
+          return right.lastReadAt!.compareTo(left.lastReadAt!);
         case LibrarySortOption.ratingAsc:
-          if (a.rating == null && b.rating == null) return 0;
-          if (a.rating == null) return 1;
-          if (b.rating == null) return -1;
-          return a.rating!.compareTo(b.rating!);
+          if (left.rating == null && right.rating == null) {
+            return 0;
+          }
+          if (left.rating == null) {
+            return 1;
+          }
+          if (right.rating == null) {
+            return -1;
+          }
+          return left.rating!.compareTo(right.rating!);
         case LibrarySortOption.ratingDesc:
-          if (a.rating == null && b.rating == null) return 0;
-          if (a.rating == null) return 1;
-          if (b.rating == null) return -1;
-          return b.rating!.compareTo(a.rating!);
+          if (left.rating == null && right.rating == null) {
+            return 0;
+          }
+          if (left.rating == null) {
+            return 1;
+          }
+          if (right.rating == null) {
+            return -1;
+          }
+          return right.rating!.compareTo(left.rating!);
         case LibrarySortOption.progressAsc:
-          return a.currentPosition.compareTo(b.currentPosition);
+          return left.currentPosition.compareTo(right.currentPosition);
         case LibrarySortOption.progressDesc:
-          return b.currentPosition.compareTo(a.currentPosition);
+          return right.currentPosition.compareTo(left.currentPosition);
       }
     });
 
@@ -314,26 +337,36 @@ class LibraryProvider extends ChangeNotifier {
   /// Check if a book is favorited (considering overrides).
   bool isBookFavorite(String bookId, bool originalFavorite) {
     final favoriteDelegate = _favoriteDelegate;
+
     if (favoriteDelegate != null) {
       return favoriteDelegate.isBookFavorite(bookId, originalFavorite);
     }
 
-    if (_dataStore != null) return _dataStore.getBook(bookId)?.isFavorite ?? originalFavorite;
+    if (_dataStore != null) {
+      return _dataStore.getBook(bookId)?.isFavorite ?? originalFavorite;
+    }
+
     return _favoriteOverrides[bookId] ?? originalFavorite;
   }
 
   /// Toggle the favorite status of a book.
   Future<void> toggleFavorite(String bookId, bool currentFavorite) async {
     final favoriteDelegate = _favoriteDelegate;
+
     if (favoriteDelegate != null) {
       await favoriteDelegate.toggleFavorite(bookId, currentFavorite);
       return;
     }
 
     final store = _dataStore;
+
     if (store != null) {
       final book = store.getBook(bookId);
-      if (book == null) return;
+
+      if (book == null) {
+        return;
+      }
+
       await store.updateBookAndWait(book.copyWith(isFavorite: !currentFavorite), previous: book);
       return;
     }
@@ -345,6 +378,7 @@ class LibraryProvider extends ChangeNotifier {
   /// Get the effective favorite status for a book.
   bool? getFavoriteOverride(String bookId) {
     final favoriteDelegate = _favoriteDelegate;
+
     if (favoriteDelegate != null) {
       return favoriteDelegate.getFavoriteOverride(bookId);
     }
@@ -352,15 +386,15 @@ class LibraryProvider extends ChangeNotifier {
     return _favoriteOverrides[bookId];
   }
 
-  // ===========================================================================
-  // Selection mode
-  // ===========================================================================
-
   /// Enter selection mode, optionally pre-selecting a book.
   void enterSelectionMode([String? initialBookId]) {
     _isSelectionMode = true;
     _selectedBookIds.clear();
-    if (initialBookId != null) _selectedBookIds.add(initialBookId);
+
+    if (initialBookId != null) {
+      _selectedBookIds.add(initialBookId);
+    }
+
     notifyListeners();
   }
 
@@ -375,10 +409,14 @@ class LibraryProvider extends ChangeNotifier {
   void toggleBookSelection(String bookId) {
     if (_selectedBookIds.contains(bookId)) {
       _selectedBookIds.remove(bookId);
-      if (_selectedBookIds.isEmpty) exitSelectionMode();
+
+      if (_selectedBookIds.isEmpty) {
+        exitSelectionMode();
+      }
     } else {
       _selectedBookIds.add(bookId);
     }
+
     notifyListeners();
   }
 

@@ -15,12 +15,15 @@ import 'relay_fixture_client.dart';
 
 void main() {
   final catalog = OpdsCatalog(id: 'c', name: 'Books', uri: Uri.parse('https://books.test/feed'));
+
   final link = OpdsLink(
     uri: Uri.parse('https://books.test/book.epub'),
     type: 'application/epub+zip',
     rels: ['http://opds-spec.org/acquisition/open-access'],
   );
+
   final publication = OpdsPublication(id: 'p', title: 'Catalog title', authors: ['Catalog author'], links: [link]);
+
   BookImportResult result() => const BookImportResult(
     bookId: 'imported',
     title: 'book',
@@ -32,6 +35,7 @@ void main() {
 
   test('network failure offers manual recovery without processing or committing a book', () async {
     var processes = 0;
+
     final downloads = OpdsDownloads(
       httpClient: OpdsHttpClient(
         clientFactory: () => MockRelayClient((_) async {
@@ -48,6 +52,7 @@ void main() {
         commit: (_, _) async => throw StateError('must not commit'),
       ),
     );
+
     await downloads.start(catalog, publication, link);
     expect(downloads.jobs.single.status, OpdsDownloadStatus.failed);
     expect(downloads.jobs.single.networkFailure, isTrue);
@@ -57,11 +62,13 @@ void main() {
 
   test('rejects a disguised login page before importing a text download', () async {
     var processed = false;
+
     final textLink = OpdsLink(
       uri: Uri.parse('https://books.test/book.txt'),
       type: 'text/plain',
       rels: ['http://opds-spec.org/acquisition'],
     );
+
     final downloads = OpdsDownloads(
       httpClient: OpdsHttpClient(
         clientFactory: () =>
@@ -77,6 +84,7 @@ void main() {
         commit: (_, _) async => throw StateError('unused'),
       ),
     );
+
     await downloads.start(catalog, publication, textLink);
     expect(processed, isFalse);
     expect(downloads.jobs.single.status, OpdsDownloadStatus.failed);
@@ -86,6 +94,7 @@ void main() {
 
   test('commits a downloaded book and fills missing embedded metadata', () async {
     BookImportResult? imported;
+
     final downloads = OpdsDownloads(
       httpClient: OpdsHttpClient(clientFactory: () => MockRelayClient((_) async => http.Response('book', 200))),
       captureImport: () => BookImportSession(
@@ -98,6 +107,7 @@ void main() {
         },
       ),
     );
+
     await downloads.start(catalog, publication, link);
     expect(imported?.title, 'Catalog title');
     expect(imported?.author, 'Catalog author');
@@ -108,6 +118,7 @@ void main() {
   test('the final commit phase does not offer cancellation', () async {
     final committing = Completer<void>();
     final finish = Completer<Book>();
+
     final downloads = OpdsDownloads(
       httpClient: OpdsHttpClient(clientFactory: () => MockRelayClient((_) async => http.Response('book', 200))),
       captureImport: () => BookImportSession(
@@ -120,6 +131,7 @@ void main() {
         },
       ),
     );
+
     final operation = downloads.start(catalog, publication, link);
     await committing.future;
     expect(downloads.jobs.single.isCancellable, isFalse);
@@ -135,6 +147,7 @@ void main() {
     final started = Completer<void>();
     final deleted = <String>[];
     var commits = 0;
+
     final downloads = OpdsDownloads(
       httpClient: OpdsHttpClient(clientFactory: () => MockRelayClient((_) async => http.Response('book', 200))),
       captureImport: () => BookImportSession(
@@ -150,6 +163,7 @@ void main() {
         },
       ),
     );
+
     final operation = downloads.start(catalog, publication, link);
     await started.future;
     downloads.reset();
@@ -165,6 +179,7 @@ void main() {
     final processing = Completer<BookImportResult>();
     var requests = 0;
     final deleted = <String>[];
+
     final downloads = OpdsDownloads(
       httpClient: OpdsHttpClient(
         clientFactory: () => MockRelayClient((_) async {
@@ -179,6 +194,7 @@ void main() {
         commit: (_, _) async => throw StateError('commit failed'),
       ),
     );
+
     final first = downloads.start(catalog, publication, link);
     final second = downloads.start(catalog, publication, link);
     processing.complete(result());

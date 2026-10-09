@@ -1,6 +1,5 @@
 import 'package:papyrus/models/annotation.dart';
 
-/// Note data model for user notes about books.
 class Note {
   final String id;
   final String bookId;
@@ -26,7 +25,10 @@ class Note {
 
   /// Get a preview of the content (first 100 characters).
   String get preview {
-    if (content.length <= 100) return content;
+    if (content.length <= 100) {
+      return content;
+    }
+
     return '${content.substring(0, 100)}...';
   }
 
@@ -48,6 +50,7 @@ class Note {
     if (updatedAt != null) {
       return 'Edited $formattedDate';
     }
+
     return 'Created $formattedDate';
   }
 
@@ -76,7 +79,6 @@ class Note {
     );
   }
 
-  /// Convert to JSON for API/storage.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -94,9 +96,9 @@ class Note {
     };
   }
 
-  /// Create from JSON.
   factory Note.fromJson(Map<String, dynamic> json) {
     final hasLocation = json['page_number'] != null;
+
     return Note(
       id: json['id'] as String,
       bookId: json['book_id'] as String,
@@ -110,7 +112,7 @@ class Note {
               percentage: (json['percentage'] as num?)?.toDouble(),
             )
           : null,
-      tags: (json['tags'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
+      tags: (json['tags'] as List<dynamic>?)?.map((item) => item as String).toList() ?? [],
       isPinned: json['is_pinned'] as bool? ?? false,
       createdAt: DateTime.parse(json['created_at'] as String),
       updatedAt: json['updated_at'] != null ? DateTime.parse(json['updated_at'] as String) : null,

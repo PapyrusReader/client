@@ -19,6 +19,23 @@ The Flutter package is `app/`, not the repository root. Commands below run from
 
 ## Implementation
 
+### Coding style
+
+When working in the Papyrus workspace, read `../CODING_STYLE.md` for the
+maintainer's reviewed examples. In standalone checkouts, follow these same rules:
+
+- Use 120-character formatter width and `trailing_commas: preserve`. Use trailing commas to keep deliberate multiline layouts.
+- Put blank lines around blocks and multiline statements when adjacent code exists. Keep consecutive single-line statements together, even when their purpose changes. Do not pad the start or end of a block.
+- Use meaningful local and callback names such as `activity`, `document`, `error`, and comparator operands `left`/`right`. Avoid redundant qualifiers.
+- Use braces for ordinary guards and conditional side effects. A compact consecutive table of immediate returns can remain inline when it is easier to scan.
+- Replace nested ternaries with clear branches or a switch. Simple ternaries, getters, and expression-bodied methods remain appropriate.
+- Extract meaningful constants and focused helpers for distracting details. Preserve scope, return values, null handling, types, and behavior.
+- Remove comments that restate obvious code and decorative section banners. Retain explanations of non-obvious constraints and contracts.
+- Keep related declarations together. Simple interface signatures need no blank lines between each member; multiline declarations and larger groups should be separated.
+- Apply these rules to changed code without broad unrelated reformatting.
+
+### Behavior and integration
+
 Keep business logic in existing services, repositories and providers. Reuse shared
 widgets and theme tokens. Preserve e-ink behavior, keyboard/focus handling, compact
 and wide layouts. Use existing platform adapters and conditional imports; do not

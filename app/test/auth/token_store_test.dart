@@ -22,15 +22,12 @@ void main() {
   test('TokenStore saves, rotates, and clears tokens', () async {
     final storage = MemoryRefreshTokenStorage();
     final store = TokenStore(storage);
-
     await store.saveTokens(accessToken: 'access-one', refreshToken: 'refresh-one');
     expect(store.accessToken, 'access-one');
     expect(await store.readRefreshToken(), 'refresh-one');
-
     await store.saveTokens(accessToken: 'access-two', refreshToken: 'refresh-two');
     expect(store.accessToken, 'access-two');
     expect(await store.readRefreshToken(), 'refresh-two');
-
     await store.clear();
     expect(store.accessToken, isNull);
     expect(await store.readRefreshToken(), isNull);

@@ -23,7 +23,9 @@ void main() {
       resolveBookAccountStatus(book: _book(fileMediaId: 'media-1'), isAccountLibrary: true),
       BookAccountStatus.saved,
     );
+
     expect(resolveBookAccountStatus(book: _book(), isAccountLibrary: true), BookAccountStatus.syncing);
+
     expect(
       resolveBookAccountStatus(
         book: _book(),
@@ -50,6 +52,7 @@ void main() {
   test('local file checks are asynchronous and cached', () async {
     final checked = Completer<bool>();
     var calls = 0;
+
     final controller = BookStorageStatusController.detached(
       hasBookFile: (_) {
         calls++;
@@ -61,12 +64,10 @@ void main() {
     final firstCheck = controller.ensureDeviceStatus(_book());
     final secondCheck = controller.ensureDeviceStatus(_book());
     expect(calls, 1);
-
     checked.complete(false);
     await Future.wait([firstCheck, secondCheck]);
     expect(controller.deviceStatus(_book()), BookDeviceStatus.missing);
     expect(calls, 1);
-
     controller.dispose();
   });
 }

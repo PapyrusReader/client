@@ -21,9 +21,12 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       SharedPreferences.setMockInitialValues({});
+
       final catalogs = OpdsCatalogs(OpdsCatalogStore(await SharedPreferences.getInstance(), secrets: MemorySecrets()))
         ..setScope('guest');
+
       addTearDown(catalogs.dispose);
+
       final router = GoRouter(
         initialLocation: '/library/catalogs',
         routes: [
@@ -33,7 +36,9 @@ void main() {
           ),
         ],
       );
+
       addTearDown(router.dispose);
+
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -44,35 +49,33 @@ void main() {
           child: MaterialApp.router(routerConfig: router),
         ),
       );
+
       await tester.pumpAndSettle();
+
       if (width < 840) {
         tester.state<ScaffoldState>(find.byType(Scaffold).first).openDrawer();
         await tester.pumpAndSettle();
       }
+
       expect(find.text('Catalogs'), findsOneWidget);
       expect(find.byType(NavItemCount), findsNothing);
       expect(find.text('0'), findsNothing);
-
       await catalogs.save(OpdsCatalog(id: 'one', name: 'One', uri: Uri.parse('https://one.test/feed')));
       await tester.pumpAndSettle();
       expect(tester.widget<NavItemCount>(find.byType(NavItemCount)).count, 1);
       expect(tester.widget<NavItemCount>(find.byType(NavItemCount)).selected, isTrue);
-
       await catalogs.save(OpdsCatalog(id: 'two', name: 'Two', uri: Uri.parse('https://two.test/feed')));
       await tester.pumpAndSettle();
       expect(tester.widget<NavItemCount>(find.byType(NavItemCount)).count, 2);
-
       await catalogs.remove('one');
       await tester.pumpAndSettle();
       expect(tester.widget<NavItemCount>(find.byType(NavItemCount)).count, 1);
-
       catalogs.setScope('another-account');
       await tester.pumpAndSettle();
       expect(find.byType(NavItemCount), findsNothing);
       catalogs.setScope('guest');
       await tester.pumpAndSettle();
       expect(tester.widget<NavItemCount>(find.byType(NavItemCount)).count, 1);
-
       await catalogs.remove('two');
       await tester.pumpAndSettle();
       expect(find.byType(NavItemCount), findsNothing);

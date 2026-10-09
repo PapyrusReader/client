@@ -7,10 +7,6 @@ import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/shared/persistent_save.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
-// =============================================================================
-// BOOKMARK ACTION SHEET (action chooser)
-// =============================================================================
-
 /// Result of bookmark action sheet selection.
 enum BookmarkAction { editNote, changeColor, delete }
 
@@ -34,6 +30,7 @@ class BookmarkActionSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return AppBottomSheet(
       header: Text(
         bookmark.displayLocation,
@@ -73,10 +70,6 @@ class BookmarkActionSheet extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// COLOR NAMES
-// =============================================================================
-
 /// Color name mapping for display.
 const _colorNames = {
   '#FF5722': 'Orange',
@@ -87,10 +80,6 @@ const _colorNames = {
   '#4CAF50': 'Green',
   '#FFC107': 'Amber',
 };
-
-// =============================================================================
-// BOOKMARK NOTE SHEET
-// =============================================================================
 
 /// Bottom sheet for editing a bookmark's note.
 class BookmarkNoteSheet extends StatefulWidget {
@@ -150,7 +139,10 @@ class _BookmarkNoteSheetState extends State<BookmarkNoteSheet> with PersistentSa
             : () async {
                 final text = _controller.text.trim();
                 final saved = await persist(() => widget.onSave?.call(text));
-                if (saved && context.mounted) Navigator.pop(context, text);
+
+                if (saved && context.mounted) {
+                  Navigator.pop(context, text);
+                }
               },
       ),
       body: TextField(
@@ -168,10 +160,6 @@ class _BookmarkNoteSheetState extends State<BookmarkNoteSheet> with PersistentSa
     );
   }
 }
-
-// =============================================================================
-// BOOKMARK COLOR SHEET
-// =============================================================================
 
 /// Bottom sheet for selecting a bookmark color.
 class BookmarkColorSheet extends StatefulWidget {
@@ -206,6 +194,7 @@ class _BookmarkColorSheetState extends State<BookmarkColorSheet> with Persistent
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return AppBottomSheet(
       header: Text('Change color', style: Theme.of(context).textTheme.titleMedium),
       body: Column(
@@ -224,7 +213,10 @@ class _BookmarkColorSheetState extends State<BookmarkColorSheet> with Persistent
                     ? null
                     : () async {
                         final saved = await persist(() => widget.onSave?.call(hex));
-                        if (saved && context.mounted) Navigator.pop(context, hex);
+
+                        if (saved && context.mounted) {
+                          Navigator.pop(context, hex);
+                        }
                       },
                 child: Container(
                   width: 48,
@@ -273,10 +265,6 @@ class _BookmarkColorSheetState extends State<BookmarkColorSheet> with Persistent
   }
 }
 
-// =============================================================================
-// DELETE BOOKMARK DIALOG
-// =============================================================================
-
 /// Confirmation dialog for deleting a bookmark.
 class DeleteBookmarkDialog {
   /// Show the delete confirmation dialog. Returns true if confirmed.
@@ -291,6 +279,7 @@ class DeleteBookmarkDialog {
       context: context,
       builder: (context) => _DeleteBookmarkConfirmation(bookmark: bookmark, bookTitle: bookTitle, onDelete: onDelete),
     );
+
     return result ?? false;
   }
 }
@@ -320,7 +309,10 @@ class _DeleteBookmarkConfirmationState extends State<_DeleteBookmarkConfirmation
               ? null
               : () async {
                   final saved = await persist(() => widget.onDelete?.call());
-                  if (saved && context.mounted) Navigator.pop(context, true);
+
+                  if (saved && context.mounted) {
+                    Navigator.pop(context, true);
+                  }
                 },
           style: FilledButton.styleFrom(backgroundColor: Theme.of(context).colorScheme.error),
           child: const Text('Delete'),

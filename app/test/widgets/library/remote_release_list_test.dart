@@ -16,7 +16,9 @@ void main() {
     sizeBytes: 1572864,
     seeders: 12,
   );
+
   const submissionError = 'The download client rejected this release.';
+
   const semanticLabel =
       'The Left Hand of Darkness EPUB. Nyaa. EPUB, RETAIL. 1.5 MB. 12 seeders. '
       'The download client rejected this release.';
@@ -46,7 +48,6 @@ void main() {
 
   testWidgets('shows release details across the full-width row', (tester) async {
     await tester.pumpWidget(buildList());
-
     expect(find.byType(Checkbox), findsOneWidget);
     expect(find.text(release.title), findsOneWidget);
     expect(find.text('Nyaa · EPUB, RETAIL · 1.5 MB · 12 seeders'), findsOneWidget);
@@ -55,13 +56,13 @@ void main() {
 
   testWidgets('uses the selected color scheme treatment', (tester) async {
     await tester.pumpWidget(buildList(selectedReleaseTokens: const {'token-1'}));
-
     final colorScheme = AppTheme.dark.colorScheme;
 
     expect(
       tester.widgetList<Material>(find.byType(Material)).map((material) => material.color),
       contains(colorScheme.primaryContainer.withValues(alpha: 0.35)),
     );
+
     expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
   });
 
@@ -72,12 +73,12 @@ void main() {
       protocol: 'torrent',
       indexer: 'BookBay',
     );
+
     await tester.pumpWidget(
       buildList(releases: const [release, otherRelease], errorsByReleaseToken: const {'token-1': submissionError}),
     );
 
     final errorText = tester.widget<Text>(find.text(submissionError));
-
     expect(errorText.style?.fontSize, AppTheme.dark.textTheme.bodySmall?.fontSize);
     expect(errorText.style?.color, AppTheme.dark.colorScheme.error);
     expect(find.text(otherRelease.title), findsOneWidget);
@@ -86,19 +87,15 @@ void main() {
 
   testWidgets('row tap toggles its release exactly once', (tester) async {
     final toggled = <String>[];
-
     await tester.pumpWidget(buildList(onToggleSelection: toggled.add));
     await tester.tap(find.text(release.title));
-
     expect(toggled, ['token-1']);
   });
 
   testWidgets('checkbox toggle changes its release exactly once', (tester) async {
     final toggled = <String>[];
-
     await tester.pumpWidget(buildList(onToggleSelection: toggled.add));
     await tester.tap(find.byType(Checkbox));
-
     expect(toggled, ['token-1']);
   });
 
@@ -112,12 +109,12 @@ void main() {
 
       final releaseNodes = find.semantics.byLabel(semanticLabel).evaluate().toList();
       final releaseSemantics = tester.getSemantics(find.byKey(const ValueKey('remote-release-token-1')));
-
       expect(releaseNodes, hasLength(1));
       expect(releaseSemantics.label, semanticLabel);
       expect(releaseSemantics.flagsCollection.isButton, isTrue);
       expect(releaseSemantics.flagsCollection.isSelected, Tristate.isTrue);
       expect(releaseSemantics.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+
       final unlabeledInteractiveNodes = find.semantics
           .byPredicate(
             (node) =>
@@ -139,10 +136,9 @@ void main() {
 
     try {
       await tester.pumpWidget(buildList(onToggleSelection: toggled.add));
-
       final releaseSemantics = tester.getSemantics(find.byKey(const ValueKey('remote-release-token-1')));
-
       expect(releaseSemantics.flagsCollection.isSelected, Tristate.isFalse);
+
       tester.semantics.tap(
         find.semantics.byLabel('The Left Hand of Darkness EPUB. Nyaa. EPUB, RETAIL. 1.5 MB. 12 seeders'),
       );

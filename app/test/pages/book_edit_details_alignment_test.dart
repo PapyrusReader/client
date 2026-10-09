@@ -31,13 +31,16 @@ void main() {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = layout.screen;
         addTearDown(tester.view.reset);
+
         final store = createTestDataStore(
           books: [buildTestBook(id: 'book', title: 'A book', author: 'An author')],
         );
+
         addTearDown(() async {
           await tester.pumpWidget(const SizedBox.shrink());
           store.dispose();
         });
+
         Future<void> pump(Widget page) async {
           await tester.pumpWidget(
             createTestPage(
@@ -57,22 +60,25 @@ void main() {
               ),
             ),
           );
+
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
         }
 
         await pump(const BookDetailsPage(id: 'book'));
+
         final reference = tester.getRect(
           find.descendant(of: find.byType(CoverImagePreview), matching: find.byType(CoverImage)),
         );
+
         expect(reference.size, const Size(240, 360));
         expect(reference.left, layout.screen.width - layout.width + Spacing.lg);
 
         final detailsTitle = tester.getRect(
           find.descendant(of: find.byType(BookHeader), matching: find.text('A book')).last,
         );
-        final detailsGap = detailsTitle.left - reference.right;
 
+        final detailsGap = detailsTitle.left - reference.right;
         await pump(const BookEditPage(id: 'book'));
         final preview = find.descendant(of: find.byType(CoverImagePicker), matching: find.byType(AspectRatio));
         final image = find.descendant(of: find.byType(CoverImagePicker), matching: find.byType(CoverImage));
@@ -80,6 +86,7 @@ void main() {
         expect(tester.getRect(image), reference, reason: 'Compare the image itself, including any decoration inset');
         expect(find.text('Cover'), findsNothing);
         final metadataHeading = tester.getRect(find.text('Fetch metadata'));
+
         if (layout.width >= ComponentSizes.bookCoverWidthDesktop + Spacing.md + 420 + Spacing.lg * 2) {
           expect(metadataHeading.left - reference.right, detailsGap);
           expect(metadataHeading.top, reference.top);
@@ -87,11 +94,14 @@ void main() {
           final search = find.ancestor(of: find.text('Search'), matching: find.byType(TextFormField)).first;
           expect(tester.getRect(search).left, detailsTitle.left);
         }
+
         final formCard = find.ancestor(of: find.text('Basic information'), matching: find.byType(Card)).first;
+
         expect(
           tester.getRect(formCard).right,
           layout.screen.width - layout.width + math.min(layout.width, 1120) - Spacing.lg,
         );
+
         final searchField = find.ancestor(of: find.text('Search'), matching: find.byType(TextFormField)).first;
         final saveButton = find.widgetWithText(FilledButton, 'Save');
         expect(tester.getRect(saveButton).right, tester.getRect(searchField).right);
@@ -108,10 +118,12 @@ void main() {
     tester.view.physicalSize = screen;
     addTearDown(tester.view.reset);
     final store = createTestDataStore(books: [buildTestBook(id: 'book')]);
+
     addTearDown(() async {
       await tester.pumpWidget(const SizedBox.shrink());
       store.dispose();
     });
+
     await tester.pumpWidget(
       createTestPage(
         dataStore: store,
@@ -122,6 +134,7 @@ void main() {
         ),
       ),
     );
+
     await tester.pumpAndSettle();
     final picker = find.byType(CoverImagePicker);
     final preview = tester.getRect(find.descendant(of: picker, matching: find.byType(AspectRatio)));

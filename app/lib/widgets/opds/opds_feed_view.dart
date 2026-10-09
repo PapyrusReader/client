@@ -27,6 +27,7 @@ class OpdsFeedView extends StatelessWidget {
     this.status,
     this.isRefreshing = false,
   });
+
   final OpdsCatalog catalog;
   final String? Function(OpdsPublication)? libraryBookId;
   final OpdsFeed feed;
@@ -49,9 +50,11 @@ class OpdsFeedView extends StatelessWidget {
     final text = Theme.of(context).textTheme;
     final colors = Theme.of(context).colorScheme;
     final hasBooks = feed.publications.isNotEmpty || feed.groups.any((group) => group.publications.isNotEmpty);
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final layout = bookGridLayout(constraints.maxWidth);
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -224,6 +227,7 @@ class OpdsFeedView extends StatelessWidget {
           itemCount: navigation.length,
           itemBuilder: (_, index) {
             final link = navigation[index];
+
             return Material(
               color: Theme.of(context).colorScheme.surface,
               borderRadius: BorderRadius.circular(AppRadius.sm),

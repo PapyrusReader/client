@@ -35,11 +35,13 @@ void main() {
     });
 
     expect(capabilities.indexerKinds, [AcquisitionEndpointKind.prowlarr, AcquisitionEndpointKind.torznab]);
+
     expect(capabilities.downloadClientKinds, [
       AcquisitionEndpointKind.qbittorrent,
       AcquisitionEndpointKind.transmission,
       AcquisitionEndpointKind.deluge,
     ]);
+
     expect(capabilities.arrCommands[AcquisitionEndpointKind.readarr], ['AuthorSearch', 'BookSearch']);
     expect(capabilities.enabled, isTrue);
     expect(capabilities.managedDownloadsReady, isTrue);
@@ -97,7 +99,6 @@ void main() {
 
   test('maps an unknown future job state without failing the jobs response', () {
     final job = AcquisitionJob.fromJson(_jobJson(status: 'verifying'));
-
     expect(job.status, AcquisitionJobStatus.unknown);
     expect(job.rawStatus, 'verifying');
     expect(job.requiresAttention, isTrue);
@@ -106,7 +107,6 @@ void main() {
   test('allows import retry only after qBittorrent submission succeeded', () {
     final rejected = AcquisitionJob.fromJson(_jobJson(status: 'failed'));
     final submitted = AcquisitionJob.fromJson(_jobJson(status: 'failed', submittedAt: '2026-07-25T12:00:00Z'));
-
     expect(rejected.canRetryImport, isFalse);
     expect(submitted.canRetryImport, isTrue);
   });
@@ -118,12 +118,14 @@ void main() {
       'limit': 50,
       'offset': 0,
     });
+
     final batch = BatchSubmissionResponse.fromJson({
       'items': [
         {'index': 0, 'job': _jobJson(status: 'submitted'), 'error': null},
         {'index': 1, 'job': null, 'error': 'Release token expired'},
       ],
     });
+
     final candidate = AcquisitionFileCandidate.fromJson({
       'index': 2,
       'name': 'Example.epub',

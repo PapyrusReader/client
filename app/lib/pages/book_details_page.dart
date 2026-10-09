@@ -68,6 +68,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
   void didChangeDependencies() {
     super.didChangeDependencies();
     final duration = AppMotion.duration(context, kTabScrollDuration);
+
     if (_tabController.animationDuration != duration) {
       final index = _tabController.index;
       _tabController.removeListener(_onTabChanged);
@@ -76,6 +77,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
       _tabController.addListener(_onTabChanged);
     }
     // Connect to DataStore for persistent storage
+
     final dataStore = context.read<DataStore>();
     _provider.setDataStore(dataStore);
 
@@ -108,9 +110,11 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
           if (provider.isLoading) {
             return _buildLoadingState(context);
           }
+
           if (provider.error != null) {
             return _buildErrorState(context, provider.error!);
           }
+
           if (!provider.hasBook) {
             return _buildNotFoundState(context);
           }
@@ -125,6 +129,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
           if (isDesktop) {
             return _buildDesktopLayout(context, provider, readingActionState);
           }
+
           return _buildMobileLayout(context, provider, readingActionState);
         },
       ),
@@ -380,13 +385,16 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
   }
 
   void _onUpdateProgress() {
-    if (_provider.book == null) return;
+    if (_provider.book == null) {
+      return;
+    }
 
     UpdateProgressSheet.show(
       context,
       book: _provider.book!,
       onSave: (page, position) {
         _provider.updatePageProgress(page, position);
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             snackBarAnimationStyle: AppMotion.animationStyle(context),
@@ -399,58 +407,85 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
   Future<void> _onContinueReading() async {
     final book = _provider.book;
-    if (book == null || _isPreparingReader) return;
+
+    if (book == null || _isPreparingReader) {
+      return;
+    }
 
     final messenger = ScaffoldMessenger.of(context);
+
     if (ReaderBookAdapter.formatFor(book.fileFormat) == null) {
       messenger.showSnackBar(
         snackBarAnimationStyle: AppMotion.animationStyle(context),
         const SnackBar(content: Text('This book format is not supported yet.')),
       );
+
       return;
     }
 
     final storageStatusController = context.read<BookStorageStatusController?>();
+
     final needsDownload = storageStatusController == null
         ? book.fileMediaId != null
         : storageStatusController.deviceStatus(book) != BookDeviceStatus.available;
+
     if (needsDownload) {
       if (book.fileMediaId == null) {
         setState(() => _readingError = 'This book file is not available yet.');
         return;
       }
+
       setState(() {
         _isPreparingReader = true;
         _readingError = null;
       });
+
       try {
         final importService = context.read<BookImportService>();
+
         await context.read<MediaCacheService>().ensureBookFileCached(
           book,
           readLocalBookFile: importService.getBookFile,
           writeLocalBookFile: importService.storeBookFile,
           downloadMedia: context.read<AuthProvider>().downloadMedia,
         );
+
         storageStatusController?.markAvailable(book.id);
       } catch (_) {
-        if (!mounted) return;
+        if (!mounted) {
+          return;
+        }
+
         setState(() {
           _isPreparingReader = false;
           _readingError = 'Could not download this book file.';
         });
+
         return;
       }
-      if (!mounted) return;
+
+      if (!mounted) {
+        return;
+      }
+
       setState(() => _isPreparingReader = false);
     }
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
+
     await context.pushNamed('BOOK_READER', pathParameters: {'bookId': book.id});
   }
 
   BookReadingActionState _readingActionState(BookStorageStatusController? controller, Book book) {
-    if (_isPreparingReader) return BookReadingActionState.downloading;
-    if (book.isPhysical || controller == null) return BookReadingActionState.ready;
+    if (_isPreparingReader) {
+      return BookReadingActionState.downloading;
+    }
+
+    if (book.isPhysical || controller == null) {
+      return BookReadingActionState.ready;
+    }
 
     final accountStatus = controller.accountStatus(book);
 
@@ -476,7 +511,10 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
   Future<void> _onDownloadBookFile() async {
     final book = _provider.book;
-    if (book == null) return;
+
+    if (book == null) {
+      return;
+    }
 
     final messenger = ScaffoldMessenger.of(context);
     final importService = context.read<BookImportService>();
@@ -490,13 +528,20 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
     try {
       final cached = await mediaCacheService.getValidCachedBookFile(book, readLocalBookFile: importService.getBookFile);
-      if (!mounted) return;
+
+      if (!mounted) {
+        return;
+      }
 
       final bytes = cached ?? await _downloadAndCacheBookFile(book, importService, mediaCacheService);
       final result = await downloadService.saveBookFile(book: book, bytes: bytes);
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+
       messenger.hideCurrentSnackBar();
+
       if (result.saved) {
         messenger.showSnackBar(
           snackBarAnimationStyle: AppMotion.animationStyle(context),
@@ -509,8 +554,12 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
         );
       }
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+
       messenger.hideCurrentSnackBar();
+
       messenger.showSnackBar(
         snackBarAnimationStyle: AppMotion.animationStyle(context),
         const SnackBar(content: Text('Could not download this book file.')),
@@ -524,6 +573,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
     MediaCacheService mediaCacheService,
   ) {
     final authProvider = context.read<AuthProvider>();
+
     return mediaCacheService.ensureBookFileCached(
       book,
       readLocalBookFile: importService.getBookFile,
@@ -533,9 +583,12 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
   }
 
   void _onAddNote() async {
-    if (_provider.book == null) return;
+    if (_provider.book == null) {
+      return;
+    }
 
     final repository = context.read<DataStore>().libraryRepository?.notes;
+
     final note = await NoteDialog.show(
       context,
       bookId: _provider.book!.id,
@@ -551,9 +604,12 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
   }
 
   void _onAddBookmark() async {
-    if (_provider.book == null) return;
+    if (_provider.book == null) {
+      return;
+    }
 
     final repository = context.read<DataStore>().libraryRepository?.bookmarks;
+
     final bookmark = await BookmarkDialog.show(
       context,
       bookId: _provider.book!.id,
@@ -570,9 +626,12 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
   }
 
   void _onAddAnnotation() async {
-    if (_provider.book == null) return;
+    if (_provider.book == null) {
+      return;
+    }
 
     final repository = context.read<DataStore>().libraryRepository?.annotations;
+
     final annotation = await AnnotationDialog.show(
       context,
       bookId: _provider.book!.id,
@@ -590,7 +649,9 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
   void _onNoteActions(Note note) async {
     final action = await NoteActionSheet.show(context, note: note);
 
-    if (action == null || !mounted) return;
+    if (action == null || !mounted) {
+      return;
+    }
 
     switch (action) {
       case NoteAction.edit:
@@ -601,9 +662,12 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
   }
 
   void _onEditNote(Note note) async {
-    if (_provider.book == null) return;
+    if (_provider.book == null) {
+      return;
+    }
 
     final repository = context.read<DataStore>().libraryRepository?.notes;
+
     final updatedNote = await NoteDialog.show(
       context,
       bookId: _provider.book!.id,
@@ -633,9 +697,14 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
             const SnackBar(content: Text('Could not delete. Please try again.')),
           );
         }
+
         return;
       }
-      if (!mounted) return;
+
+      if (!mounted) {
+        return;
+      }
+
       ScaffoldMessenger.of(context).showSnackBar(
         snackBarAnimationStyle: AppMotion.animationStyle(context),
         const SnackBar(content: Text('Note deleted')),
@@ -647,7 +716,9 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
     final repository = context.read<DataStore>().libraryRepository?.annotations;
     final action = await AnnotationActionSheet.show(context, annotation: annotation);
 
-    if (action == null || !mounted) return;
+    if (action == null || !mounted) {
+      return;
+    }
 
     switch (action) {
       case AnnotationAction.edit:
@@ -665,7 +736,10 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
       onSave: (updated) =>
           _provider.updateAnnotation(annotation.id, updated, previous: annotation, repository: repository),
     );
-    if (!mounted) return;
+
+    if (!mounted) {
+      return;
+    }
   }
 
   void _onDeleteAnnotation(Annotation annotation, EntityRepository<Annotation>? repository) async {
@@ -674,6 +748,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
       annotation: annotation,
       bookTitle: _provider.book?.title ?? '',
     );
+
     if (confirmed && mounted) {
       try {
         await _provider.deleteAnnotation(annotation.id, repository: repository);
@@ -684,6 +759,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
             const SnackBar(content: Text('Could not delete. Please try again.')),
           );
         }
+
         return;
       }
     }
@@ -693,7 +769,9 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
     final repository = context.read<DataStore>().libraryRepository?.bookmarks;
     final action = await BookmarkActionSheet.show(context, bookmark: bookmark);
 
-    if (action == null || !mounted) return;
+    if (action == null || !mounted) {
+      return;
+    }
 
     switch (action) {
       case BookmarkAction.editNote:
@@ -737,7 +815,10 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
   Future<void> _confirmDeleteBook() async {
     final book = _provider.book;
-    if (book == null) return;
+
+    if (book == null) {
+      return;
+    }
 
     final confirmed = await showDialog<bool>(
       animationStyle: AppMotion.animationStyle(context),
@@ -759,7 +840,9 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
       ),
     );
 
-    if (confirmed != true || !mounted) return;
+    if (confirmed != true || !mounted) {
+      return;
+    }
 
     final dataStore = context.read<DataStore>();
     final mediaUploadQueue = context.read<MediaUploadQueue>();
@@ -780,8 +863,12 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
       deleteCoverFile: mediaScope == null ? null : (mediaId) => importService.deleteCoverFile(mediaScope, mediaId),
     );
 
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
+
     context.go('/library/books');
+
     messenger.showSnackBar(
       snackBarAnimationStyle: AppMotion.animationStyle(context),
       SnackBar(content: Text('Deleted "${book.title}"')),

@@ -19,12 +19,16 @@ class CoverLoadingPlaceholder extends StatelessWidget {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final compact = constraints.maxWidth < 72 || constraints.maxHeight < 96;
+
             final icon = Icon(
               Icons.auto_stories_rounded,
               size: compact ? 22 : 36,
               color: colorScheme.onSurfaceVariant.withValues(alpha: 0.75),
             );
-            if (compact) return Center(child: icon);
+
+            if (compact) {
+              return Center(child: icon);
+            }
 
             return Center(
               child: Column(

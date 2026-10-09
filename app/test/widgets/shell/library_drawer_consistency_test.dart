@@ -32,6 +32,7 @@ void main() {
     (path: '/library/annotations', label: 'Annotations', page: AnnotationsPage()),
     (path: '/library/notes', label: 'Notes', page: NotesPage()),
   ];
+
   for (final theme in [AppTheme.dark, AppTheme.eink]) {
     for (final layout in [(width: 400.0, height: 850.0, scale: 1.0), (width: 320.0, height: 568.0, scale: 2.0)]) {
       testWidgets(
@@ -41,15 +42,19 @@ void main() {
           tester.view.devicePixelRatio = 1;
           addTearDown(tester.view.reset);
           SharedPreferences.setMockInitialValues({});
+
           final catalogs = OpdsCatalogs(
             OpdsCatalogStore(await SharedPreferences.getInstance(), secrets: MemorySecrets()),
           )..setScope('guest');
+
           await catalogs.save(
             OpdsCatalog(id: 'one', name: 'Sample catalog', uri: Uri.parse('https://catalog.test/feed')),
           );
+
           final store = createTestDataStore(books: createTestBooks().take(1).toList(), shelves: []);
           final library = LibraryProvider();
           final downloads = OpdsDownloads(captureImport: () => throw StateError('Unexpected import'));
+
           final router = GoRouter(
             initialLocation: '/library/catalogs',
             routes: [
@@ -59,6 +64,7 @@ void main() {
               ),
             ],
           );
+
           addTearDown(() async {
             await tester.pumpWidget(const SizedBox.shrink());
             router.dispose();
@@ -67,6 +73,7 @@ void main() {
             library.dispose();
             downloads.dispose();
           });
+
           await tester.pumpWidget(
             MultiProvider(
               providers: [
@@ -86,18 +93,22 @@ void main() {
               ),
             ),
           );
+
           await tester.pumpAndSettle();
           // Every page opens the shell drawer, covering the bottom navigation.
           // Follow real drawer links through every page and back to Catalogs.
           final journey = [sections[2], ...sections.where((section) => section.label != 'Catalogs'), sections[2]];
+
           for (var index = 0; index < journey.length; index++) {
             final section = journey[index];
             expect(router.routeInformationProvider.value.uri.path, section.path);
+
             if (theme.brightness == Brightness.dark && section.label == 'Books') {
               await tester.dragFrom(Offset(1, layout.height / 2), const Offset(280, 0));
             } else {
               await tester.tap(find.byTooltip('Library sections'));
             }
+
             await tester.pumpAndSettle();
             final drawer = find.byType(Drawer);
             expect(drawer, findsOneWidget);
@@ -106,29 +117,35 @@ void main() {
             final scrollable = find.descendant(of: drawer, matching: find.byType(Scrollable));
             await tester.drag(scrollable, const Offset(0, 2000));
             await tester.pumpAndSettle();
+
             expect(
               tester
                   .widgetList<NavItemCount>(find.descendant(of: drawer, matching: find.byType(NavItemCount)))
                   .map((badge) => badge.count),
               [1, 1],
             );
+
             expect(
               tester.widget<Text>(find.descendant(of: drawer, matching: find.text('Library'))).style?.fontWeight,
               FontWeight.bold,
             );
+
             expect(tester.takeException(), isNull);
             final selected = find.descendant(of: drawer, matching: find.widgetWithText(ListTile, section.label));
             await tester.scrollUntilVisible(selected, 120, scrollable: scrollable);
             await tester.ensureVisible(selected);
             await tester.pumpAndSettle();
             expect(tester.widget<ListTile>(selected).selected, isTrue);
+
             if (index + 1 < journey.length) {
               await tester.drag(scrollable, const Offset(0, 2000));
               await tester.pumpAndSettle();
+
               final target = find.descendant(
                 of: drawer,
                 matching: find.widgetWithText(ListTile, journey[index + 1].label),
               );
+
               await tester.scrollUntilVisible(target, 120, scrollable: scrollable);
               await tester.ensureVisible(target);
               await tester.pumpAndSettle();

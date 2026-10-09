@@ -18,14 +18,17 @@ void main() {
   testWidgets('host theme changes keep the same open document and avoid rereading media', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final preferences = PreferencesProvider(await SharedPreferences.getInstance());
+
     final dataStore = DataStore()
       ..loadData(
         books: [buildTestBook(id: 'epub-book', fileFormat: BookFormat.epub)],
       );
+
     final cache = _ReaderMediaCache();
     addTearDown(dataStore.dispose);
     late StateSetter updateTheme;
     var dark = false;
+
     await tester.pumpWidget(
       MultiProvider(
         providers: [
@@ -38,6 +41,7 @@ void main() {
         child: StatefulBuilder(
           builder: (context, setState) {
             updateTheme = setState;
+
             return MaterialApp(
               theme: ThemeData(brightness: dark ? Brightness.dark : Brightness.light),
               home: const ReaderPage(bookId: 'epub-book'),
@@ -46,9 +50,11 @@ void main() {
         ),
       ),
     );
+
     for (var frame = 0; frame < 8 && find.byType(PapyrusReader).evaluate().isEmpty; frame++) {
       await tester.pump();
     }
+
     expect(cache.loads, 1, reason: tester.widgetList<Text>(find.byType(Text)).map((text) => text.data).join(' / '));
     expect(find.byType(PapyrusReader), findsOneWidget);
     final before = tester.widget<PapyrusReader>(find.byType(PapyrusReader)).document;
@@ -59,13 +65,16 @@ void main() {
     expect(cache.loads, 1);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+
   testWidgets('explains when a book format is not supported', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final preferences = PreferencesProvider(await SharedPreferences.getInstance());
+
     final dataStore = DataStore()
       ..loadData(
         books: [buildTestBook(id: 'mobi-book', fileFormat: BookFormat.mobi)],
       );
+
     addTearDown(dataStore.dispose);
 
     await tester.pumpWidget(
@@ -77,14 +86,15 @@ void main() {
         child: const MaterialApp(home: ReaderPage(bookId: 'mobi-book')),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     expect(find.text('This book format is not supported yet.'), findsOneWidget);
   });
 }
 
 class _ReaderMediaCache extends MediaCacheService {
   int loads = 0;
+
   @override
   Future<Uint8List> ensureBookFileCached(
     Book book, {
@@ -100,6 +110,7 @@ class _ReaderMediaCache extends MediaCacheService {
 class _ReaderAuth extends ChangeNotifier implements AuthProvider {
   @override
   Future<Uint8List> downloadMedia(String assetId) async => Uint8List(0);
+
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

@@ -89,38 +89,63 @@ class BookImportController extends ChangeNotifier {
   int get failureCount => _items.length - successCount;
 
   Future<void> browse({bool append = false}) async {
-    if (_disposed || _isPicking) return;
+    if (_disposed || _isPicking) {
+      return;
+    }
+
     _update(() {
       _isPicking = true;
       _pickerError = null;
     });
+
     try {
       final selectedFiles = await _pickFiles();
-      if (_disposed || selectedFiles.isEmpty) return;
+
+      if (_disposed || selectedFiles.isEmpty) {
+        return;
+      }
+
       _update(() => _files = List.unmodifiable([if (append) ..._files, ...selectedFiles]));
     } catch (_) {
-      if (_disposed) return;
+      if (_disposed) {
+        return;
+      }
+
       _update(() => _pickerError = 'Could not open the selected files. Please try again.');
     } finally {
-      if (!_disposed) _update(() => _isPicking = false);
+      if (!_disposed) {
+        _update(() => _isPicking = false);
+      }
     }
   }
 
   void applyDroppedFiles(List<SelectedBookFile> files, {String? feedback}) {
-    if (_disposed) return;
+    if (_disposed) {
+      return;
+    }
+
     _update(() {
-      if (files.isNotEmpty) _files = List.unmodifiable(files);
+      if (files.isNotEmpty) {
+        _files = List.unmodifiable(files);
+      }
+
       _pickerError = feedback;
     });
   }
 
   void removeFile(SelectedBookFile file) {
-    if (_disposed) return;
+    if (_disposed) {
+      return;
+    }
+
     _update(() => _files = List.unmodifiable(_files.where((candidate) => !identical(candidate, file))));
   }
 
   void clearSelection() {
-    if (_disposed) return;
+    if (_disposed) {
+      return;
+    }
+
     _update(() {
       _files = const [];
       _pickerError = null;
@@ -129,24 +154,37 @@ class BookImportController extends ChangeNotifier {
 
   void startImport() {
     final importFiles = readableFiles;
-    if (_disposed || importFiles.isEmpty) return;
+
+    if (_disposed || importFiles.isEmpty) {
+      return;
+    }
+
     _update(() {
       _phase = BookImportPhase.processing;
+
       _items = List.generate(
         importFiles.length,
         (index) => BookImportBatchItem.queued(id: 'import-$index', file: importFiles[index]),
         growable: true,
       );
     });
+
     for (final item in List<BookImportBatchItem>.of(_items)) {
       unawaited(_startProcessing(item.id));
     }
   }
 
   Future<void> retryItem(String id) async {
-    if (_disposed || _isClosing) return;
+    if (_disposed || _isClosing) {
+      return;
+    }
+
     final index = _indexOf(id);
-    if (index < 0) return;
+
+    if (index < 0) {
+      return;
+    }
+
     final item = _items[index];
 
     if (item.status == BookImportBatchStatus.processingFailed) {
@@ -160,6 +198,7 @@ class BookImportController extends ChangeNotifier {
         _phase = BookImportPhase.processing;
         _items[index] = item.startAdding();
       });
+
       unawaited(_startCommit(id));
     }
   }
@@ -168,30 +207,50 @@ class BookImportController extends ChangeNotifier {
     if (_disposed || _isClosing || (_phase == BookImportPhase.processing && anyProcessing)) {
       return BookImportRemoveResult.ignored;
     }
-    final index = _indexOf(id);
-    if (index < 0) return BookImportRemoveResult.ignored;
-    final item = _items[index];
 
+    final index = _indexOf(id);
+
+    if (index < 0) {
+      return BookImportRemoveResult.ignored;
+    }
+
+    final item = _items[index];
     final result = item.result;
+
     if (result != null && item.status != BookImportBatchStatus.added) {
       final deleted = await _deleteTemporary(result.bookId);
-      if (!deleted) return BookImportRemoveResult.cleanupFailed;
+
+      if (!deleted) {
+        return BookImportRemoveResult.cleanupFailed;
+      }
     }
-    if (_disposed) return BookImportRemoveResult.ignored;
+
+    if (_disposed) {
+      return BookImportRemoveResult.ignored;
+    }
+
     _update(() => _items.removeAt(index));
     return BookImportRemoveResult.removed;
   }
 
   Future<BookImportCloseResult> requestClose() {
     final inFlight = _closeFuture;
-    if (inFlight != null) return inFlight;
+
+    if (inFlight != null) {
+      return inFlight;
+    }
+
     final close = _close();
     _closeFuture = close;
+
     unawaited(
       close.whenComplete(() {
-        if (identical(_closeFuture, close)) _closeFuture = null;
+        if (identical(_closeFuture, close)) {
+          _closeFuture = null;
+        }
       }),
     );
+
     return close;
   }
 
@@ -201,9 +260,14 @@ class BookImportController extends ChangeNotifier {
 
   Future<bool> _startTrackedOperation(String id, Future<bool> Function() operation) {
     final inFlight = _processingFutures[id];
-    if (inFlight != null) return inFlight;
+
+    if (inFlight != null) {
+      return inFlight;
+    }
+
     final processing = operation();
     _processingFutures[id] = processing;
+
     unawaited(
       processing.whenComplete(() {
         if (identical(_processingFutures[id], processing)) {
@@ -211,53 +275,72 @@ class BookImportController extends ChangeNotifier {
         }
       }),
     );
+
     return processing;
   }
 
   Future<bool> _process(String id) async {
-    if (_disposed || _isClosing) return true;
+    if (_disposed || _isClosing) {
+      return true;
+    }
+
     final index = _indexOf(id);
-    if (index < 0) return true;
+
+    if (index < 0) {
+      return true;
+    }
 
     final token = (_processingTokens[id] ?? 0) + 1;
     _processingTokens[id] = token;
     final processingItem = _items[index].startProcessing();
     _update(() => _items[index] = processingItem);
-
     final bytes = processingItem.file.bytes;
+
     if (bytes == null) {
-      if (!_isCurrentProcessing(id, token)) return true;
+      if (!_isCurrentProcessing(id, token)) {
+        return true;
+      }
+
       _update(() {
         final currentIndex = _indexOf(id);
         _items[currentIndex] = _items[currentIndex].processingFailed('Could not read this file.');
       });
+
       _maybeTransitionToSummary();
       return true;
     }
 
     BookImportResult result;
+
     try {
       result = await _processor(bytes, processingItem.file.name);
     } catch (error) {
-      if (!_isCurrentProcessing(id, token)) return true;
+      if (!_isCurrentProcessing(id, token)) {
+        return true;
+      }
+
       _update(() {
         final currentIndex = _indexOf(id);
         _items[currentIndex] = _items[currentIndex].processingFailed(_safeErrorMessage(error));
       });
+
       _maybeTransitionToSummary();
       return true;
     }
 
     if (_isClosing) {
       final deleted = await _deleteTemporary(result.bookId);
+
       if (!deleted && !_disposed && _isMatchingProcessing(id, token)) {
         _update(() {
           final currentIndex = _indexOf(id);
           _items[currentIndex] = _items[currentIndex].processingSucceeded(result);
         });
       }
+
       return deleted;
     }
+
     if (_disposed || !_isMatchingProcessing(id, token)) {
       return _deleteTemporary(result.bookId);
     }
@@ -266,8 +349,10 @@ class BookImportController extends ChangeNotifier {
       final currentIndex = _indexOf(id);
       _items[currentIndex] = _items[currentIndex].processingSucceeded(result);
     });
+
     _update(() {
       final currentIndex = _indexOf(id);
+
       if (currentIndex >= 0 && _items[currentIndex].status == BookImportBatchStatus.ready) {
         _items[currentIndex] = _items[currentIndex].startAdding();
       }
@@ -275,17 +360,32 @@ class BookImportController extends ChangeNotifier {
 
     try {
       final book = await _committer(result, processingItem.file.name);
-      if (_disposed) return true;
+
+      if (_disposed) {
+        return true;
+      }
+
       final currentIndex = _indexOf(id);
-      if (currentIndex < 0 || _items[currentIndex].status != BookImportBatchStatus.adding) return true;
+
+      if (currentIndex < 0 || _items[currentIndex].status != BookImportBatchStatus.adding) {
+        return true;
+      }
+
       _update(() {
         _items[currentIndex] = _items[currentIndex].added();
         _addedBooks.add(book);
       });
     } catch (error) {
-      if (_disposed) return true;
+      if (_disposed) {
+        return true;
+      }
+
       final currentIndex = _indexOf(id);
-      if (currentIndex < 0 || _items[currentIndex].status != BookImportBatchStatus.adding) return true;
+
+      if (currentIndex < 0 || _items[currentIndex].status != BookImportBatchStatus.adding) {
+        return true;
+      }
+
       _update(() {
         _items[currentIndex] = _items[currentIndex].commitFailed(_safeErrorMessage(error));
       });
@@ -297,50 +397,91 @@ class BookImportController extends ChangeNotifier {
 
   Future<bool> _commitItem(String id) async {
     final index = _indexOf(id);
-    if (index < 0) return true;
+
+    if (index < 0) {
+      return true;
+    }
+
     final item = _items[index];
-    if (item.status != BookImportBatchStatus.adding || item.result == null) return true;
+
+    if (item.status != BookImportBatchStatus.adding || item.result == null) {
+      return true;
+    }
 
     try {
       final book = await _committer(item.result!, item.file.name);
-      if (_disposed) return true;
+
+      if (_disposed) {
+        return true;
+      }
+
       final currentIndex = _indexOf(id);
-      if (currentIndex < 0 || _items[currentIndex].status != BookImportBatchStatus.adding) return true;
+
+      if (currentIndex < 0 || _items[currentIndex].status != BookImportBatchStatus.adding) {
+        return true;
+      }
+
       _update(() {
         _items[currentIndex] = _items[currentIndex].added();
         _addedBooks.add(book);
       });
     } catch (error) {
-      if (_disposed) return true;
+      if (_disposed) {
+        return true;
+      }
+
       final currentIndex = _indexOf(id);
-      if (currentIndex < 0 || _items[currentIndex].status != BookImportBatchStatus.adding) return true;
+
+      if (currentIndex < 0 || _items[currentIndex].status != BookImportBatchStatus.adding) {
+        return true;
+      }
+
       _update(() {
         _items[currentIndex] = _items[currentIndex].commitFailed(_safeErrorMessage(error));
       });
     }
+
     _maybeTransitionToSummary();
     return true;
   }
 
   void _maybeTransitionToSummary() {
-    if (_disposed || _phase != BookImportPhase.processing || !allSettled) return;
+    if (_disposed || _phase != BookImportPhase.processing || !allSettled) {
+      return;
+    }
+
     _update(() => _phase = BookImportPhase.summary);
-    if (_didComplete) return;
+
+    if (_didComplete) {
+      return;
+    }
+
     _didComplete = true;
     _onCompleted?.call(List<Book>.unmodifiable(_addedBooks));
   }
 
   Future<bool> _deleteTemporary(String bookId) {
-    if (_cleanedBookIds.contains(bookId)) return Future.value(true);
+    if (_cleanedBookIds.contains(bookId)) {
+      return Future.value(true);
+    }
+
     final inFlight = _cleanupFutures[bookId];
-    if (inFlight != null) return inFlight;
+
+    if (inFlight != null) {
+      return inFlight;
+    }
+
     final cleanup = _performDelete(bookId);
     _cleanupFutures[bookId] = cleanup;
+
     unawaited(
       cleanup.whenComplete(() {
-        if (identical(_cleanupFutures[bookId], cleanup)) _cleanupFutures.remove(bookId);
+        if (identical(_cleanupFutures[bookId], cleanup)) {
+          _cleanupFutures.remove(bookId);
+        }
       }),
     );
+
     return cleanup;
   }
 
@@ -356,22 +497,36 @@ class BookImportController extends ChangeNotifier {
   }
 
   Future<BookImportCloseResult> _close() async {
-    if (_disposed) return BookImportCloseResult.processingCleanupFailed;
-    if (_isClosing) return BookImportCloseResult.processingCleanupFailed;
-    _update(() => _isClosing = true);
+    if (_disposed) {
+      return BookImportCloseResult.processingCleanupFailed;
+    }
 
+    if (_isClosing) {
+      return BookImportCloseResult.processingCleanupFailed;
+    }
+
+    _update(() => _isClosing = true);
     final processingResults = await Future.wait(List<Future<bool>>.of(_processingFutures.values));
+
     if (processingResults.any((completed) => !completed)) {
-      if (!_disposed) _update(() => _isClosing = false);
+      if (!_disposed) {
+        _update(() => _isClosing = false);
+      }
+
       return BookImportCloseResult.processingCleanupFailed;
     }
 
     final bookIds = _items.where((item) => item.hasTemporaryFile).map((item) => item.result!.bookId).toSet();
     final cleanupResults = await Future.wait(bookIds.map(_deleteTemporary));
+
     if (cleanupResults.any((deleted) => !deleted)) {
-      if (!_disposed) _update(() => _isClosing = false);
+      if (!_disposed) {
+        _update(() => _isClosing = false);
+      }
+
       return BookImportCloseResult.cleanupFailed;
     }
+
     return BookImportCloseResult.closed;
   }
 
@@ -380,7 +535,10 @@ class BookImportController extends ChangeNotifier {
   bool _isCurrentProcessing(String id, int token) => !_isClosing && _isMatchingProcessing(id, token);
 
   bool _isMatchingProcessing(String id, int token) {
-    if (_disposed || _processingTokens[id] != token) return false;
+    if (_disposed || _processingTokens[id] != token) {
+      return false;
+    }
+
     final index = _indexOf(id);
     return index >= 0 && _items[index].status == BookImportBatchStatus.processing;
   }
@@ -391,7 +549,10 @@ class BookImportController extends ChangeNotifier {
   }
 
   void _update(VoidCallback update) {
-    if (_disposed) return;
+    if (_disposed) {
+      return;
+    }
+
     update();
     notifyListeners();
   }

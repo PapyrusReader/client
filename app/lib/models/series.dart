@@ -43,7 +43,6 @@ class Series {
     );
   }
 
-  /// Convert to JSON for API/storage.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -57,7 +56,6 @@ class Series {
     };
   }
 
-  /// Create from JSON.
   factory Series.fromJson(Map<String, dynamic> json) {
     return Series(
       id: json['id'] as String,

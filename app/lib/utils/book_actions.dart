@@ -50,7 +50,11 @@ void showBookContextMenu({required BuildContext context, required Book book, Off
     onStatusChange: (status) {
       final dataStore = context.read<DataStore>();
       final currentBook = dataStore.getBook(book.id);
-      if (currentBook == null) return;
+
+      if (currentBook == null) {
+        return;
+      }
+
       dataStore.updateBook(currentBook.copyWith(readingStatus: status));
     },
     onDownload: () {
@@ -60,6 +64,7 @@ void showBookContextMenu({required BuildContext context, required Book book, Off
       final mediaUploadQueue = context.read<MediaUploadQueue>();
       final importService = context.read<BookImportService>();
       final mediaScope = mediaUploadQueue.activeScope;
+
       unawaited(
         deleteBookWithMediaCleanup(
           dataStore: context.read<DataStore>(),
@@ -100,7 +105,10 @@ Future<void> _downloadBookFile(BuildContext context, Book book) async {
 
   try {
     final cached = await mediaCacheService.getValidCachedBookFile(book, readLocalBookFile: importService.getBookFile);
-    if (!context.mounted) return;
+
+    if (!context.mounted) {
+      return;
+    }
 
     final bytes =
         cached ??
@@ -110,10 +118,15 @@ Future<void> _downloadBookFile(BuildContext context, Book book) async {
           writeLocalBookFile: importService.storeBookFile,
           downloadMedia: context.read<AuthProvider>().downloadMedia,
         );
+
     final result = await downloadService.saveBookFile(book: book, bytes: bytes);
 
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
+
     messenger.hideCurrentSnackBar();
+
     if (result.saved) {
       messenger.showSnackBar(
         snackBarAnimationStyle: AppMotion.animationStyle(context),
@@ -126,8 +139,12 @@ Future<void> _downloadBookFile(BuildContext context, Book book) async {
       );
     }
   } catch (_) {
-    if (!context.mounted) return;
+    if (!context.mounted) {
+      return;
+    }
+
     messenger.hideCurrentSnackBar();
+
     messenger.showSnackBar(
       snackBarAnimationStyle: AppMotion.animationStyle(context),
       const SnackBar(content: Text('Could not download this book file.')),

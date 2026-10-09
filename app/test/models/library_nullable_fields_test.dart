@@ -28,6 +28,7 @@ void main() {
       completedAt: now,
       lastReadAt: now,
     );
+
     final cleared = original
         .copyWith(
           clearFileMediaId: true,
@@ -44,6 +45,7 @@ void main() {
           clearLastReadAt: true,
         )
         .toJson();
+
     for (final field in [
       'file_media_id',
       'cover_media_id',
@@ -75,6 +77,7 @@ void main() {
       createdAt: now,
       updatedAt: now,
     );
+
     final cleared = shelf.copyWith(
       clearDescription: true,
       clearColorHex: true,
@@ -82,16 +85,17 @@ void main() {
       clearParentShelfId: true,
       clearSmartQuery: true,
     );
+
     expect(cleared.description, isNull);
     expect(cleared.colorHex, isNull);
     expect(cleared.icon, isNull);
     expect(cleared.parentShelfId, isNull);
     expect(cleared.smartQuery, isNull);
     expect(shelf.copyWith().parentShelfId, 'parent');
-
     final tag = Tag(id: 'tag', name: 'Tag', description: 'Description', colorHex: '#123456', createdAt: now);
     expect(tag.copyWith(clearDescription: true).description, isNull);
     expect(tag.copyWith().description, 'Description');
+
     final note = Note(
       id: 'note',
       bookId: 'book',
@@ -100,8 +104,10 @@ void main() {
       location: const BookLocation(pageNumber: 3),
       createdAt: now,
     );
+
     expect(note.copyWith(clearLocation: true).location, isNull);
     expect(note.copyWith().location?.pageNumber, 3);
+
     final annotation = Annotation(
       id: 'annotation',
       bookId: 'book',
@@ -110,6 +116,7 @@ void main() {
       location: const BookLocation(pageNumber: 3),
       createdAt: now,
     );
+
     expect(annotation.copyWith(clearNote: true).note, isNull);
     expect(annotation.copyWith().note, 'Note');
   });

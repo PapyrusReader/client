@@ -73,6 +73,7 @@ class _BookNotesState extends State<BookNotes> {
 
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
+
       result = result.where((note) {
         return note.title.toLowerCase().contains(query) ||
             note.content.toLowerCase().contains(query) ||
@@ -80,14 +81,14 @@ class _BookNotesState extends State<BookNotes> {
       }).toList();
     }
 
-    result.sort((a, b) {
+    result.sort((left, right) {
       switch (_sortOption) {
         case _NoteSort.dateNewest:
-          return b.createdAt.compareTo(a.createdAt);
+          return right.createdAt.compareTo(left.createdAt);
         case _NoteSort.dateOldest:
-          return a.createdAt.compareTo(b.createdAt);
+          return left.createdAt.compareTo(right.createdAt);
         case _NoteSort.title:
-          return a.title.toLowerCase().compareTo(b.title.toLowerCase());
+          return left.title.toLowerCase().compareTo(right.title.toLowerCase());
       }
     });
 
@@ -114,7 +115,10 @@ class _BookNotesState extends State<BookNotes> {
       return EmptyNotesState(onAddNote: widget.onAddNote);
     }
 
-    if (isDesktop) return _buildDesktopLayout(context);
+    if (isDesktop) {
+      return _buildDesktopLayout(context);
+    }
+
     return _buildMobileLayout(context);
   }
 
@@ -243,6 +247,7 @@ class _BookNotesState extends State<BookNotes> {
       separatorBuilder: (_, _) => SizedBox(height: separatorHeight),
       itemBuilder: (context, index) {
         final note = notes[index];
+
         return NoteCard(
           note: note,
           showActionMenu: showActionMenu,

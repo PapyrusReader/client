@@ -150,7 +150,11 @@ class PreferencesProvider extends ChangeNotifier {
 
   set gridItemWidth(double value) {
     final normalized = BookGridSize.normalize(value);
-    if (gridItemWidth == normalized) return;
+
+    if (gridItemWidth == normalized) {
+      return;
+    }
+
     _prefs.setDouble(_keyGridItemWidth, normalized);
     notifyListeners();
   }

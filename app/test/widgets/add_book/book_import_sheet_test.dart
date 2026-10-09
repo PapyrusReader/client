@@ -19,6 +19,7 @@ void main() {
     tester.view.physicalSize = const Size(390, 844);
     addTearDown(tester.view.reset);
     var picks = 0;
+
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData(platform: TargetPlatform.android),
@@ -29,6 +30,7 @@ void main() {
                 context,
                 pickFiles: () async {
                   picks++;
+
                   return List.generate(
                     12,
                     (i) => SelectedBookFile(name: 'batch-$picks-$i.epub', bytes: Uint8List.fromList([1])),
@@ -44,6 +46,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open import'));
     await tester.pumpAndSettle();
     expect(find.byType(ExpandableBottomSheet), findsOneWidget);
@@ -56,11 +59,13 @@ void main() {
     expect(tester.getSize(cancel).height, tester.getSize(initialImport).height);
     expect(tester.getTopLeft(cancel).dy, tester.getTopLeft(initialImport).dy);
     expect(tester.getTopLeft(initialImport).dx - tester.getTopRight(cancel).dx, 8);
+
     final primaryShape = tester
         .widget<FilledButton>(initialImport)
         .defaultStyleOf(tester.element(initialImport))
         .shape!
         .resolve({});
+
     final secondaryShape = OutlinedButtonTheme.of(tester.element(cancel)).style!.shape!.resolve({});
     expect(primaryShape, secondaryShape);
     expect(primaryShape, isA<StadiumBorder>());
@@ -91,9 +96,11 @@ void main() {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(320, 568);
     addTearDown(tester.view.reset);
+
     final files = [
       SelectedBookFile(name: 'a-long-book-filename.epub', bytes: Uint8List.fromList([1])),
     ];
+
     await tester.pumpWidget(
       MaterialApp(
         builder: (context, child) => MediaQuery(
@@ -115,6 +122,7 @@ void main() {
         ),
       ),
     );
+
     expect(tester.takeException(), isNull);
     expect(find.text('Import'), findsOneWidget);
     expect(tester.getSize(find.byTooltip('Remove a-long-book-filename.epub')).width, greaterThanOrEqualTo(48));
@@ -139,6 +147,7 @@ void main() {
         ),
       ),
     );
+
     final browse = find.widgetWithText(OutlinedButton, 'Browse files');
     final cancel = find.widgetWithText(OutlinedButton, 'Cancel');
     final import = find.widgetWithText(FilledButton, 'Import');
@@ -169,6 +178,7 @@ void main() {
     final deleted = Completer<void>();
     final deletions = <String>[];
     final navigator = GlobalKey<NavigatorState>();
+
     await tester.pumpWidget(
       MaterialApp(
         navigatorKey: navigator,
@@ -193,6 +203,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open import'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Browse files'));
@@ -202,6 +213,7 @@ void main() {
     await navigator.currentState!.maybePop();
     await tester.pump();
     expect(find.byType(BookImportSheet), findsOneWidget);
+
     processed.complete(
       const BookImportResult(
         bookId: 'temporary',
@@ -212,6 +224,7 @@ void main() {
         fileExtension: 'epub',
       ),
     );
+
     await tester.pump();
     expect(deletions, ['temporary']);
     expect(find.byType(BookImportSheet), findsOneWidget);
@@ -245,7 +258,6 @@ void main() {
     expect(find.text('EPUB, PDF, MOBI, AZW3, TXT, CBR, and CBZ'), findsOneWidget);
     expect(tester.getSize(find.widgetWithText(OutlinedButton, 'Browse files')).width, lessThan(200));
     expect(tester.widget<Text>(find.text('Browse files')).maxLines, 1);
-
     await tester.tap(find.widgetWithText(OutlinedButton, 'Browse files'));
     expect(browseCount, 1);
   });
@@ -269,7 +281,6 @@ void main() {
     final focusable = tester.widget<FocusableActionDetector>(find.byType(FocusableActionDetector));
     focusable.onShowHoverHighlight?.call(true);
     await tester.pumpAndSettle();
-
     expect(surfaceColor(), restingColor);
   });
 
@@ -351,6 +362,7 @@ void main() {
     );
 
     final dropTarget = tester.widget<DropTarget>(find.byType(DropTarget));
+
     dropTarget.onDragDone!(
       DropDoneDetails(
         files: [
@@ -361,8 +373,8 @@ void main() {
         globalPosition: Offset.zero,
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     expect(droppedFiles, hasLength(1));
     expect(droppedFiles!.single.name, 'book.epub');
     expect(droppedFiles!.single.bytes, [1, 2]);

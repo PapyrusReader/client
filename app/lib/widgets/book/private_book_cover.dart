@@ -62,6 +62,7 @@ class _PrivateBookCoverState extends State<CoverImage> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+
     if (!_hasInjectedLoaderForCurrentSource) {
       _configureProviderLoader(subscribe: true);
     }
@@ -70,6 +71,7 @@ class _PrivateBookCoverState extends State<CoverImage> {
   @override
   void didUpdateWidget(covariant CoverImage oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (oldWidget.imageUrl != widget.imageUrl ||
         oldWidget.mediaId != widget.mediaId ||
         oldWidget.bookId != widget.bookId ||
@@ -81,6 +83,7 @@ class _PrivateBookCoverState extends State<CoverImage> {
       _localCoverProvider = null;
       _loadKey = null;
       _configureInjectedLoader();
+
       if (!_hasInjectedLoaderForCurrentSource) {
         _configureProviderLoader();
       }
@@ -88,14 +91,25 @@ class _PrivateBookCoverState extends State<CoverImage> {
   }
 
   void _configureInjectedLoader() {
-    if (_hasPublicUrl) return;
+    if (_hasPublicUrl) {
+      return;
+    }
 
     final mediaId = _usableMediaId;
+
     if (mediaId != null) {
       final loader = widget.loadPrivateCover;
-      if (loader == null) return;
+
+      if (loader == null) {
+        return;
+      }
+
       final key = 'injected-media:$mediaId';
-      if (_loadKey == key) return;
+
+      if (_loadKey == key) {
+        return;
+      }
+
       _loadKey = key;
       _coverFuture = loader(mediaId);
       return;
@@ -103,9 +117,17 @@ class _PrivateBookCoverState extends State<CoverImage> {
 
     final bookId = _usableBookId;
     final loader = widget.loadLocalBookCover;
-    if (bookId == null || loader == null) return;
+
+    if (bookId == null || loader == null) {
+      return;
+    }
+
     final key = 'injected-local:$bookId';
-    if (_loadKey == key) return;
+
+    if (_loadKey == key) {
+      return;
+    }
+
     _loadKey = key;
     _coverFuture = loader(bookId);
   }
@@ -114,11 +136,14 @@ class _PrivateBookCoverState extends State<CoverImage> {
     try {
       final authProvider = subscribe ? context.watch<AuthProvider>() : context.read<AuthProvider>();
       final user = authProvider.user;
+
       final needsAccountScope =
           user != null && !authProvider.isOfflineMode && (_usableMediaId == null || authProvider.isSignedIn);
+
       final syncSettings = needsAccountScope
           ? (subscribe ? context.watch<SyncSettingsProvider>() : context.read<SyncSettingsProvider>())
           : null;
+
       _configureProviderLoaderFromContext(authProvider, syncSettings);
     } on ProviderNotFoundException {
       // Standalone cover surfaces can still render their placeholder.
@@ -126,10 +151,13 @@ class _PrivateBookCoverState extends State<CoverImage> {
   }
 
   void _configureProviderLoaderFromContext(AuthProvider authProvider, SyncSettingsProvider? syncSettings) {
-    if (_hasPublicUrl) return;
+    if (_hasPublicUrl) {
+      return;
+    }
 
     final mediaId = _usableMediaId;
     final user = authProvider.user;
+
     if (mediaId != null) {
       if (!authProvider.isSignedIn || authProvider.isOfflineMode || user == null) {
         _clearProviderLoader();
@@ -140,24 +168,34 @@ class _PrivateBookCoverState extends State<CoverImage> {
         _clearProviderLoader();
         return;
       }
+
       final scope = MediaStorageScope(profileKey: syncSettings.activeProfileKey, userId: user.userId);
       final bookId = _usableBookId;
+
       if (bookId != null) {
         final key = '${scope.persistenceKey}:${CoverStorageBucket.pending.name}:$bookId';
-        if (_loadKey == key) return;
+
+        if (_loadKey == key) {
+          return;
+        }
 
         final importService = context.read<BookImportService>();
         final cacheService = context.read<MediaCacheService>();
         final pendingLoader = widget.loadPendingBookCover ?? importService.getPendingCoverFile;
         _loadKey = key;
         _coverFuture = null;
+
         _localCoverProvider = LocalCoverImageProvider(
           scopeKey: scope.persistenceKey,
           bucket: CoverStorageBucket.pending,
           fileId: bookId,
           loadBytes: () async {
             final pending = await pendingLoader(scope, bookId);
-            if (pending != null && pending.isNotEmpty) return pending;
+
+            if (pending != null && pending.isNotEmpty) {
+              return pending;
+            }
+
             return cacheService.ensureCoverCached(
               scope: scope,
               mediaId: mediaId,
@@ -167,16 +205,21 @@ class _PrivateBookCoverState extends State<CoverImage> {
             );
           },
         );
+
         return;
       }
 
       final key = '${scope.persistenceKey}:${CoverStorageBucket.cached.name}:$mediaId';
-      if (_loadKey == key) return;
+
+      if (_loadKey == key) {
+        return;
+      }
 
       final importService = context.read<BookImportService>();
       final cacheService = context.read<MediaCacheService>();
       _loadKey = key;
       _coverFuture = null;
+
       _localCoverProvider = LocalCoverImageProvider(
         scopeKey: scope.persistenceKey,
         bucket: CoverStorageBucket.cached,
@@ -189,38 +232,54 @@ class _PrivateBookCoverState extends State<CoverImage> {
           downloadMedia: authProvider.downloadMedia,
         ),
       );
+
       return;
     }
 
     final bookId = _usableBookId;
-    if (bookId == null) return;
+
+    if (bookId == null) {
+      return;
+    }
 
     if (!authProvider.isOfflineMode && user != null) {
       if (syncSettings == null) {
         _clearProviderLoader();
         return;
       }
+
       final scope = MediaStorageScope(profileKey: syncSettings.activeProfileKey, userId: user.userId);
       final key = '${scope.persistenceKey}:${CoverStorageBucket.pending.name}:$bookId';
-      if (_loadKey == key) return;
+
+      if (_loadKey == key) {
+        return;
+      }
+
       _loadKey = key;
       final loader = widget.loadPendingBookCover ?? context.read<BookImportService>().getPendingCoverFile;
       _coverFuture = null;
+
       _localCoverProvider = LocalCoverImageProvider(
         scopeKey: scope.persistenceKey,
         bucket: CoverStorageBucket.pending,
         fileId: bookId,
         loadBytes: () => loader(scope, bookId),
       );
+
       return;
     }
 
     final guestScopeKey = MediaStorageScope.localGuest.persistenceKey;
     final key = '$guestScopeKey:${CoverStorageBucket.guestBooks.name}:$bookId';
-    if (_loadKey == key) return;
+
+    if (_loadKey == key) {
+      return;
+    }
+
     _loadKey = key;
     final loader = widget.loadGuestBookCover ?? context.read<BookImportService>().getGuestCoverFile;
     _coverFuture = null;
+
     _localCoverProvider = LocalCoverImageProvider(
       scopeKey: guestScopeKey,
       bucket: CoverStorageBucket.guestBooks,
@@ -241,9 +300,18 @@ class _PrivateBookCoverState extends State<CoverImage> {
   String? get _usableBookId => widget.bookId == null || widget.bookId!.isEmpty ? null : widget.bookId;
 
   bool get _hasInjectedLoaderForCurrentSource {
-    if (_hasPublicUrl) return true;
-    if (_usableMediaId != null) return widget.loadPrivateCover != null;
-    if (_usableBookId != null) return widget.loadLocalBookCover != null;
+    if (_hasPublicUrl) {
+      return true;
+    }
+
+    if (_usableMediaId != null) {
+      return widget.loadPrivateCover != null;
+    }
+
+    if (_usableBookId != null) {
+      return widget.loadLocalBookCover != null;
+    }
+
     return true;
   }
 
@@ -256,6 +324,7 @@ class _PrivateBookCoverState extends State<CoverImage> {
     if (_hasInlineDataUri) {
       try {
         final data = Uri.parse(widget.imageUrl!).data;
+
         if (data != null && data.mimeType.startsWith('image/')) {
           final bytes = data.contentAsBytes();
           return Image.memory(bytes, fit: widget.fit, errorBuilder: (_, _, _) => widget.placeholder);
@@ -263,6 +332,7 @@ class _PrivateBookCoverState extends State<CoverImage> {
       } on FormatException {
         return widget.placeholder;
       }
+
       return widget.placeholder;
     }
 
@@ -278,13 +348,17 @@ class _PrivateBookCoverState extends State<CoverImage> {
     }
 
     final localCoverProvider = _localCoverProvider;
+
     if (localCoverProvider != null) {
       return Image(
         image: localCoverProvider,
         fit: widget.fit,
         gaplessPlayback: true,
         frameBuilder: (context, child, frame, wasSynchronouslyLoaded) {
-          if (wasSynchronouslyLoaded || frame != null) return child;
+          if (wasSynchronouslyLoaded || frame != null) {
+            return child;
+          }
+
           return const CoverLoadingPlaceholder();
         },
         errorBuilder: (_, _, _) => widget.placeholder,
@@ -292,7 +366,10 @@ class _PrivateBookCoverState extends State<CoverImage> {
     }
 
     final coverFuture = _coverFuture;
-    if (coverFuture == null) return widget.placeholder;
+
+    if (coverFuture == null) {
+      return widget.placeholder;
+    }
 
     return FutureBuilder<Uint8List?>(
       future: coverFuture,
@@ -300,11 +377,17 @@ class _PrivateBookCoverState extends State<CoverImage> {
         if (snapshot.connectionState != ConnectionState.done) {
           return const CoverLoadingPlaceholder();
         }
+
         final bytes = snapshot.data;
+
         if (bytes != null) {
           return Image.memory(bytes, fit: widget.fit, errorBuilder: (_, _, _) => widget.placeholder);
         }
-        if (snapshot.hasError) return widget.placeholder;
+
+        if (snapshot.hasError) {
+          return widget.placeholder;
+        }
+
         return widget.placeholder;
       },
     );

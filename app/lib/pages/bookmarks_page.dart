@@ -75,15 +75,12 @@ class _BookmarksPageState extends State<BookmarksPage> {
           if (isDesktop) {
             return _buildDesktopLayout(context, provider);
           }
+
           return _buildMobileLayout(context, provider);
         },
       ),
     );
   }
-
-  // ============================================================================
-  // MOBILE LAYOUT
-  // ============================================================================
 
   Widget _buildMobileLayout(BuildContext context, BookmarksProvider provider) {
     return Scaffold(
@@ -120,10 +117,6 @@ class _BookmarksPageState extends State<BookmarksPage> {
     );
   }
 
-  // ============================================================================
-  // DESKTOP LAYOUT
-  // ============================================================================
-
   Widget _buildDesktopLayout(BuildContext context, BookmarksProvider provider) {
     return Scaffold(
       body: Column(
@@ -149,10 +142,6 @@ class _BookmarksPageState extends State<BookmarksPage> {
       ),
     );
   }
-
-  // ============================================================================
-  // SHARED WIDGETS
-  // ============================================================================
 
   Widget _buildSearchField(BookmarksProvider provider, {Widget? leading}) {
     return TextField(
@@ -294,6 +283,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
 
     for (final entry in groups.entries) {
       final isCollapsed = _collapsedGroups.contains(entry.key);
+
       items.add(
         BookGroupHeader(
           bookId: entry.key,
@@ -314,6 +304,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
           },
         ),
       );
+
       if (!isCollapsed) {
         for (final bookmark in entry.value) {
           items.add(
@@ -335,10 +326,6 @@ class _BookmarksPageState extends State<BookmarksPage> {
     );
   }
 
-  // ============================================================================
-  // ACTIONS
-  // ============================================================================
-
   void _navigateToBook(BuildContext context, String bookId) {
     context.goNamed('BOOK_DETAILS', pathParameters: {'bookId': bookId});
   }
@@ -347,7 +334,9 @@ class _BookmarksPageState extends State<BookmarksPage> {
     final repository = context.read<DataStore>().libraryRepository?.bookmarks;
     final action = await BookmarkActionSheet.show(context, bookmark: bookmark);
 
-    if (action == null || !mounted) return;
+    if (action == null || !mounted) {
+      return;
+    }
 
     switch (action) {
       case BookmarkAction.editNote:
@@ -390,6 +379,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
 
   void _onDeleteBookmark(BookmarksProvider provider, Bookmark bookmark, EntityRepository<Bookmark>? repository) async {
     final bookTitle = provider.getBookTitle(bookmark.bookId);
+
     await DeleteBookmarkDialog.show(
       context,
       bookmark: bookmark,

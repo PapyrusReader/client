@@ -10,9 +10,7 @@ void main() {
     web.window.ondrop = null;
     web.window.ondragenter = null;
     web.window.ondragover = null;
-
     ensureBookImportDropPluginRegistered();
-
     expect(web.window.ondrop, isNotNull);
     expect(web.window.ondragenter, isNotNull);
     expect(web.window.ondragover, isNotNull);

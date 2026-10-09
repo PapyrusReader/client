@@ -76,6 +76,7 @@ class _BookCardState extends State<BookCard> {
     final inSelection = widget.isSelectionMode;
     final effectiveTap = inSelection ? widget.onSelectToggle : widget.onTap;
     final effectiveLongPress = inSelection ? null : widget.onEnterSelectionMode;
+
     final isUnavailable =
         widget.acquisitionJob == null && !widget.book.isPhysical && widget.deviceStatus == BookDeviceStatus.missing;
 
@@ -333,9 +334,11 @@ class _BookCardState extends State<BookCard> {
       mediaId: widget.book.coverMediaId,
       placeholder: _buildPlaceholder(context),
     );
+
     if (widget.book.isPhysical || widget.deviceStatus != BookDeviceStatus.missing) {
       return cover;
     }
+
     return ColorFiltered(
       key: ValueKey('book-unavailable-tint-${widget.book.id}'),
       colorFilter: const ColorFilter.matrix([
@@ -366,6 +369,7 @@ class _BookCardState extends State<BookCard> {
 
   Widget _buildPlaceholder(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     if (widget.compact) {
       return ColoredBox(
         color: colorScheme.surfaceContainerHighest,

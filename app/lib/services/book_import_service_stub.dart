@@ -30,6 +30,7 @@ class BookImportService {
   /// EPUB, PDF, MOBI, AZW3, CBZ, CBR, TXT.
   Future<BookImportResult> importBook(Uint8List bytes, String filename) async {
     final ext = p.extension(filename).toLowerCase().replaceFirst('.', '');
+
     if (ext.isEmpty) {
       throw ArgumentError('Filename has no extension: $filename');
     }
@@ -71,6 +72,7 @@ class BookImportService {
   Future<void> deleteBookFile(String bookId) async {
     final booksDir = await _getBooksDirectory();
     final files = booksDir.listSync();
+
     for (final entity in files) {
       if (entity is File && p.basenameWithoutExtension(entity.path) == bookId) {
         await entity.delete();
@@ -85,22 +87,26 @@ class BookImportService {
   Future<Uint8List?> getBookFile(String bookId) async {
     final booksDir = await _getBooksDirectory();
     final files = booksDir.listSync();
+
     for (final entity in files) {
       if (entity is File && p.basenameWithoutExtension(entity.path) == bookId) {
         return entity.readAsBytes();
       }
     }
+
     return null;
   }
 
   /// Checks whether a stored book exists without reading its contents.
   Future<bool> hasBookFile(String bookId) async {
     final booksDir = await _getBooksDirectory();
+
     await for (final entity in booksDir.list()) {
       if (entity is File && p.basenameWithoutExtension(entity.path) == bookId) {
         return true;
       }
     }
+
     return false;
   }
 
@@ -110,9 +116,11 @@ class BookImportService {
   /// selected server.
   Future<void> storeBookFile(String bookId, String extension, Uint8List bytes) async {
     final normalizedExtension = extension.toLowerCase().replaceFirst('.', '');
+
     if (normalizedExtension.isEmpty) {
       throw ArgumentError('Book file extension cannot be empty.');
     }
+
     await deleteBookFile(bookId);
     final booksDir = await _getBooksDirectory();
     final file = File(p.join(booksDir.path, '$bookId.$normalizedExtension'));
@@ -210,14 +218,20 @@ class BookImportService {
   }) async {
     await _withCoverLock(scope, CoverStorageBucket.pending, bookId, () async {
       final bytes = await _readCoverFile(scope, CoverStorageBucket.pending, bookId);
-      if (bytes == null) return;
+
+      if (bytes == null) {
+        return;
+      }
+
       await _withCoverLock(
         scope,
         CoverStorageBucket.cached,
         mediaId,
         () => _writeCoverFile(scope, CoverStorageBucket.cached, mediaId, bytes),
       );
+
       final pendingFile = await _coverFile(scope, CoverStorageBucket.pending, bookId);
+
       if (await pendingFile.exists()) {
         await pendingFile.delete();
       }
@@ -227,6 +241,7 @@ class BookImportService {
   /// Deletes all cached private covers for one server/account scope.
   Future<void> clearCoverFiles(MediaStorageScope scope) async {
     final directory = await _coverDirectory(scope, create: false);
+
     if (directory != null && await directory.exists()) {
       await directory.delete(recursive: true);
     }
@@ -239,9 +254,11 @@ class BookImportService {
   Future<Directory> _getBooksDirectory() async {
     final appDir = await getApplicationDocumentsDirectory();
     final booksDir = Directory(p.join(appDir.path, 'books'));
+
     if (!booksDir.existsSync()) {
       await booksDir.create(recursive: true);
     }
+
     return booksDir;
   }
 
@@ -255,6 +272,7 @@ class BookImportService {
     final previous = _coverOperations[key] ?? Future<void>.value();
     final completer = Completer<T>();
     late final Future<void> current;
+
     current = previous.then((_) async {
       try {
         completer.complete(await operation());
@@ -262,7 +280,9 @@ class BookImportService {
         completer.completeError(error, stackTrace);
       }
     });
+
     _coverOperations[key] = current;
+
     unawaited(
       current.whenComplete(() {
         if (identical(_coverOperations[key], current)) {
@@ -270,12 +290,17 @@ class BookImportService {
         }
       }),
     );
+
     return completer.future;
   }
 
   Future<Uint8List?> _readCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
     final file = await _coverFile(scope, bucket, id);
-    if (!await file.exists()) return null;
+
+    if (!await file.exists()) {
+      return null;
+    }
+
     return file.readAsBytes();
   }
 
@@ -283,6 +308,7 @@ class BookImportService {
     final file = await _coverFile(scope, bucket, id);
     final operationId = const Uuid().v4();
     final tempFile = File('${file.path}.$operationId.tmp');
+
     try {
       await tempFile.writeAsBytes(bytes, flush: true);
       await tempFile.rename(file.path);
@@ -295,9 +321,11 @@ class BookImportService {
 
   Future<void> _removeCoverFile(MediaStorageScope scope, CoverStorageBucket bucket, String id) async {
     final file = await _coverFile(scope, bucket, id);
+
     if (await file.exists()) {
       await file.delete();
     }
+
     LocalCoverImageProvider.evictKey(scopeKey: scope.persistenceKey, bucket: bucket, fileId: id);
   }
 
@@ -321,11 +349,17 @@ class BookImportService {
     required bool create,
   }) async {
     final scopeDirectory = await _coverDirectory(scope, create: create);
-    if (scopeDirectory == null) return null;
+
+    if (scopeDirectory == null) {
+      return null;
+    }
+
     final directory = Directory(p.join(scopeDirectory.path, bucket.pathComponent));
+
     if (create && !await directory.exists()) {
       await directory.create(recursive: true);
     }
+
     return directory;
   }
 
@@ -333,9 +367,11 @@ class BookImportService {
     _validateFilePart(scope.persistenceKey, 'scope');
     final appDir = await getApplicationSupportDirectory();
     final directory = Directory(p.join(appDir.path, 'media-covers', scope.persistenceKey));
+
     if (create && !await directory.exists()) {
       await directory.create(recursive: true);
     }
+
     return directory;
   }
 }

@@ -28,7 +28,6 @@ void main() {
 
     testWidgets('renders title, cancel, and save buttons', (tester) async {
       await tester.pumpWidget(buildHeader(title: 'Edit bookmark'));
-
       expect(find.text('Edit bookmark'), findsOneWidget);
       expect(find.text('Cancel'), findsOneWidget);
       expect(find.text('Save'), findsOneWidget);
@@ -37,7 +36,6 @@ void main() {
     testWidgets('cancel button calls onCancel', (tester) async {
       var cancelled = false;
       await tester.pumpWidget(buildHeader(onCancel: () => cancelled = true));
-
       await tester.tap(find.text('Cancel'));
       expect(cancelled, isTrue);
     });
@@ -45,7 +43,6 @@ void main() {
     testWidgets('save button calls onSave', (tester) async {
       var saved = false;
       await tester.pumpWidget(buildHeader(onSave: () => saved = true));
-
       await tester.tap(find.text('Save'));
       expect(saved, isTrue);
     });
@@ -53,7 +50,6 @@ void main() {
     testWidgets('save button is disabled when canSave is false', (tester) async {
       var saved = false;
       await tester.pumpWidget(buildHeader(canSave: false, onSave: () => saved = true));
-
       await tester.tap(find.text('Save'));
       expect(saved, isFalse);
     });
@@ -61,7 +57,6 @@ void main() {
     testWidgets('cancel button is disabled when canCancel is false', (tester) async {
       var cancelled = false;
       await tester.pumpWidget(buildHeader(canCancel: false, onCancel: () => cancelled = true));
-
       final cancelButton = tester.widget<TextButton>(find.widgetWithText(TextButton, 'Cancel'));
       expect(cancelButton.onPressed, isNull);
       await tester.tap(find.text('Cancel'));
@@ -70,14 +65,12 @@ void main() {
 
     testWidgets('uses custom save label', (tester) async {
       await tester.pumpWidget(buildHeader(saveLabel: 'Done'));
-
       expect(find.text('Done'), findsOneWidget);
       expect(find.text('Save'), findsNothing);
     });
 
     testWidgets('save button is a FilledButton', (tester) async {
       await tester.pumpWidget(buildHeader());
-
       final filledButton = find.ancestor(of: find.text('Save'), matching: find.byType(FilledButton));
       expect(filledButton, findsOneWidget);
     });
@@ -88,9 +81,7 @@ void main() {
       tester.platformDispatcher.textScaleFactorTestValue = 2;
       addTearDown(tester.view.reset);
       addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-
       await tester.pumpWidget(buildHeader(title: 'Search all monitored books', saveLabel: 'Run'));
-
       expect(tester.takeException(), isNull);
       expect(find.text('Search all monitored books'), findsOneWidget);
       expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);

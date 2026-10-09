@@ -8,32 +8,24 @@ void main() {
     final busy = ValueNotifier(false);
     addTearDown(busy.dispose);
     await tester.pumpWidget(_RouteLauncher(busy: busy));
-
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     var sheet = tester.widget<BottomSheet>(find.byType(BottomSheet));
     expect(sheet.enableDrag, isTrue);
     expect(sheet.showDragHandle, isFalse);
-
     busy.value = true;
     await tester.pump();
-
     sheet = tester.widget<BottomSheet>(find.byType(BottomSheet));
     expect(sheet.enableDrag, isFalse);
     expect(sheet.showDragHandle, isFalse);
-
     await tester.tapAt(const Offset(4, 4));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('guarded-sheet-content')), findsOneWidget);
-
     busy.value = false;
     await tester.pump();
-
     sheet = tester.widget<BottomSheet>(find.byType(BottomSheet));
     expect(sheet.enableDrag, isTrue);
     expect(sheet.showDragHandle, isFalse);
-
     await tester.tapAt(const Offset(4, 4));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('guarded-sheet-content')), findsNothing);

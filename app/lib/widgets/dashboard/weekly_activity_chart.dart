@@ -46,10 +46,6 @@ class WeeklyActivityChart extends StatelessWidget {
     return _buildChart(context);
   }
 
-  // ============================================================================
-  // CHART LAYOUT
-  // ============================================================================
-
   /// Builds the chart container with header, bar chart, and optional summary.
   Widget _buildChart(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -133,7 +129,6 @@ class WeeklyActivityChart extends StatelessWidget {
   Widget _buildBar(BuildContext context, {required DailyActivity activity, required int maxMinutes}) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-
     final maxHeight = 80.0;
     final barHeight = maxMinutes > 0 ? (activity.readingMinutes / maxMinutes * maxHeight).clamp(2.0, maxHeight) : 2.0;
 

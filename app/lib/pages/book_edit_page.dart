@@ -41,6 +41,7 @@ class _BookEditPageState extends State<BookEditPage> {
   static const double _minimumDesktopFormPaneWidth = 420;
   // Section cards already inset their contents by Spacing.md.
   static const double _desktopPaneGap = Spacing.xl - Spacing.md;
+
   static const double _desktopPaneBreakpoint =
       _desktopCoverPaneWidth + _desktopPaneGap + _minimumDesktopFormPaneWidth + (Spacing.lg * 2);
 
@@ -86,7 +87,10 @@ class _BookEditPageState extends State<BookEditPage> {
 
   void _populateControllers() {
     final book = _provider.editedBook;
-    if (book == null) return;
+
+    if (book == null) {
+      return;
+    }
 
     _titleController.text = book.title;
     _subtitleController.text = book.subtitle ?? '';
@@ -97,14 +101,17 @@ class _BookEditPageState extends State<BookEditPage> {
     _isbnController.text = book.isbn ?? '';
     _isbn13Controller.text = book.isbn13 ?? '';
     _descriptionController.text = book.description ?? '';
+
     _publicationDateController.text = book.publicationDate != null
         ? DateFormat.yMMMMd().format(book.publicationDate!)
         : '';
+
     _seriesNameController.text = book.seriesName ?? '';
     _seriesNumberController.text = book.seriesNumber != null ? _formatSeriesNumber(book.seriesNumber!) : '';
     _physicalLocationController.text = book.physicalLocation ?? '';
     _lentToController.text = book.lentTo ?? '';
     _lentAtController.text = book.lentAt != null ? DateFormat.yMMMMd().format(book.lentAt!) : '';
+
     setState(() {
       _coAuthors = List.from(book.coAuthors);
     });
@@ -179,8 +186,12 @@ class _BookEditPageState extends State<BookEditPage> {
           return PopScope(
             canPop: !provider.hasUnsavedChanges,
             onPopInvokedWithResult: (didPop, result) async {
-              if (didPop) return;
+              if (didPop) {
+                return;
+              }
+
               final discard = await _showDiscardDialog();
+
               if (discard && mounted && context.mounted) {
                 _navigateToBookDetails(context);
               }
@@ -212,10 +223,6 @@ class _BookEditPageState extends State<BookEditPage> {
       ),
     );
   }
-
-  // ============================================================================
-  // LAYOUTS
-  // ============================================================================
 
   Widget _buildDesktopScaffold(BuildContext context, BookEditProvider provider) {
     return Form(
@@ -282,6 +289,7 @@ class _BookEditPageState extends State<BookEditPage> {
         child: LayoutBuilder(
           builder: (context, constraints) {
             final showSideBySide = constraints.maxWidth >= _desktopPaneBreakpoint;
+
             return SingleChildScrollView(
               padding: const EdgeInsets.all(Spacing.lg),
               child: showSideBySide
@@ -462,10 +470,6 @@ class _BookEditPageState extends State<BookEditPage> {
     );
   }
 
-  // ============================================================================
-  // SECTION CARD
-  // ============================================================================
-
   Widget _buildSectionCard({
     required String title,
     required List<Widget> children,
@@ -487,10 +491,6 @@ class _BookEditPageState extends State<BookEditPage> {
     );
   }
 
-  // ============================================================================
-  // RATING SECTION
-  // ============================================================================
-
   Widget _buildRatingRow(BuildContext context, BookEditProvider provider) {
     final rating = provider.editedBook?.rating ?? 0;
     final colorScheme = Theme.of(context).colorScheme;
@@ -502,6 +502,7 @@ class _BookEditPageState extends State<BookEditPage> {
         ...List.generate(5, (index) {
           final starValue = index + 1;
           final isSelected = starValue <= rating;
+
           return GestureDetector(
             onTap: () {
               _provider.updateRating(starValue == rating ? null : starValue);
@@ -519,10 +520,6 @@ class _BookEditPageState extends State<BookEditPage> {
       ],
     );
   }
-
-  // ============================================================================
-  // PHYSICAL BOOK SECTION
-  // ============================================================================
 
   Widget _buildPhysicalBookSection(BuildContext context, BookEditProvider provider) {
     final isPhysical = provider.editedBook?.isPhysical ?? false;
@@ -565,10 +562,6 @@ class _BookEditPageState extends State<BookEditPage> {
     );
   }
 
-  // ============================================================================
-  // COVER SECTION
-  // ============================================================================
-
   Widget _buildCoverSection(BuildContext context, BookEditProvider provider, {required bool isDesktop}) {
     return CoverImagePicker(
       bookId: provider.editedBook?.id,
@@ -582,12 +575,9 @@ class _BookEditPageState extends State<BookEditPage> {
     );
   }
 
-  // ============================================================================
-  // METADATA SECTION
-  // ============================================================================
-
   Widget _buildMetadataSection(BuildContext context, BookEditProvider provider) {
     final colorScheme = Theme.of(context).colorScheme;
+
     final sourceSelector = SegmentedButton<MetadataSource>(
       segments: const [
         ButtonSegment(value: MetadataSource.openLibrary, label: Text('Open Library')),
@@ -600,6 +590,7 @@ class _BookEditPageState extends State<BookEditPage> {
       },
       style: const ButtonStyle(visualDensity: VisualDensity.compact, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
     );
+
     final searchField = TextFormField(
       controller: _metadataSearchController,
       decoration: InputDecoration(
@@ -750,15 +741,15 @@ class _BookEditPageState extends State<BookEditPage> {
     );
   }
 
-  // ============================================================================
-  // ACTIONS
-  // ============================================================================
-
   void _searchMetadata(BookEditProvider provider) {
     final query = _metadataSearchController.text.trim();
-    if (query.isEmpty) return;
+
+    if (query.isEmpty) {
+      return;
+    }
 
     final cleanQuery = query.replaceAll(RegExp(r'[-\s]'), '');
+
     if (RegExp(r'^[0-9X]{10,13}$').hasMatch(cleanQuery)) {
       provider.searchMetadataByIsbn(query);
     } else {
@@ -768,8 +759,8 @@ class _BookEditPageState extends State<BookEditPage> {
 
   void _applyMetadata(BookEditProvider provider, BookMetadataResult result) {
     provider.applyMetadata(result);
-
     final book = provider.editedBook;
+
     if (book != null) {
       _titleController.text = book.title;
       _subtitleController.text = book.subtitle ?? '';
@@ -780,9 +771,11 @@ class _BookEditPageState extends State<BookEditPage> {
       _isbnController.text = book.isbn ?? '';
       _isbn13Controller.text = book.isbn13 ?? '';
       _descriptionController.text = book.description ?? '';
+
       _publicationDateController.text = book.publicationDate != null
           ? DateFormat.yMMMMd().format(book.publicationDate!)
           : '';
+
       setState(() {
         _coAuthors = List.from(book.coAuthors);
       });
@@ -807,6 +800,7 @@ class _BookEditPageState extends State<BookEditPage> {
         ],
       ),
     );
+
     return result ?? false;
   }
 
@@ -821,8 +815,12 @@ class _BookEditPageState extends State<BookEditPage> {
   void _handleCancel(BuildContext context) async {
     if (_provider.hasUnsavedChanges) {
       final discard = await _showDiscardDialog();
-      if (!discard) return;
+
+      if (!discard) {
+        return;
+      }
     }
+
     if (mounted && context.mounted) {
       _navigateToBookDetails(context);
     }
@@ -834,6 +832,7 @@ class _BookEditPageState extends State<BookEditPage> {
         snackBarAnimationStyle: AppMotion.animationStyle(context),
         const SnackBar(content: Text('Please fix the errors before saving'), behavior: SnackBarBehavior.floating),
       );
+
       return;
     }
 
@@ -853,8 +852,10 @@ class _BookEditPageState extends State<BookEditPage> {
       if (coverBytes != null) {
         final book = _provider.editedBook!;
         final importService = context.read<BookImportService>();
+
         if (scope == null) {
           await importService.storeGuestCoverFile(book.id, coverBytes);
+
           LocalCoverImageProvider.evictKey(
             scopeKey: MediaStorageScope.localGuest.persistenceKey,
             bucket: CoverStorageBucket.guestBooks,
@@ -862,6 +863,7 @@ class _BookEditPageState extends State<BookEditPage> {
           );
         } else {
           await importService.storePendingCoverFile(scope, book.id, coverBytes);
+
           LocalCoverImageProvider.evictKey(
             scopeKey: scope.persistenceKey,
             bucket: CoverStorageBucket.pending,
@@ -871,15 +873,18 @@ class _BookEditPageState extends State<BookEditPage> {
       }
 
       final success = await _provider.save();
+
       if (!success) {
         if (mounted && context.mounted) {
           _showSaveError(context, _provider.error ?? 'Failed to save');
         }
+
         return;
       }
 
       if (coverBytes != null && scope != null) {
         final book = _provider.editedBook!;
+
         await queue.enqueueCover(
           book: book,
           filename: '${book.id}-cover.${imageFileExtension(coverBytes)}',
@@ -890,15 +895,19 @@ class _BookEditPageState extends State<BookEditPage> {
       if (mounted && context.mounted) {
         _showSaveError(context, 'Failed to save cover: $error');
       }
+
       return;
     }
 
-    if (!mounted || !context.mounted) return;
+    if (!mounted || !context.mounted) {
+      return;
+    }
 
     ScaffoldMessenger.of(context).showSnackBar(
       snackBarAnimationStyle: AppMotion.animationStyle(context),
       const SnackBar(content: Text('Book updated'), behavior: SnackBarBehavior.floating),
     );
+
     _navigateToBookDetails(context);
   }
 

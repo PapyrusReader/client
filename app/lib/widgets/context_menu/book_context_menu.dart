@@ -101,6 +101,7 @@ class _BookContextBottomSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return AppBottomSheet(
       header: Row(
         children: [
@@ -235,8 +236,12 @@ class _BookContextBottomSheet extends StatelessWidget {
             onTap: () {
               Navigator.pop(context);
               // Use a post-frame callback to ensure context is valid
+
               WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!context.mounted) return;
+                if (!context.mounted) {
+                  return;
+                }
+
                 BookContextMenu._confirmDelete(context, book, onDelete);
               });
             },
@@ -250,10 +255,12 @@ class _BookContextBottomSheet extends StatelessWidget {
 
   Widget _buildCover(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     final placeholder = Container(
       color: colorScheme.surfaceContainerHighest,
       child: Icon(Icons.menu_book, color: colorScheme.onSurfaceVariant),
     );
+
     return CoverImage(bookId: book.id, imageUrl: book.coverURL, mediaId: book.coverMediaId, placeholder: placeholder);
   }
 }

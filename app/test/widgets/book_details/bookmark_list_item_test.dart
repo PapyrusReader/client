@@ -47,25 +47,21 @@ void main() {
     group('rendering', () {
       testWidgets('displays location text', (tester) async {
         await tester.pumpWidget(buildItem());
-
         expect(find.text('Chapter 3, Page 42'), findsOneWidget);
       });
 
       testWidgets('displays relative date', (tester) async {
         await tester.pumpWidget(buildItem());
-
         expect(find.text('2 hours ago'), findsOneWidget);
       });
 
       testWidgets('shows note text when bookmark has a note', (tester) async {
         await tester.pumpWidget(buildItem());
-
         expect(find.text('This is an important passage to remember.'), findsOneWidget);
       });
 
       testWidgets('hides note section when no note', (tester) async {
         await tester.pumpWidget(buildItem(bookmark: bookmarkWithoutNote));
-
         expect(find.byIcon(Icons.note_outlined), findsNothing);
       });
 
@@ -80,24 +76,22 @@ void main() {
               (widget.decoration as BoxDecoration).shape == BoxShape.circle &&
               widget.constraints?.maxWidth == 8,
         );
+
         expect(dot, findsOneWidget);
       });
 
       testWidgets('shows action menu when showActionMenu is true', (tester) async {
         await tester.pumpWidget(buildItem(showActionMenu: true));
-
         expect(find.byIcon(Icons.more_vert), findsOneWidget);
       });
 
       testWidgets('hides action menu when showActionMenu is false', (tester) async {
         await tester.pumpWidget(buildItem(showActionMenu: false));
-
         expect(find.byIcon(Icons.more_vert), findsNothing);
       });
 
       testWidgets('displays page-only location when no chapter', (tester) async {
         await tester.pumpWidget(buildItem(bookmark: bookmarkWithoutNote));
-
         expect(find.text('Page 100'), findsOneWidget);
       });
     });
@@ -106,20 +100,16 @@ void main() {
       testWidgets('long press calls onLongPress', (tester) async {
         var longPressed = false;
         await tester.pumpWidget(buildItem(onLongPress: () => longPressed = true));
-
         await tester.longPress(find.byType(BookmarkListItem));
         await tester.pump();
-
         expect(longPressed, isTrue);
       });
 
       testWidgets('action menu button calls onLongPress', (tester) async {
         var pressed = false;
         await tester.pumpWidget(buildItem(onLongPress: () => pressed = true));
-
         await tester.tap(find.byIcon(Icons.more_vert));
         await tester.pump();
-
         expect(pressed, isTrue);
       });
     });

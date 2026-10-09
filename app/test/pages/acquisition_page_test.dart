@@ -66,6 +66,7 @@ class _FakeAcquisitionApiClient extends AcquisitionApiClient {
       AcquisitionEndpointKind.readarr: ['BookSearch'],
     },
   );
+
   Completer<void>? connectionTestCompleter;
   int connectionTestCalls = 0;
   int listEndpointCalls = 0;
@@ -109,7 +110,6 @@ class _FakeAcquisitionApiClient extends AcquisitionApiClient {
     createEndpointCalls += 1;
     lastCreatedName = name;
     lastCreatedDownloadRoot = downloadRoot;
-
     return AcquisitionEndpoint(id: 'created', name: name, kind: kind, baseUrl: baseUrl, enabled: true);
   }
 
@@ -130,7 +130,6 @@ class _FakeAcquisitionApiClient extends AcquisitionApiClient {
     lastUpdatedApiKey = apiKey;
     lastUpdatedUsername = username;
     lastUpdatedPassword = password;
-
     return endpointsResult.singleWhere((endpoint) => endpoint.id == endpointId);
   }
 
@@ -178,26 +177,20 @@ void main() {
     final apiClient = _FakeAcquisitionApiClient();
     await tester.pumpWidget(await _buildPage(apiClient));
     await tester.pumpAndSettle();
-
     await _tapSectionAdd(tester, 'acquisition-sources-section');
-
     expect(find.byKey(const Key('acquisition-api-key')), findsOneWidget);
     expect(find.byKey(const Key('acquisition-username')), findsNothing);
     expect(find.byKey(const Key('acquisition-password')), findsNothing);
-
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     await _tapSectionAdd(tester, 'acquisition-clients-section');
-
     expect(find.byKey(const Key('acquisition-api-key')), findsNothing);
     expect(find.byKey(const Key('acquisition-username')), findsOneWidget);
     expect(find.byKey(const Key('acquisition-password')), findsOneWidget);
-
     await tester.tap(find.byType(DropdownButtonFormField<AcquisitionEndpointKind>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Deluge').last);
     await tester.pumpAndSettle();
-
     expect(find.byKey(const Key('acquisition-api-key')), findsNothing);
     expect(find.byKey(const Key('acquisition-username')), findsNothing);
     expect(find.byKey(const Key('acquisition-password')), findsOneWidget);
@@ -209,29 +202,26 @@ void main() {
     apiClient.connectionTestCompleter = completer;
     await tester.pumpWidget(await _buildPage(apiClient));
     await tester.pumpAndSettle();
-
     await _tapSectionAdd(tester, 'acquisition-sources-section');
     await tester.enterText(find.byKey(const Key('acquisition-name')), 'Prowlarr');
     await tester.enterText(find.byKey(const Key('acquisition-url')), 'http://prowlarr.local:9696');
+
     await tester.scrollUntilVisible(
       find.byKey(const Key('acquisition-test-connection')),
       300,
       scrollable: find.byType(Scrollable).last,
     );
+
     await tester.tap(find.byKey(const Key('acquisition-test-connection')));
     await tester.pump();
-
     expect(apiClient.connectionTestCalls, 1);
     expect(tester.widget<OutlinedButton>(find.byKey(const Key('acquisition-test-connection'))).onPressed, isNull);
     expect(tester.widget<FilledButton>(find.byKey(const Key('acquisition-save'))).onPressed, isNull);
-
     await tester.tap(find.byKey(const Key('acquisition-test-connection')), warnIfMissed: false);
     await tester.pump();
     expect(apiClient.connectionTestCalls, 1);
-
     completer.completeError(const AuthApiException(statusCode: 502, message: 'Prowlarr connection test failed'));
     await tester.pumpAndSettle();
-
     expect(find.text('Prowlarr connection test failed'), findsOneWidget);
   });
 
@@ -239,13 +229,11 @@ void main() {
     final apiClient = _FakeAcquisitionApiClient();
     await tester.pumpWidget(await _buildPage(apiClient));
     await tester.pumpAndSettle();
-
     await _tapSectionAdd(tester, 'acquisition-sources-section');
     await tester.enterText(find.byKey(const Key('acquisition-name')), 'Home Prowlarr');
     await tester.enterText(find.byKey(const Key('acquisition-url')), 'https://prowlarr.local');
     await tester.tap(find.byKey(const Key('acquisition-save')));
     await tester.pumpAndSettle();
-
     expect(apiClient.createEndpointCalls, 1);
     expect(apiClient.lastCreatedName, 'Home Prowlarr');
     expect(apiClient.listEndpointCalls, 2);
@@ -255,14 +243,12 @@ void main() {
     final apiClient = _FakeAcquisitionApiClient();
     await tester.pumpWidget(await _buildPage(apiClient));
     await tester.pumpAndSettle();
-
     await _tapSectionAdd(tester, 'acquisition-clients-section');
     await tester.enterText(find.byKey(const Key('acquisition-name')), 'Home qBittorrent');
     await tester.enterText(find.byKey(const Key('acquisition-url')), 'https://qbittorrent.local');
     await tester.enterText(find.byKey(const Key('acquisition-download-root')), '  /downloads/books  ');
     await tester.tap(find.byKey(const Key('acquisition-save')));
     await tester.pumpAndSettle();
-
     expect(apiClient.createEndpointCalls, 1);
     expect(apiClient.lastCreatedDownloadRoot, '/downloads/books');
   });
@@ -271,13 +257,11 @@ void main() {
     final apiClient = _FakeAcquisitionApiClient();
     await tester.pumpWidget(await _buildPage(apiClient, includeDownloadsProvider: true));
     await tester.pumpAndSettle();
-
     await _tapSectionAdd(tester, 'acquisition-sources-section');
     await tester.enterText(find.byKey(const Key('acquisition-name')), 'Home Prowlarr');
     await tester.enterText(find.byKey(const Key('acquisition-url')), 'https://prowlarr.local');
     await tester.tap(find.byKey(const Key('acquisition-save')));
     await tester.pumpAndSettle();
-
     expect(apiClient.listEndpointCalls, 3);
   });
 
@@ -285,12 +269,10 @@ void main() {
     final apiClient = _FakeAcquisitionApiClient()..endpointsResult = [_indexerOne];
     await tester.pumpWidget(await _buildPage(apiClient));
     await tester.pumpAndSettle();
-
     await tester.tap(find.byKey(const Key('acquisition-endpoint-indexer-1')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const Key('acquisition-save')));
     await tester.pumpAndSettle();
-
     expect(apiClient.updateEndpointCalls, 1);
     expect(apiClient.lastUpdatedEndpointId, _indexerOne.id);
     expect(apiClient.lastUpdatedApiKey, isNull);
@@ -301,10 +283,8 @@ void main() {
 
   testWidgets('acquisition page uses the constrained settings-section layout', (tester) async {
     final apiClient = _FakeAcquisitionApiClient();
-
     await tester.pumpWidget(await _buildPage(apiClient));
     await tester.pumpAndSettle();
-
     expect(find.text('Acquisition'), findsOneWidget);
     expect(find.byType(FloatingActionButton), findsNothing);
     expect(find.byKey(const Key('acquisition-search-section')), findsNothing);
@@ -318,9 +298,9 @@ void main() {
     expect(find.text('Torrent indexers'), findsNothing);
     expect(find.byType(SettingsCard), findsNWidgets(3));
     expect(find.byType(Card), findsNothing);
-
     final listView = tester.widget<ListView>(find.byType(ListView));
     expect(listView.padding, const EdgeInsets.all(Spacing.md));
+
     expect(
       find.ancestor(
         of: find.byKey(const Key('acquisition-sources-section')),
@@ -328,6 +308,7 @@ void main() {
       ),
       findsOneWidget,
     );
+
     expect(
       find.ancestor(
         of: find.byKey(const Key('acquisition-sources-section')),
@@ -337,6 +318,7 @@ void main() {
       ),
       findsOneWidget,
     );
+
     expect(
       find.ancestor(of: find.byKey(const Key('acquisition-sources-section')), matching: find.byType(Center)),
       findsOneWidget,
@@ -349,15 +331,17 @@ void main() {
 
     await tester.pumpWidget(await _buildPage(apiClient));
     await tester.pumpAndSettle();
-
     expect(find.text('Prowlarr • indexer-one.local • Enabled'), findsOneWidget);
+
     final configuredClientRow = tester.widget<SettingsRow>(
       find.byKey(const Key('acquisition-endpoint-configured-client')),
     );
+
     expect(configuredClientRow.value, 'qBittorrent • qbittorrent.local • Enabled');
     expect(configuredClientRow.value, isNot(contains('/private/downloads')));
     expect(find.text('Transmission • paused-client.local • Paused'), findsOneWidget);
     expect(find.text('Readarr • readarr.local • Enabled'), findsOneWidget);
+
     expect(
       find.descendant(
         of: find.byKey(const Key('acquisition-endpoint-indexer-1')),
@@ -365,6 +349,7 @@ void main() {
       ),
       findsOneWidget,
     );
+
     expect(
       find.descendant(
         of: find.byKey(const Key('acquisition-endpoint-paused-client')),
@@ -372,6 +357,7 @@ void main() {
       ),
       findsOneWidget,
     );
+
     expect(
       find.descendant(
         of: find.byKey(const Key('acquisition-endpoint-arr-1')),
@@ -386,31 +372,25 @@ void main() {
     expect(find.byTooltip('Actions for Indexer One'), findsOneWidget);
     expect(find.byTooltip('Actions for Paused Client'), findsOneWidget);
     expect(find.byTooltip('Actions for Readarr'), findsOneWidget);
-
     await tester.tap(find.byKey(const Key('acquisition-endpoint-indexer-1')));
     await tester.pumpAndSettle();
-
     expect(find.text('Edit integration'), findsOneWidget);
   });
 
   testWidgets('section Add offers only matching integration types', (tester) async {
     final apiClient = _FakeAcquisitionApiClient();
-
     await tester.pumpWidget(await _buildPage(apiClient));
     await tester.pumpAndSettle();
-
     await _tapSectionAdd(tester, 'acquisition-sources-section');
     expect(_editorKind(tester), AcquisitionEndpointKind.prowlarr);
     expect(_editorKinds(tester), [AcquisitionEndpointKind.prowlarr]);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
-
     await _tapSectionAdd(tester, 'acquisition-clients-section');
     expect(_editorKind(tester), AcquisitionEndpointKind.qbittorrent);
     expect(_editorKinds(tester), [AcquisitionEndpointKind.qbittorrent, AcquisitionEndpointKind.deluge]);
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
-
     await _tapSectionAdd(tester, 'acquisition-apps-section');
     expect(_editorKind(tester), AcquisitionEndpointKind.readarr);
     expect(_editorKinds(tester), [AcquisitionEndpointKind.readarr]);
@@ -429,7 +409,6 @@ void main() {
 
     await tester.pumpWidget(await _buildPage(apiClient));
     await tester.pumpAndSettle();
-
     expect(_sectionAdd('acquisition-sources-section'), findsNothing);
     expect(_sectionAdd('acquisition-clients-section'), findsOneWidget);
     expect(_sectionAdd('acquisition-apps-section'), findsNothing);
@@ -437,73 +416,59 @@ void main() {
 
   testWidgets('remove action confirms through the shelf-style dialog', (tester) async {
     final apiClient = _FakeAcquisitionApiClient()..endpointsResult = [_indexerOne];
-
     await tester.pumpWidget(await _buildPage(apiClient, includeDownloadsProvider: true));
     await tester.pumpAndSettle();
-
     await _tapEndpointMenuItem(tester, _indexerOne, 'Remove');
-
     expect(find.byType(AlertDialog), findsOneWidget);
     expect(find.byType(BottomSheet), findsNothing);
     expect(find.text('Remove integration'), findsOneWidget);
     expect(find.text('Remove "Indexer One"? Saved credentials for this integration will be removed.'), findsOneWidget);
-
     await tester.tap(find.widgetWithText(FilledButton, 'Remove'));
     await tester.pumpAndSettle();
-
     expect(apiClient.deletedEndpointIds, ['indexer-1']);
     expect(apiClient.listEndpointCalls, 3);
   });
 
   testWidgets('disabled Arr integration cannot run', (tester) async {
     final apiClient = _FakeAcquisitionApiClient()..endpointsResult = [_disabledReadarr];
-
     await tester.pumpWidget(await _buildPage(apiClient));
     await tester.pumpAndSettle();
-
     expect(_endpointMenuItem(tester, _disabledReadarr, 'run').enabled, isFalse);
-
     _selectEndpointMenu(tester, _disabledReadarr, 'run');
     await tester.pump();
-
     expect(apiClient.arrEndpointIds, isEmpty);
   });
 
   testWidgets('active Arr run parses manual IDs and disables Run while pending', (tester) async {
     final completer = Completer<AcquisitionJob>();
+
     final apiClient = _FakeAcquisitionApiClient()
       ..endpointsResult = [_readarr]
       ..arrCommandCompleter = completer;
 
     await tester.pumpWidget(await _buildPage(apiClient));
     await tester.pumpAndSettle();
-
     await _tapEndpointMenuItem(tester, _readarr, 'Run action');
-
     expect(find.byKey(const Key('acquisition-command-sheet')), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
-
     await tester.tap(find.text('Search books'));
     await tester.pumpAndSettle();
-
     expect(find.byKey(const Key('acquisition-arr-ids-sheet')), findsOneWidget);
     expect(find.byType(AlertDialog), findsNothing);
-
     await tester.enterText(find.widgetWithText(TextField, 'IDs'), '42, invalid, 84');
     await tester.tap(find.widgetWithText(FilledButton, 'Run'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-
     expect(apiClient.arrEndpointIds, ['arr-1']);
     expect(apiClient.arrCommands, ['BookSearch']);
+
     expect(apiClient.arrIds, [
       [42, 84],
     ]);
-    expect(_endpointMenuItem(tester, _readarr, 'run').enabled, isFalse);
 
+    expect(_endpointMenuItem(tester, _readarr, 'run').enabled, isFalse);
     completer.complete(_job(status: 'submitted'));
     await tester.pumpAndSettle();
-
     expect(_endpointMenuItem(tester, _readarr, 'run').enabled, isTrue);
   });
 }
@@ -519,7 +484,6 @@ AcquisitionEndpointKind? _editorKind(WidgetTester tester) {
 List<AcquisitionEndpointKind> _editorKinds(WidgetTester tester) {
   final field = find.byType(DropdownButtonFormField<AcquisitionEndpointKind>);
   final dropdown = find.descendant(of: field, matching: find.byType(DropdownButton<AcquisitionEndpointKind>));
-
   return tester.widget<DropdownButton<AcquisitionEndpointKind>>(dropdown).items!.map((item) => item.value!).toList();
 }
 
@@ -529,9 +493,7 @@ Finder _sectionAdd(String sectionKey) {
 
 Future<void> _tapSectionAdd(WidgetTester tester, String sectionKey) async {
   final addButton = _sectionAdd(sectionKey);
-
   expect(addButton, findsOneWidget);
-
   await tester.ensureVisible(addButton);
   await tester.tap(addButton);
   await tester.pumpAndSettle();
@@ -542,6 +504,7 @@ List<String?> _endpointMenuValues(WidgetTester tester, AcquisitionEndpoint endpo
     of: find.byKey(Key('acquisition-endpoint-${endpoint.id}')),
     matching: find.byType(PopupMenuButton<String>),
   );
+
   final menu = tester.widget<PopupMenuButton<String>>(menuFinder);
 
   return menu
@@ -556,6 +519,7 @@ PopupMenuItem<String> _endpointMenuItem(WidgetTester tester, AcquisitionEndpoint
     of: find.byKey(Key('acquisition-endpoint-${endpoint.id}')),
     matching: find.byType(PopupMenuButton<String>),
   );
+
   final menu = tester.widget<PopupMenuButton<String>>(menuFinder);
 
   return menu
@@ -571,16 +535,12 @@ Future<void> _tapEndpointMenuItem(WidgetTester tester, AcquisitionEndpoint endpo
   );
 
   expect(menuFinder, findsOneWidget);
-
   await tester.ensureVisible(menuFinder);
   await tester.pumpAndSettle();
   await tester.tap(menuFinder);
   await tester.pumpAndSettle();
-
   final itemLabel = find.text(label);
-
   expect(itemLabel, findsOneWidget);
-
   await tester.tap(itemLabel);
   await tester.pumpAndSettle();
 }
@@ -590,8 +550,8 @@ void _selectEndpointMenu(WidgetTester tester, AcquisitionEndpoint endpoint, Stri
     of: find.byKey(Key('acquisition-endpoint-${endpoint.id}')),
     matching: find.byType(PopupMenuButton<String>),
   );
-  final menu = tester.widget<PopupMenuButton<String>>(menuFinder);
 
+  final menu = tester.widget<PopupMenuButton<String>>(menuFinder);
   menu.onSelected?.call(value);
 }
 

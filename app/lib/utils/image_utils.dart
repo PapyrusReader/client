@@ -19,6 +19,7 @@ String imageMimeType(Uint8List bytes) {
       return 'image/webp';
     }
   }
+
   return 'image/jpeg';
 }
 

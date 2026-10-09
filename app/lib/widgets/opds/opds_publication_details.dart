@@ -26,6 +26,7 @@ class OpdsPublicationDetails extends StatelessWidget {
     this.credentials,
     this.resolving = false,
   });
+
   final OpdsCatalog catalog;
   final OpdsPublication publication;
   final OpdsHttpClient httpClient;
@@ -44,6 +45,7 @@ class OpdsPublicationDetails extends StatelessWidget {
         final theme = Theme.of(context);
         final bookId = downloads.libraryBookId(catalog, publication);
         final actionStyle = bookDetailsActionStyle(context);
+
         void showOptions() => showOpdsSheet<void>(
           context,
           title: 'Download options',
@@ -55,6 +57,7 @@ class OpdsPublicationDetails extends StatelessWidget {
             onNavigate: onNavigate,
           ),
         );
+
         final cover = ClipRRect(
           borderRadius: BorderRadius.circular(AppRadius.lg),
           child: OpdsCover(
@@ -66,6 +69,7 @@ class OpdsPublicationDetails extends StatelessWidget {
             height: desktop ? 360 : 270,
           ),
         );
+
         final metadata = Column(
           crossAxisAlignment: desktop ? CrossAxisAlignment.start : CrossAxisAlignment.center,
           children: [
@@ -91,11 +95,11 @@ class OpdsPublicationDetails extends StatelessWidget {
               children: [
                 FilledButton.icon(
                   style: actionStyle,
-                  onPressed: bookId != null
-                      ? () => context.go('/library/details/${Uri.encodeComponent(bookId)}')
-                      : resolving
-                      ? null
-                      : showOptions,
+                  onPressed: switch (bookId) {
+                    final bookId? => () => context.go('/library/details/${Uri.encodeComponent(bookId)}'),
+                    null when resolving => null,
+                    null => showOptions,
+                  },
                   icon: Icon(bookId != null ? Icons.menu_book_outlined : Icons.add),
                   label: Text(bookId != null ? 'Open book' : 'Add to library'),
                 ),
@@ -109,7 +113,9 @@ class OpdsPublicationDetails extends StatelessWidget {
             ),
           ],
         );
+
         final information = OpdsPublicationInformation(catalog: catalog, publication: publication);
+
         if (!desktop) {
           return DefaultTabController(
             length: 1,
@@ -137,6 +143,7 @@ class OpdsPublicationDetails extends StatelessWidget {
             ),
           );
         }
+
         return SingleChildScrollView(
           key: PageStorageKey('publication/${catalog.id}/${publication.id}'),
           child: Column(
@@ -173,11 +180,13 @@ class _DownloadOptions extends StatefulWidget {
     required this.onDownload,
     required this.onNavigate,
   });
+
   final OpdsCatalog catalog;
   final OpdsPublication publication;
   final OpdsDownloads downloads;
   final ValueChanged<OpdsLink> onDownload;
   final ValueChanged<Uri> onNavigate;
+
   @override
   State<_DownloadOptions> createState() => _DownloadOptionsState();
 }
@@ -190,6 +199,7 @@ class _DownloadOptionsState extends State<_DownloadOptions> {
     final links = widget.publication.links.where((link) => link.isAcquisition);
     final supported = links.where(OpdsDownloads.supports).toList();
     final unsupported = links.where((link) => !OpdsDownloads.supports(link)).toList();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -265,11 +275,14 @@ class _DownloadOptionsState extends State<_DownloadOptions> {
     final jobs = widget.downloads.jobs.where((job) => job.key == key);
     final job = jobs.isEmpty ? null : jobs.first;
     final format = link.supportedExtension!.toUpperCase();
+
     final bookId =
         widget.downloads.libraryBookId(widget.catalog, widget.publication, link: link) ??
         (widget.downloads.library == null && job?.status == OpdsDownloadStatus.complete ? job?.bookId : null);
+
     final complete = bookId != null;
     final active = job?.isActive ?? false;
+
     return Container(
       decoration: BoxDecoration(
         border: Border(bottom: BorderSide(color: theme.colorScheme.outlineVariant)),
@@ -292,25 +305,27 @@ class _DownloadOptionsState extends State<_DownloadOptions> {
                       ),
                   ],
                 );
+
                 final button = FilledButton.icon(
                   style: FilledButton.styleFrom(minimumSize: const Size(0, 40)),
-                  onPressed: active
-                      ? null
-                      : complete
-                      ? () {
-                          Navigator.of(context).pop();
-                          context.go('/library/details/${Uri.encodeComponent(bookId)}');
-                        }
-                      : () => widget.onDownload(link),
+                  onPressed: switch (active) {
+                    true => null,
+                    false when complete => () {
+                      Navigator.of(context).pop();
+                      context.go('/library/details/${Uri.encodeComponent(bookId)}');
+                    },
+                    false => () => widget.onDownload(link),
+                  },
                   icon: Icon(complete ? Icons.check : Icons.download_outlined, size: IconSizes.small),
                   label: Text(
-                    complete
-                        ? 'Open book'
-                        : job?.error != null
-                        ? 'Retry download'
-                        : 'Download $format',
+                    switch (complete) {
+                      true => 'Open book',
+                      false when job?.error != null => 'Retry download',
+                      false => 'Download $format',
+                    },
                   ),
                 );
+
                 return constraints.maxWidth < 300 * MediaQuery.textScalerOf(context).scale(1)
                     ? Column(
                         crossAxisAlignment: CrossAxisAlignment.start,

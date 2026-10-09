@@ -29,13 +29,17 @@ class MemoryRefreshTokenStorage implements RefreshTokenStorage {
 
 Future<void> waitForBook(PapyrusPowerSyncService service, String id, {bool present = true, String? title}) async {
   final deadline = DateTime.now().add(const Duration(seconds: 20));
+
   while (DateTime.now().isBefore(deadline)) {
     final book = await service.getById(id);
+
     if ((book != null) == present && (title == null || book?.title == title)) {
       return;
     }
+
     await Future<void>.delayed(const Duration(milliseconds: 200));
   }
+
   fail('Book $id did not reach expected presence=$present');
 }
 
@@ -64,15 +68,18 @@ void main() {
     }
 
     final firstAuth = repository('first');
+
     final firstTokens = await firstAuth.register(
       email: email,
       password: password,
       displayName: 'PowerSync Test',
       clientType: 'desktop',
     );
+
     final secondAuth = repository('second');
     await secondAuth.login(email: email, password: password, clientType: 'desktop');
     final otherAuth = repository('other');
+
     final otherTokens = await otherAuth.register(
       email: 'other-$email',
       password: password,
@@ -90,6 +97,7 @@ void main() {
         second.activateAuthenticated(firstTokens.user.userId),
         other.activateAuthenticated(otherTokens.user.userId),
       ]);
+
       await Future.wait([
         first.syncStates.firstWhere((state) => state.connected),
         second.syncStates.firstWhere((state) => state.connected),
@@ -102,16 +110,15 @@ void main() {
         author: 'Papyrus',
         addedAt: DateTime.now().toUtc(),
       );
+
       await first.upsert(book);
       await waitForBook(second, book.id, title: book.title);
       expect(await other.getById(book.id), isNull);
-
       await first.setOnline(false);
       await first.upsert(book.copyWith(title: 'Offline edit'));
       await first.setOnline(true);
       await waitForBook(second, book.id, title: 'Offline edit');
       expect((await second.getById(book.id))?.title, 'Offline edit');
-
       await second.delete(book.id);
       await waitForBook(first, book.id, present: false);
     } finally {

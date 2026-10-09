@@ -17,6 +17,7 @@ void main() {
   late DataStore store;
   late BookmarksProvider bookmarks;
   late BookDetailsProvider details;
+
   final original = Bookmark(
     id: 'bookmark',
     bookId: 'book',
@@ -29,12 +30,14 @@ void main() {
 
   setUp(() async {
     directory = await Directory.systemTemp.createTemp('papyrus-bookmark-edit-');
+
     service = PapyrusPowerSyncService(
       connectorFactory: OfflineConnector.new,
       connectAuthenticated: false,
       pathResolver: (mode, profile, user) async =>
           '${directory.path}/${mode == LibraryDatabaseMode.guest ? 'guest' : '$profile-$user'}.db',
     );
+
     await service.activateGuest();
     await service.upsert(buildTestBook(id: 'book'));
     await service.bookmarks.upsert(original);
@@ -75,18 +78,22 @@ void main() {
     await service.activateAuthenticated('other-account');
     await service.upsert(buildTestBook(id: 'book'));
     await service.bookmarks.upsert(original.copyWith(note: 'Other account note'));
+
     await expectLater(
       bookmarks.updateBookmarkNote(original.id, 'Stale note', previous: original, repository: repository),
       throwsStateError,
     );
+
     await expectLater(
       details.updateBookmarkColor(original.id, '#2196F3', previous: original, repository: repository),
       throwsStateError,
     );
+
     await expectLater(
       details.addBookmark(original.copyWith(id: 'new-bookmark'), repository: repository),
       throwsStateError,
     );
+
     await expectLater(bookmarks.deleteBookmark(original.id, repository: repository), throwsStateError);
     expect((await service.bookmarks.getById(original.id))!.note, 'Other account note');
     expect(await service.bookmarks.getById('new-bookmark'), isNull);

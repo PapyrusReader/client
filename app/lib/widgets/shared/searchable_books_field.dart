@@ -17,6 +17,7 @@ class SearchableBooksField extends FormField<List<String>> {
          validator: (value) => value == null || value.isEmpty ? 'Choose at least one book.' : null,
          builder: (field) {
            final selected = field.value ?? const <String>[];
+
            return Column(
              crossAxisAlignment: CrossAxisAlignment.start,
              children: [
@@ -35,6 +36,7 @@ class SearchableBooksField extends FormField<List<String>> {
                            sheetAnimationStyle: AppMotion.animationStyle(field.context),
                            builder: (_) => _BooksSearchSheet(books: books, selected: selected),
                          );
+
                          if (result != null && field.mounted) {
                            field.didChange(result);
                            onChanged(result);
@@ -86,6 +88,7 @@ class _BooksSearchSheet extends StatefulWidget {
   const _BooksSearchSheet({required this.books, required this.selected});
   final List<Book> books;
   final List<String> selected;
+
   @override
   State<_BooksSearchSheet> createState() => _BooksSearchSheetState();
 }
@@ -93,15 +96,18 @@ class _BooksSearchSheet extends StatefulWidget {
 class _BooksSearchSheetState extends State<_BooksSearchSheet> {
   late final Set<String> _selected = widget.selected.toSet();
   String _query = '';
+
   @override
   Widget build(BuildContext context) {
     final query = _query.trim().toLowerCase();
+
     final books = widget.books
         .where(
           (book) =>
               '${book.title} ${book.allAuthors} ${book.isbn ?? ''} ${book.isbn13 ?? ''}'.toLowerCase().contains(query),
         )
         .toList();
+
     return AppBottomSheet(
       title: 'Choose books',
       onClose: () => Navigator.pop(context),
@@ -123,6 +129,7 @@ class _BooksSearchSheetState extends State<_BooksSearchSheet> {
                     itemCount: books.length,
                     itemBuilder: (context, index) {
                       final book = books[index];
+
                       return CheckboxListTile(
                         contentPadding: EdgeInsets.zero,
                         controlAffinity: ListTileControlAffinity.leading,

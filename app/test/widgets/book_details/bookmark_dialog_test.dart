@@ -33,6 +33,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
   }
@@ -44,6 +45,7 @@ void main() {
       ) async {
         final write = Completer<void>();
         var calls = 0;
+
         Future<void> save() {
           calls++;
           return write.future;
@@ -61,14 +63,20 @@ void main() {
               DeleteBookmarkDialog.show(context, bookmark: bookmark, bookTitle: 'Physical Book', onDelete: save);
           }
         });
-        if (kind == 'create') await tester.enterText(find.byType(TextFormField).first, '30');
+
+        if (kind == 'create') {
+          await tester.enterText(find.byType(TextFormField).first, '30');
+        }
+
         final action = kind == 'color'
             ? colorChoices().first
             : find.widgetWithText(FilledButton, kind == 'delete' ? 'Delete' : 'Save');
+
         await tester.tap(action);
         await tester.pump();
         expect(calls, 1);
         expect(action, findsOneWidget);
+
         if (kind == 'color') {
           expect(tester.widget<GestureDetector>(action).onTap, isNull);
         } else {
@@ -80,14 +88,18 @@ void main() {
         } else {
           write.complete();
         }
+
         await tester.pumpAndSettle();
+
         if (kind == 'color' && !fails) {
           expect(colorChoices(), findsNothing);
         } else {
           expect(action, fails ? findsOneWidget : findsNothing);
         }
+
         if (fails) {
           expect(find.text('Could not save changes. Please try again.'), findsOneWidget);
+
           if (kind == 'color') {
             expect(tester.widget<GestureDetector>(action).onTap, isNotNull);
           } else {
@@ -102,6 +114,7 @@ void main() {
     tester,
   ) async {
     Bookmark? saved;
+
     await open(
       tester,
       (context) => BookmarkDialog.show(
@@ -113,10 +126,12 @@ void main() {
         },
       ),
     );
+
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), '30');
     await tester.enterText(fields.at(1), '  First chapter  ');
     await tester.enterText(fields.at(2), '  Remember this  ');
+
     final blue = find.byWidgetPredicate(
       (widget) =>
           widget is GestureDetector &&
@@ -124,10 +139,10 @@ void main() {
           (widget.child as Container).decoration is BoxDecoration &&
           ((widget.child as Container).decoration as BoxDecoration).color == const Color(0xFF2196F3),
     );
+
     await tester.tap(blue);
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await tester.pumpAndSettle();
-
     expect(saved, isNotNull);
     expect(saved!.id, matches(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')));
     expect(saved!.bookId, 'physical-book');
@@ -141,6 +156,7 @@ void main() {
 
   testWidgets('physical bookmark without a total page count retains its entered page', (tester) async {
     Bookmark? saved;
+
     await open(
       tester,
       (context) => BookmarkDialog.show(
@@ -151,6 +167,7 @@ void main() {
         },
       ),
     );
+
     await tester.enterText(find.byType(TextFormField).first, '47');
     await tester.tap(find.widgetWithText(FilledButton, 'Save'));
     await tester.pumpAndSettle();

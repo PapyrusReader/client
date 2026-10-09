@@ -71,8 +71,13 @@ class _BookmarkDialogState extends State<BookmarkDialog> with PersistentSave<Boo
   }
 
   Future<void> _save() async {
-    if (isSaving) return;
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (isSaving) {
+      return;
+    }
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
 
     final page = int.parse(_pageController.text);
     final position = widget.pageCount != null ? (page / widget.pageCount!).clamp(0.0, 1.0) : 0.0;
@@ -89,13 +94,18 @@ class _BookmarkDialogState extends State<BookmarkDialog> with PersistentSave<Boo
       colorHex: _selectedColor,
       createdAt: widget.existingBookmark?.createdAt ?? DateTime.now(),
     );
+
     final saved = await persist(() => widget.onSave?.call(bookmark));
-    if (saved && mounted) Navigator.of(context).pop(bookmark);
+
+    if (saved && mounted) {
+      Navigator.of(context).pop(bookmark);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return AppBottomSheet(
       title: _isEditing ? 'Edit bookmark' : 'New bookmark',
       onClose: () => Navigator.of(context).pop(),
@@ -127,13 +137,17 @@ class _BookmarkDialogState extends State<BookmarkDialog> with PersistentSave<Boo
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter a page number';
                 }
+
                 final page = int.tryParse(value);
+
                 if (page == null || page < 1) {
                   return 'Enter a valid page number';
                 }
+
                 if (widget.pageCount != null && page > widget.pageCount!) {
                   return 'Page exceeds total pages (${widget.pageCount})';
                 }
+
                 return null;
               },
             ),
@@ -164,6 +178,7 @@ class _BookmarkDialogState extends State<BookmarkDialog> with PersistentSave<Boo
               children: Bookmark.availableColors.map((hex) {
                 final isSelected = hex == _selectedColor;
                 final color = Color(int.parse('FF${hex.replaceFirst('#', '')}', radix: 16));
+
                 return GestureDetector(
                   onTap: () => setState(() => _selectedColor = hex),
                   child: Container(

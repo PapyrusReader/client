@@ -10,6 +10,7 @@ abstract final class ReadingDeviceIdentity {
 
   static Future<void> initialize(SharedPreferences preferences) async {
     final stored = preferences.getString(preferenceKey);
+
     if (stored != null && stored.isNotEmpty) {
       _value = stored;
     } else {

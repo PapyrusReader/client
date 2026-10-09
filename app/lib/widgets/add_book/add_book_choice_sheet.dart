@@ -24,6 +24,7 @@ class AddBookChoiceSheet extends StatefulWidget {
     ImportedBookFileDeleter? deleteImportedBookFile,
   }) async {
     Future<_AddBookChoice?>? sheetCompleted;
+
     final choice = await showModalBottomSheet<_AddBookChoice>(
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
@@ -33,7 +34,6 @@ class AddBookChoiceSheet extends StatefulWidget {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (sheetContext) {
         sheetCompleted = ModalRoute.of<_AddBookChoice>(sheetContext)?.completed;
-
         return AddBookChoiceSheet(callerContext: context, onFindOnline: onFindOnline);
       },
     );

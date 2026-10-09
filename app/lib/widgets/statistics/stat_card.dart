@@ -91,7 +91,6 @@ class StatCard extends StatelessWidget {
   Widget _buildTrendBadge(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-
     final isPositive = isTrendPositive ?? true;
     final trendColor = isPositive ? colorScheme.tertiary : colorScheme.error;
 

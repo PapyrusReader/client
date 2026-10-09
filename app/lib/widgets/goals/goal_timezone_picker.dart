@@ -11,6 +11,7 @@ String timezoneCity(String name) => name.split('/').last.replaceAll('_', ' ');
 class GoalTimezonePicker extends StatefulWidget {
   const GoalTimezonePicker({super.key, required this.selected});
   final String selected;
+
   static Future<String?> show(BuildContext context, {required String selected}) => showModalBottomSheet<String>(
     context: context,
     useRootNavigator: true,
@@ -20,6 +21,7 @@ class GoalTimezonePicker extends StatefulWidget {
     constraints: BoxConstraints(maxWidth: 640, maxHeight: MediaQuery.sizeOf(context).height * .85),
     builder: (_) => GoalTimezonePicker(selected: selected),
   );
+
   @override
   State<GoalTimezonePicker> createState() => _GoalTimezonePickerState();
 }
@@ -27,18 +29,35 @@ class GoalTimezonePicker extends StatefulWidget {
 class _GoalTimezonePickerState extends State<GoalTimezonePicker> {
   final _search = TextEditingController();
   late final List<String> _zones;
+
   @override
   void initState() {
     super.initState();
     GoalCalendar.initialize();
+
     _zones = {'UTC', ...tz.timeZoneDatabase.locations.keys}.toList()
-      ..sort((a, b) {
-        if (a == b) return 0;
-        if (a == widget.selected) return -1;
-        if (b == widget.selected) return 1;
-        if (a == 'UTC') return -1;
-        if (b == 'UTC') return 1;
-        return a.compareTo(b);
+      ..sort((left, right) {
+        if (left == right) {
+          return 0;
+        }
+
+        if (left == widget.selected) {
+          return -1;
+        }
+
+        if (right == widget.selected) {
+          return 1;
+        }
+
+        if (left == 'UTC') {
+          return -1;
+        }
+
+        if (right == 'UTC') {
+          return 1;
+        }
+
+        return left.compareTo(right);
       });
   }
 
@@ -52,6 +71,7 @@ class _GoalTimezonePickerState extends State<GoalTimezonePicker> {
   Widget build(BuildContext context) {
     final query = _search.text.trim().toLowerCase();
     final zones = _zones.where((name) => name.toLowerCase().replaceAll('_', ' ').contains(query)).toList();
+
     return GoalControls(
       child: AppBottomSheet(
         title: 'Choose timezone',
@@ -76,6 +96,7 @@ class _GoalTimezonePickerState extends State<GoalTimezonePicker> {
                   itemCount: zones.length,
                   itemBuilder: (context, index) {
                     final name = zones[index];
+
                     return ListTile(
                       title: Text(timezoneCity(name)),
                       subtitle: Text(name),

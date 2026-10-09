@@ -20,9 +20,11 @@ void main() {
 
   test('loads and caches enabled capability state by server', () async {
     final calls = <Uri>[];
+
     final provider = AcquisitionAvailabilityProvider(
       loadCapabilities: (serverBaseUri) async {
         calls.add(serverBaseUri);
+
         return const AcquisitionCapabilities(
           enabled: true,
           endpointKinds: [],
@@ -33,11 +35,10 @@ void main() {
         );
       },
     );
+
     final server = Uri.parse('https://api.test');
-
     await provider.refresh(server);
     await provider.refresh(server);
-
     expect(provider.state, AcquisitionAvailabilityState.available);
     expect(provider.isAvailableFor(server), isTrue);
     expect(provider.managedDownloadsReadyFor(server), isTrue);
@@ -55,12 +56,10 @@ void main() {
         arrCommands: {},
       ),
     );
+
     final server = Uri.parse('https://api.test');
-
     expect(provider.isAvailableFor(server), isFalse);
-
     await provider.refresh(server);
-
     expect(provider.state, AcquisitionAvailabilityState.unavailable);
     expect(provider.isAvailableFor(server), isFalse);
     expect(provider.managedDownloadsReadyFor(server), isFalse);
@@ -76,9 +75,11 @@ void main() {
     final replacementServer = Uri.parse('https://replacement.test');
     var activeConfig = PapyrusApiConfig(serverBaseUri: initialServer);
     final loadedServers = <Uri>[];
+
     final availabilityProvider = AcquisitionAvailabilityProvider(
       loadCapabilities: (serverBaseUri) async {
         loadedServers.add(serverBaseUri);
+
         return AcquisitionCapabilities(
           enabled: true,
           managedDownloadsReady: serverBaseUri == initialServer,
@@ -90,9 +91,11 @@ void main() {
         );
       },
     );
+
     final downloadsProvider = AcquisitionDownloadsProvider(pollingInterval: Duration.zero);
     final gateways = <_FakeDownloadsGateway>[];
     final gatewayConfigs = <PapyrusApiConfig>[];
+
     final composition = AcquisitionDownloadsComposition(
       authProvider: authProvider,
       availabilityProvider: availabilityProvider,
@@ -109,8 +112,8 @@ void main() {
     await authProvider.bootstrap();
     await tester.pump();
     await tester.pump();
-
     AcquisitionDownloadsProvider? suppliedProvider;
+
     await tester.pumpWidget(
       MultiProvider(
         providers: [composition.providerRegistration()],
@@ -129,57 +132,40 @@ void main() {
     expect(loadedServers, [initialServer]);
     expect(gateways, hasLength(1));
     expect(gatewayConfigs.single.serverBaseUri, initialServer);
-
     activeConfig = PapyrusApiConfig(serverBaseUri: replacementServer);
     composition.handleServerChanged();
-
     expect(downloadsProvider.isConfigured, isFalse);
     expect(gateways.single.closed, isTrue);
-
     final replacementRepository = _FakeAuthRepository()..bootstrapResult = _tokens();
     await authProvider.replaceRepository(replacementRepository);
     await tester.pump();
     await tester.pump();
-
     expect(downloadsProvider.isConfigured, isTrue);
     expect(downloadsProvider.isManagedAcquisitionReady, isFalse);
     expect(loadedServers, [initialServer, replacementServer]);
     expect(gateways, hasLength(2));
     expect(gatewayConfigs.last.serverBaseUri, replacementServer);
-
     await authProvider.signOut();
-
     expect(downloadsProvider.isConfigured, isFalse);
     expect(gateways.last.closed, isTrue);
-
     await authProvider.login(email: 'reader@example.com', password: 'secret');
     await tester.pump();
     await tester.pump();
-
     expect(downloadsProvider.isConfigured, isTrue);
     expect(gateways, hasLength(3));
-
     authProvider.setOfflineMode(true);
-
     expect(downloadsProvider.isConfigured, isFalse);
     expect(gateways.last.closed, isTrue);
-
     await authProvider.login(email: 'reader@example.com', password: 'secret');
     await tester.pump();
     await tester.pump();
-
     expect(downloadsProvider.isConfigured, isTrue);
     expect(gateways, hasLength(4));
-
     await tester.pumpWidget(const SizedBox());
     composition.dispose();
-
     expect(gateways.last.closed, isTrue);
-
     await authProvider.signOut();
-
     expect(gateways, hasLength(4));
-
     availabilityProvider.dispose();
     authProvider.dispose();
   });

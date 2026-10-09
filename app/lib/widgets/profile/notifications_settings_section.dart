@@ -15,6 +15,7 @@ class NotificationsSettingsSection extends StatelessWidget {
     if (isDesktop) {
       return _buildDesktop(context);
     }
+
     return _buildMobile(context);
   }
 

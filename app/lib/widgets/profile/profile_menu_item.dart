@@ -65,7 +65,6 @@ class ProfileMenuItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-
     final contentColor = isDestructive ? colorScheme.error : colorScheme.onSurface;
     final iconContainerColor = isDestructive ? colorScheme.errorContainer : colorScheme.surfaceContainerHighest;
 

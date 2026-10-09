@@ -37,6 +37,7 @@ void main() {
         addTearDown(tester.view.reset);
         final provider = LibraryProvider();
         final downloads = _Downloads();
+
         final store = createTestDataStore(
           books: List.generate(
             12,
@@ -49,12 +50,14 @@ void main() {
             ),
           ),
         );
+
         addTearDown(() async {
           await tester.pumpWidget(const SizedBox.shrink());
           provider.dispose();
           downloads.dispose();
           store.dispose();
         });
+
         await tester.pumpWidget(
           createTestPage(
             libraryProvider: provider,
@@ -73,6 +76,7 @@ void main() {
             ),
           ),
         );
+
         await tester.pumpAndSettle();
         final search = tester.getRect(find.byType(TextField));
         final mobile = layout.screen.width < 840;
@@ -80,8 +84,10 @@ void main() {
         final gutter = mobile ? 16.0 : 24.0;
         expect(search.left, closeTo(layout.screen.width - layout.pageWidth + gutter, .001));
         expect(toolbar.left, closeTo(search.left, .001));
+
         if (mobile) {
           expect(search.right, closeTo(toolbar.right, .001));
+
           expect(
             find.descendant(of: find.byType(TextField), matching: find.byTooltip('Library sections')),
             findsOneWidget,
@@ -96,55 +102,67 @@ void main() {
           final covers = find.descendant(of: find.byType(BookCard), matching: find.byType(CoverImage));
           final first = tester.getRect(covers.first);
           expect(first.left, closeTo(search.left, .001), reason: '${option.columns} columns');
+
           expect(
             first.top - tester.getRect(find.byType(LibraryFilterChips)).bottom,
             closeTo(Spacing.sm, .001),
             reason: 'Grid covers need the same top inset as list thumbnails at every density',
           );
+
           final row = covers
               .evaluate()
               .map((element) => tester.getRect(find.byWidget(element.widget)))
               .where((rect) => (rect.top - first.top).abs() < .001)
               .toList();
+
           expect(row.length, option.columns);
           expect(row.last.right, closeTo(toolbar.right, .001));
           final spacing = bookGridLayout(layout.pageWidth - gutter * 2, itemWidth: option.preferredWidth).spacing;
+
           for (var i = 1; i < row.length; i++) {
             expect(row[i].left - row[i - 1].right, closeTo(spacing, .001));
           }
+
           expect(tester.takeException(), isNull);
         }
 
         // Orphan downloads must use the same gutters in grid and list mode.
         await tester.drag(find.byType(GridView), const Offset(0, -10000));
         await tester.pumpAndSettle();
+
         final placeholderSurface = find.descendant(
           of: find.byType(AcquisitionPlaceholderCard),
           matching: find.byType(InkWell),
         );
-        expect(tester.getRect(placeholderSurface.first).left, closeTo(search.left, .001));
 
+        expect(tester.getRect(placeholderSurface.first).left, closeTo(search.left, .001));
         provider.setViewMode(LibraryViewMode.list);
         await tester.pumpAndSettle();
         final firstRow = find.byType(BookListItem).first;
         final firstCover = find.descendant(of: firstRow, matching: find.byType(CoverImage));
         final rowContent = find.descendant(of: firstRow, matching: find.byType(Row)).first;
         expect(tester.getRect(firstCover).left, closeTo(search.left, .001));
+
         expect(
           tester.getRect(rowContent).top - tester.getRect(find.byType(LibraryFilterChips)).bottom,
           closeTo(Spacing.sm, .001),
           reason: 'List rows retain their own vertical padding',
         );
+
         expect(tester.getRect(firstRow).right, closeTo(toolbar.right, .001));
+
         await tester.drag(
           find.descendant(of: find.byType(LibraryPage), matching: find.byType(ListView)).last,
           const Offset(0, -10000),
         );
+
         await tester.pumpAndSettle();
+
         final placeholderCover = find.descendant(
           of: find.byType(AcquisitionPlaceholderListItem),
           matching: find.byType(ClipRRect),
         );
+
         expect(tester.getRect(placeholderCover).left, closeTo(search.left, .001));
         expect(tester.takeException(), isNull);
       });

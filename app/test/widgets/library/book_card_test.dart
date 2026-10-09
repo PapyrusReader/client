@@ -101,6 +101,7 @@ void main() {
 
     testWidgets('shows an accessible icon-only account status', (tester) async {
       final semantics = tester.ensureSemantics();
+
       try {
         await tester.pumpWidget(
           buildCard(accountStatus: BookAccountStatus.saved, deviceStatus: BookDeviceStatus.missing),
@@ -122,6 +123,7 @@ void main() {
 
     testWidgets('compact physical card preserves format and saved status without overlapping badges', (tester) async {
       var opened = false;
+
       await tester.pumpWidget(
         buildCard(
           book: testBook.copyWith(isPhysical: true),
@@ -131,6 +133,7 @@ void main() {
           onTap: () => opened = true,
         ),
       );
+
       expect(find.byTooltip('Physical'), findsOneWidget);
       expect(find.byTooltip('Saved'), findsOneWidget);
       expect(tester.getRect(find.byTooltip('Physical')).overlaps(tester.getRect(find.byTooltip('Saved'))), isFalse);
@@ -147,6 +150,7 @@ void main() {
             tester,
           ) async {
             final book = testBook.copyWith(isPhysical: physical);
+
             await tester.pumpWidget(
               buildCard(
                 book: book,
@@ -157,6 +161,7 @@ void main() {
                 textScaler: const TextScaler.linear(2),
               ),
             );
+
             final formatIcon = find.byIcon(physical ? Icons.menu_book_outlined : Icons.description_outlined);
             final accountIcon = find.byIcon(Icons.cloud_done_outlined);
             final formatSurface = find.ancestor(of: formatIcon, matching: find.byType(Container)).first;
@@ -219,18 +224,14 @@ void main() {
 
     testWidgets('does not invent acquisition progress', (tester) async {
       await tester.pumpWidget(buildCard(book: testBook, acquisitionJob: _acquisitionJob(progressBasisPoints: null)));
-
       expect(find.text('Downloading'), findsOneWidget);
       expect(find.byType(LinearProgressIndicator), findsNothing);
     });
 
     testWidgets('hides ordinary desktop menu for linked jobs only', (tester) async {
       await tester.pumpWidget(buildCard(acquisitionJob: _acquisitionJob(), screenSize: const Size(900, 800)));
-
       expect(find.byIcon(Icons.more_vert), findsNothing);
-
       await tester.pumpWidget(buildCard(screenSize: const Size(900, 800)));
-
       expect(find.byIcon(Icons.more_vert), findsOneWidget);
     });
 
@@ -240,7 +241,6 @@ void main() {
       );
 
       final status = tester.widget<Text>(find.text('Downloading 42%'));
-
       expect(find.text('EPUB'), findsNothing);
       expect(status.maxLines, 1);
       expect(status.overflow, TextOverflow.ellipsis);
@@ -257,7 +257,6 @@ void main() {
       );
 
       final status = tester.widget<Text>(find.text('Adding to library'));
-
       expect(find.text('EPUB'), findsNothing);
       expect(status.maxLines, 1);
       expect(status.overflow, TextOverflow.ellipsis);
@@ -280,6 +279,7 @@ void main() {
 
         final finder = find.byKey(const ValueKey('linked-acquisition-book-card-job-1'));
         final node = tester.getSemantics(finder);
+
         final interactiveNodes = find.semantics
             .byPredicate((candidate) => candidate.getSemanticsData().hasAction(SemanticsAction.tap))
             .evaluate();
@@ -288,9 +288,7 @@ void main() {
         expect(node.flagsCollection.isSelected, Tristate.isTrue);
         expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
         expect(interactiveNodes, hasLength(1));
-
         tester.semantics.tap(find.semantics.byLabel(node.label));
-
         expect(selections, 1);
       } finally {
         semantics.dispose();
@@ -302,9 +300,7 @@ void main() {
 
       try {
         await tester.pumpWidget(buildCard(acquisitionJob: _acquisitionJob(), isSelected: true));
-
         final node = tester.getSemantics(find.byKey(const ValueKey('linked-acquisition-book-card-job-1')));
-
         expect(node.flagsCollection.isButton, isFalse);
         expect(node.flagsCollection.isSelected, Tristate.isTrue);
         expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isFalse);
@@ -331,7 +327,6 @@ void main() {
 
         tester.semantics.tap(find.semantics.byLabel('Select The Hobbit'));
         await tester.tap(find.byIcon(Icons.radio_button_unchecked));
-
         expect(selections, 2);
         expect(details, 0);
       } finally {
@@ -351,12 +346,9 @@ void main() {
       final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await pointer.addPointer(location: tester.getCenter(find.byType(BookCard)));
       await tester.pumpAndSettle();
-
       expect(tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity, 1);
-
       await pointer.moveTo(tester.getCenter(find.byKey(const ValueKey('acquisition-selector-job-1'))));
       await tester.pumpAndSettle();
-
       expect(tester.widget<AnimatedOpacity>(find.byType(AnimatedOpacity)).opacity, 1);
     });
 
@@ -376,6 +368,7 @@ void main() {
 
         final finder = find.byKey(const ValueKey('linked-acquisition-book-card-job-1'));
         final node = tester.getSemantics(finder);
+
         final interactiveNodes = find.semantics
             .byPredicate((candidate) => candidate.getSemanticsData().hasAction(SemanticsAction.tap))
             .evaluate();
@@ -385,9 +378,7 @@ void main() {
         expect(node.flagsCollection.isButton, isTrue);
         expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
         expect(interactiveNodes, hasLength(1));
-
         tester.semantics.tap(find.semantics.byLabel(node.label));
-
         expect(acquisitionTaps, 1);
         expect(favoriteTaps, 0);
       } finally {
@@ -402,13 +393,11 @@ void main() {
       addTearDown(pointer.removePointer);
       await tester.pumpWidget(buildCard(onToggleFavorite: (_) => favoriteTaps++));
       expect(find.byIcon(Icons.favorite_border), findsNothing);
-
       await pointer.moveTo(tester.getCenter(find.byType(BookCard)));
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.favorite_border), findsOneWidget);
       await tester.tap(find.byIcon(Icons.favorite_border));
       expect(favoriteTaps, 1);
-
       await pointer.moveTo(const Offset(790, 590));
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.favorite_border), findsNothing);
@@ -445,17 +434,14 @@ void main() {
       expect(favoriteIcon, findsOneWidget);
       await tester.tap(favoriteIcon);
       await tester.pump();
-
       expect(tappedValue, false);
     });
 
     testWidgets('calls onTap when card is tapped', (tester) async {
       var tapped = false;
       await tester.pumpWidget(buildCard(onTap: () => tapped = true));
-
       await tester.tap(find.byType(InkWell).first);
       await tester.pump();
-
       expect(tapped, true);
     });
 
@@ -466,7 +452,6 @@ void main() {
 
     testWidgets('forwards the book id to the cover renderer', (tester) async {
       await tester.pumpWidget(buildCard());
-
       expect(tester.widget<CoverImage>(find.byType(CoverImage)).bookId, testBook.id);
     });
 

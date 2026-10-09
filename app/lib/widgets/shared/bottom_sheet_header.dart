@@ -37,10 +37,13 @@ class BottomSheetHeader extends StatelessWidget {
       textAlign: TextAlign.center,
       style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
     );
+
     final cancelButton = TextButton(onPressed: canCancel ? onCancel : null, child: Text(cancelLabel));
+
     final saveButton = onSave == null
         ? const SizedBox.shrink()
         : FilledButton(key: saveButtonKey, onPressed: canSave ? onSave : null, child: Text(saveLabel));
+
     if (stacked) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -55,6 +58,7 @@ class BottomSheetHeader extends StatelessWidget {
         ],
       );
     }
+
     return Row(
       children: [
         Expanded(

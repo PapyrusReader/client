@@ -15,6 +15,7 @@ class BookDownloadService {
     if (path == null) {
       return const BookDownloadResult.cancelled();
     }
+
     return BookDownloadResult.saved(path);
   }
 

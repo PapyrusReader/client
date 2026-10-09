@@ -26,12 +26,12 @@ void main() {
         screenSize: const Size(800, 1200),
       ),
     );
+
     await tester.pumpAndSettle();
   }
 
   testWidgets('topics empty state is centered across the sheet', (tester) async {
     await pumpSheet(tester, const ManageTopicsSheet(bulkBookIds: ['book-1']));
-
     final title = find.text('No topics yet');
     expect(title, findsOneWidget);
     expect(tester.getCenter(title).dx, closeTo(400, 20));
@@ -39,7 +39,6 @@ void main() {
 
   testWidgets('shelves empty state is present and centered across the sheet', (tester) async {
     await pumpSheet(tester, const MoveToShelfSheet(bulkBookIds: ['book-1']));
-
     final title = find.text('No shelves yet');
     expect(title, findsOneWidget);
     expect(tester.getCenter(title).dx, closeTo(400, 20));
@@ -53,13 +52,16 @@ void main() {
           tester.view.devicePixelRatio = 1;
           tester.view.physicalSize = size;
           addTearDown(tester.view.reset);
+
           if (size.width == 320) {
             tester.platformDispatcher.textScaleFactorTestValue = 1.5;
             addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
           }
+
           final store = DataStore()..loadData(shelves: const [], tags: const []);
           addTearDown(store.dispose);
           final book = buildTestBook(title: 'A long book title that must remain in the header');
+
           await tester.pumpWidget(
             ChangeNotifierProvider.value(
               value: store,
@@ -78,6 +80,7 @@ void main() {
               ),
             ),
           );
+
           await tester.tap(find.text('Open'));
           await tester.pumpAndSettle();
           expect(tester.takeException(), isNull);
@@ -87,10 +90,12 @@ void main() {
           final footer = tester.getRect(find.byType(BottomSheetFooter));
           expect(empty.top, greaterThanOrEqualTo(header.bottom));
           expect(empty.bottom, lessThanOrEqualTo(footer.top), reason: 'empty=$empty header=$header footer=$footer');
+
           expect(
             find.text(topics ? 'Tap + to create a topic' : 'Tap + to create a shelf').hitTestable(),
             findsOneWidget,
           );
+
           for (final scroll in tester.stateList<ScrollableState>(find.byType(Scrollable))) {
             expect(scroll.position.maxScrollExtent, 0);
           }
@@ -103,7 +108,9 @@ void main() {
       (tester) async {
         final store = DataStore()
           ..loadData(shelves: topics ? const [] : [buildTestShelf()], tags: topics ? [buildTestTag()] : const []);
+
         addTearDown(store.dispose);
+
         await tester.pumpWidget(
           createTestPage(
             page: Scaffold(
@@ -114,6 +121,7 @@ void main() {
             dataStore: store,
           ),
         );
+
         await tester.pumpAndSettle();
         expect(find.byType(SearchField), findsOneWidget);
         await tester.enterText(find.byType(TextField), 'no matches');

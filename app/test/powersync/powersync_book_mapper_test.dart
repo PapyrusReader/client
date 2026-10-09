@@ -17,6 +17,7 @@ void main() {
       expect(PowerSyncBookMapper.toRow(book)['cover_image_url'], isNull);
     }
   });
+
   test('partial uploads preserve absent JSON fields and explicit nulls', () {
     expect(PowerSyncBookMapper.decodeUploadData({'title': 'Only title'}), {'title': 'Only title'});
     expect(PowerSyncBookMapper.decodeUploadData({'custom_metadata': null}), {'custom_metadata': null});
@@ -24,6 +25,7 @@ void main() {
 
   test('every portable book field survives a complete row round trip', () {
     final date = DateTime.utc(2026, 9, 5);
+
     final original = Book(
       id: 'book',
       title: 'Title',
@@ -65,6 +67,7 @@ void main() {
       completedAt: date,
       lastReadAt: date,
     );
+
     final restored = PowerSyncBookMapper.fromRow(PowerSyncBookMapper.toRow(original));
     expect(restored.toJson(), original.toJson());
   });
@@ -76,6 +79,7 @@ void main() {
       'is_physical': 0,
       'custom_metadata': jsonEncode({'physical_location': 'Old', 'is_physical': true}),
     });
+
     expect(book.physicalLocation, isNull);
     expect(book.isPhysical, isFalse);
   });
@@ -102,7 +106,6 @@ void main() {
     );
 
     final row = PowerSyncBookMapper.toRow(book);
-
     expect(row['cover_image_url'], isNull);
     expect(row['file_media_id'], '22222222-2222-2222-2222-222222222222');
     expect(row['cover_media_id'], '33333333-3333-3333-3333-333333333333');
