@@ -181,14 +181,32 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 
 ### Coverage
 
-CI runs `flutter test --coverage` from `app/`, retains `lcov.info` as a
-`client-coverage-<attempt>` artifact for 14 days, and uploads it to Codecov.
-A missing or empty report, or a failed upload, fails the quality job.
+CI runs `flutter test --coverage --file-reporter json:build/test-results/tests.json`
+from `app/`. The normal test log remains visible in Actions. A pinned JUnit
+converter turns the JSON results into XML for Codecov Test Analytics, which
+reports test duration and failures.
+
+Coverage and test results are uploaded even when tests fail. The failing test
+step still fails the job; report generation and uploads cannot mask that failure.
+Missing or empty reports and failed uploads also fail the quality job. Both
+`client-coverage-<attempt>` and `client-test-results-<attempt>` artifacts are
+retained for 14 days, including the raw JSON results for troubleshooting.
 
 [`codecov.yml`](codecov.yml) uses `development` as the default branch. The
 project status compares coverage against the PR base or parent commit and allows
 a one percentage point drop. The patch status targets 80% of changed lines and
 is informational initially; it reports coverage without failing on the target.
+
+Four components show coverage for UI, state/models, auth/storage/sync, and
+reading/goals in Codecov and PR comments, using paths from the single client
+coverage upload. Reading/goals intentionally overlaps UI and state because it
+crosses those layers. Component checks are informational during rollout.
+
+Codecov's repository default branch must also be `development` under
+**Configuration → General**. Verify that **Configuration → Yaml** reflects the
+committed configuration and that `codecov/project` appears on GitHub before
+making that check required in branch protection. A successful upload alone does
+not prove that Codecov has applied the status-check configuration.
 
 ## Resources
 
