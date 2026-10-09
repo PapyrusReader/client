@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
+import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/models/library_filters.dart';
 import 'package:papyrus/pages/library_page.dart';
@@ -65,6 +66,48 @@ void main() {
 
     List<Book> renderedGridBooks(WidgetTester tester) {
       return tester.widget<BookGrid>(find.byType(BookGrid)).books;
+    }
+
+    for (final width in [400.0, 1200.0]) {
+      testWidgets('shows loading through profile transitions and first sync at $width', (tester) async {
+        final repository = _ControlledLibraryRepository();
+        final store = DataStore(bookRepository: repository);
+        addTearDown(store.dispose);
+        addTearDown(store.disposeBookRepository);
+        addTearDown(repository.snapshots.close);
+        await tester.pumpWidget(buildPage(store: store, screenSize: Size(width, 1000)));
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.text('No books found'), findsNothing);
+        repository.snapshots.add(const LibrarySnapshot(isLoaded: false));
+        await tester.pump();
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.text('No books found'), findsNothing);
+        repository.snapshots.add(LibrarySnapshot(isLoaded: false, loadError: StateError('Offline')));
+        await tester.pump();
+        expect(find.text('Waiting for your library'), findsOneWidget);
+        expect(find.text('No books found'), findsNothing);
+
+        repository.snapshots.add(
+          LibrarySnapshot(
+            books: [Book(id: 'loaded', title: 'Loaded book', author: 'Author', addedAt: DateTime(2026))],
+          ),
+        );
+
+        await tester.pump();
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.text('Waiting for your library'), findsNothing);
+        expect(renderedGridBooks(tester).single.id, 'loaded');
+        repository.snapshots.add(const LibrarySnapshot(isLoaded: false));
+        await tester.pump();
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.text('No books found'), findsNothing);
+        expect(find.byType(BookGrid), findsNothing);
+        repository.snapshots.add(const LibrarySnapshot());
+        await tester.pump();
+        expect(find.byType(CircularProgressIndicator), findsNothing);
+        expect(find.text('No books found'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
     }
 
     // ========================================================================
@@ -1686,6 +1729,16 @@ class _ControlledBookRepository implements BookRepository {
 
   @override
   Future<void> delete(String id) async {}
+}
+
+class _ControlledLibraryRepository extends _ControlledBookRepository implements LibraryRepository {
+  final snapshots = StreamController<LibrarySnapshot>.broadcast();
+
+  @override
+  Stream<LibrarySnapshot> watchLibrary() => snapshots.stream;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
 class _TrackingDownloadsProvider extends AcquisitionDownloadsProvider {

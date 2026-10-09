@@ -824,6 +824,14 @@ class _LibraryPageState extends State<LibraryPage> {
     }
 
     if (isLoading) {
+      if (context.watch<DataStore>().libraryLoadError != null) {
+        return const EmptyState(
+          icon: Icons.cloud_off_outlined,
+          title: 'Waiting for your library',
+          subtitle: 'Your books will appear when the connection is restored.',
+        );
+      }
+
       return const Center(child: AppCircularProgressIndicator());
     }
 

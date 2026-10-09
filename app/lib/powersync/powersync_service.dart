@@ -65,6 +65,8 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
   PowerSyncDatabase? _database;
   LibraryDatabase? _library;
   LibrarySnapshot? _snapshot;
+  LibrarySnapshot? _databaseSnapshot;
+  bool _waitingForFirstSync = false;
   bool get supportsTracking => _library?.trackingSupported == true;
   int get trackingSchemaVersion => _library?.trackingSchemaVersion ?? 0;
   final _libraryController = StreamController<LibrarySnapshot>.broadcast();
@@ -375,16 +377,27 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
 
     _booksSubscription = database
         .watch('SELECT count(*) FROM books', triggerOnTables: libraryTableNames)
-        .asyncMap((_) => library.snapshot())
+        .asyncMap((_) async {
+          final syncedBeforeRead = database.currentStatus.hasSynced == true;
+          final snapshot = await library.snapshot();
+          return (snapshot: snapshot, syncedBeforeRead: syncedBeforeRead);
+        })
         .listen(
-          (snapshot) {
+          (result) {
             if (!library.active) {
               return;
             }
 
-            _snapshot = snapshot;
-            _booksController.add(snapshot.books);
-            _libraryController.add(snapshot);
+            final snapshot = result.snapshot;
+
+            if (snapshot.books.isEmpty && !result.syncedBeforeRead && database.currentStatus.hasSynced == true) {
+              // A transaction opened before the checkpoint may still see the old empty cache.
+              _watchBooks(database);
+              return;
+            }
+
+            _databaseSnapshot = snapshot;
+            _publishLibrarySnapshot(snapshot, database);
           },
           onError: (Object error, StackTrace stack) {
             if (library.active) {
@@ -398,10 +411,45 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
     unawaited(_statusSubscription?.cancel());
 
     _statusSubscription = database.statusStream.listen((status) async {
+      if (!identical(_database, database)) {
+        return;
+      }
+
+      final snapshot = _databaseSnapshot;
+
+      if (_waitingForFirstSync && snapshot != null) {
+        if (status.hasSynced == true) {
+          // Read after the first checkpoint before exposing an empty library.
+          _waitingForFirstSync = false;
+          _databaseSnapshot = null;
+          _watchBooks(database);
+        } else {
+          _publishLibrarySnapshot(snapshot, database);
+        }
+      }
+
       await _setStatusFromPowerSync(status);
     });
 
     unawaited(_setStatusFromPowerSync(database.currentStatus));
+  }
+
+  void _publishLibrarySnapshot(LibrarySnapshot snapshot, PowerSyncDatabase database) {
+    final status = database.currentStatus;
+    _waitingForFirstSync =
+        _mode == LibraryDatabaseMode.authenticated &&
+        connectAuthenticated &&
+        snapshot.books.isEmpty &&
+        status.hasSynced != true;
+
+    final published = snapshot.withLoadState(
+      isLoaded: !_waitingForFirstSync,
+      error: _waitingForFirstSync ? status.downloadError : null,
+    );
+
+    _snapshot = published;
+    _booksController.add(published.books);
+    _libraryController.add(published);
   }
 
   Future<void> _setStatusFromPowerSync(SyncStatus status) async {
@@ -536,7 +584,9 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
     if (library != null) {
       library.active = false;
       _library = null;
-      _snapshot = const LibrarySnapshot();
+      _snapshot = const LibrarySnapshot(isLoaded: false);
+      _databaseSnapshot = null;
+      _waitingForFirstSync = false;
       _booksController.add(const []);
       _libraryController.add(_snapshot!);
     }
