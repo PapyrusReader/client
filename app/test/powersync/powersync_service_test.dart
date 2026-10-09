@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/models/book.dart';
+import 'package:papyrus/powersync/library_database.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/sync_state.dart';
 import 'package:path/path.dart' as path;
@@ -52,10 +55,10 @@ void main() {
     }
   });
 
-  PapyrusPowerSyncService service() {
+  PapyrusPowerSyncService service({bool connectAuthenticated = false}) {
     return PapyrusPowerSyncService(
       connectorFactory: OfflineConnector.new,
-      connectAuthenticated: false,
+      connectAuthenticated: connectAuthenticated,
       pathResolver: (mode, profileKey, userId) async => path.join(
         directory.path,
         mode == LibraryDatabaseMode.guest ? 'guest.db' : 'account-${profileKey ?? 'default'}-${userId ?? 'none'}.db',
@@ -72,6 +75,131 @@ void main() {
     await second.activateGuest();
     expect((await second.getById('guest-book'))?.title, 'Persistent guest book');
     await second.close();
+  });
+
+  test('profile switches clear stale books without exposing a loaded empty library', () async {
+    final allowSwitch = Completer<void>();
+
+    final first = PapyrusPowerSyncService(
+      connectorFactory: OfflineConnector.new,
+      connectAuthenticated: false,
+      pathResolver: (mode, profileKey, userId) async {
+        if (profileKey == 'second') {
+          await allowSwitch.future;
+        }
+
+        return path.join(directory.path, '$profileKey.db');
+      },
+    );
+
+    final store = DataStore(bookRepository: first);
+    final states = <LibrarySnapshot>[];
+    final subscription = first.watchLibrary().listen(states.add);
+    await first.activateAuthenticated('user-one', profileKey: 'first');
+    await first.upsert(_book('first-book'));
+    await first.watchLibrary().firstWhere((snapshot) => snapshot.books.isNotEmpty);
+    expect(store.isLoaded, isTrue);
+    states.clear();
+    final switching = first.activateAuthenticated('user-one', profileKey: 'second');
+    await first.watchLibrary().firstWhere((snapshot) => !snapshot.isLoaded);
+    expect(store.books, isEmpty);
+    expect(store.isLoaded, isFalse);
+    expect(states, isNotEmpty);
+    expect(states.every((snapshot) => !snapshot.isLoaded), isTrue);
+    expect((await first.watchLibrary().first).isLoaded, isFalse);
+    allowSwitch.complete();
+    await switching;
+    await store.waitUntilLoaded();
+    expect(store.books, isEmpty);
+    await subscription.cancel();
+    await store.disposeBookRepository();
+    store.dispose();
+    await first.close();
+  });
+
+  test('an empty account waits for its first sync checkpoint before becoming empty', () async {
+    final first = service(connectAuthenticated: true);
+    final store = DataStore(bookRepository: first);
+    await first.activateAuthenticated('user-one');
+    await first.watchLibrary().firstWhere((snapshot) => !snapshot.isLoaded);
+    expect(store.isLoaded, isFalse);
+    final database = (first.trackingRepository as LibraryDatabase).database;
+
+    // The SDK exposes setStatus specifically for tests of sync transitions.
+    // ignore: invalid_use_of_protected_member, invalid_use_of_internal_member
+    database.setStatus(SyncStatus(hasSynced: true));
+    await store.waitUntilLoaded();
+    expect(store.isLoaded, isTrue);
+    expect(store.books, isEmpty);
+    await store.disposeBookRepository();
+    store.dispose();
+    await first.close();
+  });
+
+  test('first-sync failure remains distinct from an empty library and recovers', () async {
+    final first = service(connectAuthenticated: true);
+    final store = DataStore(bookRepository: first);
+    await first.activateAuthenticated('user-one');
+    await first.watchLibrary().firstWhere((snapshot) => !snapshot.isLoaded);
+    final database = (first.trackingRepository as LibraryDatabase).database;
+    final failure = StateError('Connection unavailable');
+
+    // ignore: invalid_use_of_protected_member, invalid_use_of_internal_member
+    database.setStatus(SyncStatus(hasSynced: false, downloadError: failure));
+    await first.watchLibrary().firstWhere((snapshot) => snapshot.loadError != null);
+    expect(store.isLoaded, isFalse);
+    expect(store.libraryLoadError, same(failure));
+    await first.upsert(_book('downloaded-book'));
+
+    // ignore: invalid_use_of_protected_member, invalid_use_of_internal_member
+    database.setStatus(SyncStatus(hasSynced: true));
+    await store.waitUntilLoaded();
+    expect(store.books.single.id, 'downloaded-book');
+    expect(store.libraryLoadError, isNull);
+    await store.disposeBookRepository();
+    store.dispose();
+    await first.close();
+  });
+
+  test('first sync reads checkpoint data before publishing a ready snapshot', () async {
+    final first = service(connectAuthenticated: true);
+    final states = <LibrarySnapshot>[];
+    final subscription = first.watchLibrary().listen(states.add);
+    await first.activateAuthenticated('user-one');
+    await first.watchLibrary().firstWhere((snapshot) => !snapshot.isLoaded);
+    final database = (first.trackingRepository as LibraryDatabase).database;
+
+    await database.execute(
+      'INSERT INTO books (id, title, author, added_at) VALUES (?, ?, ?, ?)',
+      ['synced-book', 'Synced book', 'Author', DateTime.utc(2026).toIso8601String()],
+    );
+
+    // ignore: invalid_use_of_protected_member, invalid_use_of_internal_member
+    database.setStatus(SyncStatus(hasSynced: true));
+    final ready = await first.watchLibrary().firstWhere((snapshot) => snapshot.isLoaded);
+    expect(ready.books.single.id, 'synced-book');
+    expect(states.where((snapshot) => snapshot.isLoaded && snapshot.books.isEmpty), isEmpty);
+    await subscription.cancel();
+    await first.close();
+  });
+
+  test('cached books are ready without waiting for a network connection', () async {
+    final first = service();
+    await first.activateAuthenticated('user-one');
+    await first.upsert(_book('cached-book'));
+    await first.close();
+    final reopened = service(connectAuthenticated: true);
+    final states = <LibrarySnapshot>[];
+    final subscription = reopened.watchLibrary().listen(states.add);
+    final store = DataStore(bookRepository: reopened);
+    await reopened.activateAuthenticated('user-one');
+    await store.waitUntilLoaded();
+    expect(store.books.single.id, 'cached-book');
+    expect(states.where((snapshot) => snapshot.isLoaded && snapshot.books.isEmpty), isEmpty);
+    await subscription.cancel();
+    await store.disposeBookRepository();
+    store.dispose();
+    await reopened.close();
   });
 
   test('getById waits for database activation', () async {

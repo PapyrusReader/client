@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/opds/opds_catalog_store.dart';
@@ -17,6 +19,8 @@ import 'package:papyrus/auth/auth_repository.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/config/app_router.dart';
+import 'package:papyrus/pages/login_page.dart';
+import 'package:papyrus/pages/welcome_page.dart';
 import 'package:papyrus/providers/acquisition_availability_provider.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
@@ -48,6 +52,7 @@ class FakeAuthRepository extends AuthRepository {
       );
 
   AuthTokens? bootstrapResult;
+  Completer<void>? bootstrapGate;
 
   @override
   Future<AuthTokens> login({
@@ -59,6 +64,7 @@ class FakeAuthRepository extends AuthRepository {
 
   @override
   Future<AuthTokens?> bootstrap() async {
+    await bootstrapGate?.future;
     return bootstrapResult;
   }
 }
@@ -66,6 +72,101 @@ class FakeAuthRepository extends AuthRepository {
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  for (final signedIn in [true, false]) {
+    for (final destination in ['/', '/login', '/library/books?view=list']) {
+      testWidgets('defers $destination until ${signedIn ? 'signed-in' : 'signed-out'} session restore finishes', (
+        tester,
+      ) async {
+        final prefs = await SharedPreferences.getInstance();
+
+        final repository = FakeAuthRepository()
+          ..bootstrapGate = Completer<void>()
+          ..bootstrapResult = signedIn ? _tokens() : null;
+
+        final auth = AuthProvider(prefs, repository: repository);
+        final appRouter = await _buildRouter(authProvider: auth, prefs: prefs);
+        final store = createTestDataStore(books: [], shelves: []);
+        final library = LibraryProvider();
+        final sidebar = SidebarProvider();
+        final catalogs = OpdsCatalogs(OpdsCatalogStore(prefs))..setScope('test');
+
+        addTearDown(() async {
+          await tester.pumpWidget(const SizedBox.shrink());
+          appRouter.router.dispose();
+          auth.dispose();
+          appRouter.preferencesProvider.dispose();
+          appRouter.syncSettingsProvider.dispose();
+          appRouter.acquisitionAvailabilityProvider.dispose();
+          store.dispose();
+          library.dispose();
+          sidebar.dispose();
+          catalogs.dispose();
+        });
+
+        appRouter.router.go(destination);
+
+        await tester.pumpWidget(
+          MultiProvider(
+            providers: [
+              ChangeNotifierProvider.value(value: auth),
+              ChangeNotifierProvider.value(value: store),
+              ChangeNotifierProvider.value(value: library),
+              ChangeNotifierProvider.value(value: sidebar),
+              ChangeNotifierProvider.value(value: catalogs),
+            ],
+            child: MaterialApp.router(theme: AppTheme.dark, routerConfig: appRouter.router),
+          ),
+        );
+
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 250));
+        expect(find.byType(CircularProgressIndicator), findsOneWidget);
+        expect(find.byType(LoginPage), findsNothing);
+        expect(find.byType(WelcomePage), findsNothing);
+        expect(find.byType(AdaptiveAppShell), findsNothing);
+        repository.bootstrapGate!.complete();
+        await tester.pumpAndSettle();
+
+        if (signedIn) {
+          expect(find.byType(AdaptiveAppShell), findsOneWidget);
+          expect(find.byType(LoginPage), findsNothing);
+          expect(appRouter.router.routeInformationProvider.value.uri.path, '/library/books');
+
+          if (destination.contains('?')) {
+            expect(appRouter.router.routeInformationProvider.value.uri.query, 'view=list');
+          }
+        } else {
+          expect(find.byType(AdaptiveAppShell), findsNothing);
+          expect(appRouter.router.routeInformationProvider.value.uri.path, destination == '/login' ? '/login' : '/');
+        }
+
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
+  test('startup preserves callback and reset-link parameters', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final auth = AuthProvider(prefs, repository: FakeAuthRepository(), bootstrapOnCreate: false);
+    final appRouter = await _buildRouter(authProvider: auth, prefs: prefs);
+
+    final destinations = ['/auth/callback?code=a%2Bb&state=123', '/reset-password?token=a%2Fb#section'];
+    final startups = {for (final destination in destinations) destination: appRouter.redirectForPath(destination)!};
+    await auth.bootstrap();
+
+    for (final MapEntry(key: destination, value: startup) in startups.entries) {
+      expect(Uri.parse(startup).queryParameters['from'], destination);
+      expect(appRouter.redirectForPath(startup), destination);
+    }
+
+    expect(appRouter.redirectForPath('/startup?from=https%3A%2F%2Fother.test'), '/');
+    expect(appRouter.redirectForPath('/startup?from=%2Fstartup'), '/');
+    auth.dispose();
+    appRouter.preferencesProvider.dispose();
+    appRouter.syncSettingsProvider.dispose();
+    appRouter.acquisitionAvailabilityProvider.dispose();
   });
 
   for (final width in [400.0, 1200.0]) {

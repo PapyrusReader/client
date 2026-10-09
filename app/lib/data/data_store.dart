@@ -59,6 +59,7 @@ class DataStore extends ChangeNotifier {
   final List<BookTagRelation> _bookTagRelations = [];
 
   bool _isLoaded = false;
+  Object? _libraryLoadError;
   bool _disposed = false;
   BookRepository? _bookRepository;
   StreamSubscription<List<Book>>? _bookSubscription;
@@ -130,16 +131,18 @@ class DataStore extends ChangeNotifier {
       _series.clear();
     }
 
-    replaceBooksFromSync(snapshot.books);
+    _libraryLoadError = snapshot.loadError;
+    replaceBooksFromSync(snapshot.books, isLoaded: snapshot.isLoaded);
   }
 
   bool get isLoaded => _isLoaded;
+  Object? get libraryLoadError => _libraryLoadError;
 
-  /// Completes when the active book repository has emitted its first snapshot.
+  /// Completes when the active library has a ready snapshot.
   ///
   /// A direct repository lookup may temporarily return null while persistent
-  /// storage is still opening. Callers should wait for this before treating a
-  /// missing ID as authoritative.
+  /// storage is still opening or an empty account cache is awaiting its first
+  /// sync. Wait for this before treating a missing ID as authoritative.
   Future<void> waitUntilLoaded() {
     if (_isLoaded) {
       return Future<void>.value();
@@ -356,7 +359,7 @@ class DataStore extends ChangeNotifier {
     }
   }
 
-  void replaceBooksFromSync(List<Book> books) {
+  void replaceBooksFromSync(List<Book> books, {bool isLoaded = true}) {
     if (_disposed) {
       return;
     }
@@ -387,7 +390,7 @@ class DataStore extends ChangeNotifier {
     _annotations.removeWhere((key, annotation) => !syncedIds.contains(annotation.bookId));
     _notes.removeWhere((key, note) => !syncedIds.contains(note.bookId));
     _bookmarks.removeWhere((key, bookmark) => !syncedIds.contains(bookmark.bookId));
-    _isLoaded = true;
+    _isLoaded = isLoaded;
     notifyListeners();
   }
 
@@ -1032,6 +1035,7 @@ class DataStore extends ChangeNotifier {
 
   /// Clear all data.
   void clear() {
+    _libraryLoadError = null;
     _books.clear();
     _shelves.clear();
     _tags.clear();
