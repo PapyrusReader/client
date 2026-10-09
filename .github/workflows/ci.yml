@@ -74,7 +74,7 @@ jobs:
             --input build/test-results/tests.junit.json \
             --output build/test-results/junit.xml \
             --base "$PWD/" \
-            --package app/
+            --package app
           test -s build/test-results/junit.xml
 
       - name: Save test results
