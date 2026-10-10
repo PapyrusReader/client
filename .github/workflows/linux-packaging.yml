@@ -11,6 +11,7 @@ on:
       - 'tools/check_packaged_reader.*'
       - 'tools/install_linux_build_dependencies.sh'
       - 'tools/package_linux.sh'
+      - 'tools/complete_appimage_libraries.py'
       - 'tools/extract_appimage.py'
       - 'tools/check_linux_packages.sh'
       - 'tools/setup_packaging_apparmor.sh'

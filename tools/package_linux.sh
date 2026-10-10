@@ -59,7 +59,8 @@ fetch https://github.com/AppImage/type2-runtime/releases/download/20251108/runti
 python3 ../tools/extract_appimage.py "$work/linuxdeploy.AppImage" "$work/linuxdeploy-tool"
 python3 ../tools/extract_appimage.py "$work/appimagetool.AppImage" "$work/appimagetool-tool"
 appdir="$work/AppDir"
-mkdir -p "$appdir/usr/bin" "$appdir/usr/lib" "$appdir/usr/libexec/gstreamer-1.0"
+mkdir -p "$appdir/usr/bin" "$appdir/usr/lib" "$appdir/usr/libexec/gstreamer-1.0" "$appdir/etc"
+cp -aL /etc/fonts "$appdir/etc/"
 cp -a "$bundle/." "$appdir/usr/bin/"
 cp -a /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1 "$appdir/usr/lib/"
 cp -a /usr/lib/x86_64-linux-gnu/gio "$appdir/usr/lib/"
@@ -77,6 +78,7 @@ LD_LIBRARY_PATH="$appdir/usr/bin/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
   "${libraries[@]}" --plugin gtk \
   --desktop-file ../packaging/linux/com.papyrus.papyrus.desktop \
   --icon-file "$package/usr/share/icons/hicolor/256x256/apps/com.papyrus.papyrus.png"
+python3 ../tools/complete_appimage_libraries.py "$appdir"
 # Include upstream copyright and redistribution notices for bundled dependencies.
 mkdir -p "$appdir/usr/share/doc/build-system"
 cp -a /usr/share/doc/. "$appdir/usr/share/doc/build-system/"

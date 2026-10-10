@@ -2,6 +2,8 @@
 set -eo pipefail
 APPDIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 export APPDIR
+export FONTCONFIG_PATH="$APPDIR/etc/fonts"
+export FONTCONFIG_FILE="$FONTCONFIG_PATH/fonts.conf"
 for dependency in /usr/bin/bwrap /usr/bin/xdg-dbus-proxy; do
   if [[ ! -x "$dependency" ]]; then
     echo 'Papyrus AppImage requires bubblewrap and xdg-dbus-proxy for the WebKit sandbox.' >&2
