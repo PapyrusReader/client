@@ -15,7 +15,8 @@ bash ../tools/check_appimage_runtime.sh "dist/$base.AppImage" "$work/webkit-smok
 # The Debian container deliberately has no system WebKitGTK installation.
 # Extra namespace capability is confined to this disposable test container;
 # WebKit's sandbox stays enabled inside it.
-docker run --rm --cap-add SYS_ADMIN --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
+docker run --rm --cap-add SYS_ADMIN --security-opt seccomp=unconfined \
+  --security-opt "apparmor=${PAPYRUS_APPARMOR_PROFILE:-unconfined}" \
   -v "$PWD/dist:/packages:ro" -v "$work/webkit-smoke:/webkit-smoke:ro" \
   -v "$PWD/../tools/check_appimage_runtime.sh:/check-runtime.sh:ro" \
   -e "PAPYRUS_TEST_IMAGE=/packages/$base.AppImage" debian:13-slim bash -ec '

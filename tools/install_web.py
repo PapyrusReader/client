@@ -74,7 +74,11 @@ def verify_public(url: str, metadata: dict, release: Path) -> None:
                 ("/flutter_bootstrap.js", "flutter_bootstrap.js"),
             ):
                 request = urllib.request.Request(
-                    f"{url}{route}?deployment={metadata['revision']}", headers={"Cache-Control": "no-cache"}
+                    f"{url}{route}?deployment={metadata['revision']}",
+                    headers={
+                        "Cache-Control": "no-cache",
+                        "User-Agent": "PapyrusReleaseVerifier/1.0 (+https://github.com/PapyrusReader/client)",
+                    },
                 )
 
                 with urllib.request.urlopen(request, timeout=10) as response:

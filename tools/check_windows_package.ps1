@@ -3,12 +3,31 @@ $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Set-Location (Join-Path $PSScriptRoot '../app')
 if ($RequireMissingRuntime) {
-    if ($env:GITHUB_ACTIONS -ne 'true') { throw 'Runtime removal is restricted to disposable CI runners' }
-    $RuntimeRoot = Join-Path ${env:ProgramFiles(x86)} 'Microsoft/EdgeWebView/Application'
-    foreach ($Setup in @(Get-ChildItem "$RuntimeRoot/*/Installer/setup.exe" -ErrorAction SilentlyContinue)) {
-        $Removal = Start-Process $Setup.FullName -ArgumentList @('--uninstall', '--msedgewebview', '--system-level', '--force-uninstall') -Wait -PassThru
-        if ($Removal.ExitCode -ne 0) { throw "WebView2 removal failed: $($Removal.ExitCode)" }
+    if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted') {
+        throw 'Runtime isolation is restricted to disposable GitHub-hosted runners'
     }
+
+    # Evergreen is an OS component on current runners and refuses uninstallation.
+    # Quarantine both binaries and registrations, not just the detection key.
+    $Quarantine = Join-Path ([IO.Path]::GetTempPath()) ('papyrus-webview-' + [Guid]::NewGuid().ToString())
+    New-Item -ItemType Directory $Quarantine | Out-Null
+    Get-Process msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force
+    $RuntimeRoots = @(
+        (Join-Path ${env:ProgramFiles(x86)} 'Microsoft/EdgeWebView'),
+        (Join-Path $env:LOCALAPPDATA 'Microsoft/EdgeWebView')
+    )
+    foreach ($RuntimeRoot in $RuntimeRoots) {
+        if (Test-Path $RuntimeRoot) {
+            Move-Item $RuntimeRoot (Join-Path $Quarantine ([Guid]::NewGuid().ToString()))
+        }
+    }
+    foreach ($Root in @('HKLM:/Software/WOW6432Node/Microsoft/EdgeUpdate', 'HKCU:/Software/Microsoft/EdgeUpdate')) {
+        foreach ($Registration in @('Clients', 'ClientState', 'ClientStateMedium')) {
+            $Key = "$Root/$Registration/{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}"
+            if (Test-Path $Key) { Remove-Item $Key -Recurse -Force }
+        }
+    }
+    Write-Output 'Preinstalled WebView2 binaries and registrations isolated on disposable runner'
     $ClientKey = 'Software/Microsoft/EdgeUpdate/Clients/{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
     foreach ($Key in @("HKLM:/Software/WOW6432Node/Microsoft/EdgeUpdate/Clients/{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", "HKCU:/$ClientKey")) {
         $Runtime = Get-ItemProperty $Key -Name pv -ErrorAction SilentlyContinue
@@ -16,8 +35,10 @@ if ($RequireMissingRuntime) {
             throw 'WebView2 remains installed; missing-runtime coverage cannot be claimed'
         }
     }
-    if (Get-ChildItem "$RuntimeRoot/*/msedgewebview2.exe" -ErrorAction SilentlyContinue) {
-        throw 'WebView2 executable remains after removal'
+    foreach ($RuntimeRoot in $RuntimeRoots) {
+        if (Get-ChildItem "$RuntimeRoot/Application/*/msedgewebview2.exe" -ErrorAction SilentlyContinue) {
+            throw 'WebView2 executable remains after isolation'
+        }
     }
 }
 $Installer = (Resolve-Path "dist/papyrus-$Tag-windows-x64-setup.exe").Path

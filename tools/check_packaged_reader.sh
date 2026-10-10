@@ -24,7 +24,8 @@ sudo apt-get remove -y papyrus
 # Allow nested WebKit namespaces only in this disposable test container.
 # No system WebKit or GTK is installed; the AppImage must supply them.
 chmod 777 "$reports"
-docker run --rm --cap-add SYS_ADMIN --security-opt seccomp=unconfined --security-opt apparmor=unconfined \
+docker run --rm --cap-add SYS_ADMIN --security-opt seccomp=unconfined \
+  --security-opt "apparmor=${PAPYRUS_APPARMOR_PROFILE:-unconfined}" \
   -v "$image:/papyrus.AppImage:ro" -v "$reports:/reports" \
   -v "$PWD/../tools/run_packaged_smoke.py:/run-smoke.py:ro" debian:13-slim bash -ec '
     apt-get update -qq
