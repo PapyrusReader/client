@@ -34,7 +34,7 @@ class BookActionButtons extends StatelessWidget {
     final actionStyle = bookDetailsActionStyle(context);
     final iconStyle = bookDetailsActionStyle(context, iconOnly: true);
 
-    final normalReadingLabel = switch (book.progress > 0) {
+    final normalReadingLabel = switch (book.currentPosition > 0) {
       true => 'Continue',
       false when isDesktop => 'Start reading',
       false => 'Read',
@@ -53,7 +53,7 @@ class BookActionButtons extends StatelessWidget {
         readingActionState == BookReadingActionState.ready || readingActionState == BookReadingActionState.download;
 
     final digitalIcon = switch (readingActionState) {
-      BookReadingActionState.ready => Icon(book.progress > 0 ? Icons.play_arrow : Icons.menu_book),
+      BookReadingActionState.ready => Icon(book.currentPosition > 0 ? Icons.play_arrow : Icons.menu_book),
       BookReadingActionState.download => const Icon(Icons.download_outlined),
       BookReadingActionState.downloading => const SizedBox.square(
         dimension: 18,

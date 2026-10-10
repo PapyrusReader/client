@@ -62,9 +62,9 @@ class ContinueReadingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: Spacing.sm),
                 BookProgressBar(
-                  progress: book!.progress,
+                  progress: book!.currentPosition,
                   currentPage: book!.currentPage,
-                  totalPages: book!.totalPages,
+                  totalPages: book!.pageCount,
                   showLabel: true,
                   height: 4,
                 ),
@@ -109,9 +109,9 @@ class ContinueReadingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: Spacing.md),
                 BookProgressBar(
-                  progress: book!.progress,
+                  progress: book!.currentPosition,
                   currentPage: book!.currentPage,
-                  totalPages: book!.totalPages,
+                  totalPages: book!.pageCount,
                   showLabel: true,
                   height: 4,
                 ),
@@ -162,7 +162,7 @@ class ContinueReadingCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: CoverImage(
         bookId: book?.id,
-        imageUrl: book?.coverURL,
+        imageUrl: book?.coverUrl,
         mediaId: book?.coverMediaId,
         placeholder: _buildCoverPlaceholder(context),
       ),

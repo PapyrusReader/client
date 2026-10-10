@@ -84,7 +84,7 @@ class _BookAnnotationsState extends State<BookAnnotations> {
       final query = _searchQuery.toLowerCase();
 
       result = result.where((annotation) {
-        return annotation.highlightText.toLowerCase().contains(query) ||
+        return annotation.selectedText.toLowerCase().contains(query) ||
             (annotation.note?.toLowerCase().contains(query) ?? false) ||
             annotation.location.displayLocation.toLowerCase().contains(query);
       }).toList();

@@ -223,7 +223,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
       return placeholder;
     }
 
-    return CoverImage(bookId: book.id, imageUrl: book.coverURL, mediaId: book.coverMediaId, placeholder: placeholder);
+    return CoverImage(bookId: book.id, imageUrl: book.coverUrl, mediaId: book.coverMediaId, placeholder: placeholder);
   }
 
   Widget _buildEmptyState(BuildContext context) {

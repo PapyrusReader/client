@@ -149,7 +149,6 @@ const papyrusAccountSchema = Schema([
   Table('bookmarks', _bookmarkColumns, indexes: _bookmarkIndexes),
   Table('book_shelves', _bookShelvesColumns),
   Table('book_tags', _bookTagsColumns),
-  Table.localOnly('library_migrations', [Column.integer('version')]),
 ]);
 
 const papyrusGuestSchema = Schema([
@@ -165,8 +164,4 @@ const papyrusGuestSchema = Schema([
   Table.localOnly('bookmarks', _bookmarkColumns, indexes: _bookmarkIndexes),
   Table.localOnly('book_shelves', _bookShelvesColumns),
   Table.localOnly('book_tags', _bookTagsColumns),
-  Table.localOnly('library_migrations', [Column.integer('version')]),
 ]);
-
-@Deprecated('Use papyrusAccountSchema')
-const papyrusPowerSyncSchema = papyrusAccountSchema;

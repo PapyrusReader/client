@@ -148,7 +148,7 @@ class _AnnotationCardState extends State<AnnotationCard> {
   /// Quoted highlight text with italic styling.
   Widget _buildHighlightText(TextTheme textTheme) {
     return Text(
-      '"${widget.annotation.highlightText}"',
+      '"${widget.annotation.selectedText}"',
       style: textTheme.bodyLarge?.copyWith(fontStyle: FontStyle.italic),
     );
   }

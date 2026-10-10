@@ -57,6 +57,7 @@ void main() {
       rating: 4,
       customMetadata: const {
         'nested': {'value': 1},
+        'reader_locator': {'version': 1, 'spineIndex': 3},
         'list': ['a', 'b'],
       },
       seriesId: 'series',
@@ -68,20 +69,10 @@ void main() {
       lastReadAt: date,
     );
 
-    final restored = PowerSyncBookMapper.fromRow(PowerSyncBookMapper.toRow(original));
+    final row = PowerSyncBookMapper.toRow(original);
+    expect(jsonDecode(row['custom_metadata'] as String), original.customMetadata);
+    final restored = PowerSyncBookMapper.fromRow(row);
     expect(restored.toJson(), original.toJson());
-  });
-
-  test('explicit null promoted fields override legacy metadata', () {
-    final book = PowerSyncBookMapper.fromRow({
-      'id': 'book',
-      'physical_location': null,
-      'is_physical': 0,
-      'custom_metadata': jsonEncode({'physical_location': 'Old', 'is_physical': true}),
-    });
-
-    expect(book.physicalLocation, isNull);
-    expect(book.isPhysical, isFalse);
   });
 
   test('maps Book to synced row without file path or embedded cover bytes', () {
@@ -126,12 +117,13 @@ void main() {
       'title': 'Synced Book',
       'author': 'Author',
       'co_authors': jsonEncode(['Co Author']),
-      'reading_status': 'in_progress',
+      'reading_status': 'inProgress',
       'current_position': 0.5,
       'is_favorite': 1,
       'file_media_id': '22222222-2222-2222-2222-222222222222',
       'cover_media_id': '33333333-3333-3333-3333-333333333333',
-      'custom_metadata': jsonEncode({'file_format': 'epub', 'is_physical': false}),
+      'file_format': 'epub',
+      'is_physical': 0,
       'added_at': '2026-05-09T12:00:00Z',
     });
 

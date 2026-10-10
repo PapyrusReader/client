@@ -8,12 +8,14 @@ import 'package:papyrus/media/local_cover_image_provider.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/services/book_import_result.dart';
 import 'package:uuid/uuid.dart';
+import 'package:path/path.dart' as p;
+import 'package:papyrus/services/pdf_metadata.dart';
 import 'package:web/web.dart' as web;
 
 export 'package:papyrus/services/book_import_result.dart';
 
 /// Service that communicates with the book_worker.js Web Worker for
-/// EPUB processing and OPFS file storage.
+/// EPUB processing, PDF import and OPFS file storage.
 ///
 /// Only available on web — methods throw [UnsupportedError] on other platforms.
 class BookImportService {
@@ -33,7 +35,8 @@ class BookImportService {
       return _worker!;
     }
 
-    final worker = web.Worker('book_worker.js'.toJS);
+    // Refresh cached workers when the import protocol gains a new format.
+    final worker = web.Worker('book_worker.js?v=2'.toJS);
 
     // Use web.Event (not web.MessageEvent) as the callback parameter type.
     // dart2wasm may silently drop callbacks when the parameter type is a
@@ -141,7 +144,7 @@ class BookImportService {
 
   /// Processes a book file and stores it in OPFS via the web worker.
   ///
-  /// Only 'epub' format is currently supported.
+  /// Supports EPUB and PDF files.
   /// Throws [UnsupportedError] when called on non-web platforms.
   /// Throws [ArgumentError] for unsupported file formats.
   Future<BookImportResult> importBook(Uint8List bytes, String filename) async {
@@ -151,8 +154,28 @@ class BookImportService {
 
     final ext = filename.toLowerCase().split('.').last;
 
-    if (ext != 'epub') {
-      throw ArgumentError('Unsupported format: $ext. Only epub is supported.');
+    if (ext != 'epub' && ext != 'pdf') {
+      throw ArgumentError('Unsupported format: $ext. Only EPUB and PDF are supported.');
+    }
+
+    JSObject? metadata;
+
+    if (ext == 'pdf') {
+      try {
+        final extracted = extractPdfMetadata(bytes);
+
+        if (extracted.pageCount == null || extracted.pageCount! < 1) {
+          throw const FormatException('PDF contains no readable pages.');
+        }
+
+        metadata = JSObject();
+        metadata['title'] = (extracted.title ?? p.basenameWithoutExtension(filename)).toJS;
+        metadata['author'] = extracted.primaryAuthor.toJS;
+        metadata['description'] = extracted.description?.toJS;
+        metadata['pageCount'] = extracted.pageCount!.toJS;
+      } catch (_) {
+        throw const FormatException('Could not read this PDF. It may be damaged or password-protected.');
+      }
     }
 
     final bookId = const Uuid().v4();
@@ -160,16 +183,15 @@ class BookImportService {
     final worker = _getWorker();
     _pending['process:$bookId'] = completer;
 
-    // Transfer bytes as ArrayBuffer for zero-copy transfer.
-    // Ensure we only send the actual byte range, not the whole backing buffer.
-    final actualBytes = bytes.offsetInBytes == 0 && bytes.lengthInBytes == bytes.buffer.lengthInBytes
-        ? bytes
-        : Uint8List.fromList(bytes);
+    // Batch imports retain their bytes for retries. Transfer a copy so a
+    // failed worker operation does not detach the selected file's buffer.
+    final actualBytes = Uint8List.fromList(bytes);
 
     final jsBuffer = actualBytes.buffer.toJS;
     final message = JSObject();
     message['type'] = 'process'.toJS;
     message['format'] = ext.toJS;
+    message['metadata'] = metadata;
     message['bookId'] = bookId.toJS;
     message['fileData'] = jsBuffer;
     worker.postMessage(message, [jsBuffer].toJS);

@@ -89,7 +89,7 @@ class RecentlyAddedSection extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: CoverImage(
             bookId: book.id,
-            imageUrl: book.coverURL,
+            imageUrl: book.coverUrl,
             mediaId: book.coverMediaId,
             placeholder: _buildCoverPlaceholder(context, book),
           ),

@@ -318,7 +318,6 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
     _database = database;
     _library = LibraryDatabase(database, _refreshPendingWrites);
     _library!.trackingSupported = mode == LibraryDatabaseMode.guest;
-    await _library!.migrateLegacyBooks();
     _watchBooks(database);
 
     if (mode == LibraryDatabaseMode.authenticated && connectAuthenticated) {

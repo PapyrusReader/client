@@ -11,51 +11,15 @@ import 'package:epub_pro/src/schema/opf/epub_metadata_date.dart';
 import 'package:epub_pro/src/schema/opf/epub_metadata_identifier.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as p;
-import 'package:syncfusion_flutter_pdf/pdf.dart';
+import 'package:papyrus/services/file_metadata_result.dart';
+import 'package:papyrus/services/pdf_metadata.dart';
 // ignore: implementation_imports
 import 'package:unrar_file/src/rarFile.dart';
 // ignore: implementation_imports
 import 'package:unrar_file/src/rar_decoder.dart';
 import 'package:xml/xml.dart';
 
-/// Result of extracting metadata from a book file.
-class FileMetadataResult {
-  final String? title;
-  final String? subtitle;
-  final List<String>? authors;
-  final String? publisher;
-  final String? publishedDate;
-  final String? description;
-  final String? language;
-  final String? isbn;
-  final String? isbn13;
-  final int? pageCount;
-  final Uint8List? coverImageBytes;
-  final String? coverImageMimeType;
-  final List<String> warnings;
-
-  const FileMetadataResult({
-    this.title,
-    this.subtitle,
-    this.authors,
-    this.publisher,
-    this.publishedDate,
-    this.description,
-    this.language,
-    this.isbn,
-    this.isbn13,
-    this.pageCount,
-    this.coverImageBytes,
-    this.coverImageMimeType,
-    this.warnings = const [],
-  });
-
-  /// Get the primary author or empty string.
-  String get primaryAuthor => authors?.isNotEmpty == true ? authors!.first : '';
-
-  /// Get co-authors (all authors except the first).
-  List<String> get coAuthors => authors != null && authors!.length > 1 ? authors!.sublist(1) : [];
-}
+export 'package:papyrus/services/file_metadata_result.dart';
 
 /// Parsed ComicInfo.xml fields shared between CBZ and CBR extractors.
 class _ComicInfoData {
@@ -90,7 +54,7 @@ class FileMetadataService {
         case '.epub':
           return await _extractEpub(bytes);
         case '.pdf':
-          return _extractPdf(bytes);
+          return extractPdfMetadata(bytes);
         case '.mobi' || '.azw3' || '.azw':
           return await _extractMobi(bytes);
         case '.cbz':
@@ -186,84 +150,6 @@ class FileMetadataService {
     }
 
     return (isbn, isbn13);
-  }
-
-  FileMetadataResult _extractPdf(Uint8List bytes) {
-    final warnings = <String>[];
-    final document = PdfDocument(inputBytes: bytes);
-
-    try {
-      final info = document.documentInformation;
-
-      // Title
-      String? title;
-
-      try {
-        final t = info.title;
-
-        if (t.isNotEmpty) {
-          title = t;
-        }
-      } catch (error) {
-        warnings.add('Could not read PDF title: $error');
-      }
-
-      // Author
-      List<String>? authors;
-
-      try {
-        final a = info.author;
-
-        if (a.isNotEmpty) {
-          authors = [a];
-        }
-      } catch (error) {
-        warnings.add('Could not read PDF author: $error');
-      }
-
-      // Subject → description
-      String? description;
-
-      try {
-        final s = info.subject;
-
-        if (s.isNotEmpty) {
-          description = s;
-        }
-      } catch (error) {
-        warnings.add('Could not read PDF subject: $error');
-      }
-
-      // Page count
-      int? pageCount;
-
-      try {
-        pageCount = document.pages.count;
-      } catch (error) {
-        warnings.add('Could not read PDF page count: $error');
-      }
-
-      // Published date from creation date
-      String? publishedDate;
-
-      try {
-        final date = info.creationDate;
-        publishedDate = date.toIso8601String().split('T').first;
-      } catch (_) {
-        // creationDate may not be set
-      }
-
-      return FileMetadataResult(
-        title: title,
-        authors: authors,
-        description: description,
-        pageCount: pageCount,
-        publishedDate: publishedDate,
-        warnings: warnings,
-      );
-    } finally {
-      document.dispose();
-    }
   }
 
   Future<FileMetadataResult> _extractMobi(Uint8List bytes) async {

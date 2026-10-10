@@ -18,8 +18,8 @@ class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository {
   final Future<void> Function() onWrite;
   bool active = true;
   int trackingSchemaVersion = 0;
-  bool get trackingSupported => trackingSchemaVersion > 0;
-  set trackingSupported(bool value) => trackingSchemaVersion = value ? 2 : 0;
+  bool get trackingSupported => trackingSchemaVersion == currentTrackingSchemaVersion;
+  set trackingSupported(bool value) => trackingSchemaVersion = value ? currentTrackingSchemaVersion : 0;
 
   @override
   bool get isCurrent => active;
@@ -244,21 +244,22 @@ class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository {
     );
   });
 
-  Future<void> enableTracking({int schemaVersion = 2}) async {
+  Future<void> enableTracking({int schemaVersion = currentTrackingSchemaVersion}) async {
     final previous = trackingSchemaVersion;
 
     try {
       await write((tx) async {
         trackingSchemaVersion = schemaVersion;
+
+        if (!trackingSupported) {
+          return;
+        }
+
         final staged = await tx.getAll('SELECT * FROM tracking_staging ORDER BY table_name DESC');
 
         for (final table in trackingTableNames) {
           for (final row in staged.where((row) => row['table_name'] == table)) {
             final payload = Map<String, dynamic>.from(jsonDecode(row['payload'] as String) as Map);
-
-            if (requiredTrackingSchemaVersion(payload) > schemaVersion) {
-              continue;
-            }
 
             if (row['deleted'] == 1) {
               await tx.execute('DELETE FROM $table WHERE id = ?', [row['row_id']]);
@@ -289,7 +290,7 @@ class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository {
         ? await tx.getOptional('SELECT id FROM tracking_staging WHERE id = ?', ['$table:$id'])
         : null;
 
-    if (requiredTrackingSchemaVersion(payload) > trackingSchemaVersion || staged != null) {
+    if (!trackingSupported || staged != null) {
       await tx.execute(
         'INSERT OR REPLACE INTO tracking_staging (id, table_name, row_id, payload, deleted) VALUES (?, ?, ?, ?, ?)',
         ['$table:$id', table, id, jsonEncode(payload), deleted ? 1 : 0],
@@ -344,8 +345,10 @@ class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository {
             ? Map<String, dynamic>.from(jsonDecode(row['custom_metadata'] as String) as Map)
             : <String, dynamic>{};
 
-        final locator = patch.remove('reader_locator');
-        metadata['reader_locator'] = locator;
+        if (patch.containsKey('reader_locator')) {
+          metadata['reader_locator'] = patch.remove('reader_locator');
+        }
+
         patch['custom_metadata'] = jsonEncode(metadata);
         patch['started_at'] = row['started_at'] ?? patch['last_read_at'];
 
@@ -373,90 +376,6 @@ class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository {
       await _trackingRow(tx, 'reading_goals', {'id': deleteGoalId}, deleted: true);
     }
   });
-
-  /// Expands legacy local metadata once without clearing data or the CRUD queue.
-  Future<void> migrateLegacyBooks() async {
-    await database.writeTransaction((tx) async {
-      if (await tx.getOptional("SELECT id FROM library_migrations WHERE id = 'book-fields-v1'") != null) {
-        return;
-      }
-
-      final storageTable = database.schema.tables.singleWhere((table) => table.name == 'books').internalName;
-
-      for (final raw in await tx.getAll('SELECT id, data FROM $storageTable')) {
-        final row = Map<String, Object?>.from(jsonDecode(raw['data'] as String) as Map);
-        final encoded = row['custom_metadata'];
-
-        if (encoded is! String) {
-          continue;
-        }
-
-        final metadata = jsonDecode(encoded);
-
-        if (metadata is! Map<String, dynamic>) {
-          continue;
-        }
-
-        final changes = <String, Object?>{};
-
-        for (final entry in metadata.entries) {
-          if (row.containsKey(entry.key)) {
-            continue;
-          }
-
-          final value = _legacyPromotedValue(entry.key, entry.value);
-
-          if (value != null) {
-            changes[entry.key] = value;
-          }
-        }
-
-        if (changes.isNotEmpty) {
-          await tx.execute('UPDATE books SET ${changes.keys.map((key) => '$key = ?').join(', ')} WHERE id = ?', [
-            ...changes.values,
-            raw['id'],
-          ]);
-        }
-      }
-
-      await tx.execute("INSERT INTO library_migrations (id, version) VALUES ('book-fields-v1', 1)");
-    });
-  }
-}
-
-Object? _legacyPromotedValue(String key, Object? value) {
-  if (value == null) {
-    return null;
-  }
-
-  if (['publication_date', 'lent_at', 'started_at', 'completed_at', 'last_read_at'].contains(key)) {
-    final date = value is String ? DateTime.tryParse(value)?.toUtc() : null;
-    return date != null && date.year >= 1 && date.year <= 9999 ? date.toIso8601String() : null;
-  }
-
-  if (['file_format', 'file_hash', 'physical_location', 'lent_to', 'series_id', 'series_name'].contains(key)) {
-    return value is String ? value : null;
-  }
-
-  if (key == 'file_size') {
-    return value is int && value >= 0 && value.bitLength <= 63 ? value : null;
-  }
-
-  if (key == 'series_number') {
-    return value is num && value.isFinite ? value.toDouble() : null;
-  }
-
-  if (key == 'is_physical') {
-    if (value is bool) {
-      return value ? 1 : 0;
-    }
-
-    if (value == 0 || value == 1) {
-      return value;
-    }
-  }
-
-  return null;
 }
 
 bool _sameValue(String key, Object? a, Object? b) {

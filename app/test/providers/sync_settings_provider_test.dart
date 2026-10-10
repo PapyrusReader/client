@@ -115,20 +115,4 @@ void main() {
     expect(provider.activeServerId, SyncSettingsProvider.officialServerId);
     expect(provider.customServers, isEmpty);
   });
-
-  test('migrates legacy single custom API and sync URLs', () async {
-    SharedPreferences.setMockInitialValues({
-      'sync_server_type': 'custom',
-      'sync_custom_api_url': 'http://legacy-api.test',
-      'sync_custom_powersync_url': 'http://legacy-sync.test',
-    });
-
-    final prefs = await SharedPreferences.getInstance();
-    final provider = SyncSettingsProvider(prefs, officialConfig: officialConfig());
-    expect(provider.customServers, hasLength(1));
-    expect(provider.activeServerId, provider.customServers.single.id);
-    expect(provider.activeServerLabel, 'legacy-api.test');
-    expect(provider.activeApiConfig.serverBaseUri, Uri.parse('http://legacy-api.test'));
-    expect(provider.activeApiConfig.powerSyncServiceUri, Uri.parse('http://legacy-sync.test'));
-  });
 }

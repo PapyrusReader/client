@@ -238,9 +238,9 @@ class _BookCardState extends State<BookCard> {
                       color: job.requiresAttention ? colorScheme.error : colorScheme.primary,
                       minHeight: 3,
                     ),
-                ] else if (widget.showProgress && widget.book.progress > 0)
+                ] else if (widget.showProgress && widget.book.currentPosition > 0)
                   AppLinearProgressIndicator(
-                    value: widget.book.progress,
+                    value: widget.book.currentPosition,
                     backgroundColor: colorScheme.surfaceContainerHighest,
                     color: widget.book.readingStatus == LibraryReadingStatus.completed
                         ? colorScheme.tertiary
@@ -330,7 +330,7 @@ class _BookCardState extends State<BookCard> {
   Widget _buildCover(BuildContext context) {
     final cover = CoverImage(
       bookId: widget.book.id,
-      imageUrl: widget.book.coverURL,
+      imageUrl: widget.book.coverUrl,
       mediaId: widget.book.coverMediaId,
       placeholder: _buildPlaceholder(context),
     );

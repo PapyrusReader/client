@@ -10,7 +10,7 @@ typedef BookImportProcessor = Future<BookImportResult> Function(Uint8List bytes,
 typedef ImportedBookFileDeleter = Future<void> Function(String bookId);
 typedef ImportedBookCommitter = Future<Book> Function(BookImportResult result, String sourceFilename);
 
-const bookImportWebExtensions = ['epub'];
+const bookImportWebExtensions = ['epub', 'pdf'];
 const bookImportNativeExtensions = ['epub', 'pdf', 'mobi', 'azw3', 'txt', 'cbr', 'cbz'];
 
 enum BookImportPhase { selecting, processing, summary }

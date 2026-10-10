@@ -36,12 +36,11 @@ void main() {
     );
 
     session.updateLocator(
-      EpubReaderLocator(cfi: 'epubcfi(/6/4)', spineIndex: 1, localProgression: 0.5, totalProgression: 0.25),
+      EpubReaderLocator(spineIndex: 1, localProgression: 0.5, totalProgression: 0.25),
     );
 
     session.dispose();
     expect(saved, hasLength(1));
-    expect(saved.single.currentCfi, 'epubcfi(/6/4)');
     expect(saved.single.currentPosition, 0.25);
   });
 }

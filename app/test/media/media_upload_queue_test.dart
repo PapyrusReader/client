@@ -213,7 +213,7 @@ void main() {
     expect(queue.pendingTasks.single.errorMessage, contains('pending cover read failed'));
   });
 
-  test('legacy embedded cover bytes survive failure and are drained on retry', () async {
+  test('scoped cover uploads retain the queued task after failure and drain on retry', () async {
     final prefs = await SharedPreferences.getInstance();
     final repository = InMemoryBookRepository();
     final dataStore = DataStore(bookRepository: repository);
@@ -221,32 +221,21 @@ void main() {
     await repository.upsert(book);
     await pumpEventQueue();
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
-    final coverBytes = Uint8List.fromList('legacy cover'.codeUnits);
-
-    await prefs.setString(
-      'media_upload_queue:${scope.persistenceKey}',
-      jsonEncode([
-        {
-          'id': '${book.id}:cover_image',
-          'book_id': book.id,
-          'kind': 'cover_image',
-          'filename': 'cover.jpg',
-          'content_type': 'image/jpeg',
-          'status': 'pending',
-          'cover_base64': base64Encode(coverBytes),
-          'error_message': null,
-        },
-      ]),
-    );
+    final coverBytes = Uint8List.fromList('cover'.codeUnits);
 
     final queue = MediaUploadQueue(prefs);
     await queue.activateScope(scope);
+    await queue.enqueueCover(book: book, filename: 'cover.jpg', contentType: 'image/jpeg');
     var attempts = 0;
 
     Future<void> process() => queue.processPending(
       dataStore: dataStore,
       readBookFile: (_) async => null,
-      readPendingCover: (_, _) async => throw StateError('legacy task must use embedded bytes'),
+      readPendingCover: (requestedScope, bookId) async {
+        expect(requestedScope, scope);
+        expect(bookId, book.id);
+        return coverBytes;
+      },
       uploadMedia: (payload) async {
         attempts++;
         expect(payload.bytes, coverBytes);
@@ -265,7 +254,8 @@ void main() {
         (jsonDecode(prefs.getString('media_upload_queue:${scope.persistenceKey}')!) as List<dynamic>).single
             as Map<String, dynamic>;
 
-    expect(failedTask['cover_base64'], base64Encode(coverBytes));
+    expect(failedTask['book_id'], book.id);
+    expect(failedTask, isNot(contains('cover_base64')));
     await queue.retryFailed();
     await process();
     expect(attempts, 2);

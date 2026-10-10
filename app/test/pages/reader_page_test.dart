@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -24,7 +25,8 @@ void main() {
         books: [buildTestBook(id: 'epub-book', fileFormat: BookFormat.epub)],
       );
 
-    final cache = _ReaderMediaCache();
+    final gate = Completer<void>();
+    final cache = _ReaderMediaCache(gate: gate);
     addTearDown(dataStore.dispose);
     late StateSetter updateTheme;
     var dark = false;
@@ -51,12 +53,20 @@ void main() {
       ),
     );
 
+    expect(find.byTooltip('Back'), findsNothing);
+    expect(find.byType(AppBar), findsNothing);
+    final loaderCenter = tester.getCenter(find.byType(CircularProgressIndicator));
+    expect(loaderCenter, const Offset(400, 300));
+    gate.complete();
+
     for (var frame = 0; frame < 8 && find.byType(PapyrusReader).evaluate().isEmpty; frame++) {
       await tester.pump();
     }
 
     expect(cache.loads, 1, reason: tester.widgetList<Text>(find.byType(Text)).map((text) => text.data).join(' / '));
     expect(find.byType(PapyrusReader), findsOneWidget);
+    expect(find.byTooltip('Back'), findsNothing);
+    expect(tester.getCenter(find.byType(CircularProgressIndicator)), loaderCenter);
     final before = tester.widget<PapyrusReader>(find.byType(PapyrusReader)).document;
     updateTheme(() => dark = true);
     await tester.pump();
@@ -93,6 +103,9 @@ void main() {
 }
 
 class _ReaderMediaCache extends MediaCacheService {
+  _ReaderMediaCache({this.gate});
+
+  final Completer<void>? gate;
   int loads = 0;
 
   @override
@@ -103,6 +116,7 @@ class _ReaderMediaCache extends MediaCacheService {
     required MediaDownloader downloadMedia,
   }) async {
     loads++;
+    await gate?.future;
     return Uint8List.fromList([1, 2, 3]);
   }
 }

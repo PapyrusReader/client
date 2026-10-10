@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:papyrus/models/shelf.dart' show CoverPreview, ShelfData;
+import 'package:papyrus/models/shelf.dart' show CoverPreview, Shelf;
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/themes/app_motion.dart';
@@ -9,7 +9,7 @@ import 'package:papyrus/themes/app_motion.dart';
 /// Shows shelf name, book count, color indicator, and cover previews.
 class ShelfCard extends StatefulWidget {
   /// The shelf data to display.
-  final ShelfData shelf;
+  final Shelf shelf;
 
   /// Called when the card is tapped.
   final VoidCallback? onTap;

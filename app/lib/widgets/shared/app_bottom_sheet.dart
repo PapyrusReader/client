@@ -13,7 +13,8 @@ class AppBottomSheet extends StatelessWidget {
     this.header,
     this.onClose,
     this.canClose = true,
-    required this.body,
+    this.body,
+    this.scrollBodyBuilder,
     this.footer,
     this.scrollable = true,
     this.expandBody = false,
@@ -22,13 +23,18 @@ class AppBottomSheet extends StatelessWidget {
     this.contentPadding = const EdgeInsets.all(Spacing.lg),
     this.headerKey,
     this.footerKey,
-  }) : assert(title != null || header != null);
+  }) : assert(title != null || header != null),
+       assert((body == null) != (scrollBodyBuilder == null));
 
   final String? title;
   final Widget? header;
   final VoidCallback? onClose;
   final bool canClose;
-  final Widget body;
+  final Widget? body;
+
+  /// For content with its own scroll view, attach this controller to that view
+  /// so scrolling expands the sheet before scrolling the content.
+  final Widget Function(BuildContext context, ScrollController? controller)? scrollBodyBuilder;
   final Widget? footer;
   final bool scrollable;
   final bool expandBody;
@@ -45,6 +51,18 @@ class AppBottomSheet extends StatelessWidget {
     final route = ModalRoute.of(context);
     final canDismiss = canClose && route is ModalBottomSheetRoute && route.enableDrag;
     final dismiss = canDismiss ? onClose ?? () => Navigator.of(context).maybePop() : null;
+
+    Widget buildBody(ScrollController? controller) {
+      if (scrollBodyBuilder != null) {
+        return Padding(padding: contentPadding, child: scrollBodyBuilder!(context, controller));
+      }
+
+      if (scrollable) {
+        return SingleChildScrollView(controller: controller, padding: contentPadding, child: body);
+      }
+
+      return Padding(padding: contentPadding, child: body);
+    }
 
     Widget buildFrame(ScrollController? controller, {required bool compact}) => SafeArea(
       top: false,
@@ -63,9 +81,7 @@ class AppBottomSheet extends StatelessWidget {
           const Divider(height: 1),
           Flexible(
             fit: expandBody ? FlexFit.tight : FlexFit.loose,
-            child: scrollable
-                ? SingleChildScrollView(controller: controller, padding: contentPadding, child: body)
-                : Padding(padding: contentPadding, child: body),
+            child: buildBody(controller),
           ),
           if (footer != null) BottomSheetFooter(key: footerKey, child: footer!),
         ],

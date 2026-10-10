@@ -121,9 +121,6 @@ class Annotation {
     this.updatedAt,
   });
 
-  // Backwards compatibility alias
-  String get highlightText => selectedText;
-
   /// Whether this annotation has an attached note.
   bool get hasNote => note != null && note!.isNotEmpty;
 

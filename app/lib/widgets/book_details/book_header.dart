@@ -4,7 +4,6 @@ import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book_details/book_action_buttons.dart';
 import 'package:papyrus/widgets/book_details/book_cover_image.dart';
 import 'package:papyrus/widgets/book_details/book_progress_bar.dart';
-import 'package:papyrus/widgets/shared/app_motion_control.dart';
 
 /// Header section for book details page.
 /// Contains cover image, title, author, metadata, progress bar, and action buttons.
@@ -50,7 +49,7 @@ class BookHeader extends StatelessWidget {
         // Cover image
         CoverImagePreview(
           bookId: book.id,
-          imageUrl: book.coverURL,
+          imageUrl: book.coverUrl,
           mediaId: book.coverMediaId,
           bookTitle: book.title,
           size: BookCoverSize.large,
@@ -84,8 +83,6 @@ class BookHeader extends StatelessWidget {
               ),
               const SizedBox(height: Spacing.md),
 
-              if (book.topics.isNotEmpty) ...[_buildTopics(context), const SizedBox(height: Spacing.lg)],
-
               // Action buttons
               BookActionButtons(
                 book: book,
@@ -100,7 +97,10 @@ class BookHeader extends StatelessWidget {
                 const SizedBox(height: Spacing.sm),
                 _ReadingError(message: error, onRetry: onRetryReading),
               ],
-              if (book.progress > 0 || book.isPhysical) ...[const SizedBox(height: Spacing.md), _buildProgressBar()],
+              if (book.currentPosition > 0 || book.isPhysical) ...[
+                const SizedBox(height: Spacing.md),
+                _buildProgressBar(),
+              ],
             ],
           ),
         ),
@@ -120,7 +120,7 @@ class BookHeader extends StatelessWidget {
           // Cover image (centered)
           CoverImagePreview(
             bookId: book.id,
-            imageUrl: book.coverURL,
+            imageUrl: book.coverUrl,
             mediaId: book.coverMediaId,
             bookTitle: book.title,
             size: BookCoverSize.medium,
@@ -167,7 +167,7 @@ class BookHeader extends StatelessWidget {
             const SizedBox(height: Spacing.sm),
             _ReadingError(message: error, onRetry: onRetryReading),
           ],
-          if (book.progress > 0 || book.isPhysical) ...[const SizedBox(height: Spacing.md), _buildProgressBar()],
+          if (book.currentPosition > 0 || book.isPhysical) ...[const SizedBox(height: Spacing.md), _buildProgressBar()],
           const SizedBox(height: Spacing.md),
         ],
       ),
@@ -177,38 +177,12 @@ class BookHeader extends StatelessWidget {
   Widget _buildProgressBar() => ConstrainedBox(
     constraints: const BoxConstraints(maxWidth: 320),
     child: BookProgressBar(
-      progress: book.progress,
+      progress: book.currentPosition,
       currentPage: book.currentPage,
-      totalPages: book.totalPages,
+      totalPages: book.pageCount,
       onTap: book.isPhysical ? onUpdateProgress : null,
     ),
   );
-
-  Widget _buildTopics(BuildContext context) {
-    return Wrap(
-      spacing: Spacing.sm,
-      runSpacing: Spacing.xs,
-      crossAxisAlignment: WrapCrossAlignment.center,
-      children: [
-        // Topics (first 2)
-        ...book.topics
-            .take(2)
-            .map(
-              (topic) => AppMotionControl(
-                value: null,
-                builder: (focusNode) => Chip(
-                  focusNode: focusNode,
-                  chipAnimationStyle: appChipAnimationStyle(context),
-                  label: Text(topic),
-                  visualDensity: VisualDensity.compact,
-                  padding: EdgeInsets.zero,
-                  labelPadding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
-                ),
-              ),
-            ),
-      ],
-    );
-  }
 }
 
 class _ReadingError extends StatelessWidget {
