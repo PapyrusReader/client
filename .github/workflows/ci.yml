@@ -11,12 +11,6 @@ on:
       - 'codecov.yml'
   pull_request:
     branches: [development, master, main]
-    paths:
-      - 'app/**'
-      - 'packages/**'
-      - '.github/workflows/**'
-      - '.github/scripts/**'
-      - 'codecov.yml'
   workflow_dispatch:
 
 concurrency:
