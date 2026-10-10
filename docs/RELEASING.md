@@ -1,4 +1,4 @@
-# Android internal testing releases
+# Client releases and delivery
 
 Android identity is `com.papyrus.reader`; the first uploaded bundle establishes it
 in Play Console. Keep this identity for all subsequent uploads.
@@ -108,9 +108,11 @@ an actionable message; they cannot silently use the debug certificate.
    `bundletool dump config --bundle=app-release.aab` to verify
    `PAGE_ALIGNMENT_16K`, and test an APK generated from the bundle.
 
-The workflow prepares builds; it does **not** upload to or publish on Play. The
-first app upload/setup is manual. A later Play API upload workflow can use a
-restricted service account after the app has been initialized.
+After GitHub publication, the delivery workflow automatically sends the signed
+bundle to Play internal testing and deploys the web app in independent jobs.
+The first app upload/setup remains manual. Configure the restricted Play service
+account described below before the next release. Delivery failures do not remove
+published downloads.
 
 ## Before closed testing or production
 
@@ -132,3 +134,104 @@ Official references:
 - [Play target API requirements](https://support.google.com/googleplay/android-developer/answer/11926878)
 - [Android 16 KB page support and testing](https://developer.android.com/guide/practices/page-sizes)
 - [Account deletion requirements](https://support.google.com/googleplay/android-developer/answer/13327111)
+
+## Distribution artifacts
+
+Every download includes `vMAJOR.MINOR.PATCH+BUILD` in its filename. Desktop
+artifacts also include `x64`; the Android AAB is `android-universal` and web is
+architecture independent. GitHub releases contain the AAB, web ZIP, Linux tarball,
+`.deb`, AppImage, Windows ZIP and installer, plus `INSTALL.md`,
+`release-manifest.json` and `SHA256SUMS`. See [installation instructions](INSTALL.md).
+
+Linux uses Ubuntu 24.04 as its build baseline. The AppImage packages WebKit helper
+processes and GTK resources; it requires host bubblewrap/xdg-dbus-proxy and user
+namespaces to preserve WebKit's sandbox. Do not disable sandboxing to make a test
+pass. Validate the installed `.deb` on Ubuntu 24.04 and AppImage on Ubuntu 24.04
+and Debian 13. Run EPUB/PDF rendering, offline import, resume and profile switching
+on real graphical sessions before advertising compatibility. Headless startup
+checks alone do not establish reader functionality.
+
+Windows uses an unsigned, per-user Inno Setup installer. Visual C++ runtimes are
+included, and Microsoft's Authenticode-verified offline WebView2 installer runs
+only when needed. Test a clean Windows x64 machine both with and without WebView2,
+then upgrade and uninstall while retaining a real library. No trusted signing
+service, Microsoft Store submission or automatic desktop updater is configured.
+
+Packaging PR checks need no production credentials. The release packaging jobs
+use the production endpoints, preserve the signed Android bundle alignment
+checks, and only publish after every required build/package job succeeds.
+
+## Play service account
+
+See [delivery rollout evidence](DELIVERY_ROLLOUT.md) for completed setup and the
+remaining operational acceptance checks.
+
+1. In the existing Google Cloud project, enable the Google Play Android Developer
+   API and create a service account dedicated to this client.
+2. Invite that service account in Play Console with access to **only**
+   `com.papyrus.reader`, app information visibility and testing-track release
+   permissions. Do not grant production, financial or account-administration
+   permissions. Initialize the app, upload the first AAB manually, and complete
+   the internal-testing setup and tester list.
+3. Store its JSON key as `PLAY_SERVICE_ACCOUNT_JSON` in the client GitHub
+   `release` environment. Keep the key out of Git, logs and artifacts.
+   The API preflight authenticates directly using Google's pinned Python auth
+   library; it needs no Cloud project role or IAM impersonation permission.
+4. Delivery compares Play's version code and bundle SHA-256 before upload. A
+   matching completed internal release is a no-op; a matching uploaded bundle
+   can be promoted without uploading again. Different content at the same code
+   or a newer existing code fails. The target is always `internal`, status
+   `completed`. Draft-app restrictions fail visibly and must be resolved in
+   Console rather than silently changing the requested delivery status.
+
+## Web deployment account
+
+The host serves `/srv/apps/papyrus/deploy/web/current` through its existing Caddy
+container. Keep the parent `web` directory mounted; mounting the symlink target
+would prevent activation of subsequent releases.
+
+1. Run the server's `deploy/migrate_web_layout.py` against the existing flat web
+   directory. It copies the deployed files into an initial release, creates
+   `current`, and preserves the original flat files. Install the updated Caddy
+   configuration and reload **only** the web Caddy process. Check `/` and `/login`.
+2. Install `tools/install_web.py` as root-owned
+   `/usr/local/lib/papyrus-web/install_web.py` on the host. Give a dedicated
+   `papyrus-web-deploy` user write access only to the web artifact directory;
+   do not add it to Docker or sudo groups.
+3. Generate a dedicated SSH key. Its root-owned authorized-keys entry must use
+   `restrict,command="/usr/bin/python3 /usr/local/lib/papyrus-web/install_web.py --root /srv/apps/papyrus/deploy/web"`.
+   This command accepts only `deploy REVISION SHA256 TAG` and an archive on stdin.
+   Do not permit arbitrary SSH commands or reuse the website/API deployment key.
+4. Add `WEB_SSH_HOST`, `WEB_SSH_USER` and verified `WEB_SSH_KNOWN_HOSTS` as variables
+   in the GitHub `release` environment; add `WEB_SSH_PRIVATE_KEY` as a secret.
+
+The receiver validates the ZIP checksum, entry paths, required files and embedded
+release identity, then switches `current` atomically under a file lock. Public
+`/release.json`, `/`, `/login` and `/flutter_bootstrap.js` must match the artifact.
+A failed verification restores the previous target. Old directories are retained;
+there is no automatic data or artifact deletion. Caddy revalidates web content.
+The deployment user cannot restart or change the API, sync service or database.
+
+Delivery rejects a lower build number than the active web release; an equal
+build number must have identical metadata and archive checksum. Retrying an old
+tag cannot silently downgrade production.
+
+For an operator rollback, atomically replace `current` with the relative target
+recorded by `previous` while holding `.deployment.lock`, then verify the app. The
+`previous` link is retained across an identical successful delivery retry.
+
+## Delivery retries and release immutability
+
+Use **Deliver published release** → **Run workflow** on `master`, enter the exact
+published tag, and choose `web`, `play` or `all`. This downloads existing assets,
+resolves the tag to its commit, and verifies the release manifest and checksums.
+It never rebuilds the application. Historic releases without a manifest cannot
+be delivered by this workflow; prepare a new versioned release instead.
+
+Do not rerun the build workflow to retry delivery: rebuilt bytes may differ.
+Existing published assets are never overwritten. A draft interrupted during
+publication must be inspected and completed with its original artifacts; if
+those are unavailable, discard the draft and use a new build number. Tags cannot
+be reassigned. Release summaries distinguish builds, GitHub publication, web
+verification and Play delivery. Missing credentials are errors, not successful
+skips. Actual tester installation is a separate check from API acceptance.

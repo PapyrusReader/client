@@ -158,6 +158,9 @@ void main() {
       bookId: 'book',
       bookTitle: 'Book',
       source: 'reader',
+      startPosition: offset / 100,
+      endPosition: (offset + 10) / 100,
+      deviceType: 'linux',
       startTime: start.add(Duration(seconds: offset)),
       endTime: start.add(Duration(seconds: offset + 10)),
       createdAt: start.add(Duration(seconds: offset + 10)),
@@ -166,5 +169,8 @@ void main() {
     final grouped = groupReadingActivities([entry('a', 0), entry('b', 5), entry('c', 30)]).single;
     expect(grouped.seconds, 25);
     expect(grouped.constituentIds, ['a', 'b', 'c']);
+    expect(grouped.session.startPosition, 0);
+    expect(grouped.session.endPosition, 0.4);
+    expect(grouped.session.deviceType, 'linux');
   });
 }

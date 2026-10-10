@@ -1,0 +1,57 @@
+name: Windows packaging check
+
+on:
+  pull_request:
+    paths:
+      - 'app/windows/**'
+      - 'app/pubspec.yaml'
+      - 'app/pubspec.lock'
+      - 'app/integration_test/desktop_package_*.dart'
+      - 'tools/run_packaged_smoke.py'
+      - 'tools/check_packaged_reader.*'
+      - 'tools/package_windows.ps1'
+      - 'tools/check_windows_package.ps1'
+      - 'tools/windows_test_helpers.ps1'
+      - 'packaging/windows/**'
+      - 'docs/INSTALL.md'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/windows-packaging.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-packaging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter build windows --release
+      - run: ../tools/package_windows.ps1 -Tag 'v0.0.0+1'
+      - run: ../tools/check_windows_package.ps1 -Tag 'v0.0.0+1' -RequireMissingRuntime
+      - name: Build instrumented reader package
+        run: flutter build windows --release --target integration_test/desktop_package_smoke.dart --dart-define=INTEGRATION_TEST_SHOULD_REPORT_RESULTS_TO_NATIVE=false
+      - name: Package reader test build
+        run: |
+          ../tools/package_windows.ps1 -Tag 'v0.0.0+2'
+          ../tools/package_windows.ps1 -Tag 'v0.0.0+1'
+      - name: Validate upgraded package and offline reader
+        run: ../tools/check_packaged_reader.ps1 -Tag 'v0.0.0+2' -PreviousTag 'v0.0.0+1'
+      - name: Save native package validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-package-validation
+          path: app/build/package-smoke-results/
+          if-no-files-found: warn

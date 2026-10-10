@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Papyrus
+Comment=Offline book library and reader
+Exec=papyrus
+Icon=com.papyrus.papyrus
+Terminal=false
+Categories=Office;Viewer;
+StartupWMClass=com.papyrus.papyrus
