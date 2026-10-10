@@ -117,15 +117,6 @@ def install(archive: Path, root: Path, revision: str, checksum: str, tag: str, p
             if metadata != expected:
                 raise ValueError("Web metadata does not match the requested release")
 
-            release = releases / revision
-
-            if release.exists():
-                if (release / ".artifact-sha256").read_text().strip() != checksum:
-                    raise ValueError("Existing web revision has different contents")
-            else:
-                (staging / ".artifact-sha256").write_text(checksum + "\n")
-                staging.rename(release)
-
             current = root / "current"
 
             if not current.is_symlink():
@@ -135,6 +126,35 @@ def install(archive: Path, root: Path, revision: str, checksum: str, tag: str, p
 
             if not re.fullmatch(r"releases/[a-zA-Z0-9_-]+", previous) or not current.is_dir():
                 raise ValueError("Current web release must be an existing directory inside releases/")
+
+            active_metadata = current / "release.json"
+
+            if active_metadata.exists():
+                active = json.loads(active_metadata.read_text())
+
+                if not isinstance(active, dict) or type(active.get("build_number")) is not int:
+                    raise ValueError("Active web release metadata is invalid")
+
+                if metadata["build_number"] < active["build_number"]:
+                    raise ValueError("Refusing to deploy an older web build; use the operator rollback procedure")
+
+                if metadata["build_number"] == active["build_number"]:
+                    if metadata != active:
+                        raise ValueError("Active web build has different release identity")
+
+                    if (current / ".artifact-sha256").read_text().strip() != checksum:
+                        raise ValueError("Active web build has different contents")
+            elif not re.fullmatch(r"releases/initial(?:-[a-zA-Z0-9_-]+)?", previous):
+                raise ValueError("Active web release metadata is missing")
+
+            release = releases / revision
+
+            if release.exists():
+                if (release / ".artifact-sha256").read_text().strip() != checksum:
+                    raise ValueError("Existing web revision has different contents")
+            else:
+                (staging / ".artifact-sha256").write_text(checksum + "\n")
+                staging.rename(release)
 
             target = f"releases/{revision}"
             try:

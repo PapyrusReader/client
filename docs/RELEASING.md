@@ -212,6 +212,10 @@ A failed verification restores the previous target. Old directories are retained
 there is no automatic data or artifact deletion. Caddy revalidates web content.
 The deployment user cannot restart or change the API, sync service or database.
 
+Delivery rejects a lower build number than the active web release; an equal
+build number must have identical metadata and archive checksum. Retrying an old
+tag cannot silently downgrade production.
+
 For an operator rollback, atomically replace `current` with the relative target
 recorded by `previous` while holding `.deployment.lock`, then verify the app. The
 `previous` link is retained across an identical successful delivery retry.

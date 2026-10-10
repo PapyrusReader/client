@@ -29,7 +29,7 @@ release PRs. Publication and production delivery remain pending.
 
 ## Local verification
 
-- 35 client release-tool tests, 22 server tooling tests and 18 workspace tooling
+- 40 client release-tool tests, 22 server tooling tests and 18 workspace tooling
   tests pass. Checks cover release gates, tag/version identity, checksums, unsafe
   archives, immutable publication, retry behavior, web rollback and migration.
 - Client formatting/analysis/web bootstrap checks, workflow lint, shell lint,

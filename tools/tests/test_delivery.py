@@ -173,6 +173,50 @@ class WebDeploymentTest(unittest.TestCase):
         self.assertEqual(os.readlink(self.root / "previous"), "releases/initial")
         self.assertEqual((self.root / "previous/index.html").read_text(), "previous")
 
+    def test_older_build_is_rejected_without_activation(self):
+        self.install()
+        self.metadata = assets.identity("v0.0.1+1", "b" * 40)
+        self.create_archive()
+
+        with self.assertRaisesRegex(ValueError, "older web build"):
+            web.install(self.archive, self.root, "b" * 40, self.checksum, "v0.0.1+1", lambda *_: self.fail())
+
+        self.assertEqual(os.readlink(self.root / "current"), f"releases/{REVISION}")
+        self.assertEqual(os.readlink(self.root / "previous"), "releases/initial")
+
+    def test_same_build_cannot_change_release_identity(self):
+        self.install()
+        self.metadata = assets.identity(TAG, "b" * 40)
+        self.create_archive()
+
+        with self.assertRaisesRegex(ValueError, "different release identity"):
+            web.install(self.archive, self.root, "b" * 40, self.checksum, TAG, lambda *_: self.fail())
+
+        self.assertEqual(os.readlink(self.root / "current"), f"releases/{REVISION}")
+
+    def test_invalid_active_build_number_fails_closed(self):
+        self.install()
+        metadata = {**self.metadata, "build_number": "2"}
+        (self.root / "current/release.json").write_text(json.dumps(metadata))
+
+        with self.assertRaisesRegex(ValueError, "metadata is invalid"):
+            self.install()
+
+    def test_published_release_requires_active_metadata(self):
+        self.install()
+        (self.root / "current/release.json").unlink()
+
+        with self.assertRaisesRegex(ValueError, "metadata is missing"):
+            self.install()
+
+    def test_newer_build_can_replace_active_release(self):
+        self.install()
+        self.metadata = assets.identity("v0.0.3+3", "b" * 40)
+        self.create_archive()
+        web.install(self.archive, self.root, "b" * 40, self.checksum, "v0.0.3+3", lambda *_: None)
+        self.assertEqual(os.readlink(self.root / "current"), f"releases/{'b' * 40}")
+        self.assertEqual(os.readlink(self.root / "previous"), f"releases/{REVISION}")
+
     def test_failed_public_probe_restores_previous(self):
         def fail(*_):
             raise ValueError("public mismatch")
