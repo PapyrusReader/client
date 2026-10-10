@@ -2,7 +2,8 @@
 
 Status recorded on 2026-10-11. This is an implementation checkpoint, not a claim
 that the new release process has delivered a working release to every platform.
-Version numbers have not changed and no release has been published by this work.
+Client/server `0.0.2` (Android build 2) is being prepared through the normal
+release PRs. Publication and production delivery remain pending.
 
 ## Configured
 
@@ -65,6 +66,15 @@ Version numbers have not changed and no release has been published by this work.
   Its disposable runner quarantines existing WebView2 binaries and registrations,
   verifies the offline installer restores a working runtime, and confirms a
   second install retains it. This is an isolated-runtime test, not a clean OS image.
+- Windows run [38091317526](https://github.com/PapyrusReader/client/actions/runs/38091317526)
+  at `ff49d52` additionally passed persistence probes across upgrade, uninstall
+  and reinstall. A real imported EPUB, SQLite book/reading position, saved
+  settings and a namespaced Windows credential all survived. Fixtures use unique
+  test profiles and clean up only their own data.
+- The stronger Linux lifecycle probe caught an application-data path mismatch.
+  Updating `path_provider_linux` from 2.2.1 to 2.2.2 uses the versioned GLib SONAME
+  consistently in installed and bundled packages. The final native run must
+  confirm the same imported-library and settings preservation on Ubuntu.
 - A connected Android device reports `versionName=0.0.1`, `versionCode=1` and
   both installer and initiating package `com.android.vending`. This confirms
   the existing Play installation, not installation of the next release.
@@ -73,6 +83,12 @@ Version numbers have not changed and no release has been published by this work.
   two external provider tests are excluded. Ruff and Mypy pass. Server PR #15
   also passes GitHub CI. Production is still server `0.0.1`, migration
   `af0fea8d6317`; the next server must deploy before its client.
+- Server release review fixes retain session position/device metadata in the
+  JSON ledger, serialize concurrent retry lookup and correct statistics period
+  boundaries/current streaks. The client preserves these fields through SQLite,
+  queued upload and grouped presentation. Focused server/client regressions pass;
+  the retry regression fails with the previous lock ordering. No extra database
+  migration is needed for these optional JSON fields.
 - An encrypted, off-host production database backup was restored into an isolated
   PostgreSQL 17 container and upgraded to `b5c6d7e8f901`. Row fingerprints for all
   20 existing application tables remained identical. The disposable restore
@@ -86,9 +102,10 @@ Version numbers have not changed and no release has been published by this work.
   source revision. Windows checks include installer lifecycle and WebView2
   HTML/canvas/JavaScript rendering; Linux checks include Debian without system
   WebKit. The successful run links and exact tested revisions are recorded above.
-- [ ] Check fresh Windows installation with WebView2 absent, upgrade from a
-  previous version, Start menu/icon, uninstall and preservation of a real library,
-  settings and credentials. Reinstalling one package is not this upgrade test.
+- [x] Check Windows installation with WebView2 absent on a disposable runner,
+  upgrade from the previous fixture version, Start menu/icon, uninstall and
+  preservation of an imported library, SQLite reading position, settings and
+  credentials. Runtime quarantine is not a clean Windows OS installation.
 - [x] Check actual packaged EPUB/PDF reading, offline imports, reader resume and
   guest/account/server-profile isolation on Windows and both Linux targets.
 - [ ] Promote the completed changes through the normal development-to-master
