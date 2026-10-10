@@ -54,8 +54,17 @@ Version numbers have not changed and no release has been published by this work.
   records success. The test entrypoint uses production reader and storage code;
   it is not the production application's interactive entrypoint.
 - Native Ubuntu launched the AppImage with a scoped AppArmor namespace profile.
-  Its initial follow-up WebKit check exposed an executable cleanup race in the
-  test harness; Debian and Linux reader validation remain pending the corrected run.
+  The launcher now supports minimal hosts without an existing WebKit helper
+  directory, and the bundle includes non-base text libraries and font configuration.
+- Linux run [38090665629](https://github.com/PapyrusReader/client/actions/runs/38090665629)
+  at `e02fa79` passed native Ubuntu 24.04 `.deb` and AppImage checks and Debian 13
+  AppImage checks without system WebKit. All three packaged reader JSON reports
+  confirm EPUB/PDF rendering, offline import, resume and profile isolation.
+- Windows run [38090105345](https://github.com/PapyrusReader/client/actions/runs/38090105345)
+  at `ae506c6` passed the missing-runtime path as well as the installed reader.
+  Its disposable runner quarantines existing WebView2 binaries and registrations,
+  verifies the offline installer restores a working runtime, and confirms a
+  second install retains it. This is an isolated-runtime test, not a clean OS image.
 - A connected Android device reports `versionName=0.0.1`, `versionCode=1` and
   both installer and initiating package `com.android.vending`. This confirms
   the existing Play installation, not installation of the next release.
@@ -73,14 +82,14 @@ Version numbers have not changed and no release has been published by this work.
 ## Required before declaring delivery operational
 
 - [x] Verify restricted Papyrus testing access and confirm API access.
-- [ ] Run the new native Linux and Windows packaging workflows on the current
+- [x] Run the new native Linux and Windows packaging workflows on the current
   source revision. Windows checks include installer lifecycle and WebView2
   HTML/canvas/JavaScript rendering; Linux checks include Debian without system
-  WebKit. These workflows have been added but have not run remotely yet.
+  WebKit. The successful run links and exact tested revisions are recorded above.
 - [ ] Check fresh Windows installation with WebView2 absent, upgrade from a
   previous version, Start menu/icon, uninstall and preservation of a real library,
   settings and credentials. Reinstalling one package is not this upgrade test.
-- [ ] Check actual packaged EPUB/PDF reading, offline imports, reader resume and
+- [x] Check actual packaged EPUB/PDF reading, offline imports, reader resume and
   guest/account/server-profile isolation on Windows and both Linux targets.
 - [ ] Promote the completed changes through the normal development-to-master
   release process with the next properly incremented committed version.

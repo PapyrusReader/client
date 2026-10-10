@@ -13,7 +13,7 @@ import sys
 from pathlib import Path
 
 BASE_LIBRARY = re.compile(
-    r"^(?:ld-linux[^/]*|lib(?:c|m|dl|pthread|rt|resolv|util|anl|BrokenLocale|thread_db|gcc_s|stdc\+\+)"
+    r"^(?:ld-linux[^/]*|lib(?:c|m|mvec|dl|pthread|rt|resolv|util|anl|BrokenLocale|thread_db|gcc_s|stdc\+\+)"
     r"\.so.*|libnss_(?:compat|dns|files|hesiod)\.so.*|lib(?:GL|EGL|GLX|GLES[^/]*|GLdispatch|drm[^/]*|gbm|vulkan)\.so.*)$"
 )
 

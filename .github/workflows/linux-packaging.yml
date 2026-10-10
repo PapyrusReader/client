@@ -6,7 +6,7 @@ on:
       - 'app/linux/**'
       - 'app/pubspec.yaml'
       - 'app/pubspec.lock'
-      - 'app/integration_test/desktop_package_smoke.dart'
+      - 'app/integration_test/desktop_package_*.dart'
       - 'tools/run_packaged_smoke.py'
       - 'tools/check_packaged_reader.*'
       - 'tools/install_linux_build_dependencies.sh'
@@ -59,7 +59,7 @@ jobs:
       - name: Package reader test build
         run: bash ../tools/package_linux.sh v0.0.0+2
       - name: Validate packaged EPUB/PDF and offline storage
-        run: bash ../tools/check_packaged_reader.sh v0.0.0+2
+        run: bash ../tools/check_packaged_reader.sh v0.0.0+2 v0.0.0+1
       - name: Save native package validation reports
         if: always()
         uses: actions/upload-artifact@v4

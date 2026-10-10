@@ -2,6 +2,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/../app"
 tag="${1:?Expected instrumented package tag}"
+previous_tag="${2:?Expected previous installer tag}"
 base="papyrus-${tag}-linux-x64"
 reports="$PWD/build/package-smoke-results"
 image="$PWD/dist/$base.AppImage"
@@ -17,7 +18,19 @@ trap 'rm -rf "$work"' EXIT
 (cd "$work" && "$image" --appimage-extract >/dev/null)
 python3 ../tools/run_packaged_smoke.py --report "$reports/ubuntu-appimage.json" -- \
   xvfb-run -a dbus-run-session -- "${namespace[@]}" "$work/squashfs-root/AppRun"
+export PAPYRUS_PERSISTENCE_SESSION
+PAPYRUS_PERSISTENCE_SESSION="$(cat /proc/sys/kernel/random/uuid)"
+sudo apt-get install -y "$PWD/dist/papyrus-${previous_tag}-linux-x64.deb"
+PAPYRUS_PERSISTENCE_PHASE=seed python3 ../tools/run_packaged_smoke.py --report "$reports/ubuntu-persistence-seed.json" -- \
+  xvfb-run -a dbus-run-session -- "${namespace[@]}" "$work/squashfs-root/AppRun"
 sudo apt-get install -y "$PWD/dist/$base.deb"
+PAPYRUS_PERSISTENCE_PHASE=verify python3 ../tools/run_packaged_smoke.py --report "$reports/ubuntu-persistence-upgrade.json" -- \
+  xvfb-run -a dbus-run-session -- /opt/papyrus/papyrus
+sudo apt-get remove -y papyrus
+sudo apt-get install -y "$PWD/dist/$base.deb"
+PAPYRUS_PERSISTENCE_PHASE=verify-and-clean python3 ../tools/run_packaged_smoke.py --report "$reports/ubuntu-persistence-reinstall.json" -- \
+  xvfb-run -a dbus-run-session -- /opt/papyrus/papyrus
+unset PAPYRUS_PERSISTENCE_SESSION
 python3 ../tools/run_packaged_smoke.py --report "$reports/ubuntu-deb.json" -- \
   xvfb-run -a dbus-run-session -- /opt/papyrus/papyrus
 sudo apt-get remove -y papyrus
