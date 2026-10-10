@@ -11,6 +11,7 @@ on:
       - 'tools/check_packaged_reader.*'
       - 'tools/package_windows.ps1'
       - 'tools/check_windows_package.ps1'
+      - 'tools/windows_test_helpers.ps1'
       - 'packaging/windows/**'
       - 'docs/INSTALL.md'
       - '.github/workflows/release.yml'

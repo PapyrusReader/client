@@ -1,6 +1,7 @@
 param([Parameter(Mandatory)][string]$Tag, [Parameter(Mandatory)][string]$PreviousTag)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'windows_test_helpers.ps1')
 Set-Location (Join-Path $PSScriptRoot '../app')
 $Directory = Join-Path ([IO.Path]::GetTempPath()) ('papyrus-reader-' + [Guid]::NewGuid().ToString())
 try {
@@ -18,5 +19,5 @@ try {
     $Uninstall = Start-Process (Join-Path $Directory 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
     if ($Uninstall.ExitCode -ne 0) { throw 'Uninstall failed' }
 } finally {
-    if (Test-Path $Directory) { Remove-Item -Recurse -Force $Directory }
+    Remove-TestDirectory $Directory
 }

@@ -1,6 +1,7 @@
 param([Parameter(Mandatory)][string]$Tag, [switch]$RequireMissingRuntime)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
+. (Join-Path $PSScriptRoot 'windows_test_helpers.ps1')
 Set-Location (Join-Path $PSScriptRoot '../app')
 if ($RequireMissingRuntime) {
     if ($env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted') {
@@ -76,12 +77,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'WebView2 smoke compilation failed' }
     & (Join-Path $SmokeBuild 'Release/papyrus_webview_smoke.exe') (Join-Path $Directory 'Webview2Loader.dll') (Join-Path $SmokeBuild 'profile')
     if ($LASTEXITCODE -ne 0) { throw 'Installed WebView2 runtime failed HTML/canvas/JavaScript rendering' }
-    Remove-Item -Recurse -Force $SmokeBuild
+    Remove-TestDirectory $SmokeBuild
     $Uninstall = Start-Process (Join-Path $Directory 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
     if ($Uninstall.ExitCode -ne 0) { throw 'Uninstall failed' }
     if (Test-Path (Join-Path $Directory 'papyrus.exe')) { throw 'Uninstall left the application executable' }
     if ((Get-Content $Sentinel) -ne 'preserve-user-data') { throw 'Installer changed user data' }
 } finally {
-    if (Test-Path $Directory) { Remove-Item -Recurse -Force $Directory }
+    Remove-TestDirectory $Directory
     Remove-Item -Force $Sentinel
 }

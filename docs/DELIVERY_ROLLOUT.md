@@ -64,6 +64,11 @@ Version numbers have not changed and no release has been published by this work.
   two external provider tests are excluded. Ruff and Mypy pass. Server PR #15
   also passes GitHub CI. Production is still server `0.0.1`, migration
   `af0fea8d6317`; the next server must deploy before its client.
+- An encrypted, off-host production database backup was restored into an isolated
+  PostgreSQL 17 container and upgraded to `b5c6d7e8f901`. Row fingerprints for all
+  20 existing application tables remained identical. The disposable restore
+  container and volume were removed. This database-only rehearsal does not
+  replace the fresh database/media/configuration backup required at rollout.
 
 ## Required before declaring delivery operational
 
