@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 import 'package:papyrus/auth/auth_repository.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
@@ -32,6 +33,9 @@ void main() {
 
   final activity = ReadingActivity(
     id: 'reading',
+    startPosition: 0.25,
+    endPosition: 0.35,
+    deviceType: 'android',
     bookId: book.id,
     bookTitle: book.title,
     startTime: now,
@@ -62,6 +66,31 @@ void main() {
 
   tearDown(() async {
     await directory.delete(recursive: true);
+  });
+
+  test('session metadata survives SQLite and queued upload serialization', () async {
+    final db = PowerSyncDatabase(path: '${directory.path}/metadata.db', schema: papyrusAccountSchema);
+    await db.initialize();
+    addTearDown(db.close);
+    final library = LibraryDatabase(db, () async {});
+    await library.enableTracking();
+    await library.commitTracking(activities: [activity]);
+    expect((await library.snapshot()).activities.single.toJson(), activity.toJson());
+    final auth = CapturingUploadRepository();
+
+    final connector = PapyrusPowerSyncConnector(
+      authRepository: auth,
+      config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://example.invalid')),
+      trackingSchemaVersion: () => 2,
+    );
+
+    await connector.uploadData(db);
+    final mutation = auth.batches.single.single;
+    final data = mutation['data'] as Map<String, dynamic>;
+    final payload = data['payload'];
+    final decoded = payload is String ? jsonDecode(payload) : payload;
+    expect(decoded, activity.toJson());
+    expect(await db.getAll('SELECT * FROM ps_crud'), isEmpty);
   });
 
   test('reconnect refreshes tracking availability after discovery changes', () async {
@@ -123,7 +152,10 @@ void main() {
     await second.activateGuest();
     final snapshot = await second.watchLibrary().firstWhere((item) => item.activities.isNotEmpty);
     expect(snapshot.goals.single.id, goal.id);
-    expect(snapshot.activities.single.id, activity.id);
+    expect(snapshot.activities.single.toJson(), activity.toJson());
+    expect(snapshot.activities.single.session.startPosition, 0.25);
+    expect(snapshot.activities.single.session.endPosition, 0.35);
+    expect(snapshot.activities.single.session.deviceType, 'android');
     expect(snapshot.books, isEmpty);
     await second.close();
   });

@@ -43,6 +43,9 @@ class ReadingActivity {
     required this.endTime,
     required this.createdAt,
     this.sessionId,
+    this.startPosition,
+    this.endPosition,
+    this.deviceType,
     this.recordedSeconds,
     this.constituentIds = const [],
     this.source = 'manual',
@@ -56,6 +59,9 @@ class ReadingActivity {
   });
 
   final String? sessionId;
+  final double? startPosition;
+  final double? endPosition;
+  final String? deviceType;
   final int? recordedSeconds;
   final List<String> constituentIds;
   final String id;
@@ -80,9 +86,10 @@ class ReadingActivity {
     bookId: bookId,
     startTime: startTime,
     endTime: endTime,
-    startPosition: 0,
+    startPosition: startPosition ?? 0,
+    endPosition: endPosition,
     pagesRead: pages,
-    deviceType: source,
+    deviceType: deviceType ?? source,
     deviceName: deviceId,
     createdAt: createdAt,
   );
@@ -90,6 +97,9 @@ class ReadingActivity {
   Map<String, dynamic> toJson() => {
     'id': id,
     'session_id': sessionId,
+    'start_position': startPosition,
+    'end_position': endPosition,
+    'device_type': deviceType,
     'book_id': bookId,
     'book_title': bookTitle,
     'start_time': startTime.toUtc().toIso8601String(),
@@ -108,6 +118,9 @@ class ReadingActivity {
   factory ReadingActivity.fromJson(Map<String, dynamic> json) => ReadingActivity(
     id: json['id'] as String,
     sessionId: json['session_id'] as String?,
+    startPosition: (json['start_position'] as num?)?.toDouble(),
+    endPosition: (json['end_position'] as num?)?.toDouble(),
+    deviceType: json['device_type'] as String?,
     bookId: json['book_id'] as String,
     bookTitle: json['book_title'] as String,
     startTime: DateTime.parse(json['start_time'] as String).toUtc(),
@@ -152,7 +165,7 @@ List<ReadingActivity> groupReadingActivities(Iterable<ReadingActivity> ledger) {
     }
 
     final first = entries.first;
-    final ends = entries.map((activity) => activity.endTime).toList()..sort();
+    final last = entries.reduce((left, right) => left.endTime.isAfter(right.endTime) ? left : right);
     var cursor = first.startTime;
     var end = first.endTime;
     var seconds = 0;
@@ -176,7 +189,10 @@ List<ReadingActivity> groupReadingActivities(Iterable<ReadingActivity> ledger) {
       bookId: first.bookId,
       bookTitle: first.bookTitle,
       startTime: first.startTime,
-      endTime: ends.last,
+      endTime: last.endTime,
+      startPosition: first.startPosition,
+      endPosition: last.endPosition,
+      deviceType: first.deviceType,
       createdAt: first.createdAt,
       source: first.source,
       deviceId: first.deviceId,
