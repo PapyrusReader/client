@@ -117,6 +117,14 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
   );
 
   Widget _tabContent(BuildContext context, double padding, {required bool activity}) {
+    if (!_provider.store.isLoaded && _provider.error != null) {
+      return EmptyState(
+        icon: Icons.cloud_off_outlined,
+        title: 'Waiting for your library',
+        subtitle: _provider.error!,
+      );
+    }
+
     if (!activity && !_provider.isLoading && _provider.error == null) {
       if (_provider.current.isEmpty) {
         return EmptyState(

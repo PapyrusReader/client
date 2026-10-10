@@ -21,8 +21,16 @@ class GoalsProvider extends ChangeNotifier {
   String? _error;
   Timer? _clock;
   DataStore get store => _store!;
-  String? get error => _error;
-  bool get isLoading => _store?.isLoaded != true;
+
+  String? get error {
+    if (_store?.isLoaded != true && _store?.libraryLoadError != null) {
+      return 'Your reading goals will appear when the connection is restored.';
+    }
+
+    return _error;
+  }
+
+  bool get isLoading => _store?.isLoaded != true && error == null;
   DateTime get now => _now().toUtc();
 
   void attach(DataStore dataStore) {

@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/data/repositories/book_repository.dart';
+import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/media/media_cache_service.dart';
 import 'package:papyrus/providers/auth_provider.dart';
@@ -76,6 +78,58 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
+  testWidgets('profile switch during media loading ends the spinner without opening the old book', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = PreferencesProvider(await SharedPreferences.getInstance());
+    final book = buildTestBook(id: 'shared-id', fileFormat: BookFormat.epub);
+    final originalProfile = _ReaderBookRepository();
+    final dataStore = DataStore(bookRepository: originalProfile)..loadData(books: [book]);
+    final gate = Completer<void>();
+    final cache = _ReaderMediaCache(gate: gate);
+    addTearDown(dataStore.dispose);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: dataStore),
+          ChangeNotifierProvider.value(value: preferences),
+          Provider<MediaCacheService>.value(value: cache),
+          Provider<BookImportService>(create: (_) => BookImportService()),
+          ChangeNotifierProvider<AuthProvider>(create: (_) => _ReaderAuth()),
+        ],
+        child: MaterialApp(
+          home: Builder(
+            builder: (context) => Scaffold(
+              body: TextButton(
+                onPressed: () => Navigator.of(context).push<void>(
+                  MaterialPageRoute(builder: (_) => const ReaderPage(bookId: 'shared-id')),
+                ),
+                child: const Text('Open book'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open book'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(cache.loads, 1);
+    originalProfile.isCurrent = false;
+    dataStore.loadData(books: [book.copyWith(title: 'Other profile book')]);
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.byType(PapyrusReader), findsNothing);
+    expect(find.text('Your library changed. Reopen this book from the library.'), findsOneWidget);
+    expect(dataStore.getBook(book.id)!.title, 'Other profile book');
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(find.text('Open book'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('explains when a book format is not supported', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final preferences = PreferencesProvider(await SharedPreferences.getInstance());
@@ -127,4 +181,12 @@ class _ReaderAuth extends ChangeNotifier implements AuthProvider {
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _ReaderBookRepository extends InMemoryBookRepository implements EditableBookRepository {
+  @override
+  bool isCurrent = true;
+
+  @override
+  Future<void> update(Book book, {required Book previous}) => upsert(book);
 }

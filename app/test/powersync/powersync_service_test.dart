@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/models/book.dart';
+import 'package:papyrus/providers/goals_provider.dart';
 import 'package:papyrus/powersync/library_database.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/sync_state.dart';
@@ -139,6 +140,8 @@ void main() {
   test('first-sync failure remains distinct from an empty library and recovers', () async {
     final first = service(connectAuthenticated: true);
     final store = DataStore(bookRepository: first);
+    final goals = GoalsProvider(watchClock: false)..attach(store);
+    addTearDown(goals.dispose);
     await first.activateAuthenticated('user-one');
     await first.watchLibrary().firstWhere((snapshot) => !snapshot.isLoaded);
     final database = (first.trackingRepository as LibraryDatabase).database;
@@ -149,6 +152,8 @@ void main() {
     await first.watchLibrary().firstWhere((snapshot) => snapshot.loadError != null);
     expect(store.isLoaded, isFalse);
     expect(store.libraryLoadError, same(failure));
+    expect(goals.isLoading, isFalse);
+    expect(goals.error, 'Your reading goals will appear when the connection is restored.');
     await first.upsert(_book('downloaded-book'));
 
     // ignore: invalid_use_of_protected_member, invalid_use_of_internal_member
@@ -156,6 +161,8 @@ void main() {
     await store.waitUntilLoaded();
     expect(store.books.single.id, 'downloaded-book');
     expect(store.libraryLoadError, isNull);
+    expect(goals.error, isNull);
+    expect(goals.isLoading, isFalse);
     await store.disposeBookRepository();
     store.dispose();
     await first.close();
