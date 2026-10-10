@@ -1,0 +1,38 @@
+name: Windows packaging check
+
+on:
+  pull_request:
+    paths:
+      - 'app/windows/**'
+      - 'app/pubspec.yaml'
+      - 'app/pubspec.lock'
+      - 'tools/package_windows.ps1'
+      - 'tools/check_windows_package.ps1'
+      - 'packaging/windows/**'
+      - 'docs/INSTALL.md'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/windows-packaging.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-packaging-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.41.2'
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: flutter build windows --release
+      - run: ../tools/package_windows.ps1 -Tag 'v0.0.0+1'
+      - run: ../tools/check_windows_package.ps1 -Tag 'v0.0.0+1'

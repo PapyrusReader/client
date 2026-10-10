@@ -7,6 +7,12 @@ on:
       - 'app/pubspec.yaml'
       - 'app/pubspec.lock'
       - 'tools/install_linux_build_dependencies.sh'
+      - 'tools/package_linux.sh'
+      - 'tools/extract_appimage.py'
+      - 'tools/check_linux_packages.sh'
+      - 'tools/check_appimage_runtime.sh'
+      - 'packaging/linux/**'
+      - 'docs/INSTALL.md'
       - '.github/workflows/release.yml'
       - '.github/workflows/linux-packaging.yml'
 
@@ -36,3 +42,7 @@ jobs:
         run: flutter pub get --enforce-lockfile
       - name: Compile Linux release
         run: flutter build linux --release
+      - name: Package Linux downloads
+        run: bash ../tools/package_linux.sh v0.0.0+1
+      - name: Check Linux packages
+        run: bash ../tools/check_linux_packages.sh v0.0.0+1

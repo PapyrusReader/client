@@ -1,0 +1,6 @@
+cmake_minimum_required(VERSION 3.14)
+project(papyrus_webview_smoke LANGUAGES CXX)
+add_executable(papyrus_webview_smoke webview_smoke.cpp)
+target_compile_features(papyrus_webview_smoke PRIVATE cxx_std_17)
+target_include_directories(papyrus_webview_smoke PRIVATE "${WEBVIEW_SDK}")
+target_link_libraries(papyrus_webview_smoke PRIVATE ole32 user32)

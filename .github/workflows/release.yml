@@ -51,6 +51,7 @@ jobs:
     environment: release
     runs-on: ubuntu-latest
     env:
+      RELEASE_TAG: ${{ needs.version.outputs.tag }}
       PAPYRUS_API_BASE_URL: ${{ vars.PAPYRUS_API_BASE_URL }}
       POWERSYNC_SERVICE_URL: ${{ vars.POWERSYNC_SERVICE_URL }}
       ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
@@ -94,10 +95,12 @@ jobs:
           printf 'a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29  %s/bundletool.jar\n' "$RUNNER_TEMP" | sha256sum --check
           java -jar "$RUNNER_TEMP/bundletool.jar" dump config --bundle=build/app/outputs/bundle/release/app-release.aab > "$RUNNER_TEMP/bundle-config.json"
           python -c 'import json, os; from pathlib import Path; config = json.loads((Path(os.environ["RUNNER_TEMP"]) / "bundle-config.json").read_text()); assert config["optimizations"]["uncompressNativeLibraries"]["alignment"] == "PAGE_ALIGNMENT_16K", "Bundle must request 16 KB APK alignment"'
+      - name: Name Android download
+        run: cp build/app/outputs/bundle/release/app-release.aab "papyrus-${RELEASE_TAG}-android-universal.aab"
       - uses: actions/upload-artifact@v4
         with:
           name: android-release
-          path: app/build/app/outputs/bundle/release/app-release.aab
+          path: app/papyrus-${{ needs.version.outputs.tag }}-android-universal.aab
           if-no-files-found: error
       - name: Remove upload key
         if: always()
@@ -110,6 +113,7 @@ jobs:
     if: needs.version.outputs.release == 'true'
     environment: release
     env:
+      RELEASE_TAG: ${{ needs.version.outputs.tag }}
       PAPYRUS_API_BASE_URL: ${{ vars.PAPYRUS_API_BASE_URL }}
       POWERSYNC_SERVICE_URL: ${{ vars.POWERSYNC_SERVICE_URL }}
     runs-on: ubuntu-latest
@@ -142,14 +146,15 @@ jobs:
 
       - name: Create archive
         run: |
+          python ../tools/release_assets.py stamp-web build/web --tag "$RELEASE_TAG"
           cd build/web
-          zip -r ../../papyrus-web-v${{ needs.version.outputs.version }}.zip .
+          zip -r "../../papyrus-${RELEASE_TAG}-web.zip" .
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: web-release
-          path: app/papyrus-web-v${{ needs.version.outputs.version }}.zip
+          path: app/papyrus-${{ needs.version.outputs.tag }}-web.zip
 
   build-linux:
     name: Build Linux
@@ -157,6 +162,7 @@ jobs:
     if: needs.version.outputs.release == 'true'
     environment: release
     env:
+      RELEASE_TAG: ${{ needs.version.outputs.tag }}
       PAPYRUS_API_BASE_URL: ${{ vars.PAPYRUS_API_BASE_URL }}
       POWERSYNC_SERVICE_URL: ${{ vars.POWERSYNC_SERVICE_URL }}
     runs-on: ubuntu-24.04
@@ -190,16 +196,18 @@ jobs:
             --build-name=${{ needs.version.outputs.version }} \
             --build-number=${{ needs.version.outputs.build_number }}
 
-      - name: Create archive
-        run: |
-          cd build/linux/x64/release/bundle
-          tar -czvf ../../../../../papyrus-linux-v${{ needs.version.outputs.version }}.tar.gz .
+      - name: Package Linux downloads
+        run: bash ../tools/package_linux.sh "$RELEASE_TAG"
+
+      - name: Verify Linux packages
+        run: bash ../tools/check_linux_packages.sh "$RELEASE_TAG"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: linux-release
-          path: app/papyrus-linux-v${{ needs.version.outputs.version }}.tar.gz
+          path: app/dist/*
+          if-no-files-found: error
 
   build-windows:
     name: Build Windows
@@ -207,6 +215,7 @@ jobs:
     if: needs.version.outputs.release == 'true'
     environment: release
     env:
+      RELEASE_TAG: ${{ needs.version.outputs.tag }}
       PAPYRUS_API_BASE_URL: ${{ vars.PAPYRUS_API_BASE_URL }}
       POWERSYNC_SERVICE_URL: ${{ vars.POWERSYNC_SERVICE_URL }}
     runs-on: windows-latest
@@ -237,30 +246,64 @@ jobs:
             --build-name=${{ needs.version.outputs.version }} `
             --build-number=${{ needs.version.outputs.build_number }}
 
-      - name: Create archive
-        run: |
-          Compress-Archive -Path build\windows\x64\runner\Release\* -DestinationPath papyrus-windows-v${{ needs.version.outputs.version }}.zip
+      - name: Package Windows downloads
+        run: ../tools/package_windows.ps1 -Tag $env:RELEASE_TAG
+
+      - name: Verify Windows installer
+        run: ../tools/check_windows_package.ps1 -Tag $env:RELEASE_TAG
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
-          path: app/papyrus-windows-v${{ needs.version.outputs.version }}.zip
+          path: app/dist/*
+          if-no-files-found: error
 
   release:
     needs: [version, build-android, build-web, build-linux, build-windows]
     if: needs.version.outputs.release == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     permissions:
       contents: write
+    env:
+      RELEASE_TAG: ${{ needs.version.outputs.tag }}
+      GH_TOKEN: ${{ github.token }}
     steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
+          pattern: '*-release'
+          merge-multiple: true
           path: artifacts
-      - uses: softprops/action-gh-release@v2
-        with:
-          tag_name: ${{ needs.version.outputs.tag }}
-          target_commitish: ${{ github.sha }}
-          name: Papyrus ${{ needs.version.outputs.tag }}
-          generate_release_notes: true
-          files: artifacts/**/*
+      - name: Verify and seal release
+        run: python3 tools/release_assets.py seal artifacts --tag "$RELEASE_TAG"
+      - name: Publish immutable downloads
+        run: python3 tools/release_assets.py publish artifacts --tag "$RELEASE_TAG"
+
+  deliver:
+    needs: [version, release]
+    if: needs.version.outputs.release == 'true'
+    uses: ./.github/workflows/delivery.yml
+    with:
+      tag: ${{ needs.version.outputs.tag }}
+      destination: all
+    secrets: inherit
+
+  summary:
+    if: always()
+    needs: [version, build-android, build-web, build-linux, build-windows, release, deliver]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Report release stages
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+        run: |
+          python3 - <<'PYTHON'
+          import json, os
+          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
+              output.write('## Release stages\n\n| Stage | Result |\n| --- | --- |\n')
+              for name, stage in json.loads(os.environ['RESULTS']).items():
+                  output.write(f"| {name} | {stage['result']} |\n")
+          PYTHON

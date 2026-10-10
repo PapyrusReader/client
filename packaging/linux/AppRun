@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+set -eo pipefail
+APPDIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+export APPDIR
+for dependency in /usr/bin/bwrap /usr/bin/xdg-dbus-proxy; do
+  if [[ ! -x "$dependency" ]]; then
+    echo 'Papyrus AppImage requires bubblewrap and xdg-dbus-proxy for the WebKit sandbox.' >&2
+    exit 1
+  fi
+done
+for hook in "$APPDIR"/apprun-hooks/*.sh; do
+  if [[ -f "$hook" ]]; then
+    # shellcheck source=/dev/null
+    source "$hook"
+  fi
+done
+# Distribution WebKit builds use absolute helper paths. Mount the bundled
+# helpers at those paths without disabling WebKit's own nested sandbox.
+exec /usr/bin/bwrap --bind / / --dev-bind /dev /dev --proc /proc \
+  --ro-bind "$APPDIR/usr/lib/webkit2gtk-4.1" /usr/lib/x86_64-linux-gnu/webkit2gtk-4.1 \
+  --setenv LD_LIBRARY_PATH "$APPDIR/usr/lib:$APPDIR/usr/bin/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}" \
+  --setenv GIO_MODULE_DIR "$APPDIR/usr/lib/gio/modules" \
+  --setenv GST_PLUGIN_SYSTEM_PATH_1_0 "$APPDIR/usr/lib/gstreamer-1.0" \
+  --setenv GST_PLUGIN_SCANNER_1_0 "$APPDIR/usr/libexec/gstreamer-1.0/gst-plugin-scanner" \
+  -- "$APPDIR/usr/bin/papyrus" "$@"
