@@ -52,7 +52,7 @@ Future<void> showGridViewSheet(
         final options = bookGridSizeOptions(availableWidth);
 
         return AppBottomSheet(
-          header: Text('View mode', style: Theme.of(context).textTheme.titleLarge),
+          header: Text('View mode'),
           footer: BottomSheetActions(
             primary: FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
           ),

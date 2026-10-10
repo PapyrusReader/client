@@ -130,7 +130,6 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
                   widget.isBulkMode
                       ? 'Add topics to ${widget.bulkBookIds!.length} ${maybePluralize(widget.bulkBookIds!.length, "topic")}'
                       : 'Manage topics',
-                  style: textTheme.titleLarge,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),

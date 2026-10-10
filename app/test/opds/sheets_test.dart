@@ -212,9 +212,9 @@ void main() {
     await tester.tap(find.text('Open editor'));
     await tester.pumpAndSettle();
     final title = tester.getRect(find.text('Add catalog'));
-    final close = tester.getRect(find.byTooltip('Close'));
     final footer = tester.getRect(find.byKey(const Key('opds-sheet-footer')));
-    expect(title.left, lessThan(close.left));
+    expect(title.left, 24);
+    expect(find.byTooltip('Close'), findsNothing);
     expect(footer.top, greaterThan(tester.getBottomLeft(find.byKey(const Key('opds-name'))).dy));
     expect(tester.getTopLeft(find.text('Save')).dy, greaterThan(footer.top));
     final cancel = find.widgetWithText(OutlinedButton, 'Cancel');
@@ -300,7 +300,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Saving…')).onPressed, isNull);
     expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Cancel')).onPressed, isNull);
-    expect(tester.widget<IconButton>(find.widgetWithIcon(IconButton, Icons.close)).onPressed, isNull);
+    expect(find.byIcon(Icons.close), findsNothing);
     await tester.tapAt(const Offset(10, 10));
     await tester.drag(find.byType(BottomSheetHandle), const Offset(0, 400));
     await tester.binding.handlePopRoute();

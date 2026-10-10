@@ -1,74 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
+import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 
-/// A reusable header row for bottom sheets.
-///
-/// Renders Cancel (TextButton) on the left, [title] centered, and
-/// Save (FilledButton) on the right.
+/// A compact title and handle, with the whole header available for dragging.
 class BottomSheetHeader extends StatelessWidget {
-  final String title;
-  final VoidCallback onCancel;
-  final VoidCallback? onSave;
-  final String saveLabel;
-  final Key? saveButtonKey;
-  final bool canCancel;
-  final bool canSave;
-  final String cancelLabel;
-  final bool stacked;
+  const BottomSheetHeader({super.key, this.title, this.child, this.onDismiss, this.compact = false})
+    : assert((title == null) != (child == null));
 
-  const BottomSheetHeader({
-    super.key,
-    required this.title,
-    required this.onCancel,
-    this.onSave,
-    this.saveLabel = 'Save',
-    this.saveButtonKey,
-    this.canCancel = true,
-    this.canSave = true,
-    this.cancelLabel = 'Cancel',
-    this.stacked = false,
-  });
+  final String? title;
+  final Widget? child;
+  final VoidCallback? onDismiss;
+  final bool compact;
 
   @override
   Widget build(BuildContext context) {
-    final titleWidget = Text(
-      title,
-      maxLines: 2,
-      overflow: TextOverflow.ellipsis,
-      textAlign: TextAlign.center,
-      style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
-    );
+    final textTheme = Theme.of(context).textTheme;
+    final mobile = MediaQuery.sizeOf(context).width < Breakpoints.tablet;
+    final titleStyle = mobile || compact
+        ? textTheme.titleMedium?.copyWith(height: 1.5)
+        : textTheme.titleLarge?.copyWith(height: 1.25);
 
-    final cancelButton = TextButton(onPressed: canCancel ? onCancel : null, child: Text(cancelLabel));
-
-    final saveButton = onSave == null
-        ? const SizedBox.shrink()
-        : FilledButton(key: saveButtonKey, onPressed: canSave ? onSave : null, child: Text(saveLabel));
-
-    if (stacked) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          titleWidget,
-          const SizedBox(height: 8),
-          Wrap(
-            alignment: WrapAlignment.spaceBetween,
-            spacing: 8,
-            children: [cancelButton, if (onSave != null) saveButton],
+    return BottomSheetDragRegion(
+      onDismiss: onDismiss,
+      child: Semantics(
+        onDismiss: onDismiss,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: compact ? 0 : Spacing.sm),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              const BottomSheetHandle(),
+              const SizedBox(height: Spacing.xs),
+              ConstrainedBox(
+                constraints: const BoxConstraints(minHeight: 24),
+                child: Semantics(
+                  header: true,
+                  child: DefaultTextStyle.merge(style: titleStyle, child: child ?? Text(title!)),
+                ),
+              ),
+            ],
           ),
-        ],
-      );
-    }
-
-    return Row(
-      children: [
-        Expanded(
-          child: Align(alignment: Alignment.centerLeft, child: cancelButton),
         ),
-        Expanded(child: titleWidget),
-        Expanded(
-          child: Align(alignment: Alignment.centerRight, child: saveButton),
-        ),
-      ],
+      ),
     );
   }
 }

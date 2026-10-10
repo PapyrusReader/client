@@ -41,7 +41,6 @@ class BulkStatusSheet extends StatelessWidget {
     return AppBottomSheet(
       header: Text(
         'Change status for $bookCount ${maybePluralize(bookCount, "book")}',
-        style: Theme.of(context).textTheme.titleLarge,
       ),
       contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.md),
       body: Column(

@@ -116,7 +116,6 @@ class _BookContextBottomSheet extends StatelessWidget {
               children: [
                 Text(
                   book.title,
-                  style: Theme.of(context).textTheme.titleMedium,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),

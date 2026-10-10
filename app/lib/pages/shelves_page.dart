@@ -310,7 +310,6 @@ class _ShelvesPageState extends State<ShelvesPage> {
       builder: (context) => AppBottomSheet(
         header: Text(
           shelf.name,
-          style: Theme.of(context).textTheme.titleLarge,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
