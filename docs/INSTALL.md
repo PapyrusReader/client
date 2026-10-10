@@ -82,3 +82,13 @@ installation with the same system-library requirements as the `.deb`.
 Ubuntu 24.04 and Debian 13 are the AppImage validation targets. Only releases whose
 packaging checks and graphical reader smoke tests have passed on a target should
 be described as verified there; an archive build alone is not compatibility proof.
+
+Ubuntu 24.04's default AppArmor policy can reject the AppImage with
+`bwrap: setting up uid map: Permission denied`. Prefer the `.deb` on such systems.
+An administrator can instead grant user namespaces through an application-specific
+AppArmor profile. Do not disable AppArmor or the global user-namespace restriction.
+For an AppImage installed at a fixed path, use Ubuntu's documented `userns` profile
+pattern with that exact path; extracted launches must enter the same named profile
+with `aa-exec -p PROFILE -- /path/to/squashfs-root/AppRun`. Native CI validates this
+explicit namespace prerequisite, rather than claiming compatibility with Ubuntu's
+unmodified default policy.

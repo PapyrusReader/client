@@ -6,10 +6,14 @@ on:
       - 'app/linux/**'
       - 'app/pubspec.yaml'
       - 'app/pubspec.lock'
+      - 'app/integration_test/desktop_package_smoke.dart'
+      - 'tools/run_packaged_smoke.py'
+      - 'tools/check_packaged_reader.*'
       - 'tools/install_linux_build_dependencies.sh'
       - 'tools/package_linux.sh'
       - 'tools/extract_appimage.py'
       - 'tools/check_linux_packages.sh'
+      - 'tools/setup_packaging_apparmor.sh'
       - 'tools/check_appimage_runtime.sh'
       - 'packaging/linux/**'
       - 'docs/INSTALL.md'
@@ -44,5 +48,21 @@ jobs:
         run: flutter build linux --release
       - name: Package Linux downloads
         run: bash ../tools/package_linux.sh v0.0.0+1
+      - name: Configure isolated AppImage namespace permission
+        run: bash ../tools/setup_packaging_apparmor.sh
+
       - name: Check Linux packages
         run: bash ../tools/check_linux_packages.sh v0.0.0+1
+      - name: Build instrumented reader package
+        run: flutter build linux --release --target integration_test/desktop_package_smoke.dart --dart-define=INTEGRATION_TEST_SHOULD_REPORT_RESULTS_TO_NATIVE=false
+      - name: Package reader test build
+        run: bash ../tools/package_linux.sh v0.0.0+2
+      - name: Validate packaged EPUB/PDF and offline storage
+        run: bash ../tools/check_packaged_reader.sh v0.0.0+2
+      - name: Save native package validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-package-validation
+          path: app/build/package-smoke-results/
+          if-no-files-found: warn

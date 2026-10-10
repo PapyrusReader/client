@@ -199,6 +199,9 @@ jobs:
       - name: Package Linux downloads
         run: bash ../tools/package_linux.sh "$RELEASE_TAG"
 
+      - name: Configure isolated AppImage namespace permission
+        run: bash ../tools/setup_packaging_apparmor.sh
+
       - name: Verify Linux packages
         run: bash ../tools/check_linux_packages.sh "$RELEASE_TAG"
 

@@ -6,6 +6,9 @@ on:
       - 'app/windows/**'
       - 'app/pubspec.yaml'
       - 'app/pubspec.lock'
+      - 'app/integration_test/desktop_package_smoke.dart'
+      - 'tools/run_packaged_smoke.py'
+      - 'tools/check_packaged_reader.*'
       - 'tools/package_windows.ps1'
       - 'tools/check_windows_package.ps1'
       - 'packaging/windows/**'
@@ -36,3 +39,16 @@ jobs:
       - run: flutter build windows --release
       - run: ../tools/package_windows.ps1 -Tag 'v0.0.0+1'
       - run: ../tools/check_windows_package.ps1 -Tag 'v0.0.0+1'
+      - name: Build instrumented reader package
+        run: flutter build windows --release --target integration_test/desktop_package_smoke.dart --dart-define=INTEGRATION_TEST_SHOULD_REPORT_RESULTS_TO_NATIVE=false
+      - name: Package reader test build
+        run: ../tools/package_windows.ps1 -Tag 'v0.0.0+2'
+      - name: Validate upgraded package and offline reader
+        run: ../tools/check_packaged_reader.ps1 -Tag 'v0.0.0+2' -PreviousTag 'v0.0.0+1'
+      - name: Save native package validation reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-package-validation
+          path: app/build/package-smoke-results/
+          if-no-files-found: warn
