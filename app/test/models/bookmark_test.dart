@@ -49,7 +49,6 @@ void main() {
       test('keeps nullable fields when not passed', () {
         final bookmark = buildTestBookmark(pageNumber: 10, chapterTitle: 'Ch1', note: 'A note');
         final copy = bookmark.copyWith(colorHex: '#FF0000');
-
         expect(copy.pageNumber, 10);
         expect(copy.chapterTitle, 'Ch1');
         expect(copy.note, 'A note');
@@ -59,35 +58,30 @@ void main() {
       test('clears pageNumber when explicitly set to null', () {
         final bookmark = buildTestBookmark(pageNumber: 10);
         final copy = bookmark.copyWith(pageNumber: null);
-
         expect(copy.pageNumber, isNull);
       });
 
       test('clears chapterTitle when explicitly set to null', () {
         final bookmark = buildTestBookmark(chapterTitle: 'Ch1');
         final copy = bookmark.copyWith(chapterTitle: null);
-
         expect(copy.chapterTitle, isNull);
       });
 
       test('clears note when explicitly set to null', () {
         final bookmark = buildTestBookmark(note: 'A note');
         final copy = bookmark.copyWith(note: null);
-
         expect(copy.note, isNull);
       });
 
       test('updates pageNumber to new value', () {
         final bookmark = buildTestBookmark(pageNumber: 10);
         final copy = bookmark.copyWith(pageNumber: 20);
-
         expect(copy.pageNumber, 20);
       });
 
       test('updates note to new value', () {
         final bookmark = buildTestBookmark(note: 'Old note');
         final copy = bookmark.copyWith(note: 'New note');
-
         expect(copy.note, 'New note');
       });
     });
@@ -95,6 +89,7 @@ void main() {
     group('toJson', () {
       test('serializes all fields with snake_case keys', () {
         final now = DateTime(2025, 6, 15);
+
         final bookmark = Bookmark(
           id: 'bm-1',
           bookId: 'book-1',
@@ -107,7 +102,6 @@ void main() {
         );
 
         final json = bookmark.toJson();
-
         expect(json['id'], 'bm-1');
         expect(json['book_id'], 'book-1');
         expect(json['position'], 0.5);
@@ -121,7 +115,6 @@ void main() {
       test('null optional fields serialize as null', () {
         final bookmark = buildTestBookmark();
         final json = bookmark.toJson();
-
         expect(json['page_number'], isNull);
         expect(json['chapter_title'], isNull);
         expect(json['note'], isNull);
@@ -142,7 +135,6 @@ void main() {
         };
 
         final bookmark = Bookmark.fromJson(json);
-
         expect(bookmark.id, 'bm-1');
         expect(bookmark.bookId, 'book-1');
         expect(bookmark.position, 0.75);
@@ -154,7 +146,6 @@ void main() {
 
       test('defaults colorHex when missing', () {
         final json = {'id': 'bm-1', 'book_id': 'book-1', 'position': 0.5, 'created_at': '2025-01-01T00:00:00.000'};
-
         final bookmark = Bookmark.fromJson(json);
         expect(bookmark.colorHex, '#FF5722');
       });
@@ -174,7 +165,6 @@ void main() {
         );
 
         final restored = Bookmark.fromJson(original.toJson());
-
         expect(restored.id, original.id);
         expect(restored.bookId, original.bookId);
         expect(restored.position, original.position);

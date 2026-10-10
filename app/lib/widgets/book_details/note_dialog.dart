@@ -89,6 +89,7 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> with PersistentSave<
 
   void _addTag() {
     final tag = _tagController.text.trim().toLowerCase();
+
     if (tag.isNotEmpty && !_tags.contains(tag)) {
       setState(() {
         _tags.add(tag);
@@ -104,7 +105,10 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> with PersistentSave<
   }
 
   Future<void> _save() async {
-    if (isSaving) return;
+    if (isSaving) {
+      return;
+    }
+
     if (_formKey.currentState?.validate() ?? false) {
       final note = Note(
         id: widget.existingNote?.id ?? const Uuid().v4(),
@@ -117,14 +121,19 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> with PersistentSave<
         createdAt: widget.existingNote?.createdAt ?? DateTime.now(),
         updatedAt: isEditing ? DateTime.now() : null,
       );
+
       final saved = await persist(() => widget.onSave?.call(note));
-      if (saved && mounted) Navigator.of(context).pop(note);
+
+      if (saved && mounted) {
+        Navigator.of(context).pop(note);
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return AppBottomSheet(
       key: const Key('note-bottom-sheet'),
       title: isEditing ? 'Edit note' : 'New note',
@@ -163,6 +172,7 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> with PersistentSave<
                         if (value == null || value.trim().isEmpty) {
                           return 'Please enter a title';
                         }
+
                         return null;
                       },
                     ),
@@ -194,6 +204,7 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> with PersistentSave<
                         if (value == null || value.trim().isEmpty) {
                           return 'Please enter some content';
                         }
+
                         return null;
                       },
                     ),

@@ -12,6 +12,7 @@ Future<DateTime?> showAppDatePicker({
   if (!AppMotion.disabled(context)) {
     return showDatePicker(context: context, initialDate: initialDate, firstDate: firstDate, lastDate: lastDate);
   }
+
   return showDialog<DateTime>(
     context: context,
     animationStyle: AnimationStyle.noAnimation,
@@ -47,6 +48,7 @@ Future<DateTimeRange?> showAppDateRangePicker({
       builder: builder,
     );
   }
+
   return showDialog<DateTimeRange>(
     context: context,
     useRootNavigator: useRootNavigator,
@@ -63,6 +65,7 @@ Future<DateTimeRange?> showAppDateRangePicker({
         cancelText: cancelText,
         confirmText: saveText ?? confirmText,
       );
+
       return builder == null ? dialog : builder(context, dialog);
     },
   );

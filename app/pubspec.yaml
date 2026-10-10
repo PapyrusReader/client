@@ -1,7 +1,7 @@
 name: papyrus
 description: "Digital library management application."
 publish_to: 'none'
-version: 0.0.1+1
+version: 0.0.2+2
 
 environment:
   sdk: ^3.9.2
@@ -27,7 +27,7 @@ dependencies:
   papyrus_reader:
     git:
       url: https://github.com/PapyrusReader/reader.git
-      ref: 7992c8b518fcb900f941217a7ea8455d001c1aea
+      ref: ee30388703a5811b45411917155a54b279ea2374
   epub_pro: ^5.6.0
   syncfusion_flutter_pdf: ^32.2.3
   dart_mobi: ^1.0.2
@@ -46,6 +46,8 @@ dependencies:
   shared_preferences: ^2.5.4
   flutter_secure_storage: ^10.1.0
   uuid: ^4.5.1
+  timezone: ^0.11.1
+  flutter_timezone: ^5.1.1
 
 dev_dependencies:
   flutter_test:
@@ -57,6 +59,7 @@ dev_dependencies:
   path_provider_platform_interface: ^2.1.2
   plugin_platform_interface: ^2.1.8
 
+  shared_preferences_platform_interface: ^2.4.1
 flutter:
   config:
     enable-swift-package-manager: false

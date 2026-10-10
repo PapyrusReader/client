@@ -62,25 +62,21 @@ void main() {
     group('rendering', () {
       testWidgets('displays search field with hint text', (tester) async {
         await tester.pumpWidget(buildNotes());
-
         expect(find.text('Search notes...'), findsOneWidget);
       });
 
       testWidgets('displays sort button', (tester) async {
         await tester.pumpWidget(buildNotes());
-
         expect(find.byIcon(Icons.sort), findsOneWidget);
       });
 
       testWidgets('renders NoteCard for each note', (tester) async {
         await tester.pumpWidget(buildNotes());
-
         expect(find.byType(NoteCard), findsNWidgets(3));
       });
 
       testWidgets('shows empty state when notes list is empty', (tester) async {
         await tester.pumpWidget(buildNotes(notes: []));
-
         expect(find.text('No notes yet'), findsOneWidget);
         expect(find.byIcon(Icons.note_outlined), findsOneWidget);
       });
@@ -89,47 +85,37 @@ void main() {
     group('search', () {
       testWidgets('filters by title', (tester) async {
         await tester.pumpWidget(buildNotes());
-
         await tester.enterText(find.byType(TextField), 'Architecture');
         await tester.pump();
-
         expect(find.byType(NoteCard), findsOneWidget);
       });
 
       testWidgets('filters by content', (tester) async {
         await tester.pumpWidget(buildNotes());
-
         await tester.enterText(find.byType(TextField), 'Beautiful');
         await tester.pump();
-
         expect(find.byType(NoteCard), findsOneWidget);
       });
 
       testWidgets('filters by tag', (tester) async {
         await tester.pumpWidget(buildNotes());
-
         await tester.enterText(find.byType(TextField), 'philosophy');
         await tester.pump();
-
         expect(find.byType(NoteCard), findsOneWidget);
       });
 
       testWidgets('shows no results when no matches', (tester) async {
         await tester.pumpWidget(buildNotes());
-
         await tester.enterText(find.byType(TextField), 'zzzznonexistent');
         await tester.pump();
-
         expect(find.text('No notes found'), findsOneWidget);
       });
 
       testWidgets('clearing search restores all notes', (tester) async {
         await tester.pumpWidget(buildNotes());
-
         await tester.enterText(find.byType(TextField), 'Architecture');
         await tester.pump();
         expect(find.byType(NoteCard), findsOneWidget);
-
         await tester.enterText(find.byType(TextField), '');
         await tester.pump();
         expect(find.byType(NoteCard), findsNWidgets(3));
@@ -139,10 +125,8 @@ void main() {
     group('sorting', () {
       testWidgets('sort menu shows 3 options', (tester) async {
         await tester.pumpWidget(buildNotes());
-
         await tester.tap(find.byIcon(Icons.sort));
         await tester.pumpAndSettle();
-
         expect(find.text('Newest first'), findsOneWidget);
         expect(find.text('Oldest first'), findsOneWidget);
         expect(find.text('By title'), findsOneWidget);
@@ -159,7 +143,6 @@ void main() {
 
       testWidgets('selecting by title reorders alphabetically', (tester) async {
         await tester.pumpWidget(buildNotes());
-
         await tester.tap(find.byIcon(Icons.sort));
         await tester.pumpAndSettle();
         await tester.tap(find.text('By title'));
@@ -173,7 +156,6 @@ void main() {
 
       testWidgets('selecting oldest first reorders by date', (tester) async {
         await tester.pumpWidget(buildNotes());
-
         await tester.tap(find.byIcon(Icons.sort));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Oldest first'));
@@ -190,20 +172,16 @@ void main() {
       testWidgets('tap calls onNoteTap', (tester) async {
         Note? tappedNote;
         await tester.pumpWidget(buildNotes(onNoteTap: (n) => tappedNote = n));
-
         await tester.tap(find.byType(NoteCard).first);
         await tester.pump();
-
         expect(tappedNote, isNotNull);
       });
 
       testWidgets('long press calls onNoteActions', (tester) async {
         Note? actionNote;
         await tester.pumpWidget(buildNotes(onNoteActions: (n) => actionNote = n));
-
         await tester.longPress(find.byType(NoteCard).first);
         await tester.pump();
-
         expect(actionNote, isNotNull);
       });
     });
@@ -211,25 +189,21 @@ void main() {
     group('responsive', () {
       testWidgets('desktop shows add note button in header', (tester) async {
         await tester.pumpWidget(buildNotes(screenSize: const Size(1200, 800)));
-
         expect(find.text('Add note'), findsOneWidget);
       });
 
       testWidgets('mobile does not show add note button in header', (tester) async {
         await tester.pumpWidget(buildNotes(screenSize: const Size(400, 800)));
-
         expect(find.text('Add note'), findsNothing);
       });
 
       testWidgets('desktop layout shows action menu on items', (tester) async {
         await tester.pumpWidget(buildNotes(screenSize: const Size(1200, 800)));
-
         expect(find.byIcon(Icons.more_vert), findsNWidgets(3));
       });
 
       testWidgets('mobile layout hides action menu on items', (tester) async {
         await tester.pumpWidget(buildNotes(screenSize: const Size(400, 800)));
-
         expect(find.byIcon(Icons.more_vert), findsNothing);
       });
     });

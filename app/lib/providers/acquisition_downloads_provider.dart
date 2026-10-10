@@ -47,6 +47,7 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
        visiblePollingInterval = pollingInterval ?? visiblePollingInterval,
        foregroundPollingInterval = pollingInterval ?? foregroundPollingInterval {
     WidgetsBinding.instance.addObserver(this);
+
     _isForeground = switch (WidgetsBinding.instance.lifecycleState) {
       null || AppLifecycleState.resumed => true,
       _ => false,
@@ -55,11 +56,13 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
 
   List<AcquisitionJob> get jobs {
     final values = _jobs.values.toList();
+
     values.sort((a, b) {
       final left = a.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       final right = b.createdAt ?? DateTime.fromMillisecondsSinceEpoch(0);
       return right.compareTo(left);
     });
+
     return values;
   }
 
@@ -107,7 +110,6 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
 
   bool get isManagedAcquisitionReady {
     final hasIndexer = _endpoints.any((endpoint) => endpoint.enabled && endpoint.kind.isIndexer);
-
     return _serverManagedDownloadsReady && hasIndexer && downloadClients.isNotEmpty;
   }
 
@@ -369,6 +371,7 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
     _selectedReleaseTokens
       ..clear()
       ..addAll(_remoteResults.map((release) => release.releaseToken));
+
     _notifyListeners();
   }
 
@@ -501,9 +504,9 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
         final failuresByReleaseToken = {
           for (final release in selected) release.releaseToken: submissionErrorMessage(error.toString()),
         };
+
         _selectedReleaseTokens.addAll(failuresByReleaseToken.keys);
         _submissionErrorsByReleaseToken = Map.unmodifiable(failuresByReleaseToken);
-
         return AcquisitionSubmissionOutcome(successfulCount: 0, failuresByReleaseToken: failuresByReleaseToken);
       }
     } finally {
@@ -544,7 +547,6 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
         final message = listDownloadFilesErrorMessage(error);
         _error = message;
         _notifyListeners();
-
         return AcquisitionJobFilesResult.failure(message);
       }
     }
@@ -566,7 +568,6 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
 
       if (_isCurrent(gateway, generation)) {
         _replaceJob(job);
-
         return const AcquisitionJobActionOutcome.success();
       }
     } catch (error) {
@@ -574,7 +575,6 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
         final message = selectDownloadFileErrorMessage(error);
         _error = message;
         _notifyListeners();
-
         return AcquisitionJobActionOutcome.failure(message);
       }
     }
@@ -596,7 +596,6 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
 
       if (_isCurrent(gateway, generation)) {
         _replaceJob(job);
-
         return const AcquisitionJobActionOutcome.success();
       }
     } catch (error) {
@@ -604,7 +603,6 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
         final message = retryDownloadImportErrorMessage(error);
         _error = message;
         _notifyListeners();
-
         return AcquisitionJobActionOutcome.failure(message);
       }
     }
@@ -628,7 +626,6 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
 
     _schedulePolling();
     _notifyListeners();
-
     return outcome;
   }
 
@@ -688,14 +685,12 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
       if (_isCurrent(gateway, generation)) {
         _setJob(cancelled);
         _error = null;
-
         return const AcquisitionJobActionOutcome.success();
       }
     } catch (error) {
       if (_isCurrent(gateway, generation)) {
         final message = cancelDownloadErrorMessage(error);
         _error = message;
-
         return AcquisitionJobActionOutcome.failure(message);
       }
     }
@@ -807,6 +802,7 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
     _jobs
       ..clear()
       ..addEntries(jobs.map((job) => MapEntry(job.id, job)));
+
     _jobStateRevision += 1;
   }
 
@@ -852,6 +848,7 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
     if (_discoveryRefreshScheduled) {
       _discoveryRefreshRequiresLibraryVisibility =
           _discoveryRefreshRequiresLibraryVisibility && requireLibraryVisibility;
+
       return;
     }
 
@@ -861,6 +858,7 @@ class AcquisitionDownloadsProvider extends ChangeNotifier with WidgetsBindingObs
     scheduleMicrotask(() {
       final shouldRefresh =
           !_disposed && _isForeground && (!_discoveryRefreshRequiresLibraryVisibility || _isLibraryVisible);
+
       _discoveryRefreshScheduled = false;
       _discoveryRefreshRequiresLibraryVisibility = true;
 

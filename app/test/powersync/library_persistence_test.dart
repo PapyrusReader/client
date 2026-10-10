@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/models/annotation.dart';
@@ -10,8 +9,6 @@ import 'package:papyrus/models/shelf.dart';
 import 'package:papyrus/models/tag.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/sync_state.dart';
-import 'package:papyrus/powersync/papyrus_schema.dart';
-import 'package:powersync/powersync.dart';
 
 import 'powersync_service_test.dart' show OfflineConnector;
 
@@ -29,60 +26,15 @@ void main() {
   setUp(() async => directory = await Directory.systemTemp.createTemp('papyrus-library-'));
   tearDown(() async => directory.delete(recursive: true));
 
-  test('schema expansion keeps queued legacy books and promotes local metadata once', () async {
-    final dbPath = '${directory.path}/official-one.db';
-    final legacy = PowerSyncDatabase(
-      path: dbPath,
-      schema: const Schema([
-        Table('books', [
-          Column.text('title'),
-          Column.text('author'),
-          Column.text('added_at'),
-          Column.text('custom_metadata'),
-        ]),
-      ]),
-    );
-    await legacy.initialize();
-    await legacy.execute('INSERT INTO books (id, title, author, added_at, custom_metadata) VALUES (?, ?, ?, ?, ?)', [
-      'book',
-      'Legacy',
-      'Author',
-      now.toIso8601String(),
-      jsonEncode({
-        'is_physical': true,
-        'file_format': 'epub',
-        'physical_location': 'Old room',
-        'custom_metadata': {'preserved': 'yes'},
-      }),
-    ]);
-    final before = await legacy.getAll('SELECT data FROM ps_crud');
-    await legacy.close();
-    final upgraded = service();
-    await upgraded.activateAuthenticated('one');
-    final book = (await upgraded.getById('book'))!;
-    expect(book.isPhysical, isTrue);
-    expect(book.fileFormat, BookFormat.epub);
-    expect(book.customMetadata, {'preserved': 'yes'});
-    await upgraded.scopedBooks.update(book.copyWith(clearPhysicalLocation: true), previous: book);
-    await upgraded.close();
-    final reopened = service();
-    await reopened.activateAuthenticated('one');
-    expect((await reopened.getById('book'))?.physicalLocation, isNull);
-    await reopened.close();
-    final inspect = PowerSyncDatabase(path: dbPath, schema: papyrusAccountSchema);
-    await inspect.initialize();
-    final after = await inspect.getAll('SELECT data FROM ps_crud');
-    expect(after.map((row) => row['data']), containsAll(before.map((row) => row['data'])));
-    await inspect.close();
-  });
-
   test('membership edits are atomic and preserve concurrent additions', () async {
     final db = service();
     await db.activateGuest();
     await db.upsert(Book(id: 'book', title: 'Book', author: 'Author', addedAt: now));
+
     for (final id in ['a', 'b', 'c']) {
       await db.shelves.upsert(Shelf(id: id, name: id, createdAt: now, updatedAt: now));
     }
+
     await db.memberships.updateMemberships(bookIds: {'book'}, shelfIds: ['a', 'b']);
     await db.memberships.updateMemberships(bookIds: {'book'}, shelfIds: ['c'], previousShelfIds: {'a'});
     expect(await db.bookShelves.getById('book:a'), isNull);
@@ -92,42 +44,6 @@ void main() {
     expect(await db.bookShelves.getById('book:b'), isNotNull);
     expect(await db.bookShelves.getById('book:c'), isNotNull);
     await db.close();
-  });
-
-  test('legacy migration skips invalid values and preserves an explicit cleared column', () async {
-    final dbPath = '${directory.path}/official-one.db';
-    final cached = PowerSyncDatabase(path: dbPath, schema: papyrusAccountSchema);
-    await cached.initialize();
-    await cached.execute(
-      'INSERT INTO books (id, title, author, added_at, physical_location, custom_metadata) VALUES (?, ?, ?, ?, ?, ?)',
-      [
-        'book',
-        'Book',
-        'Author',
-        now.toIso8601String(),
-        null,
-        jsonEncode({
-          'physical_location': 'Stale room',
-          'file_size': 'invalid',
-          'series_number': 'not a number',
-          'custom_metadata': {'preserved': true},
-        }),
-      ],
-    );
-    final count = (await cached.getAll('SELECT data FROM ps_crud')).length;
-    await cached.close();
-    final upgraded = service();
-    await upgraded.activateAuthenticated('one');
-    final book = (await upgraded.getById('book'))!;
-    expect(book.physicalLocation, isNull);
-    expect(book.fileSize, isNull);
-    expect(book.seriesNumber, isNull);
-    expect(book.customMetadata, {'preserved': true});
-    await upgraded.close();
-    final inspect = PowerSyncDatabase(path: dbPath, schema: papyrusAccountSchema);
-    await inspect.initialize();
-    expect((await inspect.getAll('SELECT data FROM ps_crud')).length, count);
-    await inspect.close();
   });
 
   test('shelf deletion reparents children and hierarchy cycles are rejected', () async {
@@ -149,6 +65,7 @@ void main() {
     await first.shelves.upsert(Shelf(id: 'shelf', name: 'Shelf', createdAt: now, updatedAt: now));
     await first.tags.upsert(Tag(id: 'tag', name: 'Topic', colorHex: '#123456', createdAt: now));
     await first.notes.upsert(Note(id: 'note', bookId: 'book', title: 'Note', content: 'Content', createdAt: now));
+
     await first.annotations.upsert(
       Annotation(
         id: 'annotation',
@@ -158,9 +75,9 @@ void main() {
         createdAt: now,
       ),
     );
+
     await first.bookShelves.upsert(BookShelfRelation(bookId: 'book', shelfId: 'shelf', addedAt: now));
     await first.close();
-
     final second = service();
     await second.activateGuest();
     expect((await second.shelves.getById('shelf'))?.name, 'Shelf');

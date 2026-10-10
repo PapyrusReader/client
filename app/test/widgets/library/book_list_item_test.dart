@@ -104,10 +104,8 @@ void main() {
     testWidgets('calls onTap when tapped', (tester) async {
       var tapped = false;
       await tester.pumpWidget(buildListItem(onTap: () => tapped = true));
-
       await tester.tap(find.byType(InkWell).first);
       await tester.pump();
-
       expect(tapped, true);
     });
 
@@ -125,14 +123,12 @@ void main() {
 
       await tester.tap(find.byType(BookListItem));
       await tester.longPress(find.byType(BookListItem));
-
       expect(ordinaryTaps, 0);
       expect(ordinarySelections, 0);
     });
 
     testWidgets('linked job does not expose the ordinary desktop context menu', (tester) async {
       await tester.pumpWidget(buildListItem(acquisitionJob: _acquisitionJob(), screenSize: const Size(900, 800)));
-
       expect(find.byTooltip('More options'), findsNothing);
     });
 
@@ -154,7 +150,6 @@ void main() {
 
       await tester.tap(find.byType(BookListItem));
       await tester.longPress(find.byType(BookListItem));
-
       expect(acquisitionTaps, 1);
       expect(acquisitionSelections, 1);
       expect(ordinaryTaps, 0);
@@ -176,9 +171,7 @@ void main() {
       );
 
       expect(find.byType(Checkbox), findsNothing);
-
       await tester.tap(find.byType(BookListItem));
-
       expect(acquisitionTaps, 1);
       expect(acquisitionSelections, 0);
 
@@ -195,9 +188,7 @@ void main() {
       );
 
       expect(tester.widget<Checkbox>(find.byType(Checkbox)).value, isTrue);
-
       await tester.tap(find.byType(BookListItem));
-
       expect(acquisitionTaps, 1);
       expect(acquisitionSelections, 1);
     });
@@ -216,7 +207,6 @@ void main() {
       );
 
       await tester.tap(find.byType(BookListItem));
-
       expect(ordinaryTaps, 0);
       expect(ordinarySelections, 1);
     });
@@ -228,7 +218,6 @@ void main() {
 
     testWidgets('forwards the book id to the cover renderer', (tester) async {
       await tester.pumpWidget(buildListItem());
-
       expect(tester.widget<CoverImage>(find.byType(CoverImage)).bookId, testBook.id);
     });
 

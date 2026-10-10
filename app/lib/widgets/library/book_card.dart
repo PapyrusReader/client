@@ -76,6 +76,7 @@ class _BookCardState extends State<BookCard> {
     final inSelection = widget.isSelectionMode;
     final effectiveTap = inSelection ? widget.onSelectToggle : widget.onTap;
     final effectiveLongPress = inSelection ? null : widget.onEnterSelectionMode;
+
     final isUnavailable =
         widget.acquisitionJob == null && !widget.book.isPhysical && widget.deviceStatus == BookDeviceStatus.missing;
 
@@ -237,9 +238,9 @@ class _BookCardState extends State<BookCard> {
                       color: job.requiresAttention ? colorScheme.error : colorScheme.primary,
                       minHeight: 3,
                     ),
-                ] else if (widget.showProgress && widget.book.progress > 0)
+                ] else if (widget.showProgress && widget.book.currentPosition > 0)
                   AppLinearProgressIndicator(
-                    value: widget.book.progress,
+                    value: widget.book.currentPosition,
                     backgroundColor: colorScheme.surfaceContainerHighest,
                     color: widget.book.readingStatus == LibraryReadingStatus.completed
                         ? colorScheme.tertiary
@@ -329,13 +330,15 @@ class _BookCardState extends State<BookCard> {
   Widget _buildCover(BuildContext context) {
     final cover = CoverImage(
       bookId: widget.book.id,
-      imageUrl: widget.book.coverURL,
+      imageUrl: widget.book.coverUrl,
       mediaId: widget.book.coverMediaId,
       placeholder: _buildPlaceholder(context),
     );
+
     if (widget.book.isPhysical || widget.deviceStatus != BookDeviceStatus.missing) {
       return cover;
     }
+
     return ColorFiltered(
       key: ValueKey('book-unavailable-tint-${widget.book.id}'),
       colorFilter: const ColorFilter.matrix([
@@ -366,6 +369,7 @@ class _BookCardState extends State<BookCard> {
 
   Widget _buildPlaceholder(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     if (widget.compact) {
       return ColoredBox(
         color: colorScheme.surfaceContainerHighest,

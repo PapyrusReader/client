@@ -27,19 +27,16 @@ void main() {
 
     expect(find.byKey(const Key('add-book-sheet-header')), findsOneWidget);
     expect(find.byKey(const Key('add-book-sheet-footer')), findsOneWidget);
-
     final headerTopBeforeScroll = tester.getTopLeft(find.byKey(const Key('add-book-sheet-header'))).dy;
     final footerTopBeforeScroll = tester.getTopLeft(find.byKey(const Key('add-book-sheet-footer'))).dy;
-
     await tester.drag(find.byKey(const Key('scrolling-body')), const Offset(0, -300));
     await tester.pumpAndSettle();
-
     expect(scrollController.offset, greaterThan(0));
     expect(tester.getTopLeft(find.byKey(const Key('add-book-sheet-header'))).dy, headerTopBeforeScroll);
     expect(tester.getTopLeft(find.byKey(const Key('add-book-sheet-footer'))).dy, footerTopBeforeScroll);
   });
 
-  testWidgets('constrains a large title beside the close button on narrow screens', (tester) async {
+  testWidgets('wraps a large title without a redundant close button on narrow screens', (tester) async {
     tester.view.devicePixelRatio = 2;
     tester.view.physicalSize = const Size(640, 1200);
     addTearDown(tester.view.reset);
@@ -61,6 +58,6 @@ void main() {
     );
 
     expect(tester.takeException(), isNull);
-    expect(find.byIcon(Icons.close), findsOneWidget);
+    expect(find.byIcon(Icons.close), findsNothing);
   });
 }

@@ -35,11 +35,13 @@ class OnlineBooksHeader extends StatelessWidget {
     return LayoutBuilder(
       builder: (context, constraints) {
         final useCompactLayout = constraints.maxWidth < Breakpoints.tablet;
+
         final backButton = Semantics(
           label: 'Back',
           button: true,
           child: IconButton(icon: const Icon(Icons.arrow_back), onPressed: onBack, tooltip: 'Back'),
         );
+
         final title = Text(
           'Online results',
           style: textTheme.headlineSmall,

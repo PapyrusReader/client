@@ -19,14 +19,13 @@ void main() {
       }),
       isTrue,
     );
+
     await firstStarted.future;
     expect(queue.requestedProfileKey, 'profile-b');
-
     expect(queue.request('profile-a', () async => applied.add('profile-a')), isTrue);
     expect(queue.requestedProfileKey, 'profile-a');
     releaseFirst.complete();
     await queue.waitUntilIdle();
-
     expect(applied, ['profile-b', 'profile-a']);
     expect(errors, isEmpty);
   });
@@ -34,11 +33,9 @@ void main() {
   test('failed switch does not prevent the next request', () async {
     final errors = <Object>[];
     final queue = SyncProfileSwitchQueue(initialProfileKey: 'profile-a', onError: (error, _) => errors.add(error));
-
     queue.request('profile-b', () async => throw StateError('unavailable'));
     queue.request('profile-c', () async {});
     await queue.waitUntilIdle();
-
     expect(queue.requestedProfileKey, 'profile-c');
     expect(errors, hasLength(1));
   });

@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_actions.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
+import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 
 /// Shared sheet framing, with independently scrollable content and fixed actions.
@@ -13,7 +13,8 @@ class AppBottomSheet extends StatelessWidget {
     this.header,
     this.onClose,
     this.canClose = true,
-    required this.body,
+    this.body,
+    this.scrollBodyBuilder,
     this.footer,
     this.scrollable = true,
     this.expandBody = false,
@@ -22,13 +23,18 @@ class AppBottomSheet extends StatelessWidget {
     this.contentPadding = const EdgeInsets.all(Spacing.lg),
     this.headerKey,
     this.footerKey,
-  }) : assert(title != null || header != null);
+  }) : assert(title != null || header != null),
+       assert((body == null) != (scrollBodyBuilder == null));
 
   final String? title;
   final Widget? header;
   final VoidCallback? onClose;
   final bool canClose;
-  final Widget body;
+  final Widget? body;
+
+  /// For content with its own scroll view, attach this controller to that view
+  /// so scrolling expands the sheet before scrolling the content.
+  final Widget Function(BuildContext context, ScrollController? controller)? scrollBodyBuilder;
   final Widget? footer;
   final bool scrollable;
   final bool expandBody;
@@ -42,73 +48,57 @@ class AppBottomSheet extends StatelessWidget {
   Widget build(BuildContext context) {
     final mobile = MediaQuery.sizeOf(context).width < Breakpoints.tablet;
     final expandable = mobile && expandOnScroll && ModalRoute.of(context) is ModalBottomSheetRoute;
-    Widget buildFrame(ScrollController? controller, double availableHeight) => SafeArea(
+    final route = ModalRoute.of(context);
+    final canDismiss = canClose && route is ModalBottomSheetRoute && route.enableDrag;
+    final dismiss = canDismiss ? onClose ?? () => Navigator.of(context).maybePop() : null;
+
+    Widget buildBody(ScrollController? controller) {
+      if (scrollBodyBuilder != null) {
+        return Padding(padding: contentPadding, child: scrollBodyBuilder!(context, controller));
+      }
+
+      if (scrollable) {
+        return SingleChildScrollView(controller: controller, padding: contentPadding, child: body);
+      }
+
+      return Padding(padding: contentPadding, child: body);
+    }
+
+    Widget buildFrame(ScrollController? controller, {required bool compact}) => SafeArea(
       top: false,
       bottom: footer == null,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final compactHeight =
-              // A short, content-sized sheet still needs normal header spacing.
-              // Compress only when the available viewport is actually small.
-              availableHeight < 280 || (MediaQuery.textScalerOf(context).scale(16) > 20 && availableHeight < 600);
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                key: headerKey ?? const Key('bottom-sheet-header'),
-                padding: EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: compactHeight ? 0 : Spacing.md),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const BottomSheetHandle(),
-                    SizedBox(height: compactHeight ? Spacing.xs : Spacing.lg),
-                    header ??
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                title!,
-                                maxLines: compactHeight ? 1 : 2,
-                                overflow: TextOverflow.ellipsis,
-                                style: Theme.of(context).textTheme.headlineSmall,
-                              ),
-                            ),
-                            if (onClose != null)
-                              IconButton(
-                                tooltip: 'Close',
-                                onPressed: canClose ? onClose : null,
-                                icon: const Icon(Icons.close),
-                              ),
-                          ],
-                        ),
-                  ],
-                ),
-              ),
-              const Divider(height: 1),
-              Flexible(
-                fit: expandBody ? FlexFit.tight : FlexFit.loose,
-                child: scrollable
-                    ? SingleChildScrollView(controller: controller, padding: contentPadding, child: body)
-                    : Padding(padding: contentPadding, child: body),
-              ),
-              if (footer != null) BottomSheetFooter(key: footerKey, child: footer!),
-            ],
-          );
-        },
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          BottomSheetHeader(
+            key: headerKey ?? const Key('bottom-sheet-header'),
+            title: header == null ? title : null,
+            onDismiss: dismiss,
+            compact: compact,
+            child: header,
+          ),
+          const Divider(height: 1),
+          Flexible(
+            fit: expandBody ? FlexFit.tight : FlexFit.loose,
+            child: buildBody(controller),
+          ),
+          if (footer != null) BottomSheetFooter(key: footerKey, child: footer!),
+        ],
       ),
     );
+
     return Padding(
       padding: EdgeInsets.only(bottom: avoidKeyboard ? MediaQuery.viewInsetsOf(context).bottom : 0),
       child: LayoutBuilder(
         builder: (context, constraints) => expandable
             ? ExpandableBottomSheet(
                 canClose: canClose && (ModalRoute.of(context) as ModalBottomSheetRoute).enableDrag,
-                builder: (context, controller) => buildFrame(controller, constraints.maxHeight),
+                builder: (context, controller) => buildFrame(controller, compact: constraints.maxHeight < 280),
               )
             : ConstrainedBox(
                 constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * (mobile ? 1 : .9)),
-                child: buildFrame(null, constraints.maxHeight),
+                child: buildFrame(null, compact: constraints.maxHeight < 280),
               ),
       ),
     );
@@ -141,6 +131,7 @@ class BottomSheetFormActions extends StatelessWidget {
     this.saveLabel = 'Save',
     this.cancelLabel = 'Cancel',
     this.saveButtonKey,
+    this.equalWidths = false,
   });
 
   final VoidCallback? onCancel;
@@ -148,9 +139,11 @@ class BottomSheetFormActions extends StatelessWidget {
   final String saveLabel;
   final String cancelLabel;
   final Key? saveButtonKey;
+  final bool equalWidths;
 
   @override
   Widget build(BuildContext context) => BottomSheetActions(
+    equalWidths: equalWidths,
     secondary: OutlinedButton(onPressed: onCancel, child: Text(cancelLabel)),
     primary: FilledButton(key: saveButtonKey, onPressed: onSave, child: Text(saveLabel)),
   );

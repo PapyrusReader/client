@@ -7,11 +7,18 @@ import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
 /// - The current path starts with the item path (and item path is not '/')
 /// - Any child of the item has a path that the current path starts with
 bool isNavItemSelected(String currentPath, AppShellNavItem item) {
-  if (currentPath == item.path) return true;
-  if (currentPath.startsWith(item.path) && item.path != '/') return true;
+  if (currentPath == item.path) {
+    return true;
+  }
+
+  if (currentPath.startsWith(item.path) && item.path != '/') {
+    return true;
+  }
+
   if (item.children != null) {
     return item.children!.any((child) => currentPath.startsWith(child.path));
   }
+
   return false;
 }
 
@@ -21,6 +28,6 @@ bool isNavItemSelected(String currentPath, AppShellNavItem item) {
 /// - '/library' returns false (single segment)
 /// - '/library/books' returns true (two segments)
 bool isChildPath(String path) {
-  final segments = path.split('/').where((s) => s.isNotEmpty).toList();
+  final segments = path.split('/').where((value) => value.isNotEmpty).toList();
   return segments.length > 1;
 }

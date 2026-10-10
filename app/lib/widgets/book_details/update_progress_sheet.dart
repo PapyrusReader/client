@@ -56,9 +56,14 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
   double _calculatePosition() {
     if (_hasPageCount) {
       final page = int.tryParse(_pageController.text) ?? 0;
-      if (page <= 0) return 0.0;
+
+      if (page <= 0) {
+        return 0.0;
+      }
+
       return (page / widget.book.pageCount!).clamp(0.0, 1.0);
     }
+
     return _sliderValue;
   }
 
@@ -66,6 +71,7 @@ class _UpdateProgressSheetState extends State<UpdateProgressSheet> {
     if (_hasPageCount) {
       return (int.tryParse(_pageController.text) ?? 0).clamp(0, widget.book.pageCount!);
     }
+
     return (_sliderValue * (widget.book.pageCount ?? 100)).round();
   }
 

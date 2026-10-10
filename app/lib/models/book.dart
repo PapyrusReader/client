@@ -117,18 +117,6 @@ class Book {
     this.lastReadAt,
   });
 
-  // Backwards compatibility aliases
-  double get progress => currentPosition;
-  String? get coverURL => coverUrl;
-  int? get totalPages => pageCount;
-
-  // Shelves and topics are now managed via junction tables in DataStore.
-  // These empty lists provide backwards compatibility for code that reads them.
-  // To get actual shelves/topics for a book, use DataStore.getShelvesForBook(bookId)
-  // and DataStore.getTagsForBook(bookId).
-  List<String> get shelves => const [];
-  List<String> get topics => const [];
-
   /// Progress as a percentage (0-100).
   int get progressPercent => (currentPosition * 100).round();
 
@@ -140,13 +128,19 @@ class Book {
 
   /// Get display string for format.
   String get formatLabel {
-    if (isPhysical) return 'Physical';
+    if (isPhysical) {
+      return 'Physical';
+    }
+
     return fileFormat?.label ?? 'Unknown';
   }
 
   /// Get all authors as a single string.
   String get allAuthors {
-    if (coAuthors.isEmpty) return author;
+    if (coAuthors.isEmpty) {
+      return author;
+    }
+
     return '$author, ${coAuthors.join(', ')}';
   }
 
@@ -261,7 +255,6 @@ class Book {
     );
   }
 
-  /// Convert to JSON for API/storage.
   Map<String, dynamic> toJson() {
     return {
       'id': id,
@@ -304,14 +297,13 @@ class Book {
     };
   }
 
-  /// Create from JSON.
   factory Book.fromJson(Map<String, dynamic> json) {
     return Book(
       id: json['id'] as String,
       title: json['title'] as String,
       subtitle: json['subtitle'] as String?,
       author: json['author'] as String,
-      coAuthors: (json['co_authors'] as List<dynamic>?)?.map((e) => e as String).toList() ?? [],
+      coAuthors: (json['co_authors'] as List<dynamic>?)?.map((item) => item as String).toList() ?? [],
       isbn: json['isbn'] as String?,
       isbn13: json['isbn13'] as String?,
       publicationDate: json['publication_date'] != null ? DateTime.parse(json['publication_date'] as String) : null,

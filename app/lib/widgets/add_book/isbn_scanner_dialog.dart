@@ -21,6 +21,7 @@ class _IsbnScannerDialogState extends State<IsbnScannerDialog> {
   final MobileScannerController _controller = MobileScannerController(
     formats: [BarcodeFormat.ean13, BarcodeFormat.ean8],
   );
+
   bool _hasScanned = false;
 
   @override
@@ -30,9 +31,15 @@ class _IsbnScannerDialogState extends State<IsbnScannerDialog> {
   }
 
   void _onDetect(BarcodeCapture capture) {
-    if (_hasScanned) return;
+    if (_hasScanned) {
+      return;
+    }
+
     final barcode = capture.barcodes.firstOrNull;
-    if (barcode?.rawValue == null) return;
+
+    if (barcode?.rawValue == null) {
+      return;
+    }
 
     _hasScanned = true;
     Navigator.of(context).pop(barcode!.rawValue);

@@ -21,7 +21,6 @@ void main() {
 
   testWidgets('empty section uses one SettingsCard and no literal Card', (tester) async {
     await pump(tester, const AcquisitionSettingsSection(title: 'Sources', emptyMessage: 'No sources configured'));
-
     expect(find.byType(AcquisitionSettingsSection), findsOneWidget);
     expect(find.byType(SettingsCard), findsOneWidget);
     expect(find.byType(Card), findsNothing);
@@ -41,7 +40,6 @@ void main() {
     final headerBounds = tester.getRect(find.text('Download clients'));
     final messageBounds = tester.getRect(find.text('No download clients configured'));
     final cardBounds = tester.getRect(find.byType(SettingsCard));
-
     expect(find.byType(EmptyState), findsOneWidget);
     expect(messageBounds.center.dx, cardBounds.center.dx);
     expect(messageBounds.top, greaterThan(headerBounds.bottom));
@@ -58,16 +56,13 @@ void main() {
 
     await tester.tap(find.widgetWithText(TextButton, 'Add'));
     await tester.pump();
-
     expect(addCalls, 1);
   });
 
   testWidgets('title is a header and Add exposes one contextual button node', (tester) async {
     await pump(tester, AcquisitionSettingsSection(title: 'Sources', onAdd: () {}));
-
     final header = tester.getSemantics(find.text('Sources'));
     final add = tester.getSemantics(find.bySemanticsLabel('Add to Sources'));
-
     expect(header.flagsCollection.isHeader, isTrue);
     expect(find.bySemanticsLabel('Add to Sources'), findsOneWidget);
     expect(add.flagsCollection.isButton, isTrue);
@@ -119,6 +114,7 @@ void main() {
     expect(find.text('Enabled'), findsOneWidget);
     expect(find.byKey(const Key('custom-trailing')), findsOneWidget);
     expect(find.byIcon(Icons.chevron_right), findsNothing);
+
     expect(
       tester.getCenter(find.text('Prowlarr')).dx,
       lessThan(tester.getCenter(find.byKey(const Key('custom-trailing'))).dx),
@@ -127,7 +123,6 @@ void main() {
 
   testWidgets('value-only SettingsRow shows one value aligned to the right', (tester) async {
     await pump(tester, const SettingsRow(label: 'Server support', value: 'Available', showChevron: false));
-
     expect(find.text('Available'), findsOneWidget);
     expect(tester.getCenter(find.text('Server support')).dx, lessThan(tester.getCenter(find.text('Available')).dx));
     expect(tester.getCenter(find.text('Server support')).dy, tester.getCenter(find.text('Available')).dy);
@@ -154,7 +149,6 @@ void main() {
 
   testWidgets('SettingsRow meets the mobile target and grows for multiline content', (tester) async {
     await pump(tester, const SettingsRow(label: 'Short row', showChevron: false));
-
     expect(tester.getSize(find.byType(SettingsRow)).height, greaterThanOrEqualTo(TouchTargets.mobileRecommended));
 
     await pump(

@@ -52,12 +52,14 @@ class LibraryFilterOptions {
 
     for (final book in sourceBooks) {
       sourceBookIds.add(book.id);
+
       for (final author in [book.author, ...book.coAuthors]) {
         _addNormalized(authors, author);
       }
 
       final language = book.language;
       final normalizedLanguage = normalizeBookLanguage(language);
+
       if (language != null && normalizedLanguage != null) {
         languages.putIfAbsent(normalizedLanguage, () => bookLanguageLabel(language));
       }
@@ -66,8 +68,8 @@ class LibraryFilterOptions {
       _addNormalized(publishers, book.publisher);
       _addNormalized(series, book.seriesName);
       readingStatuses.add(book.readingStatus);
-
       final rating = book.rating;
+
       if (rating == null) {
         hasUnrated = true;
       } else {
@@ -116,6 +118,7 @@ class LibraryFilterOptions {
 
   static void _addNormalized(Map<String, String> labelsByValue, String? value) {
     final label = value?.trim();
+
     if (label == null || label.isEmpty) {
       return;
     }
@@ -130,6 +133,6 @@ class LibraryFilterOptions {
   }
 
   static List<LibraryFilterOption<String>> _sortedOptions(Iterable<LibraryFilterOption<String>> options) {
-    return options.toList()..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+    return options.toList()..sort((left, right) => left.label.toLowerCase().compareTo(right.label.toLowerCase()));
   }
 }

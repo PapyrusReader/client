@@ -18,6 +18,7 @@ class OpdsPublicationTile extends StatelessWidget {
     this.isGridView = false,
     this.inLibrary = false,
   });
+
   final OpdsCatalog catalog;
   final OpdsPublication publication;
   final VoidCallback onOpen;
@@ -39,14 +40,17 @@ class OpdsPublicationTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final acquisition = publication.links.where((link) => link.isAcquisition);
+
     final formats = acquisition
         .map((link) => link.supportedExtension?.toUpperCase())
         .whereType<String>()
         .toSet()
         .join(' · ');
+
     final edition = acquisition.isEmpty ? null : acquisition.first.title;
     final formatCaption = edition ?? (formats.isEmpty ? 'View details' : formats);
     final caption = inLibrary ? 'In library · $formatCaption' : formatCaption;
+
     final info = Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -67,6 +71,7 @@ class OpdsPublicationTile extends StatelessWidget {
         ),
       ],
     );
+
     return Material(
       color: theme.colorScheme.surface,
       borderRadius: BorderRadius.circular(AppRadius.md),
@@ -108,12 +113,14 @@ class OpdsCover extends StatefulWidget {
     this.width = 40,
     this.height = 56,
   });
+
   final OpdsCatalog catalog;
   final Uri? uri;
   final OpdsHttpClient httpClient;
   final OpdsCredentials? credentials;
   final double width;
   final double height;
+
   @override
   State<OpdsCover> createState() => _OpdsCoverState();
 }
@@ -122,6 +129,7 @@ class _OpdsCoverState extends State<OpdsCover> {
   OpdsCancellation _token = OpdsCancellation();
   Uint8List? _bytes;
   bool _loading = false;
+
   @override
   void initState() {
     super.initState();
@@ -131,6 +139,7 @@ class _OpdsCoverState extends State<OpdsCover> {
   @override
   void didUpdateWidget(covariant OpdsCover oldWidget) {
     super.didUpdateWidget(oldWidget);
+
     if (oldWidget.uri != widget.uri ||
         oldWidget.catalog != widget.catalog ||
         oldWidget.credentials != widget.credentials) {
@@ -143,35 +152,57 @@ class _OpdsCoverState extends State<OpdsCover> {
     final token = _token = OpdsCancellation();
     _bytes = null;
     _loading = widget.uri != null && ['http', 'https'].contains(widget.uri!.scheme);
-    if (!_loading) return;
+
+    if (!_loading) {
+      return;
+    }
+
     final cache = widget.httpClient.cache;
     OpdsCacheToken? cacheToken;
+
     try {
       cacheToken = cache?.capture(widget.catalog, widget.uri!);
       final cached = cacheToken == null ? null : cache?.read(cacheToken);
+
       if (cached != null && cached.response.headers['content-type']?.startsWith('image/') == true) {
         _bytes = cached.response.bytes;
         _loading = false;
-        if (DateTime.now().difference(cached.fetchedAt) < const Duration(days: 1)) return;
+
+        if (DateTime.now().difference(cached.fetchedAt) < const Duration(days: 1)) {
+          return;
+        }
       }
+
       final response = await widget.httpClient.get(
         widget.catalog,
         widget.uri!,
         credentials: widget.credentials,
         cancellation: token,
       );
-      if (!mounted || token.isCancelled || (cacheToken != null && !cache!.isCurrent(cacheToken))) return;
+
+      if (!mounted || token.isCancelled || (cacheToken != null && !cache!.isCurrent(cacheToken))) {
+        return;
+      }
+
       setState(() => _bytes = response.bytes);
+
       if (cacheToken != null && response.headers['content-type']?.startsWith('image/') == true) {
         await cache!.write(cacheToken, response);
       }
     } on OpdsAuthorizationException {
-      if (mounted && !token.isCancelled) setState(() => _bytes = null);
-      if (cacheToken != null) await cache!.remove(cacheToken);
+      if (mounted && !token.isCancelled) {
+        setState(() => _bytes = null);
+      }
+
+      if (cacheToken != null) {
+        await cache!.remove(cacheToken);
+      }
     } catch (_) {
       // Catalog artwork is optional; keep the themed cover placeholder.
     } finally {
-      if (mounted && !token.isCancelled && _loading) setState(() => _loading = false);
+      if (mounted && !token.isCancelled && _loading) {
+        setState(() => _loading = false);
+      }
     }
   }
 
@@ -184,6 +215,7 @@ class _OpdsCoverState extends State<OpdsCover> {
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+
     final placeholder = ColoredBox(
       color: colors.surfaceContainerHighest,
       child: Center(
@@ -194,20 +226,21 @@ class _OpdsCoverState extends State<OpdsCover> {
         ),
       ),
     );
+
     return SizedBox(
       width: widget.width,
       height: widget.height,
-      child: _loading
-          ? const CoverLoadingPlaceholder()
-          : _bytes == null
-          ? placeholder
-          : Image.memory(
-              _bytes!,
-              fit: BoxFit.cover,
-              frameBuilder: (_, child, frame, wasSynchronouslyLoaded) =>
-                  wasSynchronouslyLoaded || frame != null ? child : const CoverLoadingPlaceholder(),
-              errorBuilder: (_, _, _) => placeholder,
-            ),
+      child: switch (_loading) {
+        true => const CoverLoadingPlaceholder(),
+        false when _bytes == null => placeholder,
+        false => Image.memory(
+          _bytes!,
+          fit: BoxFit.cover,
+          frameBuilder: (_, child, frame, wasSynchronouslyLoaded) =>
+              wasSynchronouslyLoaded || frame != null ? child : const CoverLoadingPlaceholder(),
+          errorBuilder: (_, _, _) => placeholder,
+        ),
+      },
     );
   }
 }

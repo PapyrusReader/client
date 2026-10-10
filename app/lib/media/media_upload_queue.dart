@@ -23,7 +23,6 @@ class MediaUploadTask {
     required this.filename,
     required this.contentType,
     required this.status,
-    this.coverBase64,
     this.errorMessage,
   });
 
@@ -33,7 +32,6 @@ class MediaUploadTask {
   final String filename;
   final String contentType;
   final MediaUploadTaskStatus status;
-  final String? coverBase64;
   final String? errorMessage;
 
   MediaUploadTask copyWith({MediaUploadTaskStatus? status, String? errorMessage}) {
@@ -44,7 +42,6 @@ class MediaUploadTask {
       filename: filename,
       contentType: contentType,
       status: status ?? this.status,
-      coverBase64: coverBase64,
       errorMessage: errorMessage,
     );
   }
@@ -57,7 +54,6 @@ class MediaUploadTask {
       'filename': filename,
       'content_type': contentType,
       'status': status.name,
-      if (coverBase64 != null) 'cover_base64': coverBase64,
       'error_message': errorMessage,
     };
   }
@@ -70,7 +66,6 @@ class MediaUploadTask {
       filename: json['filename'] as String,
       contentType: json['content_type'] as String,
       status: MediaUploadTaskStatus.values.byName(json['status'] as String? ?? MediaUploadTaskStatus.pending.name),
-      coverBase64: json['cover_base64'] as String?,
       errorMessage: json['error_message'] as String?,
     );
   }
@@ -96,7 +91,10 @@ class MediaUploadQueue extends ChangeNotifier {
   MediaStorageUsage? get storageUsage => _storageUsage;
 
   Future<void> activateScope(MediaStorageScope? scope) async {
-    if (_activeScope == scope) return;
+    if (_activeScope == scope) {
+      return;
+    }
+
     await waitUntilIdle();
     await _waitForMutations();
     _activeScope = scope;
@@ -175,36 +173,45 @@ class MediaUploadQueue extends ChangeNotifier {
       if (_activeScope != scope) {
         throw StateError('Authenticated media upload scope changed before import commit');
       }
+
       final taskIds = tasks.map((task) => task.id).toSet();
       final nextTasks = [..._tasks.where((task) => !taskIds.contains(task.id)), ...tasks];
       await _saveTasks(scope, nextTasks);
+
       for (final task in tasks) {
         _advanceTaskVersion(task.id);
       }
+
       _tasks = nextTasks;
       notifyListeners();
     });
+
     await _notifyWorkAvailableBestEffort();
   }
 
   Future<void> retryFailed({String? bookId}) async {
     final scope = _requireActiveScope();
     var retriedAny = false;
+
     await _withMutation(() async {
       _tasks = _tasks
           .map((task) {
             final matchesBook = bookId == null || task.bookId == bookId;
+
             if (!matchesBook || task.status != MediaUploadTaskStatus.failed) {
               return task;
             }
+
             retriedAny = true;
             _advanceTaskVersion(task.id);
             return task.copyWith(status: MediaUploadTaskStatus.pending);
           })
           .toList(growable: false);
+
       await _save(scope);
       notifyListeners();
     });
+
     if (retriedAny) {
       await onWorkAvailable?.call();
     }
@@ -212,11 +219,16 @@ class MediaUploadQueue extends ChangeNotifier {
 
   Future<void> removeTasksForBook(String bookId) async {
     final scope = _activeScope;
-    if (scope == null) return;
+
+    if (scope == null) {
+      return;
+    }
+
     await _withMutation(() async {
       for (final task in _tasks.where((task) => task.bookId == bookId)) {
         _advanceTaskVersion(task.id);
       }
+
       _tasks = _tasks.where((task) => task.bookId != bookId).toList(growable: false);
       await _save(scope);
       notifyListeners();
@@ -230,20 +242,27 @@ class MediaUploadQueue extends ChangeNotifier {
     required MediaUploader uploadMedia,
   }) {
     final inFlight = _processing;
+
     if (inFlight != null) {
       _processAgain = true;
       return inFlight;
     }
+
     final scope = _activeScope;
-    if (scope == null) return Future<void>.value();
+
+    if (scope == null) {
+      return Future<void>.value();
+    }
 
     final completer = Completer<void>();
     final operation = completer.future;
     _processing = operation;
+
     unawaited(() async {
       try {
         do {
           _processAgain = false;
+
           await _processPending(
             scope: scope,
             dataStore: dataStore,
@@ -252,6 +271,7 @@ class MediaUploadQueue extends ChangeNotifier {
             uploadMedia: uploadMedia,
           );
         } while (_processAgain && _activeScope == scope);
+
         _clearProcessing(operation);
         completer.complete();
       } catch (error, stackTrace) {
@@ -259,6 +279,7 @@ class MediaUploadQueue extends ChangeNotifier {
         completer.completeError(error, stackTrace);
       }
     }());
+
     return operation;
   }
 
@@ -270,15 +291,23 @@ class MediaUploadQueue extends ChangeNotifier {
     required MediaUploader uploadMedia,
   }) async {
     final processedVersions = <String>{};
+
     while (_activeScope == scope) {
       await _waitForMutations();
+
       final tasks = _tasks
           .where((task) {
-            if (task.status == MediaUploadTaskStatus.failed) return false;
+            if (task.status == MediaUploadTaskStatus.failed) {
+              return false;
+            }
+
             return !processedVersions.contains(_taskVersionKey(task.id));
           })
           .toList(growable: false);
-      if (tasks.isEmpty) return;
+
+      if (tasks.isEmpty) {
+        return;
+      }
 
       for (final task in tasks) {
         final version = _taskVersions[task.id] ?? 0;
@@ -286,6 +315,7 @@ class MediaUploadQueue extends ChangeNotifier {
 
         try {
           final bytes = await _bytesForTask(task, scope, readBookFile, readPendingCover);
+
           if (bytes == null) {
             await _replaceTaskIfCurrent(
               scope,
@@ -293,6 +323,7 @@ class MediaUploadQueue extends ChangeNotifier {
               version,
               task.copyWith(status: MediaUploadTaskStatus.pending, errorMessage: 'Local file not found'),
             );
+
             continue;
           }
 
@@ -305,6 +336,7 @@ class MediaUploadQueue extends ChangeNotifier {
               bytes: bytes,
             ),
           );
+
           await _removeTaskIfCurrent(scope, task, version);
         } on MediaUploadException catch (error) {
           await _replaceTaskIfCurrent(
@@ -330,12 +362,14 @@ class MediaUploadQueue extends ChangeNotifier {
 
   Future<void> _enqueue(MediaUploadTask task) async {
     final scope = _requireActiveScope();
+
     await _withMutation(() async {
       _advanceTaskVersion(task.id);
       _tasks = [..._tasks.where((existing) => existing.id != task.id), task];
       await _save(scope);
       notifyListeners();
     });
+
     await onWorkAvailable?.call();
   }
 
@@ -357,7 +391,11 @@ class MediaUploadQueue extends ChangeNotifier {
   Future<void> _removeTaskIfCurrent(MediaStorageScope scope, MediaUploadTask task, int version) {
     return _withMutation(() async {
       final index = _currentTaskIndex(task, version);
-      if (index < 0) return;
+
+      if (index < 0) {
+        return;
+      }
+
       _tasks = [..._tasks]..removeAt(index);
       await _save(scope);
       notifyListeners();
@@ -372,7 +410,11 @@ class MediaUploadQueue extends ChangeNotifier {
   ) {
     return _withMutation(() async {
       final index = _currentTaskIndex(task, version);
-      if (index < 0) return;
+
+      if (index < 0) {
+        return;
+      }
+
       _tasks = [..._tasks]..[index] = replacement;
       await _save(scope);
       notifyListeners();
@@ -380,7 +422,10 @@ class MediaUploadQueue extends ChangeNotifier {
   }
 
   int _currentTaskIndex(MediaUploadTask task, int version) {
-    if ((_taskVersions[task.id] ?? 0) != version) return -1;
+    if ((_taskVersions[task.id] ?? 0) != version) {
+      return -1;
+    }
+
     return _tasks.indexWhere((candidate) => identical(candidate, task));
   }
 
@@ -394,8 +439,10 @@ class MediaUploadQueue extends ChangeNotifier {
     final previous = _mutationTail;
     final released = Completer<void>();
     _mutationTail = released.future;
+
     return (() async {
       await previous;
+
       try {
         return await mutation();
       } finally {
@@ -408,7 +455,10 @@ class MediaUploadQueue extends ChangeNotifier {
     while (true) {
       final pending = _mutationTail;
       await pending;
-      if (identical(pending, _mutationTail)) return;
+
+      if (identical(pending, _mutationTail)) {
+        return;
+      }
     }
   }
 
@@ -419,16 +469,19 @@ class MediaUploadQueue extends ChangeNotifier {
     PendingCoverReader readPendingCover,
   ) async {
     if (task.kind == MediaKind.coverImage) {
-      final coverBase64 = task.coverBase64;
-      if (coverBase64 != null) return base64Decode(coverBase64);
       return readPendingCover(scope, task.bookId);
     }
+
     return readBookFile(task.bookId);
   }
 
   List<MediaUploadTask> _loadTasks(MediaStorageScope scope) {
     final raw = _prefs.getString(_storageKey(scope));
-    if (raw == null || raw.isEmpty) return [];
+
+    if (raw == null || raw.isEmpty) {
+      return [];
+    }
+
     try {
       final decoded = jsonDecode(raw) as List<dynamic>;
       return decoded.map((item) => MediaUploadTask.fromJson(item as Map<String, dynamic>)).toList(growable: false);
@@ -441,6 +494,7 @@ class MediaUploadQueue extends ChangeNotifier {
           context: ErrorDescription('while loading persisted media uploads'),
         ),
       );
+
       return [];
     }
   }
@@ -449,6 +503,7 @@ class MediaUploadQueue extends ChangeNotifier {
 
   Future<void> _saveTasks(MediaStorageScope scope, List<MediaUploadTask> tasks) async {
     final saved = await _prefs.setString(_storageKey(scope), jsonEncode(tasks.map((task) => task.toJson()).toList()));
+
     if (!saved) {
       throw StateError('Could not persist media upload queue');
     }
@@ -458,9 +513,11 @@ class MediaUploadQueue extends ChangeNotifier {
 
   MediaStorageScope _requireActiveScope() {
     final scope = _activeScope;
+
     if (scope == null) {
       throw StateError('Authenticated media upload scope is not active');
     }
+
     return scope;
   }
 

@@ -36,6 +36,7 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   void _onDataStoreChanged() {
+    _loadActivityData();
     notifyListeners();
   }
 
@@ -45,27 +46,28 @@ class DashboardProvider extends ChangeNotifier {
     super.dispose();
   }
 
-  // ============================================================================
-  // GETTERS
-  // ============================================================================
-
   bool get isLoading => _isLoading;
   String? get error => _error;
 
   /// Get current book (most recently read with progress < 100%).
   Book? get currentBook {
-    if (_dataStore == null) return null;
+    if (_dataStore == null) {
+      return null;
+    }
 
     final readingBooks =
         _dataStore!.books.where((book) => book.readingStatus == LibraryReadingStatus.inProgress).toList()
-          ..sort((a, b) => (b.lastReadAt ?? DateTime(2000)).compareTo(a.lastReadAt ?? DateTime(2000)));
+          ..sort((left, right) => (right.lastReadAt ?? DateTime(2000)).compareTo(left.lastReadAt ?? DateTime(2000)));
 
     return readingBooks.isNotEmpty ? readingBooks.first : null;
   }
 
   /// Get active reading goals from DataStore.
   List<ReadingGoal> get activeGoals {
-    if (_dataStore == null) return [];
+    if (_dataStore == null) {
+      return [];
+    }
+
     return _dataStore!.activeGoals;
   }
 
@@ -73,18 +75,23 @@ class DashboardProvider extends ChangeNotifier {
 
   /// Get recently added books (last 5).
   List<Book> get recentlyAdded {
-    if (_dataStore == null) return [];
-    final books = List<Book>.from(_dataStore!.books)..sort((a, b) => b.addedAt.compareTo(a.addedAt));
+    if (_dataStore == null) {
+      return [];
+    }
+
+    final books = List<Book>.from(_dataStore!.books)..sort((left, right) => right.addedAt.compareTo(left.addedAt));
     return books.take(5).toList();
   }
 
   /// Today's reading minutes from reading sessions.
   int get todayReadingMinutes {
-    if (_dataStore == null) return 0;
+    if (_dataStore == null) {
+      return 0;
+    }
+
     final today = DateTime.now();
     final todayStart = DateTime(today.year, today.month, today.day);
-    final todaySessions = _dataStore!.readingSessions.where((s) => s.startTime.isAfter(todayStart));
-    return todaySessions.fold(0, (sum, s) => sum + s.durationMinutes);
+    return _dataStore!.activityTotals(todayStart, DateTime(today.year, today.month, today.day + 1)).seconds ~/ 60;
   }
 
   int get weekOffset => _weekOffset;
@@ -101,21 +108,27 @@ class DashboardProvider extends ChangeNotifier {
 
   /// Total reading minutes from all sessions.
   int get totalReadingMinutes {
-    if (_dataStore == null) return 0;
-    return _dataStore!.readingSessions.fold(0, (sum, s) => sum + s.durationMinutes);
+    if (_dataStore == null) {
+      return 0;
+    }
+
+    return _dataStore!.activityTotals(DateTime.utc(1900), DateTime.now().toUtc()).seconds ~/ 60;
   }
 
   ActivityPeriod get activityPeriod => _activityPeriod;
 
-  // ============================================================================
-  // COMPUTED PROPERTIES
-  // ============================================================================
-
   /// Time-based greeting message.
   String get greeting {
     final hour = DateTime.now().hour;
-    if (hour < 12) return 'Good morning';
-    if (hour < 17) return 'Good afternoon';
+
+    if (hour < 12) {
+      return 'Good morning';
+    }
+
+    if (hour < 17) {
+      return 'Good afternoon';
+    }
+
     return 'Good evening';
   }
 
@@ -128,9 +141,18 @@ class DashboardProvider extends ChangeNotifier {
   /// Today's reading time formatted.
   String get todayReadingLabel {
     final minutes = todayReadingMinutes;
-    if (minutes == 0) return '0 minutes';
-    if (minutes == 1) return '1 minute';
-    if (minutes < 60) return '$minutes minutes';
+
+    if (minutes == 0) {
+      return '0 minutes';
+    }
+
+    if (minutes == 1) {
+      return '1 minute';
+    }
+
+    if (minutes < 60) {
+      return '$minutes minutes';
+    }
 
     final hours = minutes ~/ 60;
     final mins = minutes % 60;
@@ -138,19 +160,20 @@ class DashboardProvider extends ChangeNotifier {
     if (mins == 0) {
       return hours == 1 ? '1 hour' : '$hours hours';
     }
+
     return '${hours}h ${mins}m';
   }
 
   /// Total reading time formatted for quick stats.
   String get totalReadingLabel {
     final hours = totalReadingMinutes ~/ 60;
-    if (hours == 0) return '${totalReadingMinutes}m';
+
+    if (hours == 0) {
+      return '${totalReadingMinutes}m';
+    }
+
     return '${hours}h';
   }
-
-  // ============================================================================
-  // METHODS
-  // ============================================================================
 
   /// Loads all dashboard data. With DataStore, this is mainly for loading state UX.
   Future<void> loadDashboardData() async {
@@ -159,15 +182,12 @@ class DashboardProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Simulate network delay for realistic UX
-      await Future.delayed(const Duration(milliseconds: 100));
-
+      await _dataStore?.waitUntilLoaded();
       _loadActivityData();
-
       _isLoading = false;
       notifyListeners();
-    } catch (e) {
-      _error = 'Failed to load dashboard data: $e';
+    } catch (error) {
+      _error = 'Failed to load dashboard data: $error';
       _isLoading = false;
       notifyListeners();
     }
@@ -192,6 +212,7 @@ class DashboardProvider extends ChangeNotifier {
     } else {
       _monthOffset--;
     }
+
     _loadActivityData();
     notifyListeners();
   }
@@ -207,6 +228,7 @@ class DashboardProvider extends ChangeNotifier {
         _monthOffset++;
       }
     }
+
     _loadActivityData();
     notifyListeners();
   }
@@ -216,18 +238,31 @@ class DashboardProvider extends ChangeNotifier {
     if (_activityPeriod == ActivityPeriod.week) {
       return _weekOffset < 0;
     }
+
     return _monthOffset < 0;
   }
 
   /// Get the period label (e.g., "This week", "Jan 15-21", "December 2024").
   String get periodLabel {
     if (_activityPeriod == ActivityPeriod.week) {
-      if (_weekOffset == 0) return 'This week';
-      if (_weekOffset == -1) return 'Last week';
+      if (_weekOffset == 0) {
+        return 'This week';
+      }
+
+      if (_weekOffset == -1) {
+        return 'Last week';
+      }
+
       return _getWeekRangeLabel(_weekOffset);
     } else {
-      if (_monthOffset == 0) return 'This month';
-      if (_monthOffset == -1) return 'Last month';
+      if (_monthOffset == 0) {
+        return 'This month';
+      }
+
+      if (_monthOffset == -1) {
+        return 'Last month';
+      }
+
       return _getMonthLabel(_monthOffset);
     }
   }
@@ -237,13 +272,9 @@ class DashboardProvider extends ChangeNotifier {
     await loadDashboardData();
   }
 
-  // ============================================================================
-  // PRIVATE METHODS
-  // ============================================================================
-
   void _loadActivityData() {
     if (_dataStore == null) {
-      _weeklyActivity = DailyActivity.sampleWeek;
+      _weeklyActivity = [];
       return;
     }
 
@@ -252,25 +283,33 @@ class DashboardProvider extends ChangeNotifier {
   }
 
   List<DailyActivity> _generateActivityFromSessions(int offset) {
-    if (_dataStore == null) return [];
+    if (_dataStore == null) {
+      return [];
+    }
 
     final now = DateTime.now();
-    final weekStart = now.subtract(Duration(days: now.weekday - 1 + (-offset * 7)));
 
-    return List.generate(7, (i) {
-      final date = weekStart.add(Duration(days: i));
-      final dayStart = DateTime(date.year, date.month, date.day);
-      final dayEnd = dayStart.add(const Duration(days: 1));
+    final start = _activityPeriod == ActivityPeriod.week
+        ? DateTime(now.year, now.month, now.day - now.weekday + 1 + offset * 7)
+        : DateTime(now.year, now.month + offset);
 
-      // Get sessions for this day
-      final daySessions = _dataStore!.readingSessions.where(
-        (s) => s.startTime.isAfter(dayStart.subtract(const Duration(seconds: 1))) && s.startTime.isBefore(dayEnd),
+    final count = _activityPeriod == ActivityPeriod.week ? 7 : DateTime(start.year, start.month + 1, 0).day;
+
+    return List.generate(count, (i) {
+      final day = DateTime(start.year, start.month, start.day + i);
+      final end = DateTime(day.year, day.month, day.day + 1);
+      final totals = _dataStore!.activityTotals(day, end);
+
+      return DailyActivity(
+        date: day,
+        readingMinutes: totals.seconds ~/ 60,
+        pagesRead: totals.pages.floor(),
+        booksRead: totals.activities
+            .where((activity) => activity.kind == 'completion')
+            .map((activity) => activity.bookId)
+            .toSet()
+            .toList(),
       );
-
-      final minutes = daySessions.fold(0, (sum, s) => sum + s.durationMinutes);
-      final pages = daySessions.fold(0, (sum, s) => sum + (s.pagesRead ?? 0));
-
-      return DailyActivity(date: date, readingMinutes: minutes, pagesRead: pages, booksRead: []);
     });
   }
 
@@ -278,12 +317,12 @@ class DashboardProvider extends ChangeNotifier {
     final now = DateTime.now();
     final weekStart = now.subtract(Duration(days: now.weekday - 1 + (-offset * 7)));
     final weekEnd = weekStart.add(const Duration(days: 6));
-
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
     if (weekStart.month == weekEnd.month) {
       return '${months[weekStart.month - 1]} ${weekStart.day}-${weekEnd.day}';
     }
+
     return '${months[weekStart.month - 1]} ${weekStart.day} - ${months[weekEnd.month - 1]} ${weekEnd.day}';
   }
 
@@ -291,10 +330,12 @@ class DashboardProvider extends ChangeNotifier {
     final now = DateTime.now();
     var month = now.month + offset;
     var year = now.year;
+
     while (month <= 0) {
       month += 12;
       year--;
     }
+
     while (month > 12) {
       month -= 12;
       year++;

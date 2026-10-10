@@ -6,6 +6,7 @@ list(APPEND FLUTTER_PLUGIN_LIST
   desktop_drop
   desktop_webview_window
   flutter_secure_storage_windows
+  flutter_timezone
   url_launcher_windows
   window_to_front
 )

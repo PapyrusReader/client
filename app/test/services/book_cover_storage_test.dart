@@ -36,6 +36,7 @@ void main() {
 
   tearDown(() async {
     _clearImageCache();
+
     if (root.existsSync()) {
       await root.delete(recursive: true);
     }
@@ -45,21 +46,18 @@ void main() {
     final first = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     final second = MediaStorageScope(profileKey: 'official', userId: 'user-2');
     final bytes = Uint8List.fromList([1, 2, 3]);
-
     await service.storeCoverFile(first, 'asset-1', bytes);
-
     expect(await service.getCoverFile(first, 'asset-1'), bytes);
     expect(await service.getCoverFile(second, 'asset-1'), isNull);
   });
 
   test('cached and pending covers use separate bucket files', () async {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
-
     await service.storeCoverFile(scope, 'shared-id', Uint8List.fromList([1]));
     await service.storePendingCoverFile(scope, 'shared-id', Uint8List.fromList([2]));
-
     expect(await service.getCoverFile(scope, 'shared-id'), Uint8List.fromList([1]));
     expect(await service.getPendingCoverFile(scope, 'shared-id'), Uint8List.fromList([2]));
+
     expect(
       File(
         '${root.path}/media-covers/${scope.persistenceKey}/'
@@ -67,6 +65,7 @@ void main() {
       ).existsSync(),
       isTrue,
     );
+
     expect(
       File(
         '${root.path}/media-covers/${scope.persistenceKey}/'
@@ -78,8 +77,8 @@ void main() {
 
   test('guest covers use the local guest books namespace', () async {
     await service.storeGuestCoverFile('book-1', Uint8List.fromList([3, 4]));
-
     expect(await service.getGuestCoverFile('book-1'), Uint8List.fromList([3, 4]));
+
     expect(
       File(
         '${root.path}/media-covers/${MediaStorageScope.localGuest.persistenceKey}/'
@@ -96,30 +95,24 @@ void main() {
   test('promoting pending cover writes cache before removing pending', () async {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     await service.storePendingCoverFile(scope, 'book-1', Uint8List.fromList([5, 6]));
-
     await service.promotePendingCoverFile(scope, bookId: 'book-1', mediaId: 'asset-1');
-
     expect(await service.getCoverFile(scope, 'asset-1'), Uint8List.fromList([5, 6]));
     expect(await service.getPendingCoverFile(scope, 'book-1'), isNull);
   });
 
   test('deleting pending covers is idempotent', () async {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
-
     await service.deletePendingCoverFile(scope, 'book-1');
     await service.storePendingCoverFile(scope, 'book-1', Uint8List.fromList([7]));
     await service.deletePendingCoverFile(scope, 'book-1');
     await service.deletePendingCoverFile(scope, 'book-1');
-
     expect(await service.getPendingCoverFile(scope, 'book-1'), isNull);
   });
 
   test('storing a cover atomically replaces existing bytes', () async {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
-
     await service.storeCoverFile(scope, 'asset-1', Uint8List.fromList([1, 2, 3]));
     await service.storeCoverFile(scope, 'asset-1', Uint8List.fromList([4, 5]));
-
     expect(await service.getCoverFile(scope, 'asset-1'), Uint8List.fromList([4, 5]));
     expect(root.listSync(recursive: true).whereType<File>().where((file) => file.path.endsWith('.tmp')), isEmpty);
   });
@@ -137,6 +130,7 @@ void main() {
 
     final stored = await service.getCoverFile(scope, 'asset-1');
     expect(candidates.any((bytes) => _bytesEqual(bytes, stored)), isTrue);
+
     expect(
       root
           .listSync(recursive: true)
@@ -148,6 +142,7 @@ void main() {
 
   test('native replacement uses direct rename without moving the existing cache aside', () {
     final source = File('lib/services/book_import_service_stub.dart').readAsStringSync();
+
     final writer = source.substring(
       source.indexOf('Future<void> _writeCoverFile'),
       source.indexOf('Future<void> _removeCoverFile'),
@@ -161,11 +156,9 @@ void main() {
   test('pending store queued during promotion preserves the newer generation', () async {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     await service.storePendingCoverFile(scope, 'book-1', Uint8List.fromList([1]));
-
     final promotion = service.promotePendingCoverFile(scope, bookId: 'book-1', mediaId: 'asset-1');
     final newerStore = service.storePendingCoverFile(scope, 'book-1', Uint8List.fromList([2]));
     await Future.wait([promotion, newerStore]);
-
     expect(await service.getCoverFile(scope, 'asset-1'), Uint8List.fromList([1]));
     expect(await service.getPendingCoverFile(scope, 'book-1'), Uint8List.fromList([2]));
   });
@@ -173,10 +166,8 @@ void main() {
   test('deleting a cover is idempotent', () async {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     await service.storeCoverFile(scope, 'asset-1', Uint8List.fromList([1]));
-
     await service.deleteCoverFile(scope, 'asset-1');
     await service.deleteCoverFile(scope, 'asset-1');
-
     expect(await service.getCoverFile(scope, 'asset-1'), isNull);
   });
 
@@ -197,6 +188,7 @@ void main() {
   ]) {
     testWidgets('deleting a ${deletion.name} cover evicts its decoded image', (tester) async {
       var loads = 0;
+
       Future<Uint8List?> loadBytes() async {
         loads++;
         return _pngBytes;
@@ -204,12 +196,10 @@ void main() {
 
       await tester.runAsync(() => _storeCover(service, deletion.scope, deletion.bucket, deletion.id));
       await _pumpCover(tester, deletion.scope, deletion.bucket, deletion.id, loadBytes);
-
       await tester.runAsync(() => _deleteCover(service, deletion.scope, deletion.bucket, deletion.id));
       await tester.pumpWidget(const SizedBox());
       await tester.pump();
       await _pumpCover(tester, deletion.scope, deletion.bucket, deletion.id, loadBytes);
-
       expect(loads, 2);
     });
   }
@@ -223,6 +213,7 @@ void main() {
       await service.storePendingCoverFile(scope, 'book-1', _pngBytes);
       await service.storeCoverFile(scope, 'asset-1', _pngBytes);
     });
+
     await tester.pumpWidget(
       MaterialApp(
         home: Row(
@@ -253,17 +244,20 @@ void main() {
         ),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     await tester.runAsync(() => service.promotePendingCoverFile(scope, bookId: 'book-1', mediaId: 'asset-1'));
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
+
     await _pumpCover(tester, scope, CoverStorageBucket.pending, 'book-1', () async {
       pendingLoads++;
       return _pngBytes;
     });
+
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
+
     await _pumpCover(tester, scope, CoverStorageBucket.cached, 'asset-1', () async {
       cachedLoads++;
       return _pngBytes;
@@ -276,6 +270,7 @@ void main() {
   testWidgets('ordinary cover stores do not evict a decoded image', (tester) async {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     var loads = 0;
+
     Future<Uint8List?> loadBytes() async {
       loads++;
       return _pngBytes;
@@ -286,13 +281,13 @@ void main() {
     await tester.pump();
     await tester.runAsync(() => service.storeCoverFile(scope, 'asset-1', _pngBytes));
     await _pumpCover(tester, scope, CoverStorageBucket.cached, 'asset-1', loadBytes);
-
     expect(loads, 1);
   });
 
   testWidgets('filesystem deletion failure preserves a decoded image', (tester) async {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     var loads = 0;
+
     Future<Uint8List?> loadBytes() async {
       loads++;
       return _pngBytes;
@@ -301,26 +296,24 @@ void main() {
     await _pumpCover(tester, scope, CoverStorageBucket.cached, 'asset-1', loadBytes);
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
-
     final blocker = File('${root.path}/not-a-directory')..writeAsStringSync('blocked');
     PathProviderPlatform.instance = _FakePathProvider(Directory(blocker.path));
+
     await tester.runAsync(
       () => expectLater(service.deleteCoverFile(scope, 'asset-1'), throwsA(isA<FileSystemException>())),
     );
-    await _pumpCover(tester, scope, CoverStorageBucket.cached, 'asset-1', loadBytes);
 
+    await _pumpCover(tester, scope, CoverStorageBucket.cached, 'asset-1', loadBytes);
     expect(loads, 1);
   });
 
   test('clearing covers removes only the selected scope', () async {
     final first = MediaStorageScope(profileKey: 'official', userId: 'user-1');
     final second = MediaStorageScope(profileKey: 'official', userId: 'user-2');
-
     await service.storeCoverFile(first, 'asset-1', Uint8List.fromList([1]));
     await service.storePendingCoverFile(first, 'book-1', Uint8List.fromList([3]));
     await service.storeCoverFile(second, 'asset-2', Uint8List.fromList([2]));
     await service.clearCoverFiles(first);
-
     expect(await service.getCoverFile(first, 'asset-1'), isNull);
     expect(await service.getPendingCoverFile(first, 'book-1'), isNull);
     expect(await service.getCoverFile(second, 'asset-2'), Uint8List.fromList([2]));
@@ -328,7 +321,6 @@ void main() {
 
   test('cover storage rejects unsafe media ids', () async {
     final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
-
     expect(() => service.storeCoverFile(scope, '../asset', Uint8List.fromList([1])), throwsArgumentError);
     expect(() => service.storePendingCoverFile(scope, r'book\1', Uint8List.fromList([1])), throwsArgumentError);
     expect(() => service.storeGuestCoverFile('../book', Uint8List.fromList([1])), throwsArgumentError);
@@ -340,6 +332,7 @@ void main() {
     for (final action in ['getCover', 'storeCover', 'deleteCover', 'promoteCover', 'clearCovers']) {
       expect(source, contains("case '$action':"));
     }
+
     expect(source, contains("new Set(['cached', 'pending', 'books'])"));
     expect(source, contains("validateCoverBucket(bucket)"));
     expect(source, contains("getDirectoryHandle(bucket, { create })"));
@@ -465,6 +458,7 @@ vm.runInContext(source, context);
 
   test('web cover writes transfer a copy so caller bytes remain renderable', () {
     final source = File('lib/services/book_import_service.dart').readAsStringSync();
+
     final helper = source.substring(
       source.indexOf('Future<JSObject> _sendCoverRequest'),
       source.indexOf('BookImportResult _parseImportResult'),
@@ -477,24 +471,29 @@ vm.runInContext(source, context);
 
   test('web cover mutations evict only successfully removed decoded keys', () {
     final source = File('lib/services/book_import_service.dart').readAsStringSync();
+
     final deleteHelper = source.substring(
       source.indexOf('Future<void> _deleteCoverFile'),
       source.indexOf('Future<void> clearCoverFiles'),
     );
+
     final promotion = source.substring(
       source.indexOf('Future<void> promotePendingCoverFile'),
       source.indexOf('Future<Uint8List?> _getCoverFile'),
     );
+
     final storeHelper = source.substring(
       source.indexOf('Future<void> _storeCoverFile'),
       source.indexOf('Future<void> _deleteCoverFile'),
     );
 
     expect(source, contains("import 'package:papyrus/media/local_cover_image_provider.dart';"));
+
     expect(
       deleteHelper.indexOf("await _sendCoverRequest(type: 'deleteCover'"),
       lessThan(deleteHelper.indexOf('LocalCoverImageProvider.evictKey(')),
     );
+
     expect(deleteHelper, contains('scopeKey: scope.persistenceKey'));
     expect(deleteHelper, contains('bucket: bucket'));
     expect(deleteHelper, contains('fileId: id'));
@@ -544,6 +543,7 @@ Future<void> _pumpCover(
       ),
     ),
   );
+
   await tester.pumpAndSettle();
 }
 
@@ -554,9 +554,15 @@ void _clearImageCache() {
 }
 
 bool _bytesEqual(Uint8List first, Uint8List? second) {
-  if (second == null || first.length != second.length) return false;
-  for (var index = 0; index < first.length; index++) {
-    if (first[index] != second[index]) return false;
+  if (second == null || first.length != second.length) {
+    return false;
   }
+
+  for (var index = 0; index < first.length; index++) {
+    if (first[index] != second[index]) {
+      return false;
+    }
+  }
+
   return true;
 }

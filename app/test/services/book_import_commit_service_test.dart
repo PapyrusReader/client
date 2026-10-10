@@ -23,6 +23,7 @@ void main() {
   test('account import persists cover before metadata and enqueues metadata-only uploads in order', () async {
     final calls = <String>[];
     Book? addedBook;
+
     final service = BookImportCommitService(
       storePendingCover: (actualScope, bookId, bytes) async {
         expect(actualScope, accountScope);
@@ -91,6 +92,7 @@ void main() {
 
   test('guest import stores permanent cover before adding and never enqueues media', () async {
     final calls = <String>[];
+
     final service = BookImportCommitService(
       storePendingCover: (_, _, _) async => fail('pending cover must not be stored for a guest'),
       storeGuestCover: (bookId, bytes) async {
@@ -129,6 +131,7 @@ void main() {
 
   test('no-cover import skips cover work and follows account book-file ordering', () async {
     final calls = <String>[];
+
     final service = BookImportCommitService(
       storePendingCover: (_, _, _) async => fail('cover storage must be skipped'),
       storeGuestCover: (_, _) async => fail('cover storage must be skipped'),
@@ -167,6 +170,7 @@ void main() {
     final failure = StateError('disk full');
     var added = false;
     var enqueued = false;
+
     final service = BookImportCommitService(
       storePendingCover: (_, _, _) async => throw failure,
       storeGuestCover: (_, _) async => throw failure,
@@ -197,6 +201,7 @@ void main() {
       ),
       throwsA(same(failure)),
     );
+
     expect(added, isFalse);
     expect(enqueued, isFalse);
   });
@@ -204,6 +209,7 @@ void main() {
   test('account add failure deletes the stored pending cover and preserves the original error', () async {
     final failure = StateError('add failed');
     final calls = <String>[];
+
     final service = BookImportCommitService(
       storePendingCover: (_, _, _) async => calls.add('store pending cover'),
       storeGuestCover: (_, _) async => fail('guest cover must not be stored'),
@@ -240,12 +246,14 @@ void main() {
       ),
       throwsA(same(failure)),
     );
+
     expect(calls, ['store pending cover', 'add book', 'delete pending cover']);
   });
 
   test('guest add failure deletes the stored guest cover', () async {
     final failure = StateError('add failed');
     final calls = <String>[];
+
     final service = BookImportCommitService(
       storePendingCover: (_, _, _) async => fail('pending cover must not be stored'),
       storeGuestCover: (_, _) async => calls.add('store guest cover'),
@@ -278,6 +286,7 @@ void main() {
       ),
       throwsA(same(failure)),
     );
+
     expect(calls, ['store guest cover', 'add book', 'delete guest cover']);
   });
 
@@ -288,6 +297,7 @@ void main() {
     final queue = MediaUploadQueue(prefs);
     await queue.activateScope(accountScope);
     await queue.activateScope(switchedScope);
+
     final service = BookImportCommitService(
       storePendingCover: (_, _, _) async => calls.add('store pending cover'),
       storeGuestCover: (_, _) async => fail('guest cover must not be stored'),
@@ -305,6 +315,7 @@ void main() {
             coverContentType,
           }) async {
             calls.add('enqueue imported media');
+
             await queue.enqueueImportedBookMedia(
               scope: scope,
               book: book,
@@ -326,6 +337,7 @@ void main() {
       ),
       throwsStateError,
     );
+
     expect(calls, ['store pending cover', 'add book', 'enqueue imported media', 'delete book', 'delete pending cover']);
     expect(queue.pendingTasks, isEmpty);
     expect(prefs.getString('media_upload_queue:${accountScope.persistenceKey}'), isNull);
@@ -336,6 +348,7 @@ void main() {
     final failure = StateError('enqueue failed');
     final repository = _GatedDeleteBookRepository();
     final dataStore = DataStore(bookRepository: repository);
+
     final service = BookImportCommitService(
       storePendingCover: (_, _, _) async => fail('cover storage must be skipped'),
       storeGuestCover: (_, _) async => fail('cover storage must be skipped'),
@@ -358,6 +371,7 @@ void main() {
     );
 
     var completed = false;
+
     final commit = service.commit(
       result: _result(),
       sourceFilename: 'original.epub',
@@ -365,16 +379,14 @@ void main() {
       localFilePath: 'book-1',
       accountScope: accountScope,
     );
-    commit.then((_) => completed = true, onError: (_) => completed = true);
 
+    commit.then((_) => completed = true, onError: (_) => completed = true);
     await repository.deleteStarted.future;
     expect(completed, isFalse);
     expect(await repository.getById('book-1'), isNotNull);
-
     repository.allowDelete.complete();
     await expectLater(commit, throwsA(same(failure)));
     expect(await repository.getById('book-1'), isNull);
-
     await dataStore.disposeBookRepository();
     await repository.dispose();
   });
@@ -383,6 +395,7 @@ void main() {
     final repository = _GatedDeleteBookRepository(gateUpsert: true);
     final dataStore = DataStore(bookRepository: repository);
     var enqueueStarted = false;
+
     final service = BookImportCommitService(
       storePendingCover: (_, _, _) async => fail('cover storage must be skipped'),
       storeGuestCover: (_, _) async => fail('cover storage must be skipped'),
@@ -410,13 +423,12 @@ void main() {
       localFilePath: 'book-1',
       accountScope: accountScope,
     );
+
     await repository.upsertStarted!.future;
     expect(enqueueStarted, isFalse);
-
     repository.allowUpsert!.complete();
     await commit;
     expect(enqueueStarted, isTrue);
-
     await dataStore.disposeBookRepository();
     await repository.dispose();
   });
@@ -429,6 +441,7 @@ void main() {
     final coverStarted = Completer<void>();
     final allowCover = Completer<void>();
     var guestCoverDeleted = false;
+
     final service = BookImportCommitService(
       storePendingCover: (_, _, _) async => fail('pending cover must not be stored'),
       storeGuestCover: (_, _) async {
@@ -457,15 +470,14 @@ void main() {
       addedAt: addedAt,
       localFilePath: 'book-1',
     );
+
     await coverStarted.future;
     await dataStore.attachBookRepository(second);
     allowCover.complete();
-
     await expectLater(commit, throwsStateError);
     expect(await first.getById('book-1'), isNull);
     expect(await second.getById('book-1'), isNull);
     expect(guestCoverDeleted, isTrue);
-
     await dataStore.disposeBookRepository();
     await first.dispose();
     await second.dispose();
@@ -483,6 +495,7 @@ void main() {
     final coverStarted = Completer<void>();
     final allowCover = Completer<void>();
     MediaStorageScope? deletedCoverScope;
+
     final service = BookImportCommitService(
       storePendingCover: (_, _, _) async {
         coverStarted.complete();
@@ -504,17 +517,16 @@ void main() {
       localFilePath: 'book-1',
       accountScope: accountScope,
     );
+
     await coverStarted.future;
     await dataStore.attachBookRepository(second);
     await queue.activateScope(secondScope);
     allowCover.complete();
-
     await expectLater(commit, throwsStateError);
     expect(await first.getById('book-1'), isNull);
     expect(await second.getById('book-1'), isNull);
     expect(queue.pendingTasks, isEmpty);
     expect(deletedCoverScope, accountScope);
-
     await dataStore.disposeBookRepository();
     await first.dispose();
     await second.dispose();
@@ -527,6 +539,7 @@ void main() {
     final dataStore = DataStore(bookRepository: first);
     final captured = dataStore.requireBookRepository();
     var enqueued = false;
+
     final service = BookImportCommitService(
       storePendingCover: (_, _, _) async => fail('cover storage must be skipped'),
       storeGuestCover: (_, _) async => fail('cover storage must be skipped'),
@@ -565,7 +578,6 @@ void main() {
     expect(await first.getById('book-1'), isNull);
     expect(await second.getById('book-1'), isNull);
     expect(enqueued, isFalse);
-
     await dataStore.disposeBookRepository();
     await first.dispose();
     await second.dispose();

@@ -67,17 +67,9 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
-  // ============================================================================
-  // LOADING STATE
-  // ============================================================================
-
   Widget _buildLoadingState(BuildContext context) {
     return const Scaffold(body: Center(child: AppCircularProgressIndicator()));
   }
-
-  // ============================================================================
-  // MOBILE LAYOUT
-  // ============================================================================
 
   Widget _buildMobileLayout(BuildContext context, StatisticsProvider provider) {
     return Scaffold(
@@ -139,8 +131,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
   Widget _buildPeriodSegmentedButton(BuildContext context, StatisticsProvider provider) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-
-    final periods = StatsPeriod.values.where((p) => p != StatsPeriod.custom).toList();
+    final periods = StatsPeriod.values.where((item) => item != StatsPeriod.custom).toList();
     final selectedPeriod = provider.selectedPeriod == StatsPeriod.custom ? StatsPeriod.week : provider.selectedPeriod;
 
     return Row(
@@ -422,10 +413,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
     );
   }
 
-  // ============================================================================
-  // DESKTOP LAYOUT
-  // ============================================================================
-
   Widget _buildDesktopLayout(BuildContext context, StatisticsProvider provider) {
     return Scaffold(
       body: SafeArea(
@@ -533,10 +520,6 @@ class _StatisticsPageState extends State<StatisticsPage> {
     return _buildGenreBarsCard(context, provider, isDesktop: true);
   }
 
-  // ============================================================================
-  // HELPERS
-  // ============================================================================
-
   String _getPeriodLabel(StatsPeriod period) {
     switch (period) {
       case StatsPeriod.week:
@@ -554,6 +537,7 @@ class _StatisticsPageState extends State<StatisticsPage> {
 
   Future<void> _showDateRangePicker(BuildContext context, StatisticsProvider provider) async {
     final now = DateTime.now();
+
     final initialRange = provider.hasCustomRange
         ? DateTimeRange(start: provider.customStartDate!, end: provider.customEndDate!)
         : DateTimeRange(start: now.subtract(const Duration(days: 30)), end: now);

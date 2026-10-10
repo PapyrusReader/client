@@ -53,15 +53,20 @@ class ProfileHeader extends StatelessWidget {
   /// Gets user initials from display name.
   String get _initials {
     final parts = displayName.split(' ');
+
     if (parts.length >= 2) {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
+
     return displayName.isNotEmpty ? displayName[0].toUpperCase() : '?';
   }
 
   @override
   Widget build(BuildContext context) {
-    if (isDesktopLayout) return _buildDesktopHeader(context);
+    if (isDesktopLayout) {
+      return _buildDesktopHeader(context);
+    }
+
     return _buildMobileHeader(context);
   }
 

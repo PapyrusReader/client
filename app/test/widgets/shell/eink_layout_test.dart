@@ -23,6 +23,7 @@ void main() {
       SharedPreferences.setMockInitialValues({'theme_mode': 'light'});
       final prefs = PreferencesProvider(await SharedPreferences.getInstance());
       final catalogStore = OpdsCatalogStore(await SharedPreferences.getInstance());
+
       final router = GoRouter(
         initialLocation: '/library/books',
         routes: [
@@ -32,7 +33,9 @@ void main() {
           ),
         ],
       );
+
       addTearDown(router.dispose);
+
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -49,6 +52,7 @@ void main() {
           ),
         ),
       );
+
       await tester.pumpAndSettle();
       final desktop = find.byType(DesktopSidebar).evaluate().isNotEmpty;
       final mobile = find.byType(MobileBottomNav).evaluate().isNotEmpty;

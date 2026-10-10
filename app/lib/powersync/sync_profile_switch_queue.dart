@@ -15,9 +15,11 @@ class SyncProfileSwitchQueue {
   String get requestedProfileKey => _requestedProfileKey;
 
   bool request(String profileKey, Future<void> Function() switchProfile) {
-    if (profileKey == _requestedProfileKey) return false;
-    _requestedProfileKey = profileKey;
+    if (profileKey == _requestedProfileKey) {
+      return false;
+    }
 
+    _requestedProfileKey = profileKey;
     final operation = _tail.then((_) => switchProfile());
     _tail = operation.then<void>((_) {}, onError: _onError);
     return true;

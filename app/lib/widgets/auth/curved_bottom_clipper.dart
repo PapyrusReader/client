@@ -30,7 +30,6 @@ class CurvedBottomClipper extends CustomClipper<Path> {
 
     // Close the path
     path.close();
-
     return path;
   }
 
@@ -49,7 +48,6 @@ class WaveBottomClipper extends CustomClipper<Path> {
   @override
   Path getClip(Size size) {
     final path = Path();
-
     path.lineTo(0, 0);
     path.lineTo(0, size.height - waveHeight);
 
@@ -58,10 +56,8 @@ class WaveBottomClipper extends CustomClipper<Path> {
 
     // Second curve (center to right)
     path.quadraticBezierTo(size.width * 0.75, size.height - waveHeight * 2, size.width, size.height - waveHeight);
-
     path.lineTo(size.width, 0);
     path.close();
-
     return path;
   }
 

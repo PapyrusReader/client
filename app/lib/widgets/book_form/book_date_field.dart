@@ -52,6 +52,7 @@ class BookDateField extends StatelessWidget {
       firstDate: DateTime(1000),
       lastDate: DateTime.now().add(const Duration(days: 365)),
     );
+
     if (picked != null) {
       controller.text = DateFormat.yMMMMd().format(picked);
       onChanged(picked);

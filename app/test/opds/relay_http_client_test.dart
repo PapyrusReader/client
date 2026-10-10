@@ -14,6 +14,7 @@ void main() {
 
   test('queues cover fanout and cancels waiting requests before they reach the server', () async {
     final pending = <Completer<http.Response>>[];
+
     final gateway = OpdsHttpClient(
       clientFactory: () => MockClient((_) {
         final response = Completer<http.Response>();
@@ -21,6 +22,7 @@ void main() {
         return response.future;
       }),
     );
+
     final running = List.generate(4, (_) => gateway.get(catalog, catalog.uri));
     await Future<void>.delayed(Duration.zero);
     expect(pending, hasLength(4));
@@ -31,18 +33,22 @@ void main() {
     expect(pending, hasLength(4));
     cancellation.cancel();
     await cancelled;
+
     for (final response in pending) {
       response.complete(http.Response('book', 200, headers: {'x-opds-url': catalog.uri.toString()}));
     }
+
     await Future.wait(running);
     expect(pending, hasLength(4));
   });
 
   test('retries temporary relay capacity errors without a direct request', () async {
     var attempts = 0;
+
     final gateway = OpdsHttpClient(
       clientFactory: () => MockClient((request) async {
         expect(request.method, 'POST');
+
         if (++attempts == 1) {
           return http.Response(
             jsonEncode({
@@ -55,32 +61,38 @@ void main() {
             503,
           );
         }
+
         return http.Response('book', 200, headers: {'x-opds-url': catalog.uri.toString()});
       }),
     );
+
     expect((await gateway.get(catalog, catalog.uri)).text, 'book');
     expect(attempts, 2);
   });
 
   test('fetches through the backend without account authentication or a direct catalog request', () async {
     final seen = <http.Request>[];
+
     final gateway = OpdsHttpClient(
       clientFactory: () => MockClient((request) async {
         seen.add(request);
         return http.Response('book', 200, headers: {'x-opds-url': 'https://cdn.test/book.epub'});
       }),
     );
+
     final response = await gateway.get(catalog, catalog.uri, credentials: credentials);
     expect(seen, hasLength(1));
     expect(seen.single.url, PapyrusApiConfig.fromEnvironment().endpoint('/opds/relay'));
     expect(seen.single.method, 'POST');
     expect(seen.single.headers.containsKey('authorization'), isFalse);
+
     expect(jsonDecode(seen.single.body), {
       'url': catalog.uri.toString(),
       'catalog_url': catalog.uri.toString(),
       'max_bytes': 8 * 1024 * 1024,
       'credentials': {'username': 'reader', 'password': 'secret'},
     });
+
     expect(response.uri, Uri.parse('https://cdn.test/book.epub'));
     expect(utf8.decode(response.bytes), 'book');
   });
@@ -96,6 +108,7 @@ void main() {
         ),
       ),
     );
+
     await expectLater(
       gateway.get(catalog, catalog.uri, credentials: credentials),
       throwsA(isA<OpdsException>().having((e) => e.message, 'message', 'Check the catalog credentials.')),
@@ -104,16 +117,19 @@ void main() {
 
   test('network failure reports the server and never falls back to a direct request', () async {
     var attempts = 0;
+
     final gateway = OpdsHttpClient(
       clientFactory: () => MockClient((_) async {
         attempts++;
         throw http.ClientException('Failed to fetch');
       }),
     );
+
     await expectLater(
       gateway.get(catalog, catalog.uri),
       throwsA(isA<OpdsConnectionException>().having((e) => e.message, 'message', contains('server'))),
     );
+
     expect(attempts, 1);
   });
 

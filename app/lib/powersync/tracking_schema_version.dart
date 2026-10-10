@@ -1,0 +1,1 @@
+const currentTrackingSchemaVersion = 2;

@@ -21,14 +21,16 @@ class ContinueReadingCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (book == null) return _buildEmptyState(context);
-    if (isDesktop) return _buildDesktopCard(context);
+    if (book == null) {
+      return _buildEmptyState(context);
+    }
+
+    if (isDesktop) {
+      return _buildDesktopCard(context);
+    }
+
     return _buildMobileCard(context);
   }
-
-  // ============================================================================
-  // MOBILE LAYOUT
-  // ============================================================================
 
   /// Builds the compact mobile card with cover, info, and play button.
   Widget _buildMobileCard(BuildContext context) {
@@ -60,9 +62,9 @@ class ContinueReadingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: Spacing.sm),
                 BookProgressBar(
-                  progress: book!.progress,
+                  progress: book!.currentPosition,
                   currentPage: book!.currentPage,
-                  totalPages: book!.totalPages,
+                  totalPages: book!.pageCount,
                   showLabel: true,
                   height: 4,
                 ),
@@ -75,10 +77,6 @@ class ContinueReadingCard extends StatelessWidget {
       ),
     );
   }
-
-  // ============================================================================
-  // DESKTOP LAYOUT
-  // ============================================================================
 
   /// Builds the larger desktop card with cover, info, and continue button.
   Widget _buildDesktopCard(BuildContext context) {
@@ -111,9 +109,9 @@ class ContinueReadingCard extends StatelessWidget {
                 ),
                 const SizedBox(height: Spacing.md),
                 BookProgressBar(
-                  progress: book!.progress,
+                  progress: book!.currentPosition,
                   currentPage: book!.currentPage,
-                  totalPages: book!.totalPages,
+                  totalPages: book!.pageCount,
                   showLabel: true,
                   height: 4,
                 ),
@@ -131,13 +129,10 @@ class ContinueReadingCard extends StatelessWidget {
     );
   }
 
-  // ============================================================================
-  // EMPTY STATE
-  // ============================================================================
-
   /// Builds the empty state when no book is currently being read.
   Widget _buildEmptyState(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,
@@ -153,10 +148,6 @@ class ContinueReadingCard extends StatelessWidget {
     );
   }
 
-  // ============================================================================
-  // SHARED WIDGETS
-  // ============================================================================
-
   /// Builds the book cover image with rounded corners.
   Widget _buildCover(BuildContext context, {required double width, required double height}) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -171,7 +162,7 @@ class ContinueReadingCard extends StatelessWidget {
       clipBehavior: Clip.antiAlias,
       child: CoverImage(
         bookId: book?.id,
-        imageUrl: book?.coverURL,
+        imageUrl: book?.coverUrl,
         mediaId: book?.coverMediaId,
         placeholder: _buildCoverPlaceholder(context),
       ),
@@ -181,7 +172,6 @@ class ContinueReadingCard extends StatelessWidget {
   /// Builds a placeholder icon when no cover image is available.
   Widget _buildCoverPlaceholder(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-
     return Center(child: Icon(Icons.menu_book, size: 32, color: colorScheme.onSurfaceVariant));
   }
 

@@ -1,7 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:papyrus/auth/auth_models.dart';
 import 'package:papyrus/pages/auth/oauth_callback_page.dart';
 import 'package:papyrus/pages/book_details_page.dart';
 import 'package:papyrus/providers/auth_provider.dart';
@@ -31,6 +30,7 @@ import 'package:papyrus/providers/acquisition_availability_provider.dart';
 import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
+import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
 class AppRouter {
   final AuthProvider authProvider;
@@ -61,6 +61,15 @@ class AppRouter {
       acquisitionAvailabilityProvider,
     ]),
     routes: [
+      GoRoute(
+        path: '/startup',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: const Scaffold(
+            body: Center(child: AppCircularProgressIndicator(semanticsLabel: 'Loading Papyrus')),
+          ),
+        ),
+      ),
       GoRoute(
         path: '/',
         pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const WelcomePage()),
@@ -158,6 +167,7 @@ class AppRouter {
                     path: ':shelfId',
                     pageBuilder: (context, state) {
                       final shelfId = state.pathParameters['shelfId'];
+
                       return NoTransitionPage(
                         key: state.pageKey,
                         child: ShelfContentsPage(shelfId: shelfId),
@@ -191,6 +201,7 @@ class AppRouter {
                 path: 'details/:bookId',
                 pageBuilder: (context, state) {
                   var bookId = state.pathParameters['bookId'];
+
                   return NoTransitionPage(
                     key: state.pageKey,
                     child: BookDetailsPage(id: bookId),
@@ -203,6 +214,7 @@ class AppRouter {
                 parentNavigatorKey: rootNavigatorKey,
                 pageBuilder: (context, state) {
                   final bookId = state.pathParameters['bookId']!;
+
                   return NoTransitionPage(
                     key: state.pageKey,
                     child: ReaderPage(bookId: bookId),
@@ -214,6 +226,7 @@ class AppRouter {
                 path: 'edit/:bookId',
                 pageBuilder: (context, state) {
                   var bookId = state.pathParameters['bookId'];
+
                   return NoTransitionPage(
                     key: state.pageKey,
                     child: BookEditPage(id: bookId),
@@ -264,11 +277,33 @@ class AppRouter {
       ),
     ],
     redirect: (BuildContext context, GoRouterState state) {
-      return redirectForPath(state.uri.path);
+      return redirectForPath(state.uri.toString());
     },
   );
 
-  String? redirectForPath(String location) {
+  String? redirectForPath(String destination) {
+    var uri = Uri.parse(destination);
+
+    if (authProvider.isBootstrapping) {
+      return uri.path == '/startup' ? null : Uri(path: '/startup', queryParameters: {'from': destination}).toString();
+    }
+
+    if (uri.path == '/startup') {
+      final from = Uri.tryParse(uri.queryParameters['from'] ?? '/');
+
+      if (from == null ||
+          from.hasScheme ||
+          from.hasAuthority ||
+          !from.path.startsWith('/') ||
+          from.path == '/startup') {
+        uri = Uri(path: '/');
+      } else {
+        uri = from;
+      }
+    }
+
+    final location = uri.path;
+    final restoredDestination = uri.toString() == destination ? null : uri.toString();
     final isAuthRoute =
         location == '/' ||
         location == '/login' ||
@@ -277,13 +312,9 @@ class AppRouter {
         location == '/reset-password' ||
         location == '/auth/callback';
 
-    if (authProvider.status == AuthStatus.bootstrapping) {
-      return null;
-    }
-
     if (!authProvider.isSignedIn && !authProvider.isOfflineMode) {
       if (isAuthRoute) {
-        return null;
+        return restoredDestination;
       }
 
       return '/';
@@ -296,10 +327,11 @@ class AppRouter {
     final acquisitionAvailable = acquisitionAvailabilityProvider.isAvailableFor(
       syncSettingsProvider.activeApiConfig.serverBaseUri,
     );
+
     if (location == '/acquisition' && (!preferencesProvider.acquisitionEnabled || !acquisitionAvailable)) {
       return '/profile';
     }
 
-    return null;
+    return restoredDestination;
   }
 }

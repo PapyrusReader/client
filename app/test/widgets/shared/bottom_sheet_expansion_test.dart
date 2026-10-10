@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/providers/goals_provider.dart';
 import 'package:papyrus/models/library_filters.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
@@ -8,6 +9,7 @@ import 'package:papyrus/widgets/goals/add_goal_sheet.dart';
 import 'package:papyrus/widgets/add_book/add_physical_book_sheet.dart';
 import 'package:papyrus/widgets/library/library_advanced_filter_sheet.dart';
 import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
+import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 import 'package:papyrus/widgets/shelves/add_shelf_sheet.dart';
 import 'package:papyrus/widgets/shelves/move_to_shelf_sheet.dart';
@@ -15,6 +17,12 @@ import 'package:papyrus/widgets/topics/manage_topics_sheet.dart';
 import 'package:provider/provider.dart';
 
 import '../../helpers/test_helpers.dart';
+
+GoalsProvider goalProvider(BuildContext context) {
+  final provider = GoalsProvider(watchClock: false)..attach(context.read<DataStore>());
+  addTearDown(provider.dispose);
+  return provider;
+}
 
 void main() {
   Future<void> openSheet(
@@ -29,6 +37,7 @@ void main() {
     addTearDown(tester.view.reset);
     final dataStore = store ?? (DataStore()..loadData(shelves: const [], tags: const []));
     addTearDown(dataStore.dispose);
+
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: dataStore,
@@ -42,6 +51,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
@@ -53,6 +63,7 @@ void main() {
       addTearDown(library.dispose);
       final store = DataStore()..loadData(books: createTestBooks());
       LibraryFilters? result;
+
       await openSheet(
         tester,
         (context) async {
@@ -61,13 +72,16 @@ void main() {
         store: store,
         size: size,
       );
+
       expect(find.text('Reset'), findsOneWidget);
       expect(find.text('Cancel'), findsNothing);
       expect(find.text('Show 2 books'), findsOneWidget);
+
       final reset = find.descendant(
         of: find.byType(BottomSheetFooter),
         matching: find.widgetWithText(OutlinedButton, 'Reset'),
       );
+
       await tester.tap(reset);
       await tester.pumpAndSettle();
       expect(find.byType(LibraryAdvancedFilterSheet), findsOneWidget);
@@ -83,7 +97,7 @@ void main() {
   }
 
   final longSheets = <String, void Function(BuildContext)>{
-    'goal': (context) => AddGoalSheet.show(context),
+    'goal': (context) => AddGoalSheet.show(context, provider: goalProvider(context), preset: 0, initialTimezone: 'UTC'),
     'physical book': (context) => AddPhysicalBookSheet.show(context),
     'shelf editor': (context) => AddShelfSheet.show(context),
     'shelf selection': (context) => MoveToShelfSheet.show(context, book: buildTestBook()),
@@ -93,6 +107,7 @@ void main() {
       LibraryAdvancedFilterSheet.show(context, libraryProvider: library, dataStore: context.read<DataStore>());
     },
   };
+
   for (final entry in longSheets.entries) {
     testWidgets('${entry.key} expands before scrolling on mobile', (tester) async {
       final store = DataStore()
@@ -101,18 +116,23 @@ void main() {
           shelves: List.generate(20, (i) => buildTestShelf(id: 'shelf-$i', name: 'Shelf $i')),
           tags: List.generate(20, (i) => buildTestTag(id: 'topic-$i', name: 'Topic $i')),
         );
+
       await openSheet(tester, entry.value, store: store);
       expect(find.byType(ExpandableBottomSheet), findsOneWidget);
       final header = find.byKey(Key(entry.key == 'physical book' ? 'add-book-sheet-header' : 'bottom-sheet-header'));
       final initialTop = tester.getTopLeft(header).dy;
       expect(initialTop, greaterThan(24));
+
       final scrollable = find
           .descendant(of: find.byType(ExpandableBottomSheet), matching: find.byType(Scrollable))
           .first;
+
       final position = tester.state<ScrollableState>(scrollable).position;
+
       final footer = entry.key == 'physical book'
           ? find.byKey(const Key('add-book-sheet-footer'))
           : find.byType(BottomSheetFooter);
+
       final footerBottom = tester.getBottomRight(footer).dy;
       await tester.drag(scrollable, const Offset(0, -70));
       await tester.pumpAndSettle();
@@ -120,10 +140,13 @@ void main() {
       expect(position.pixels, 0);
       await tester.drag(scrollable, const Offset(0, -1200));
       await tester.pumpAndSettle();
-      expect(tester.getTopLeft(header).dy, closeTo(24, 1));
+      final draggable = tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet));
+      final maximumHeight = draggable.controller!.sizeToPixels(draggable.maxChildSize);
+      expect(tester.getTopLeft(header).dy, closeTo(footerBottom - maximumHeight, 1));
       await tester.drag(scrollable, const Offset(0, -150));
       await tester.pumpAndSettle();
-      expect(tester.state<ScrollableState>(scrollable).position.pixels, greaterThan(0));
+      final scrolled = tester.state<ScrollableState>(scrollable).position;
+      expect(scrolled.pixels, scrolled.maxScrollExtent > 0 ? greaterThan(0) : 0);
       expect(tester.getBottomRight(footer).dy, footerBottom);
       expect(tester.takeException(), isNull);
     });
@@ -143,6 +166,7 @@ void main() {
         ),
       ),
     );
+
     final draggable = tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet));
     expect(draggable.initialChildSize, lessThan(.8));
     expect(draggable.maxChildSize, draggable.initialChildSize);
@@ -153,6 +177,128 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.getTopLeft(header).dy, initialTop);
     expect(tester.state<ScrollableState>(scrollable).position.maxScrollExtent, 0);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('handle expands and collapses independently of scrolled content', (tester) async {
+    await openSheet(
+      tester,
+      (context) => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (context) => const AppBottomSheet(
+          title: 'Long sheet',
+          body: SizedBox(height: 1600, child: Text('Content')),
+        ),
+      ),
+    );
+
+    final header = find.byKey(const Key('bottom-sheet-header'));
+    final handle = find.byType(BottomSheetHandle);
+    final initialTop = tester.getTopLeft(header).dy;
+    await tester.drag(handle, const Offset(0, -70));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(header).dy, lessThan(initialTop));
+    await tester.drag(find.byType(Scrollable), const Offset(0, -700));
+    await tester.pumpAndSettle();
+    await tester.drag(find.byType(Scrollable), const Offset(0, -150));
+    await tester.pumpAndSettle();
+    final position = tester.state<ScrollableState>(find.byType(Scrollable)).position;
+    final offset = position.pixels;
+    expect(offset, greaterThan(0));
+    final expandedTop = tester.getTopLeft(header).dy;
+    await tester.drag(handle, const Offset(0, 70));
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(header).dy, greaterThan(expandedTop));
+    expect(position.pixels, closeTo(offset, 1));
+    expect(tester.takeException(), isNull);
+  });
+
+  for (final canClose in [true, false]) {
+    testWidgets('handle respects canClose=$canClose and dismisses only on release', (tester) async {
+      await openSheet(
+        tester,
+        (context) => showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          builder: (context) => AppBottomSheet(
+            title: 'Long sheet',
+            canClose: canClose,
+            body: const SizedBox(height: 1600, child: Text('Content')),
+          ),
+        ),
+      );
+
+      final gesture = await tester.startGesture(tester.getCenter(find.byType(BottomSheetHandle)));
+      await gesture.moveBy(const Offset(0, 400));
+      await tester.pumpAndSettle();
+      expect(find.byType(AppBottomSheet), findsOneWidget);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(find.byType(AppBottomSheet), canClose ? findsNothing : findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('short sheets follow the handle, settle after small drags and dismiss after a pull', (tester) async {
+    await openSheet(
+      tester,
+      (context) => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (context) => const AppBottomSheet(title: 'Short sheet', body: Text('Content')),
+      ),
+    );
+
+    final header = find.byKey(const Key('bottom-sheet-header'));
+    final top = tester.getTopLeft(header).dy;
+    final gesture = await tester.startGesture(tester.getCenter(find.byType(BottomSheetHandle)));
+    await gesture.moveBy(const Offset(0, 30));
+    await tester.pump();
+    expect(tester.getTopLeft(header).dy, greaterThan(top));
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(tester.getTopLeft(header).dy, closeTo(top, 1));
+    await tester.drag(find.byType(BottomSheetHandle), const Offset(0, 120));
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBottomSheet), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a drag settles when saving prevents dismissal before release', (tester) async {
+    var canClose = true;
+    late StateSetter updateSheet;
+
+    await openSheet(
+      tester,
+      (context) => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (context) => StatefulBuilder(
+          builder: (context, setState) {
+            updateSheet = setState;
+            return AppBottomSheet(title: 'Short sheet', canClose: canClose, body: const Text('Content'));
+          },
+        ),
+      ),
+    );
+
+    final header = find.byKey(const Key('bottom-sheet-header'));
+    final top = tester.getTopLeft(header).dy;
+    final gesture = await tester.startGesture(tester.getCenter(find.byType(BottomSheetHandle)));
+    await gesture.moveBy(const Offset(0, 50));
+    await tester.pump();
+    expect(tester.getTopLeft(header).dy, greaterThan(top));
+    updateSheet(() => canClose = false);
+    await tester.pump();
+    await gesture.up();
+    await tester.pumpAndSettle();
+    expect(find.byType(AppBottomSheet), findsOneWidget);
+    expect(tester.getTopLeft(header).dy, closeTo(top, 1));
     expect(tester.takeException(), isNull);
   });
 
@@ -170,6 +316,7 @@ void main() {
         ),
       ),
     );
+
     final draggable = tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet));
     expect(draggable.maxChildSize, greaterThan(.8));
     expect(draggable.maxChildSize, lessThan(1));
@@ -182,7 +329,12 @@ void main() {
   });
 
   testWidgets('desktop sheets keep content sizing and ordinary scrolling', (tester) async {
-    await openSheet(tester, (context) => AddGoalSheet.show(context), size: const Size(1280, 800));
+    await openSheet(
+      tester,
+      (context) => AddGoalSheet.show(context, provider: goalProvider(context), preset: 0, initialTimezone: 'UTC'),
+      size: const Size(1280, 800),
+    );
+
     expect(find.byType(ExpandableBottomSheet), findsNothing);
     final header = find.byKey(const Key('bottom-sheet-header'));
     final top = tester.getTopLeft(header).dy;

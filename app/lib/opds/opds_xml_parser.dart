@@ -9,26 +9,33 @@ const _dc = {'http://purl.org/dc/terms/', 'http://purl.org/dc/elements/1.1/'};
 class OpdsXmlParser {
   static OpdsFeed parse(String body, Uri uri) {
     final XmlElement root;
+
     try {
       root = XmlDocument.parse(body).rootElement;
     } on XmlException {
       throw const FormatException('The OPDS XML document is malformed.');
     }
+
     if (root.name.namespaceUri != _atom || !{'feed', 'entry'}.contains(root.name.local)) {
       throw const FormatException('The response is not an Atom OPDS document.');
     }
+
     final base = xmlBase(root, uri);
     final title = _text(root, 'title') ?? 'Untitled catalog';
+
     if (root.name.local == 'entry') {
       return OpdsFeed(uri: uri, title: title, publications: [_publication(root, base)]);
     }
+
     final links = _links(root, base);
     final navigation = <OpdsLink>[];
     final publications = <OpdsPublication>[];
     final groups = <String, _GroupBuilder>{};
+
     for (final entry in _children(root, 'entry')) {
       final book = _publication(entry, xmlBase(entry, base));
       final isPublication = book.links.any((link) => link.isAcquisition) || book.detailLink != null;
+
       final entryNavigation = isPublication
           ? <OpdsLink>[]
           : book.links
@@ -45,9 +52,14 @@ class OpdsXmlParser {
                   ),
                 )
                 .toList();
+
       final collections = book.links.where((link) => link.hasRel('collection')).toList();
+
       if (collections.isEmpty) {
-        if (isPublication) publications.add(book);
+        if (isPublication) {
+          publications.add(book);
+        }
+
         navigation.addAll(entryNavigation);
       } else {
         for (final collection in collections) {
@@ -55,18 +67,29 @@ class OpdsXmlParser {
             collection.uri.toString(),
             () => _GroupBuilder(collection.title ?? 'Collection', [collection]),
           );
-          if (isPublication) group.publications.add(book);
+
+          if (isPublication) {
+            group.publications.add(book);
+          }
+
           group.navigation.addAll(entryNavigation);
         }
       }
     }
+
     final facets = <String, List<OpdsLink>>{};
+
     for (final element in _children(root, 'link')) {
       final link = _link(element, base);
-      if (link == null || !link.hasRel('http://opds-spec.org/facet')) continue;
+
+      if (link == null || !link.hasRel('http://opds-spec.org/facet')) {
+        continue;
+      }
+
       final group = element.getAttribute('facetGroup', namespace: _opds) ?? 'Filters';
       facets.putIfAbsent(group, () => []).add(link);
     }
+
     return OpdsFeed(
       uri: uri,
       title: title,
@@ -85,6 +108,7 @@ class OpdsXmlParser {
         link.hasRel('http://opds-spec.org/image/thumbnail')) {
       return false;
     }
+
     final mime = link.type?.split(';').first.trim().toLowerCase();
     return mime == null || mime == 'application/atom+xml' || mime == 'application/opds+json';
   }
@@ -92,14 +116,21 @@ class OpdsXmlParser {
   static OpdsPublication _publication(XmlElement entry, Uri base) {
     final links = _links(entry, base);
     final title = _text(entry, 'title') ?? 'Untitled publication';
+
     final identifiers = entry.childElements.where(
       (element) => element.name.local == 'identifier' && _dc.contains(element.name.namespaceUri),
     );
+
     String? isbn;
+
     for (final identifier in identifiers) {
       isbn = opdsIsbn(identifier.innerText);
-      if (isbn != null) break;
+
+      if (isbn != null) {
+        break;
+      }
     }
+
     return OpdsPublication(
       id: _text(entry, 'id') ?? (links.isNotEmpty ? links.first.uri.toString() : title),
       title: title,
@@ -131,7 +162,11 @@ class OpdsXmlParser {
 
   static OpdsLink? _link(XmlElement element, Uri base) {
     final href = element.getAttribute('href');
-    if (href == null || href.trim().isEmpty) return null;
+
+    if (href == null || href.trim().isEmpty) {
+      return null;
+    }
+
     return OpdsLink(
       uri: xmlBase(element, base).resolve(href),
       title: element.getAttribute('title'),
@@ -149,7 +184,11 @@ class OpdsXmlParser {
 
   static String? _text(XmlElement parent, String local) {
     final children = _children(parent, local);
-    if (children.isEmpty) return null;
+
+    if (children.isEmpty) {
+      return null;
+    }
+
     final element = children.first;
     final text = opdsPlainText(element.getAttribute('type') == 'xhtml' ? element.innerXml : element.innerText);
     return text.isEmpty ? null : text;
@@ -159,6 +198,7 @@ class OpdsXmlParser {
     final children = parent.childElements.where(
       (child) => child.name.local == local && _dc.contains(child.name.namespaceUri),
     );
+
     return children.isEmpty ? null : opdsPlainText(children.first.innerText);
   }
 }

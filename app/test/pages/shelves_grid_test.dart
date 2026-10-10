@@ -28,14 +28,17 @@ void main() {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = layout.screen;
         addTearDown(tester.view.reset);
+
         final store = createTestDataStore(
           books: [],
           shelves: List.generate(20, (i) => buildTestShelf(id: 'shelf-$i', name: 'Shelf $i with a long title')),
         );
+
         addTearDown(() async {
           await tester.pumpWidget(const SizedBox.shrink());
           store.dispose();
         });
+
         await tester.pumpWidget(
           createTestPage(
             dataStore: store,
@@ -52,14 +55,17 @@ void main() {
             ),
           ),
         );
+
         await tester.pumpAndSettle();
         final provider = tester.element(find.byType(ShelvesFilterChips)).read<ShelvesProvider>();
         final search = tester.getRect(find.byType(TextField));
         final gutter = layout.screen.width >= Breakpoints.desktopSmall ? Spacing.lg : Spacing.md;
         final options = bookGridSizeOptions(layout.width - gutter * 2);
+
         if (layout.screen.width < Breakpoints.desktopSmall) {
           expect(options.last.columns, 4);
         }
+
         for (final option in options) {
           provider.setGridItemWidth(option.preferredWidth);
           await tester.pumpAndSettle();
@@ -69,19 +75,24 @@ void main() {
           final first = tester.getRect(cards.first);
           expect(first.left, closeTo(search.left, .001));
           expect(first.top - tester.getRect(find.byType(ShelvesFilterChips)).bottom, Spacing.sm);
+
           final row = cards
               .evaluate()
-              .map((e) => tester.getRect(find.byWidget(e.widget)))
-              .where((r) => r.top == first.top)
+              .map((item) => tester.getRect(find.byWidget(item.widget)))
+              .where((item) => item.top == first.top)
               .toList();
+
           expect(row.length, option.columns);
           expect(row.last.right, closeTo(layout.screen.width - gutter, .001));
           final spacing = bookGridLayout(layout.width - gutter * 2, itemWidth: option.preferredWidth).spacing;
+
           for (var i = 1; i < row.length; i++) {
             expect(row[i].left - row[i - 1].right, closeTo(spacing, .001));
           }
+
           expect(tester.takeException(), isNull);
         }
+
         provider.setViewMode(LibraryViewMode.list);
         await tester.pumpAndSettle();
         final firstShelf = find.byType(ShelfCard).first;
@@ -98,15 +109,18 @@ void main() {
     (screen: 1200.0, width: 560.0),
   ]) {
     final width = layout.width;
+
     testWidgets('shelf view sheet applies real columns and retains density at $width', (tester) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = Size(layout.screen, 1000);
       addTearDown(tester.view.reset);
       final store = createTestDataStore();
+
       addTearDown(() async {
         await tester.pumpWidget(const SizedBox.shrink());
         store.dispose();
       });
+
       await tester.pumpWidget(
         createTestPage(
           dataStore: store,
@@ -117,13 +131,16 @@ void main() {
           ),
         ),
       );
+
       await tester.pumpAndSettle();
       final provider = tester.element(find.byType(ShelvesFilterChips)).read<ShelvesProvider>();
+
       await tester.scrollUntilVisible(
         find.byTooltip('Change view mode'),
         200,
         scrollable: find.descendant(of: find.byType(ShelvesFilterChips), matching: find.byType(Scrollable)).first,
       );
+
       await tester.ensureVisible(find.byTooltip('Change view mode'));
       await tester.pumpAndSettle();
       await tester.tap(find.byTooltip('Change view mode'));
@@ -132,17 +149,20 @@ void main() {
       expect(find.text('Large grid'), findsNothing);
       final gutter = layout.screen >= Breakpoints.desktopSmall ? Spacing.lg : Spacing.md;
       final options = bookGridSizeOptions(width - gutter * 2);
+
       for (final option in options) {
         final label = '${option.columns} ${option.columns == 1 ? 'column' : 'columns'}';
         await tester.tap(find.widgetWithText(ChoiceChip, label));
         await tester.pumpAndSettle();
         expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label)).selected, isTrue);
+
         expect(
           (tester.widget<GridView>(find.byType(GridView)).gridDelegate as SliverGridDelegateWithFixedCrossAxisCount)
               .crossAxisCount,
           option.columns,
         );
       }
+
       final density = provider.gridItemWidth;
       await tester.tap(find.text('List').last);
       await tester.pumpAndSettle();
@@ -158,6 +178,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
   testWidgets('compact shelf mosaics with missing images fit at enlarged text', (tester) async {
     for (var covers = 1; covers <= 4; covers++) {
       await tester.pumpWidget(
@@ -186,6 +207,7 @@ void main() {
           ),
         ),
       );
+
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull, reason: '$covers-cover mosaic');
     }

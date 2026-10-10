@@ -34,6 +34,7 @@ class TopicDetailSheet extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final dataStore = context.watch<DataStore>();
     final bookCount = dataStore.getBookCountForTag(tag.id);
+
     return AppBottomSheet(
       header: Row(
         children: [
@@ -139,7 +140,10 @@ class TopicDetailSheet extends StatelessWidget {
             onPressed: () async {
               try {
                 await dataStore.deleteTag(tag.id, repository: repository);
-                if (dialogContext.mounted) Navigator.pop(dialogContext);
+
+                if (dialogContext.mounted) {
+                  Navigator.pop(dialogContext);
+                }
               } catch (_) {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(

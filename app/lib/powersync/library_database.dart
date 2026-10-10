@@ -1,4 +1,9 @@
 import 'dart:convert';
+import 'package:papyrus/powersync/tracking_schema_version.dart';
+import 'package:papyrus/data/repositories/tracking_repository.dart';
+import 'package:papyrus/models/reading_goal.dart';
+import 'package:papyrus/models/reading_activity.dart';
+import 'package:papyrus/models/goal_period_record.dart';
 
 import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/models/book.dart';
@@ -8,10 +13,16 @@ import 'package:powersync/powersync.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 
 /// A handle bound to one opened library, invalidated before a profile switch.
-class LibraryDatabase implements LibraryMembershipWriter {
+class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository {
   final PowerSyncDatabase database;
   final Future<void> Function() onWrite;
   bool active = true;
+  int trackingSchemaVersion = 0;
+  bool get trackingSupported => trackingSchemaVersion == currentTrackingSchemaVersion;
+  set trackingSupported(bool value) => trackingSchemaVersion = value ? currentTrackingSchemaVersion : 0;
+
+  @override
+  bool get isCurrent => active;
 
   LibraryDatabase(this.database, this.onWrite);
 
@@ -25,16 +36,22 @@ class LibraryDatabase implements LibraryMembershipWriter {
   late final books = ScopedBooks(this);
 
   void checkActive() {
-    if (!active) throw StateError('The library changed. Reopen this item before saving.');
+    if (!active) {
+      throw StateError('The library changed. Reopen this item before saving.');
+    }
   }
 
   Future<void> write(Future<void> Function(SqliteWriteContext) action) async {
     checkActive();
+
     await database.writeTransaction((tx) async {
       checkActive();
       await action(tx);
     });
-    if (active) await onWrite();
+
+    if (active) {
+      await onWrite();
+    }
   }
 
   Future<void> upsert(String table, Map<String, Object?> row, {Map<String, Object?>? previous}) =>
@@ -48,17 +65,24 @@ class LibraryDatabase implements LibraryMembershipWriter {
   }) async {
     final id = row['id'];
     final existing = await tx.getOptional('SELECT * FROM $table WHERE id = ?', [id]);
+
     if (existing == null) {
-      if (previous != null) return;
+      if (previous != null) {
+        return;
+      }
+
       await _validateReferences(tx, table, row);
+
       await tx.execute(
         'INSERT INTO $table (${row.keys.join(', ')}) VALUES (${List.filled(row.length, '?').join(', ')})',
         row.values.toList(),
       );
+
       return;
     }
 
     final baseline = previous ?? Map<String, Object?>.from(existing);
+
     final changes = Map<String, Object?>.fromEntries(
       row.entries.where(
         (entry) =>
@@ -66,9 +90,17 @@ class LibraryDatabase implements LibraryMembershipWriter {
             !_sameValue(entry.key, entry.value, baseline[entry.key]),
       ),
     );
-    if (changes.isEmpty) return;
-    if (row.containsKey('updated_at')) changes['updated_at'] = DateTime.now().toUtc().toIso8601String();
+
+    if (changes.isEmpty) {
+      return;
+    }
+
+    if (row.containsKey('updated_at')) {
+      changes['updated_at'] = DateTime.now().toUtc().toIso8601String();
+    }
+
     await _validateReferences(tx, table, {...existing, ...changes});
+
     await tx.execute('UPDATE $table SET ${changes.keys.map((key) => '$key = ?').join(', ')} WHERE id = ?', [
       ...changes.values,
       id,
@@ -78,17 +110,30 @@ class LibraryDatabase implements LibraryMembershipWriter {
   Future<void> _validateReferences(SqliteReadContext tx, String table, Map<String, Object?> row) async {
     for (final reference in {'book_id': 'books', 'shelf_id': 'shelves', 'tag_id': 'tags'}.entries) {
       final id = row[reference.key];
+
       if (id != null && await tx.getOptional('SELECT id FROM ${reference.value} WHERE id = ?', [id]) == null) {
         throw StateError('The referenced ${reference.value} record no longer exists.');
       }
     }
-    if (table != 'shelves') return;
+
+    if (table != 'shelves') {
+      return;
+    }
+
     final visited = <Object?>{row['id']};
     var parent = row['parent_shelf_id'];
+
     while (parent != null) {
-      if (!visited.add(parent)) throw StateError('A shelf cannot contain itself.');
+      if (!visited.add(parent)) {
+        throw StateError('A shelf cannot contain itself.');
+      }
+
       final ancestor = await tx.getOptional('SELECT parent_shelf_id FROM shelves WHERE id = ?', [parent]);
-      if (ancestor == null) throw StateError('The parent shelf no longer exists.');
+
+      if (ancestor == null) {
+        throw StateError('The parent shelf no longer exists.');
+      }
+
       parent = ancestor['parent_shelf_id'];
     }
   }
@@ -100,6 +145,7 @@ class LibraryDatabase implements LibraryMembershipWriter {
       }
     } else if (table == 'shelves') {
       await tx.execute('DELETE FROM book_shelves WHERE shelf_id = ?', [id]);
+
       await tx.execute('UPDATE shelves SET parent_shelf_id = NULL, updated_at = ? WHERE parent_shelf_id = ?', [
         DateTime.now().toUtc().toIso8601String(),
         id,
@@ -107,6 +153,7 @@ class LibraryDatabase implements LibraryMembershipWriter {
     } else if (table == 'tags') {
       await tx.execute('DELETE FROM book_tags WHERE tag_id = ?', [id]);
     }
+
     await tx.execute('DELETE FROM $table WHERE id = ?', [id]);
   });
 
@@ -120,18 +167,25 @@ class LibraryDatabase implements LibraryMembershipWriter {
     bool additive = false,
   }) => write((tx) async {
     Future<void> update(String table, String field, List<String>? selected, Set<String>? baseline) async {
-      if (selected == null) return;
+      if (selected == null) {
+        return;
+      }
+
       final wanted = selected.toSet();
+
       for (final bookId in bookIds) {
         final rows = await tx.getAll('SELECT $field FROM $table WHERE book_id = ?', [bookId]);
         final current = rows.map((row) => row[field] as String).toSet();
         final original = baseline ?? current;
+
         if (!additive) {
           for (final removed in original.difference(wanted)) {
             await tx.execute('DELETE FROM $table WHERE id = ?', ['$bookId:$removed']);
           }
         }
+
         final additions = additive ? wanted : wanted.difference(original);
+
         for (final added in additions.difference(current)) {
           await upsertRow(tx, table, {
             'id': '$bookId:$added',
@@ -152,7 +206,31 @@ class LibraryDatabase implements LibraryMembershipWriter {
     Future<List<T>> rows<T>(LibraryRowMapper<T> mapper) async => (await tx.getAll(
       'SELECT * FROM ${mapper.table}',
     )).map((row) => mapper.fromRow(Map<String, dynamic>.from(row))).toList();
+
+    Future<List<T>> trackingRows<T>(String table, T Function(Map<String, dynamic>) decode) async {
+      final rows = {
+        for (final row in await tx.getAll('SELECT id, payload FROM $table'))
+          row['id'] as String: jsonDecode(row['payload'] as String) as Map,
+      };
+
+      for (final staged in await tx.getAll(
+        'SELECT row_id, payload, deleted FROM tracking_staging WHERE table_name = ?',
+        [table],
+      )) {
+        if (staged['deleted'] == 1) {
+          rows.remove(staged['row_id']);
+        } else {
+          rows[staged['row_id'] as String] = jsonDecode(staged['payload'] as String) as Map;
+        }
+      }
+
+      return rows.values.map((row) => decode(Map<String, dynamic>.from(row))).toList();
+    }
+
     return LibrarySnapshot(
+      goals: await trackingRows('reading_goals', ReadingGoal.fromJson),
+      activities: await trackingRows('reading_activities', ReadingActivity.fromJson),
+      goalPeriods: await trackingRows('goal_periods', GoalPeriodRecord.fromJson),
       books: (await tx.getAll(
         'SELECT * FROM books ORDER BY added_at DESC',
       )).map((row) => PowerSyncBookMapper.fromRow(Map<String, Object?>.from(row))).toList(),
@@ -166,60 +244,154 @@ class LibraryDatabase implements LibraryMembershipWriter {
     );
   });
 
-  /// Expands legacy local metadata once without clearing data or the CRUD queue.
-  Future<void> migrateLegacyBooks() async {
-    await database.writeTransaction((tx) async {
-      if (await tx.getOptional("SELECT id FROM library_migrations WHERE id = 'book-fields-v1'") != null) return;
-      final storageTable = database.schema.tables.singleWhere((table) => table.name == 'books').internalName;
-      for (final raw in await tx.getAll('SELECT id, data FROM $storageTable')) {
-        final row = Map<String, Object?>.from(jsonDecode(raw['data'] as String) as Map);
-        final encoded = row['custom_metadata'];
-        if (encoded is! String) continue;
-        final metadata = jsonDecode(encoded);
-        if (metadata is! Map<String, dynamic>) continue;
-        final changes = <String, Object?>{};
-        for (final entry in metadata.entries) {
-          if (row.containsKey(entry.key)) continue;
-          final value = _legacyPromotedValue(entry.key, entry.value);
-          if (value != null) changes[entry.key] = value;
-        }
-        if (changes.isNotEmpty) {
-          await tx.execute('UPDATE books SET ${changes.keys.map((key) => '$key = ?').join(', ')} WHERE id = ?', [
-            ...changes.values,
-            raw['id'],
-          ]);
-        }
-      }
-      await tx.execute("INSERT INTO library_migrations (id, version) VALUES ('book-fields-v1', 1)");
-    });
-  }
-}
+  Future<void> enableTracking({int schemaVersion = currentTrackingSchemaVersion}) async {
+    final previous = trackingSchemaVersion;
 
-Object? _legacyPromotedValue(String key, Object? value) {
-  if (value == null) return null;
-  if (['publication_date', 'lent_at', 'started_at', 'completed_at', 'last_read_at'].contains(key)) {
-    final date = value is String ? DateTime.tryParse(value)?.toUtc() : null;
-    return date != null && date.year >= 1 && date.year <= 9999 ? date.toIso8601String() : null;
+    try {
+      await write((tx) async {
+        trackingSchemaVersion = schemaVersion;
+
+        if (!trackingSupported) {
+          return;
+        }
+
+        final staged = await tx.getAll('SELECT * FROM tracking_staging ORDER BY table_name DESC');
+
+        for (final table in trackingTableNames) {
+          for (final row in staged.where((row) => row['table_name'] == table)) {
+            final payload = Map<String, dynamic>.from(jsonDecode(row['payload'] as String) as Map);
+
+            if (row['deleted'] == 1) {
+              await tx.execute('DELETE FROM $table WHERE id = ?', [row['row_id']]);
+            } else {
+              await _trackingRow(tx, table, payload, force: true);
+            }
+
+            await tx.execute('DELETE FROM tracking_staging WHERE id = ?', [row['id']]);
+          }
+        }
+      });
+    } catch (_) {
+      trackingSchemaVersion = previous;
+      rethrow;
+    }
   }
-  if (['file_format', 'file_hash', 'physical_location', 'lent_to', 'series_id', 'series_name'].contains(key)) {
-    return value is String ? value : null;
+
+  Future<void> _trackingRow(
+    SqliteWriteContext tx,
+    String table,
+    Map<String, dynamic> payload, {
+    bool deleted = false,
+    bool force = false,
+  }) async {
+    final id = payload['id'] as String;
+
+    final staged = deleted
+        ? await tx.getOptional('SELECT id FROM tracking_staging WHERE id = ?', ['$table:$id'])
+        : null;
+
+    if (!trackingSupported || staged != null) {
+      await tx.execute(
+        'INSERT OR REPLACE INTO tracking_staging (id, table_name, row_id, payload, deleted) VALUES (?, ?, ?, ?, ?)',
+        ['$table:$id', table, id, jsonEncode(payload), deleted ? 1 : 0],
+      );
+
+      return;
+    }
+
+    if (deleted) {
+      await tx.execute('DELETE FROM $table WHERE id = ?', [id]);
+      return;
+    }
+
+    final date = DateTime.now().toUtc().toIso8601String();
+    final existing = force ? await tx.getOptional('SELECT id FROM $table WHERE id = ?', [id]) : null;
+
+    await upsertRow(tx, table, {
+      'id': id,
+      'payload': jsonEncode(payload),
+      'created_at': date,
+      'updated_at': date,
+    }, previous: force && existing != null ? {'payload': null} : null);
   }
-  if (key == 'file_size') return value is int && value >= 0 && value.bitLength <= 63 ? value : null;
-  if (key == 'series_number') return value is num && value.isFinite ? value.toDouble() : null;
-  if (key == 'is_physical') {
-    if (value is bool) return value ? 1 : 0;
-    if (value == 0 || value == 1) return value;
-  }
-  return null;
+
+  @override
+  Future<void> commitTracking({
+    List<ReadingGoal> goals = const [],
+    List<ReadingActivity> activities = const [],
+    List<GoalPeriodRecord> periods = const [],
+    String? deleteGoalId,
+    Book? book,
+    Book? previousBook,
+    String? readerBookId,
+    Map<String, dynamic>? readerPatch,
+  }) => write((tx) async {
+    if (book != null) {
+      await upsertRow(
+        tx,
+        'books',
+        PowerSyncBookMapper.toRow(book),
+        previous: previousBook == null ? null : PowerSyncBookMapper.toRow(previousBook),
+      );
+    }
+
+    if (readerBookId != null && readerPatch != null) {
+      final row = await tx.getOptional('SELECT * FROM books WHERE id = ?', [readerBookId]);
+
+      if (row != null) {
+        final patch = Map<String, dynamic>.from(readerPatch);
+
+        final metadata = row['custom_metadata'] is String
+            ? Map<String, dynamic>.from(jsonDecode(row['custom_metadata'] as String) as Map)
+            : <String, dynamic>{};
+
+        if (patch.containsKey('reader_locator')) {
+          metadata['reader_locator'] = patch.remove('reader_locator');
+        }
+
+        patch['custom_metadata'] = jsonEncode(metadata);
+        patch['started_at'] = row['started_at'] ?? patch['last_read_at'];
+
+        if (row['reading_status'] == null || row['reading_status'] == 'unread') {
+          patch['reading_status'] = 'inProgress';
+        }
+
+        await upsertRow(tx, 'books', {...row, ...patch});
+      }
+    }
+
+    for (final goal in goals) {
+      await _trackingRow(tx, 'reading_goals', goal.toJson());
+    }
+
+    for (final activity in activities) {
+      await _trackingRow(tx, 'reading_activities', activity.toJson());
+    }
+
+    for (final period in periods) {
+      await _trackingRow(tx, 'goal_periods', period.toJson());
+    }
+
+    if (deleteGoalId != null) {
+      await _trackingRow(tx, 'reading_goals', {'id': deleteGoalId}, deleted: true);
+    }
+  });
 }
 
 bool _sameValue(String key, Object? a, Object? b) {
-  if (a == b) return true;
+  if (a == b) {
+    return true;
+  }
+
   if ((key.endsWith('_at') || key == 'publication_date') && a is String && b is String) {
     final first = DateTime.tryParse(a);
     final second = DateTime.tryParse(b);
-    if (first != null && second != null) return first.isAtSameMomentAs(second);
+
+    if (first != null && second != null) {
+      return first.isAtSameMomentAs(second);
+    }
   }
+
   return false;
 }
 
@@ -246,8 +418,10 @@ class SqlEntityRepository<T> implements EntityRepository<T> {
 class ScopedBooks implements EditableBookRepository {
   final LibraryDatabase library;
   ScopedBooks(this.library);
+
   @override
   bool get isCurrent => library.active;
+
   @override
   Future<Book?> getById(String id) async {
     library.checkActive();
@@ -259,11 +433,14 @@ class ScopedBooks implements EditableBookRepository {
   Stream<List<Book>> watchAll() => library.database
       .watch('SELECT * FROM books ORDER BY added_at DESC')
       .map((rows) => rows.map((row) => PowerSyncBookMapper.fromRow(Map<String, Object?>.from(row))).toList());
+
   @override
   Future<void> upsert(Book book) => library.upsert('books', PowerSyncBookMapper.toRow(book));
+
   @override
   Future<void> update(Book book, {required Book previous}) =>
       library.upsert('books', PowerSyncBookMapper.toRow(book), previous: PowerSyncBookMapper.toRow(previous));
+
   @override
   Future<void> delete(String id) => library.delete('books', id);
 }

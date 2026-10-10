@@ -115,6 +115,7 @@ class EmptyStateAction extends StatelessWidget {
       ),
       visualDensity: VisualDensity.standard,
     );
+
     return icon == null
         ? FilledButton(onPressed: onPressed, style: style, child: Text(label))
         : FilledButton.icon(

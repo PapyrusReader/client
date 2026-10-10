@@ -20,7 +20,6 @@ void main() {
       await tester.pumpWidget(buildDrawer());
       await tester.tap(find.text('Open Drawer'));
       await tester.pumpAndSettle();
-
       expect(find.text('Library'), findsOneWidget);
     });
 
@@ -28,7 +27,6 @@ void main() {
       await tester.pumpWidget(buildDrawer());
       await tester.tap(find.text('Open Drawer'));
       await tester.pumpAndSettle();
-
       expect(find.text('Books'), findsOneWidget);
       expect(find.text('Shelves'), findsOneWidget);
       expect(find.text('Bookmarks'), findsOneWidget);
@@ -40,7 +38,6 @@ void main() {
       await tester.pumpWidget(buildDrawer());
       await tester.tap(find.text('Open Drawer'));
       await tester.pumpAndSettle();
-
       expect(find.byIcon(Icons.book), findsOneWidget);
       expect(find.byIcon(Icons.shelves), findsOneWidget);
       expect(find.byIcon(Icons.bookmark), findsOneWidget);
@@ -62,7 +59,6 @@ void main() {
       await tester.pumpWidget(buildDrawer(currentPath: '/library/books'));
       await tester.tap(find.text('Open Drawer'));
       await tester.pumpAndSettle();
-
       final booksItem = tester.widget<ListTile>(find.ancestor(of: find.text('Books'), matching: find.byType(ListTile)));
       expect(booksItem.selected, true);
     });
@@ -75,6 +71,7 @@ void main() {
       final shelvesItem = tester.widget<ListTile>(
         find.ancestor(of: find.text('Shelves'), matching: find.byType(ListTile)),
       );
+
       expect(shelvesItem.selected, true);
     });
 
@@ -86,8 +83,8 @@ void main() {
       final shelvesItem = tester.widget<ListTile>(
         find.ancestor(of: find.text('Shelves'), matching: find.byType(ListTile)),
       );
-      expect(shelvesItem.selected, false);
 
+      expect(shelvesItem.selected, false);
       final notesItem = tester.widget<ListTile>(find.ancestor(of: find.text('Notes'), matching: find.byType(ListTile)));
       expect(notesItem.selected, false);
     });
@@ -96,7 +93,6 @@ void main() {
       await tester.pumpWidget(buildDrawer());
       await tester.tap(find.text('Open Drawer'));
       await tester.pumpAndSettle();
-
       expect(find.byType(Drawer), findsOneWidget);
     });
   });

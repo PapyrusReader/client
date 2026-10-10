@@ -10,11 +10,13 @@ import 'package:papyrus/auth/papyrus_api_config.dart';
 void main() {
   test('uses acquisition capabilities endpoint with bearer auth', () async {
     final seenPaths = <String>[];
+
     final client = AcquisitionApiClient(
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://api.test')),
       httpClient: MockClient((request) async {
         seenPaths.add(request.url.path);
         expect(request.headers['authorization'], 'Bearer access-token');
+
         return http.Response(
           jsonEncode({
             'enabled': true,
@@ -32,7 +34,6 @@ void main() {
     );
 
     final capabilities = await client.capabilities('access-token');
-
     expect(seenPaths, ['/v1/acquisition/capabilities']);
     expect(capabilities.downloadClientKinds, [AcquisitionEndpointKind.qbittorrent]);
     expect(capabilities.arrCommands[AcquisitionEndpointKind.readarr], ['BookSearch']);
@@ -40,10 +41,12 @@ void main() {
 
   test('sends the qBittorrent download root when creating and updating endpoints', () async {
     final requestBodies = <Map<String, dynamic>>[];
+
     final client = AcquisitionApiClient(
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://api.test')),
       httpClient: MockClient((request) async {
         requestBodies.add(jsonDecode(request.body) as Map<String, dynamic>);
+
         return http.Response(
           jsonEncode({
             'endpoint_id': 'client-1',
@@ -65,19 +68,21 @@ void main() {
       baseUrl: Uri.parse('http://qbittorrent.local:8082'),
       downloadRoot: '/downloads',
     );
-    await client.updateEndpoint(accessToken: 'access-token', endpointId: 'client-1', downloadRoot: '/new-downloads');
 
+    await client.updateEndpoint(accessToken: 'access-token', endpointId: 'client-1', downloadRoot: '/new-downloads');
     expect(requestBodies[0]['download_root'], '/downloads');
     expect(requestBodies[1], {'download_root': '/new-downloads'});
   });
 
   test('submits release tokens as a partial-success batch', () async {
     late Map<String, dynamic> requestBody;
+
     final client = AcquisitionApiClient(
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://api.test')),
       httpClient: MockClient((request) async {
         expect(request.url.path, '/v1/acquisition/submissions/batch');
         requestBody = jsonDecode(request.body) as Map<String, dynamic>;
+
         return http.Response(
           jsonEncode({
             'items': [
@@ -107,6 +112,7 @@ void main() {
 
   test('uses paginated job lifecycle request shapes', () async {
     final requests = <http.Request>[];
+
     final client = AcquisitionApiClient(
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://api.test')),
       httpClient: MockClient((request) async {
@@ -127,6 +133,7 @@ void main() {
             200,
           );
         }
+
         if (request.method == 'GET' && request.url.path == '/v1/acquisition/jobs') {
           return http.Response(
             jsonEncode({
@@ -138,6 +145,7 @@ void main() {
             200,
           );
         }
+
         if (request.method == 'DELETE') {
           return http.Response('', 204);
         }
@@ -153,7 +161,6 @@ void main() {
     await client.cancelJob(accessToken: 'access-token', jobId: 'job-1');
     await client.retryJobImport(accessToken: 'access-token', jobId: 'job-1');
     await client.removeJob(accessToken: 'access-token', jobId: 'job-1');
-
     expect(page.total, 1);
     expect(files.single.name, 'Example.epub');
     expect(requests[0].url.queryParameters, {'limit': '25', 'offset': '5'});
@@ -166,6 +173,7 @@ void main() {
 
   test('tests an unsaved endpoint without sending irrelevant credentials', () async {
     late Map<String, dynamic> requestBody;
+
     final client = AcquisitionApiClient(
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://api.test')),
       httpClient: MockClient((request) async {
@@ -187,6 +195,7 @@ void main() {
 
   test('tests an edited endpoint with only supplied overrides', () async {
     late Map<String, dynamic> requestBody;
+
     final client = AcquisitionApiClient(
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://api.test')),
       httpClient: MockClient((request) async {

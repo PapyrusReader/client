@@ -15,7 +15,6 @@ void main() {
       test('preview truncates content longer than 100 characters', () {
         final longContent = 'A' * 150;
         final note = buildTestNote(content: longContent);
-
         expect(note.preview.length, 103); // 100 chars + "..."
         expect(note.preview.endsWith('...'), true);
       });
@@ -65,7 +64,6 @@ void main() {
       test('creates copy with updated fields', () {
         final original = buildTestNote(title: 'Original', content: 'Original content', tags: ['tag1'], isPinned: false);
         final copy = original.copyWith(title: 'Updated', isPinned: true, tags: ['tag1', 'tag2']);
-
         expect(copy.title, 'Updated');
         expect(copy.content, 'Original content');
         expect(copy.isPinned, true);
@@ -77,6 +75,7 @@ void main() {
     group('toJson', () {
       test('serializes all fields including flattened location', () {
         final now = DateTime(2025, 6, 15);
+
         final note = Note(
           id: 'note-1',
           bookId: 'book-1',
@@ -90,7 +89,6 @@ void main() {
         );
 
         final json = note.toJson();
-
         expect(json['id'], 'note-1');
         expect(json['book_id'], 'book-1');
         expect(json['title'], 'Test');
@@ -108,7 +106,6 @@ void main() {
       test('null location fields serialize as null', () {
         final note = buildTestNote();
         final json = note.toJson();
-
         expect(json['chapter'], isNull);
         expect(json['chapter_title'], isNull);
         expect(json['page_number'], isNull);
@@ -134,7 +131,6 @@ void main() {
         };
 
         final note = Note.fromJson(json);
-
         expect(note.id, 'note-1');
         expect(note.bookId, 'book-1');
         expect(note.title, 'Test');
@@ -193,7 +189,6 @@ void main() {
         );
 
         final restored = Note.fromJson(original.toJson());
-
         expect(restored.id, original.id);
         expect(restored.title, original.title);
         expect(restored.content, original.content);

@@ -46,7 +46,11 @@ class BookImportSheet extends StatefulWidget {
       allowMultiple: true,
       withData: true,
     );
-    if (result == null) return const [];
+
+    if (result == null) {
+      return const [];
+    }
+
     return result.files.map((file) => SelectedBookFile(name: file.name, bytes: file.bytes)).toList();
   }
 
@@ -61,6 +65,7 @@ class BookImportSheet extends StatefulWidget {
     final importService = processor == null || deleteBookFile == null ? context.read<BookImportService>() : null;
     final effectiveProcessor = processor ?? importService!.importBook;
     final effectiveDeleter = deleteBookFile ?? importService!.deleteBookFile;
+
     final effectiveCommitter =
         committer ?? (BookImportResult result, String filename) => _commitResult(context, result, filename);
 
@@ -73,6 +78,7 @@ class BookImportSheet extends StatefulWidget {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
       builder: (sheetContext) {
         final effectivePickFiles = pickFiles ?? defaultPickFiles;
+
         Widget buildSheet(ScrollController scrollController) => BookImportSheet(
           pickFiles: effectivePickFiles,
           processor: effectiveProcessor,
@@ -82,16 +88,19 @@ class BookImportSheet extends StatefulWidget {
           onClose: () => Navigator.of(sheetContext).pop(),
           onCompleted: (books) {
             final count = books.length;
+
             ScaffoldMessenger.maybeOf(context)?.showSnackBar(
               snackBarAnimationStyle: AppMotion.animationStyle(context),
               SnackBar(content: Text('$count ${count == 1 ? 'book' : 'books'} added to library')),
             );
           },
         );
+
         if (MediaQuery.sizeOf(sheetContext).width < Breakpoints.tablet) {
           // Import dismissal must go through the session's cleanup callback.
           return ExpandableBottomSheet(canClose: false, builder: (_, controller) => buildSheet(controller));
         }
+
         return DraggableScrollableSheet(
           initialChildSize: 0.6,
           minChildSize: 0.4,
@@ -118,6 +127,7 @@ class _BookImportSheetState extends State<BookImportSheet> {
   @override
   void initState() {
     super.initState();
+
     _controller = BookImportController(
       pickFiles: () => widget.pickFiles(),
       processor: (bytes, filename) => widget.processor(bytes, filename),
@@ -138,7 +148,9 @@ class _BookImportSheetState extends State<BookImportSheet> {
     return PopScope<void>(
       canPop: false,
       onPopInvokedWithResult: (didPop, _) {
-        if (!didPop) unawaited(_requestClose());
+        if (!didPop) {
+          unawaited(_requestClose());
+        }
       },
       child: ListenableBuilder(
         listenable: _controller,
@@ -181,13 +193,19 @@ class _BookImportSheetState extends State<BookImportSheet> {
 
   void _retryFailedItems() {
     for (final item in List<BookImportBatchItem>.of(_controller.items)) {
-      if (item.canRetry) unawaited(_controller.retryItem(item.id));
+      if (item.canRetry) {
+        unawaited(_controller.retryItem(item.id));
+      }
     }
   }
 
   Future<void> _removeItem(String id) async {
     final result = await _controller.removeItem(id);
-    if (!mounted || result != BookImportRemoveResult.cleanupFailed) return;
+
+    if (!mounted || result != BookImportRemoveResult.cleanupFailed) {
+      return;
+    }
+
     ScaffoldMessenger.maybeOf(context)?.showSnackBar(
       snackBarAnimationStyle: AppMotion.animationStyle(context),
       const SnackBar(content: Text('Could not remove the imported file.')),
@@ -196,20 +214,32 @@ class _BookImportSheetState extends State<BookImportSheet> {
 
   Future<void> _requestClose() {
     final inFlight = _closeFuture;
-    if (inFlight != null) return inFlight;
+
+    if (inFlight != null) {
+      return inFlight;
+    }
+
     final close = _performClose();
     _closeFuture = close;
+
     unawaited(
       close.whenComplete(() {
-        if (identical(_closeFuture, close)) _closeFuture = null;
+        if (identical(_closeFuture, close)) {
+          _closeFuture = null;
+        }
       }),
     );
+
     return close;
   }
 
   Future<void> _performClose() async {
     final result = await _controller.requestClose();
-    if (!mounted) return;
+
+    if (!mounted) {
+      return;
+    }
+
     switch (result) {
       case BookImportCloseResult.closed:
         widget.onClose();

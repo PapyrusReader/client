@@ -38,10 +38,6 @@ class BookmarksProvider extends ChangeNotifier {
     super.dispose();
   }
 
-  // ============================================================================
-  // GETTERS
-  // ============================================================================
-
   BookmarkSortOption get sortOption => _sortOption;
   Set<String> get activeColors => _selectedColors;
   String get searchQuery => _searchQuery;
@@ -60,7 +56,10 @@ class BookmarksProvider extends ChangeNotifier {
 
   /// All bookmarks, filtered and sorted.
   List<Bookmark> get bookmarks {
-    if (_dataStore == null) return [];
+    if (_dataStore == null) {
+      return [];
+    }
+
     var list = List<Bookmark>.from(_dataStore!.bookmarks);
     list = _applyFilters(list);
     _applySorting(list);
@@ -71,9 +70,11 @@ class BookmarksProvider extends ChangeNotifier {
   Map<String, List<Bookmark>> get bookmarksByBook {
     final filtered = bookmarks;
     final map = <String, List<Bookmark>>{};
+
     for (final bookmark in filtered) {
       map.putIfAbsent(bookmark.bookId, () => []).add(bookmark);
     }
+
     return map;
   }
 
@@ -91,10 +92,6 @@ class BookmarksProvider extends ChangeNotifier {
     return _dataStore?.getBook(bookId)?.coverMediaId;
   }
 
-  // ============================================================================
-  // SORTING & FILTERING
-  // ============================================================================
-
   void setSortOption(BookmarkSortOption option) {
     _sortOption = option;
     notifyListeners();
@@ -102,11 +99,13 @@ class BookmarksProvider extends ChangeNotifier {
 
   void toggleColorFilter(String colorHex) {
     _selectedColors = Set.from(_selectedColors);
+
     if (_selectedColors.contains(colorHex)) {
       _selectedColors.remove(colorHex);
     } else {
       _selectedColors.add(colorHex);
     }
+
     notifyListeners();
   }
 
@@ -131,10 +130,6 @@ class BookmarksProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============================================================================
-  // CRUD (delegated to DataStore)
-  // ============================================================================
-
   Future<void> updateBookmarkNote(
     String bookmarkId,
     String? note, {
@@ -142,7 +137,11 @@ class BookmarksProvider extends ChangeNotifier {
     EntityRepository<Bookmark>? repository,
   }) async {
     final bookmark = previous ?? _dataStore?.getBookmark(bookmarkId);
-    if (bookmark == null || _dataStore == null) return;
+
+    if (bookmark == null || _dataStore == null) {
+      return;
+    }
+
     await _dataStore!.updateBookmark(
       bookmark.copyWith(note: note),
       previous: bookmark,
@@ -157,7 +156,11 @@ class BookmarksProvider extends ChangeNotifier {
     EntityRepository<Bookmark>? repository,
   }) async {
     final bookmark = previous ?? _dataStore?.getBookmark(bookmarkId);
-    if (bookmark == null || _dataStore == null) return;
+
+    if (bookmark == null || _dataStore == null) {
+      return;
+    }
+
     await _dataStore!.updateBookmark(
       bookmark.copyWith(colorHex: colorHex),
       previous: bookmark,
@@ -169,23 +172,20 @@ class BookmarksProvider extends ChangeNotifier {
     await _dataStore?.deleteBookmark(bookmarkId, repository: repository);
   }
 
-  // ============================================================================
-  // PRIVATE HELPERS
-  // ============================================================================
-
   List<Bookmark> _applyFilters(List<Bookmark> all) {
     var result = all;
 
     if (_selectedColors.isNotEmpty) {
-      result = result.where((b) => _selectedColors.contains(b.colorHex)).toList();
+      result = result.where((book) => _selectedColors.contains(book.colorHex)).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      result = result.where((b) {
-        final bookTitle = getBookTitle(b.bookId).toLowerCase();
-        final note = b.note?.toLowerCase() ?? '';
-        final chapter = b.chapterTitle?.toLowerCase() ?? '';
+
+      result = result.where((book) {
+        final bookTitle = getBookTitle(book.bookId).toLowerCase();
+        final note = book.note?.toLowerCase() ?? '';
+        final chapter = book.chapterTitle?.toLowerCase() ?? '';
         return bookTitle.contains(query) || note.contains(query) || chapter.contains(query);
       }).toList();
     }
@@ -194,16 +194,16 @@ class BookmarksProvider extends ChangeNotifier {
   }
 
   void _applySorting(List<Bookmark> list) {
-    list.sort((a, b) {
+    list.sort((left, right) {
       switch (_sortOption) {
         case BookmarkSortOption.dateNewest:
-          return b.createdAt.compareTo(a.createdAt);
+          return right.createdAt.compareTo(left.createdAt);
         case BookmarkSortOption.dateOldest:
-          return a.createdAt.compareTo(b.createdAt);
+          return left.createdAt.compareTo(right.createdAt);
         case BookmarkSortOption.bookTitle:
-          return getBookTitle(a.bookId).toLowerCase().compareTo(getBookTitle(b.bookId).toLowerCase());
+          return getBookTitle(left.bookId).toLowerCase().compareTo(getBookTitle(right.bookId).toLowerCase());
         case BookmarkSortOption.position:
-          return a.position.compareTo(b.position);
+          return left.position.compareTo(right.position);
       }
     });
   }

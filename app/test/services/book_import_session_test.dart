@@ -14,8 +14,10 @@ class _Repository extends Fake implements BookRepository {}
 
 class _DataStore extends Fake implements DataStore {
   final repository = _Repository();
+
   @override
   BookRepository requireBookRepository() => repository;
+
   @override
   bool isBookRepositoryCurrent(BookRepository repository) => identical(this.repository, repository);
 }
@@ -23,8 +25,10 @@ class _DataStore extends Fake implements DataStore {
 class _Auth extends Fake implements AuthProvider {
   @override
   bool get isSignedIn => true;
+
   @override
   bool get isOfflineMode => false;
+
   @override
   PapyrusUser get user => PapyrusUser.fromJson({'user_id': 'bob'});
 }
@@ -36,6 +40,7 @@ class _Queue extends Fake implements MediaUploadQueue {
 
 class _Database extends Fake implements PapyrusPowerSyncService {
   _Database(this.mode);
+
   @override
   final LibraryDatabaseMode mode;
 }
@@ -55,6 +60,7 @@ void main() {
       throwsStateError,
     );
   });
+
   test('cannot capture a guest database while an authenticated account is activating', () {
     expect(
       () => BookImportSession.capture(

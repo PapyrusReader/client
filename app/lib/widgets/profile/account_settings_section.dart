@@ -17,6 +17,7 @@ class AccountSettingsSection extends StatelessWidget {
     if (isDesktop) {
       return _buildDesktop(context);
     }
+
     return _buildMobile(context);
   }
 
@@ -137,9 +138,11 @@ class AccountSettingsSection extends StatelessWidget {
 
   String _getInitials(String name) {
     final parts = name.split(' ');
+
     if (parts.length >= 2) {
       return '${parts[0][0]}${parts[1][0]}'.toUpperCase();
     }
+
     return name.isNotEmpty ? name[0].toUpperCase() : '?';
   }
 }

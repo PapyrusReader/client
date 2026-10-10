@@ -53,6 +53,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final prefs = await SharedPreferences.getInstance();
     final cache = OpdsResourceCache(prefs)..setScope('guest');
+
     await cache.write(
       cache.capture(_catalog, _coverUri)!,
       OpdsResponse(
@@ -63,6 +64,7 @@ void main() {
         headers: {'content-type': 'image/png'},
       ),
     );
+
     final client = _PendingCoverClient(cache: OpdsResourceCache(prefs)..setScope('guest'));
     await _mount(tester, client, theme: AppTheme.eink, size: const Size(180, 270), uri: _coverUri);
     await tester.pumpAndSettle();
@@ -79,6 +81,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final cache = OpdsResourceCache(await SharedPreferences.getInstance())..setScope('guest');
     final client = _PendingCoverClient(cache: cache);
+
     await _mount(
       tester,
       client,
@@ -86,23 +89,23 @@ void main() {
       size: const Size(180, 270),
       uri: Uri.parse('https://user:secret@books.test/cover.png'),
     );
+
     await tester.pumpAndSettle();
     expect(find.byType(CoverLoadingPlaceholder), findsNothing);
     expect(find.byIcon(Icons.menu_book), findsOneWidget);
     expect(client.requests, 0);
     expect(tester.takeException(), isNull);
   });
+
   for (final (name, theme) in [('light', AppTheme.light), ('dark', AppTheme.dark), ('eink', AppTheme.eink)]) {
     for (final size in [const Size(60, 90), const Size(180, 270)]) {
       testWidgets('$name $size shares library loading state until request fails', (tester) async {
         final client = _PendingCoverClient();
         await _mount(tester, client, theme: theme, size: size, uri: _coverUri);
-
         expect(find.byType(CoverLoadingPlaceholder), findsOneWidget);
         expect(find.byIcon(Icons.auto_stories_rounded), findsOneWidget);
         expect(find.text('Loading…'), size.width < 72 ? findsNothing : findsOneWidget);
         expect(tester.getSize(find.byType(OpdsCover)), size);
-
         client.response.completeError(const OpdsException('Artwork unavailable'));
         await tester.pumpAndSettle();
         expect(find.byType(CoverLoadingPlaceholder), findsNothing);
@@ -135,6 +138,7 @@ void main() {
         headers: {'content-type': 'image/png'},
       ),
     );
+
     await tester.pumpAndSettle();
     final image = tester.widget<Image>(find.byType(Image));
     await tester.runAsync(() => precacheImage(image.image, tester.element(find.byType(OpdsCover))));

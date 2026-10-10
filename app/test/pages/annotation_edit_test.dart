@@ -16,6 +16,7 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final store = DataStore();
     store.addBook(buildTestBook(id: 'book', isPhysical: true));
+
     await store.addAnnotation(
       Annotation(
         id: 'annotation',
@@ -27,12 +28,14 @@ void main() {
         createdAt: DateTime.utc(2026),
       ),
     );
+
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: store,
         child: const MaterialApp(home: AnnotationsPage()),
       ),
     );
+
     await tester.pumpAndSettle();
     await tester.longPress(find.byType(AnnotationCard));
     await tester.pumpAndSettle();

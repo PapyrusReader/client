@@ -5,21 +5,26 @@ import 'package:flutter_test/flutter_test.dart';
 void main() {
   test('OPDS catalogs become available only after the target database activates', () {
     final source = File('lib/main.dart').readAsStringSync();
+
     final activation = source.substring(
       source.indexOf('Future<void> _applyPowerSyncAuthState()'),
       source.indexOf('void _clearAuthStateOperation'),
     );
+
     expect(
       activation.indexOf('_opdsCatalogs.setScope(scope.persistenceKey)'),
       greaterThan(activation.indexOf('await _powerSyncService.activateAuthenticated')),
     );
+
     expect(
       activation.indexOf('_opdsCatalogs.setScope(MediaStorageScope.localGuest.persistenceKey)'),
       greaterThan(activation.indexOf('await _powerSyncService.activateGuest')),
     );
   });
+
   test('profile switch publishes its key with the replacement repository', () {
     final source = File('lib/main.dart').readAsStringSync();
+
     final handler = source.substring(
       source.indexOf('void _handleSyncSettingsChanged()'),
       source.indexOf('Future<void> _refreshMediaUsage()'),
@@ -31,6 +36,7 @@ void main() {
 
   test('upload processing rechecks profile transition after scope activation', () {
     final source = File('lib/main.dart').readAsStringSync();
+
     final processor = source.substring(
       source.indexOf('Future<void> _processMediaUploads()'),
       source.indexOf('@override\n  Widget build'),
@@ -42,6 +48,7 @@ void main() {
 
   test('successful cover upload promotes the captured pending cover best effort', () {
     final source = File('lib/main.dart').readAsStringSync();
+
     final processor = source.substring(
       source.indexOf('Future<void> _processMediaUploads()'),
       source.indexOf('@override\n  Widget build'),
@@ -55,12 +62,13 @@ void main() {
 
   test('production import delegates scoped cover persistence and queueing to the commit boundary', () {
     final mainSource = File('lib/main.dart').readAsStringSync();
+
     final processor = mainSource.substring(
       mainSource.indexOf('Future<void> _processMediaUploads()'),
       mainSource.indexOf('@override\n  Widget build'),
     );
-    expect(processor, contains('readPendingCover: _bookImportService.getPendingCoverFile'));
 
+    expect(processor, contains('readPendingCover: _bookImportService.getPendingCoverFile'));
     final importSource = File('lib/widgets/add_book/book_import_sheet.dart').readAsStringSync();
     final commitStart = importSource.indexOf('static Future<Book> _commitResult(');
     final commit = importSource.substring(commitStart, importSource.indexOf('@override', commitStart));

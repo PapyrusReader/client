@@ -54,6 +54,7 @@ class LocalCoverImageProvider extends ImageProvider<LocalCoverImageKey> {
 
   Future<ui.Codec> _load(ImageDecoderCallback decode) async {
     final bytes = await loadBytes();
+
     if (bytes == null || bytes.isEmpty) {
       throw StateError('Local cover file was not found');
     }

@@ -50,6 +50,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
     _imageUrl = widget.initialUrl;
     _imageBytes = widget.initialBytes;
     _urlController.text = widget.initialUrl ?? '';
+
     _showUrlInput =
         widget.initialUrl?.isNotEmpty == true &&
         widget.initialBytes == null &&
@@ -60,24 +61,29 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
   void didUpdateWidget(CoverImagePicker oldWidget) {
     super.didUpdateWidget(oldWidget);
     // Sync URL when parent provides a new one (e.g., from metadata fetch)
+
     if (widget.initialUrl != oldWidget.initialUrl) {
       setState(() {
         _imageUrl = widget.initialUrl;
+
         if (widget.initialUrl != null && !widget.initialUrl!.startsWith('data:')) {
           _urlController.text = widget.initialUrl!;
         } else {
           _urlController.clear();
         }
         // Clear bytes if URL changed from external source
+
         if (widget.initialUrl != null && widget.initialUrl!.isNotEmpty) {
           _imageBytes = null;
         }
       });
     }
     // Sync bytes when parent provides new ones
+
     if (widget.initialBytes != oldWidget.initialBytes) {
       setState(() {
         _imageBytes = widget.initialBytes;
+
         if (widget.initialBytes != null) {
           _imageUrl = null;
           _urlController.clear();
@@ -223,7 +229,10 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
             fit: BoxFit.cover,
             errorBuilder: (_, e, s) => _buildPlaceholder(context),
             loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) return child;
+              if (loadingProgress == null) {
+                return child;
+              }
+
               return const Center(child: AppCircularProgressIndicator());
             },
           ),
@@ -261,6 +270,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
 
   Widget _buildPlaceholder(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return Center(
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -299,6 +309,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
               _error = 'Image must be less than 5MB';
               _isLoading = false;
             });
+
             return;
           }
 
@@ -315,7 +326,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
       } else {
         setState(() => _isLoading = false);
       }
-    } catch (e) {
+    } catch (error) {
       setState(() {
         _error = 'Failed to pick image';
         _isLoading = false;
@@ -325,14 +336,17 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
 
   void _onUrlChanged(String value) {
     final url = value.trim();
+
     setState(() {
       _imageUrl = url.isEmpty ? null : url;
+
       if (url.isNotEmpty) {
         _imageBytes = null;
       }
     });
 
     widget.onUrlChanged(url.isEmpty ? null : url);
+
     if (url.isNotEmpty) {
       widget.onFileChanged(null);
     }
@@ -340,7 +354,10 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
 
   void _applyUrl() {
     final url = _urlController.text.trim();
-    if (url.isEmpty) return;
+
+    if (url.isEmpty) {
+      return;
+    }
 
     setState(() {
       _imageUrl = url;

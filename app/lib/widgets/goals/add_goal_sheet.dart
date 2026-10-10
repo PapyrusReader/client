@@ -1,54 +1,86 @@
-import 'package:papyrus/widgets/shared/sheet_choice_buttons.dart';
-import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:papyrus/widgets/goals/goal_card.dart';
+import 'package:papyrus/widgets/shared/bottom_sheet_actions.dart';
+import 'package:papyrus/data/repositories/tracking_repository.dart';
+import 'package:papyrus/goals/goal_calendar.dart';
 import 'package:papyrus/models/reading_goal.dart';
-import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/providers/goals_provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
+import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/goals/goal_controls.dart';
+import 'package:papyrus/widgets/shared/searchable_books_field.dart';
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:papyrus/widgets/shared/app_date_picker.dart';
-import 'package:papyrus/widgets/shared/app_motion_control.dart';
 
-/// The type of goal scheduling.
-enum GoalScheduleType {
-  recurring, // Repeats periodically (daily, weekly, monthly, yearly)
-  oneOff, // Single occurrence with a preset period
-  custom, // Custom date range
-}
-
-/// Bottom sheet for creating a new goal.
 class AddGoalSheet extends StatefulWidget {
-  /// Called when a goal is created.
-  final void Function(
-    GoalType type,
-    int target,
-    GoalPeriod period,
-    bool isRecurring,
-    DateTime? startDate,
-    DateTime? endDate,
-  )?
-  onCreate;
+  const AddGoalSheet({
+    super.key,
+    required this.provider,
+    this.editing,
+    this.preset,
+    this.initialTimezone,
+    this.initialMetric,
+  });
 
-  const AddGoalSheet({super.key, this.onCreate});
+  final GoalsProvider provider;
+  final ReadingGoal? editing;
+  final int? preset;
+  final String? initialTimezone;
+  final GoalType? initialMetric;
 
-  /// Shows the add goal sheet.
   static Future<void> show(
     BuildContext context, {
-    void Function(
-      GoalType type,
-      int target,
-      GoalPeriod period,
-      bool isRecurring,
-      DateTime? startDate,
-      DateTime? endDate,
-    )?
-    onCreate,
-  }) {
-    return showModalBottomSheet(
-      sheetAnimationStyle: AppMotion.animationStyle(context),
+    required GoalsProvider provider,
+    ReadingGoal? editing,
+    int? preset,
+    String? initialTimezone,
+  }) async {
+    GoalType? metric;
+
+    if (editing == null && preset == null) {
+      ModalBottomSheetRoute<GoalType>? chooserRoute;
+
+      metric = await showModalBottomSheet<GoalType>(
+        context: context,
+        useRootNavigator: true,
+        isScrollControlled: true,
+        useSafeArea: true,
+        sheetAnimationStyle: AppMotion.animationStyle(context),
+        constraints: const BoxConstraints(maxWidth: 640),
+        builder: (sheetContext) {
+          chooserRoute = ModalRoute.of(sheetContext) as ModalBottomSheetRoute<GoalType>;
+          return const _GoalMetricSheet();
+        },
+      );
+      // Wait for the chooser to leave before presenting the differently sized form.
+
+      await chooserRoute?.completed;
+
+      if (metric == null || !context.mounted) {
+        return;
+      }
+    }
+
+    if (!context.mounted) {
+      return;
+    }
+
+    await showModalBottomSheet<void>(
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
-      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
-      builder: (context) => AddGoalSheet(onCreate: onCreate),
+      sheetAnimationStyle: AppMotion.animationStyle(context),
+      constraints: const BoxConstraints(maxWidth: 640),
+      builder: (_) => AddGoalSheet(
+        provider: provider,
+        editing: editing,
+        preset: preset,
+        initialTimezone: initialTimezone,
+        initialMetric: metric,
+      ),
     );
   }
 
@@ -57,410 +89,485 @@ class AddGoalSheet extends StatefulWidget {
 }
 
 class _AddGoalSheetState extends State<AddGoalSheet> {
-  GoalScheduleType _scheduleType = GoalScheduleType.recurring;
-  GoalType _selectedType = GoalType.books;
-  GoalPeriod _selectedPeriod = GoalPeriod.yearly;
-  final _targetController = TextEditingController(text: '12');
-  int _durationMinutes = 30;
+  final _form = GlobalKey<FormState>();
+  final _target = TextEditingController();
+  final _title = TextEditingController();
+  final _threshold = TextEditingController(text: '5');
+  final _zone = TextEditingController(text: 'UTC');
+  late final TrackingRepository? _repository;
+  GoalType _type = GoalType.minutes;
+  GoalPeriod _period = GoalPeriod.daily;
+  GoalScope _scope = GoalScope.library;
+  String? _scopeId;
+  List<String> _bookIds = [];
+  bool _recurring = true;
+  bool _saving = false;
+  bool _timezoneReady = false;
+  String? _error;
+  DateTime _deadline = DateTime.now().add(const Duration(days: 30));
 
-  // Custom date range
-  DateTime _startDate = DateTime.now();
-  DateTime _endDate = DateTime.now().add(const Duration(days: 30));
+  @override
+  void initState() {
+    super.initState();
+    _repository = widget.provider.store.trackingRepository;
+    _applyPreset(widget.preset ?? 0);
+
+    if (widget.initialMetric case final type?) {
+      _type = type;
+      _period = GoalPeriod.daily;
+
+      _target.text = switch (type) {
+        GoalType.books || GoalType.days => '1',
+        GoalType.minutes => '30',
+        GoalType.pages => '100',
+      };
+    }
+
+    final editing = widget.editing;
+
+    if (editing != null) {
+      _type = editing.type;
+      _period = editing.period;
+      _scope = editing.scope;
+      _scopeId = editing.scopeId;
+      _bookIds = editing.selectedBookIds.toList();
+      _recurring = editing.isRecurring;
+      _target.text = '${editing.targetValue}';
+      _title.text = editing.title ?? '';
+      _threshold.text = '${editing.minimumMinutes}';
+      _zone.text = editing.timezone;
+      _deadline = GoalCalendar.local(editing.endDate.subtract(const Duration(microseconds: 1)), editing.timezone);
+      _timezoneReady = true;
+    } else if (widget.initialTimezone != null) {
+      _zone.text = widget.initialTimezone!;
+      _timezoneReady = true;
+    } else {
+      GoalCalendar.deviceTimezone()
+          .then((zone) {
+            if (mounted) {
+              setState(() {
+                _zone.text = zone;
+                _timezoneReady = true;
+              });
+            }
+          })
+          .catchError((Object error) {
+            if (mounted) {
+              setState(() {
+                _timezoneReady = true;
+                _error = 'Could not detect your timezone. Calendar periods will use UTC.';
+              });
+            }
+          });
+    }
+  }
+
+  void _applyPreset(int index) {
+    _type = [GoalType.minutes, GoalType.days, GoalType.books, GoalType.pages, GoalType.books][index];
+    _period = [GoalPeriod.daily, GoalPeriod.weekly, GoalPeriod.yearly, GoalPeriod.weekly, GoalPeriod.custom][index];
+    _target.text = ['30', '5', '12', '100', '1'][index];
+    _scope = index == 4 ? GoalScope.book : GoalScope.library;
+    _scopeId = null;
+    _bookIds = [];
+    _recurring = index != 4;
+  }
 
   @override
   void dispose() {
-    _targetController.dispose();
+    _target.dispose();
+    _title.dispose();
+    _threshold.dispose();
+    _zone.dispose();
     super.dispose();
+  }
+
+  String? _positive(String? value) {
+    final number = int.tryParse(value ?? '');
+    return number == null || number < 1 || number > 100000 ? 'Enter a number from 1 to 100,000.' : null;
   }
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-    return AppBottomSheet(
-      title: 'Create new goal',
-      onClose: () => Navigator.of(context).pop(),
-      footer: BottomSheetFormActions(
-        onCancel: () => Navigator.of(context).pop(),
-        onSave: _onCreate,
-        saveLabel: 'Create goal',
-      ),
-      body: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Schedule type selection
-          Text('Goal type', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-          const SizedBox(height: Spacing.sm),
-          SheetChoiceButtons<GoalScheduleType>(
-            segments: const [
-              ButtonSegment(
-                value: GoalScheduleType.recurring,
-                label: Text('Recurring'),
-                icon: Icon(Icons.repeat, size: 18),
-              ),
-              ButtonSegment(
-                value: GoalScheduleType.oneOff,
-                label: Text('One-off'),
-                icon: Icon(Icons.looks_one, size: 18),
-              ),
-              ButtonSegment(
-                value: GoalScheduleType.custom,
-                label: Text('Custom'),
-                icon: Icon(Icons.date_range, size: 18),
-              ),
-            ],
-            selected: {_scheduleType},
-            onSelectionChanged: (selected) {
-              setState(() => _scheduleType = selected.first);
-            },
-          ),
-          const SizedBox(height: Spacing.md),
+    final editing = widget.editing != null;
+    final colors = Theme.of(context).colorScheme;
+    final store = widget.provider.store;
 
-          // Description of selected type
-          Container(
-            padding: const EdgeInsets.all(Spacing.sm),
-            decoration: BoxDecoration(
-              color: colorScheme.surfaceContainerHighest,
-              borderRadius: BorderRadius.circular(AppRadius.sm),
-            ),
-            child: Row(
-              children: [
-                Icon(Icons.info_outline, size: 16, color: colorScheme.onSurfaceVariant),
-                const SizedBox(width: Spacing.sm),
-                Expanded(
-                  child: Text(
-                    _getScheduleDescription(),
-                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: Spacing.lg),
+    final items = _scope == GoalScope.book
+        ? {for (final book in store.books) book.id: book.title}
+        : {for (final shelf in store.shelves) shelf.id: shelf.name};
 
-          // What to track
-          Text('What to track', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-          const SizedBox(height: Spacing.sm),
-          DropdownButtonFormField<GoalType>(
-            isExpanded: true,
-            initialValue: _selectedType,
-            decoration: InputDecoration(
-              border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-              contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-            ),
-            items: GoalType.values.map((type) {
-              return DropdownMenuItem(
-                value: type,
-                child: Text(_getTypeLabel(type), maxLines: 1, overflow: TextOverflow.ellipsis),
-              );
-            }).toList(),
-            onChanged: (value) {
-              if (value != null) {
-                setState(() {
-                  _selectedType = value;
-                  _targetController.text = _getDefaultTarget(value);
-                  if (value == GoalType.minutes) _durationMinutes = 30;
-                });
-              }
-            },
-          ),
-          const SizedBox(height: Spacing.lg),
-
-          // Target
-          Text('Target', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-          const SizedBox(height: Spacing.sm),
-          if (_selectedType == GoalType.minutes)
-            _buildDurationPicker(colorScheme, textTheme)
-          else
-            TextFormField(
-              controller: _targetController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-                contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-                suffixText: _getTypeSuffix(_selectedType),
-              ),
-            ),
-          const SizedBox(height: Spacing.lg),
-
-          // Period selection (for recurring and one-off)
-          if (_scheduleType != GoalScheduleType.custom) ...[
-            Text('Time period', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const SizedBox(height: Spacing.sm),
-            SheetChoiceButtons<GoalPeriod>(
-              segments: [GoalPeriod.daily, GoalPeriod.weekly, GoalPeriod.monthly, GoalPeriod.yearly].map((period) {
-                return ButtonSegment(value: period, label: Text(_getPeriodLabel(period)));
-              }).toList(),
-              selected: {_selectedPeriod},
-              onSelectionChanged: (selected) {
-                setState(() => _selectedPeriod = selected.first);
-              },
-            ),
-            const SizedBox(height: Spacing.lg),
-          ],
-
-          // Custom date range picker
-          if (_scheduleType == GoalScheduleType.custom) ...[
-            Text('Date range', style: textTheme.titleSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const SizedBox(height: Spacing.sm),
-            Row(
-              children: [
-                Expanded(
-                  child: _buildDateButton(
-                    context,
-                    label: 'Start',
-                    date: _startDate,
-                    onTap: () => _pickStartDate(context),
-                  ),
-                ),
-                const SizedBox(width: Spacing.md),
-                Expanded(
-                  child: _buildDateButton(context, label: 'End', date: _endDate, onTap: () => _pickEndDate(context)),
-                ),
-              ],
-            ),
-            const SizedBox(height: Spacing.sm),
-            Text(
-              '${_daysBetween()} days total',
-              style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-            ),
-            const SizedBox(height: Spacing.lg),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildDurationPicker(ColorScheme colorScheme, TextTheme textTheme) {
-    const presets = [15, 30, 60, 120];
-    const presetLabels = ['15m', '30m', '1h', '2h'];
-
-    return Column(
-      children: [
-        // Preset chips
-        Wrap(
-          spacing: Spacing.sm,
-          children: List.generate(presets.length, (i) {
-            return AppMotionControl(
-              value: null,
-              builder: (focusNode) => ChoiceChip(
-                focusNode: focusNode,
-                chipAnimationStyle: appChipAnimationStyle(context),
-                label: Text(presetLabels[i]),
-                selected: _durationMinutes == presets[i],
-                onSelected: (_) {
-                  setState(() => _durationMinutes = presets[i]);
-                },
-              ),
-            );
-          }),
-        ),
-        const SizedBox(height: Spacing.md),
-        // Stepper row
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-          decoration: BoxDecoration(
-            border: Border.all(color: colorScheme.outline),
-            borderRadius: BorderRadius.circular(AppRadius.md),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
+    return GoalControls(
+      child: AppBottomSheet(
+        title: editing ? 'Edit goal' : 'New goal',
+        canClose: !_saving,
+        onClose: () => Navigator.pop(context),
+        body: Form(
+          key: _form,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              IconButton(
-                onPressed: _durationMinutes > 5
-                    ? () {
-                        setState(() {
-                          final step = _durationMinutes > 60 ? 15 : 5;
-                          _durationMinutes = (_durationMinutes - step).clamp(5, _durationMinutes);
-                        });
-                      }
-                    : null,
-                icon: const Icon(Icons.remove),
+              TextFormField(
+                controller: _title,
+                enabled: !_saving,
+                maxLength: 255,
+                decoration: const InputDecoration(labelText: 'Name (optional)', counterText: ''),
               ),
-              const SizedBox(width: Spacing.md),
-              Text(
-                formatDuration(_durationMinutes),
-                style: textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              const SizedBox(height: Spacing.md),
+              DropdownButtonFormField<GoalType>(
+                initialValue: _type,
+                key: ValueKey('metric-$_type'),
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Measure'),
+                items: [
+                  for (final type in GoalType.values) DropdownMenuItem(value: type, child: Text(_metricLabel(type))),
+                ],
+                onChanged: _saving
+                    ? null
+                    : (value) => setState(() {
+                        _type = value!;
+
+                        if (_type == GoalType.books && _bookIds.isNotEmpty) {
+                          _target.text = '${_bookIds.length}';
+                        }
+                      }),
               ),
-              const SizedBox(width: Spacing.md),
-              IconButton(
-                onPressed: () {
-                  setState(() {
-                    final step = _durationMinutes >= 60 ? 15 : 5;
-                    _durationMinutes += step;
-                  });
-                },
-                icon: const Icon(Icons.add),
+              const SizedBox(height: Spacing.md),
+              _compact(
+                child: TextFormField(
+                  key: const Key('goal-target-input'),
+                  controller: _target,
+                  enabled: !_saving,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: InputDecoration(labelText: 'Target', suffixText: _typeLabel),
+                  validator: (value) {
+                    final error = _positive(value);
+
+                    if (error != null) {
+                      return error;
+                    }
+
+                    if (_type == GoalType.books &&
+                        _scope == GoalScope.book &&
+                        _bookIds.isNotEmpty &&
+                        int.parse(value!) > _bookIds.length) {
+                      return 'Choose a target of 1–${_bookIds.length}.';
+                    }
+
+                    return null;
+                  },
+                ),
               ),
+              const SizedBox(height: Spacing.lg),
+              Text('Schedule', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: Spacing.sm),
+              Wrap(
+                spacing: Spacing.sm,
+                runSpacing: Spacing.sm,
+                children: [
+                  for (final period in GoalPeriod.values)
+                    ChoiceChip(
+                      label: Text(switch (period) {
+                        GoalPeriod.daily => 'Daily',
+                        GoalPeriod.weekly => 'Weekly',
+                        GoalPeriod.monthly => 'Monthly',
+                        GoalPeriod.yearly => 'Yearly',
+                        GoalPeriod.custom => 'By date',
+                      }),
+                      selected: _period == period,
+                      showCheckmark: false,
+                      onSelected: _saving
+                          ? null
+                          : (_) => setState(() {
+                              _period = period;
+
+                              if (period == GoalPeriod.custom) {
+                                _recurring = false;
+                              }
+                            }),
+                    ),
+                ],
+              ),
+              if (_period == GoalPeriod.custom)
+                Padding(
+                  padding: const EdgeInsets.only(top: Spacing.md),
+                  child: Align(
+                    alignment: AlignmentDirectional.centerStart,
+                    child: OutlinedButton.icon(
+                      onPressed: _saving
+                          ? null
+                          : () async {
+                              final date = await showAppDatePicker(
+                                context: context,
+                                initialDate: _deadline.isBefore(DateTime.now()) ? DateTime.now() : _deadline,
+                                firstDate: DateTime.now(),
+                                lastDate: DateTime.now().add(const Duration(days: 3650)),
+                              );
+
+                              if (date != null && mounted) {
+                                setState(() => _deadline = date);
+                              }
+                            },
+                      icon: const Icon(Icons.event_outlined),
+                      label: Text('Deadline: ${_deadline.day}/${_deadline.month}/${_deadline.year}'),
+                    ),
+                  ),
+                ),
+              if (_period != GoalPeriod.custom)
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Repeat each period'),
+                  value: _recurring,
+                  onChanged: _saving ? null : (value) => setState(() => _recurring = value),
+                ),
+              const SizedBox(height: Spacing.md),
+              DropdownButtonFormField<GoalScope>(
+                initialValue: _scope,
+                key: ValueKey('scope-$_scope'),
+                isExpanded: true,
+                decoration: const InputDecoration(labelText: 'Include'),
+                items: [
+                  for (final scope in GoalScope.values)
+                    DropdownMenuItem(
+                      value: scope,
+                      child: Text(switch (scope) {
+                        GoalScope.library => 'Whole library',
+                        GoalScope.book => 'Selected books',
+                        GoalScope.shelf => 'A shelf',
+                      }),
+                    ),
+                ],
+                onChanged: _saving
+                    ? null
+                    : (value) => setState(() {
+                        _scope = value!;
+                        _scopeId = null;
+                        _bookIds = [];
+                      }),
+              ),
+              if (_scope == GoalScope.book) ...[
+                const SizedBox(height: Spacing.md),
+                SearchableBooksField(
+                  key: ValueKey('scope-books-${_bookIds.join(',')}'),
+                  books: store.books,
+                  value: _bookIds,
+                  enabled: !_saving,
+                  onChanged: (value) => setState(() {
+                    _bookIds = value;
+                    _scopeId = value.firstOrNull;
+
+                    if (_type == GoalType.books && value.isNotEmpty) {
+                      _target.text = '${value.length}';
+                    }
+                  }),
+                ),
+              ],
+              if (_scope == GoalScope.shelf) ...[const SizedBox(height: Spacing.md), _scopeItem(items)],
+              if (_type == GoalType.days) ...[
+                const SizedBox(height: Spacing.md),
+                _compact(
+                  width: 320,
+                  child: TextFormField(
+                    controller: _threshold,
+                    enabled: !_saving,
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    decoration: const InputDecoration(labelText: 'Daily minimum', suffixText: 'minutes'),
+                    onChanged: (_) => setState(() {}),
+                    validator: (value) {
+                      final n = int.tryParse(value ?? '');
+                      return n == null || n < 1 || n > 1440 ? 'Enter 1–1,440 minutes.' : null;
+                    },
+                  ),
+                ),
+              ],
+              if (editing && _replacementNeeded)
+                const Padding(
+                  padding: EdgeInsets.only(top: Spacing.md),
+                  child: Text('This creates a replacement goal and keeps the original history.'),
+                ),
+              if (_error != null)
+                Padding(
+                  padding: const EdgeInsets.only(top: Spacing.md),
+                  child: Text(_error!, style: TextStyle(color: colors.error)),
+                ),
             ],
           ),
         ),
-      ],
-    );
-  }
-
-  Widget _buildDateButton(
-    BuildContext context, {
-    required String label,
-    required DateTime date,
-    required VoidCallback onTap,
-  }) {
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(AppRadius.md),
-      child: Container(
-        padding: const EdgeInsets.all(Spacing.md),
-        decoration: BoxDecoration(
-          border: Border.all(color: colorScheme.outline),
-          borderRadius: BorderRadius.circular(AppRadius.md),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-            const SizedBox(height: Spacing.xs),
-            Row(
-              children: [
-                Icon(Icons.calendar_today, size: 16, color: colorScheme.primary),
-                const SizedBox(width: Spacing.sm),
-                Text(_formatDate(date), style: textTheme.bodyMedium),
-              ],
-            ),
-          ],
+        footer: BottomSheetFormActions(
+          onCancel: _saving ? null : () => Navigator.pop(context),
+          onSave: _saving || !_timezoneReady ? null : _save,
+          saveLabel: switch (_saving) {
+            true => 'Saving…',
+            false when editing => (_replacementNeeded ? 'Replace goal' : 'Save'),
+            false => 'Create goal',
+          },
         ),
       ),
     );
   }
 
-  Future<void> _pickStartDate(BuildContext context) async {
-    final picked = await showAppDatePicker(
-      context: context,
-      initialDate: _startDate,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
+  String get _typeLabel => switch (_type) {
+    GoalType.books => 'books',
+    GoalType.pages => 'pages',
+    GoalType.minutes => 'minutes',
+    GoalType.days => 'days',
+  };
+
+  Widget _scopeItem(Map<String, String> items) => DropdownButtonFormField<String>(
+    initialValue: items.containsKey(_scopeId) ? _scopeId : null,
+    key: ValueKey('scope-item-$_scope-$_scopeId'),
+    isExpanded: true,
+    decoration: InputDecoration(labelText: _scope == GoalScope.book ? 'Book' : 'Shelf'),
+    items: [
+      for (final item in items.entries)
+        DropdownMenuItem(
+          value: item.key,
+          child: Text(item.value, overflow: TextOverflow.ellipsis),
+        ),
+    ],
+    validator: (value) => value == null ? 'Choose ${_scope == GoalScope.book ? 'a book' : 'a shelf'}.' : null,
+    onChanged: _saving ? null : (value) => setState(() => _scopeId = value),
+  );
+
+  Widget _compact({required Widget child, double width = 220}) => Align(
+    alignment: AlignmentDirectional.centerStart,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(maxWidth: width),
+      child: child,
+    ),
+  );
+
+  bool get _replacementNeeded {
+    final goal = widget.editing;
+
+    if (goal == null) {
+      return false;
+    }
+
+    final zone = _zone.text.trim();
+    final originalDeadline = GoalCalendar.local(goal.endDate.subtract(const Duration(microseconds: 1)), goal.timezone);
+
+    final deadlineChanged =
+        _period == GoalPeriod.custom &&
+        (_deadline.year != originalDeadline.year ||
+            _deadline.month != originalDeadline.month ||
+            _deadline.day != originalDeadline.day);
+
+    return _type != goal.type ||
+        _period != goal.period ||
+        _scope != goal.scope ||
+        (_scope == GoalScope.book
+            ? !setEquals(_bookIds.toSet(), goal.selectedBookIds.toSet())
+            : _scopeId != goal.scopeId) ||
+        _recurring != goal.isRecurring ||
+        zone != goal.timezone ||
+        int.tryParse(_threshold.text) != goal.minimumMinutes ||
+        deadlineChanged;
+  }
+
+  Future<void> _save() async {
+    if (!_form.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _saving = true;
+      _error = null;
+    });
+
+    try {
+      if (widget.editing != null && !_replacementNeeded) {
+        await widget.provider.updateGoal(
+          goalId: widget.editing!.id,
+          target: int.parse(_target.text),
+          title: _title.text.trim(),
+          repository: _repository,
+        );
+      } else {
+        await widget.provider.createGoal(
+          replaceGoalId: widget.editing?.id,
+          type: _type,
+          target: int.parse(_target.text),
+          period: _period,
+          isRecurring: _recurring,
+          title: _title.text.trim(),
+          scope: _scope,
+          scopeId: _scopeId,
+          bookIds: _bookIds,
+          minimumMinutes: int.parse(_threshold.text),
+          timezone: _zone.text.trim(),
+          endDate: _period == GoalPeriod.custom ? GoalCalendar.deadline(_deadline, _zone.text.trim()) : null,
+          repository: _repository,
+        );
+      }
+
+      if (mounted) {
+        Navigator.pop(context);
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _saving = false;
+          _error = error.toString();
+        });
+      }
+    }
+  }
+}
+
+String _metricLabel(GoalType type) => switch (type) {
+  GoalType.books => 'Books finished',
+  GoalType.pages => 'Pages read',
+  GoalType.minutes => 'Reading time',
+  GoalType.days => 'Reading days',
+};
+
+class _GoalMetricSheet extends StatelessWidget {
+  const _GoalMetricSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
+    return GoalControls(
+      child: AppBottomSheet(
+        title: 'New goal',
+        onClose: () => Navigator.pop(context),
+        body: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            for (final type in GoalType.values)
+              Padding(
+                padding: const EdgeInsets.only(bottom: Spacing.sm),
+                child: Material(
+                  color: colors.surfaceContainerLow,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.lg),
+                    side: BorderSide(color: colors.outlineVariant),
+                  ),
+                  clipBehavior: Clip.antiAlias,
+                  child: ListTile(
+                    contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                    leading: Icon(goalIcon(type), color: colors.primary),
+                    title: Text(_metricLabel(type)),
+                    subtitle: Text(switch (type) {
+                      GoalType.books => 'Finish books from your library',
+                      GoalType.pages => 'Read a set number of pages',
+                      GoalType.minutes => 'Make time for reading',
+                      GoalType.days => 'Read regularly throughout the week',
+                    }),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.pop(context, type),
+                  ),
+                ),
+              ),
+          ],
+        ),
+        footer: BottomSheetActions(
+          primary: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
+        ),
+      ),
     );
-    if (picked != null) {
-      setState(() {
-        _startDate = picked;
-        // Ensure end date is after start date
-        if (_endDate.isBefore(_startDate)) {
-          _endDate = _startDate.add(const Duration(days: 30));
-        }
-      });
-    }
-  }
-
-  Future<void> _pickEndDate(BuildContext context) async {
-    final picked = await showAppDatePicker(
-      context: context,
-      initialDate: _endDate,
-      firstDate: _startDate,
-      lastDate: DateTime.now().add(const Duration(days: 365 * 5)),
-    );
-    if (picked != null) {
-      setState(() => _endDate = picked);
-    }
-  }
-
-  void _onCreate() {
-    final target = _selectedType == GoalType.minutes ? _durationMinutes : (int.tryParse(_targetController.text) ?? 0);
-    if (target <= 0) return;
-
-    final GoalPeriod period;
-    final bool isRecurring;
-    DateTime? startDate;
-    DateTime? endDate;
-
-    switch (_scheduleType) {
-      case GoalScheduleType.recurring:
-        period = _selectedPeriod;
-        isRecurring = true;
-        break;
-      case GoalScheduleType.oneOff:
-        period = _selectedPeriod;
-        isRecurring = false;
-        break;
-      case GoalScheduleType.custom:
-        period = GoalPeriod.custom;
-        isRecurring = false;
-        startDate = _startDate;
-        endDate = _endDate;
-        break;
-    }
-
-    widget.onCreate?.call(_selectedType, target, period, isRecurring, startDate, endDate);
-    Navigator.of(context).pop();
-  }
-
-  String _getScheduleDescription() {
-    switch (_scheduleType) {
-      case GoalScheduleType.recurring:
-        return 'Goal resets and repeats each period (e.g., 30 min daily, every day)';
-      case GoalScheduleType.oneOff:
-        return 'Single goal that ends when completed or period expires';
-      case GoalScheduleType.custom:
-        return 'Set your own start and end dates for this goal';
-    }
-  }
-
-  String _getTypeLabel(GoalType type) {
-    switch (type) {
-      case GoalType.books:
-        return 'Books to read';
-      case GoalType.pages:
-        return 'Pages to read';
-      case GoalType.minutes:
-        return 'Reading time (minutes)';
-    }
-  }
-
-  String _getTypeSuffix(GoalType type) {
-    switch (type) {
-      case GoalType.books:
-        return 'books';
-      case GoalType.pages:
-        return 'pages';
-      case GoalType.minutes:
-        return 'minutes';
-    }
-  }
-
-  String _getDefaultTarget(GoalType type) {
-    switch (type) {
-      case GoalType.books:
-        return '12';
-      case GoalType.pages:
-        return '50';
-      case GoalType.minutes:
-        return '30';
-    }
-  }
-
-  String _getPeriodLabel(GoalPeriod period) {
-    switch (period) {
-      case GoalPeriod.daily:
-        return 'Daily';
-      case GoalPeriod.weekly:
-        return 'Weekly';
-      case GoalPeriod.monthly:
-        return 'Monthly';
-      case GoalPeriod.yearly:
-        return 'Yearly';
-      case GoalPeriod.custom:
-        return 'Custom';
-    }
-  }
-
-  String _formatDate(DateTime date) {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return '${months[date.month - 1]} ${date.day}, ${date.year}';
-  }
-
-  int _daysBetween() {
-    return _endDate.difference(_startDate).inDays + 1;
   }
 }

@@ -22,15 +22,20 @@ BookAccountStatus? resolveBookAccountStatus({
   bool metadataFailed = false,
   List<MediaUploadTask> mediaTasks = const [],
 }) {
-  if (!isAccountLibrary) return null;
+  if (!isAccountLibrary) {
+    return null;
+  }
 
   final bookFileTasks = mediaTasks.where((task) => task.bookId == book.id && task.kind == MediaKind.bookFile);
+
   if (metadataFailed || bookFileTasks.any((task) => task.status == MediaUploadTaskStatus.failed)) {
     return BookAccountStatus.failed;
   }
+
   if (metadataPending || bookFileTasks.isNotEmpty || (!book.isPhysical && book.fileMediaId == null)) {
     return BookAccountStatus.syncing;
   }
+
   return BookAccountStatus.saved;
 }
 
@@ -57,6 +62,7 @@ class BookStorageStatusController extends ChangeNotifier {
        _metadataState = powerSyncService.bookMetadataSyncState {
     authProvider.addListener(_notify);
     mediaUploadQueue.addListener(_notify);
+
     _metadataSubscription = powerSyncService.bookMetadataSyncStates.listen((state) {
       _metadataState = state;
       notifyListeners();
@@ -74,12 +80,14 @@ class BookStorageStatusController extends ChangeNotifier {
     final authProvider = _authProvider;
     final powerSyncService = _powerSyncService;
     final mediaUploadQueue = _mediaUploadQueue;
+
     final isAccountLibrary =
         authProvider != null &&
         powerSyncService != null &&
         authProvider.isSignedIn &&
         !authProvider.isOfflineMode &&
         powerSyncService.mode == LibraryDatabaseMode.authenticated;
+
     return resolveBookAccountStatus(
       book: book,
       isAccountLibrary: isAccountLibrary,
@@ -90,7 +98,10 @@ class BookStorageStatusController extends ChangeNotifier {
   }
 
   BookDeviceStatus? deviceStatus(Book book) {
-    if (book.isPhysical) return null;
+    if (book.isPhysical) {
+      return null;
+    }
+
     return _deviceStatuses[book.id] ?? BookDeviceStatus.checking;
   }
 
@@ -98,6 +109,7 @@ class BookStorageStatusController extends ChangeNotifier {
     if (book.isPhysical || _deviceStatuses.containsKey(book.id)) {
       return Future<void>.value();
     }
+
     return _deviceChecks.putIfAbsent(book.id, () async {
       try {
         final exists = await _hasBookFile(book.id);
@@ -114,7 +126,10 @@ class BookStorageStatusController extends ChangeNotifier {
   }
 
   void markAvailable(String bookId) {
-    if (_deviceStatuses[bookId] == BookDeviceStatus.available) return;
+    if (_deviceStatuses[bookId] == BookDeviceStatus.available) {
+      return;
+    }
+
     _deviceStatuses[bookId] = BookDeviceStatus.available;
     notifyListeners();
   }

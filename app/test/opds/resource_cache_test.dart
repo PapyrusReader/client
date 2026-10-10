@@ -13,9 +13,13 @@ import 'package:shared_preferences_platform_interface/shared_preferences_platfor
 class _FailingPreferences extends InMemorySharedPreferencesStore {
   _FailingPreferences({this.throwsOnWrite = true}) : super.empty();
   final bool throwsOnWrite;
+
   @override
   Future<bool> setValue(String valueType, String key, Object value) async {
-    if (throwsOnWrite) throw StateError('Quota exceeded');
+    if (throwsOnWrite) {
+      throw StateError('Quota exceeded');
+    }
+
     return false;
   }
 }
@@ -23,6 +27,7 @@ class _FailingPreferences extends InMemorySharedPreferencesStore {
 class _DelayedPreferences extends InMemorySharedPreferencesStore {
   _DelayedPreferences() : super.empty();
   final firstWrite = Completer<void>();
+
   @override
   Future<bool> setValue(String valueType, String key, Object value) async {
     await firstWrite.future;
@@ -33,11 +38,13 @@ class _DelayedPreferences extends InMemorySharedPreferencesStore {
 void main() {
   final catalog = OpdsCatalog(id: 'one', name: 'Books', uri: Uri.parse('https://books.test/root'));
   final resource = Uri.parse('https://books.test/feed');
+
   OpdsResponse response([String body = 'feed']) => OpdsResponse(
     uri: Uri.parse('https://cdn.test/redirected/feed'),
     bytes: Uint8List.fromList(utf8.encode(body)),
     headers: {'content-type': 'application/opds+json', 'authorization': 'secret', 'set-cookie': 'secret'},
   );
+
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
   test('cold cache persists bytes, redirect URI and only content type', () async {
@@ -149,9 +156,11 @@ void main() {
   test('bounds serialized bytes and rejects oversized resources', () async {
     final prefs = await SharedPreferences.getInstance();
     final cache = OpdsResourceCache(prefs, maxBytes: 900, maxEntryBytes: 500)..setScope('alice');
+
     for (var i = 0; i < 10; i++) {
       await cache.write(cache.capture(catalog, resource.resolve('$i'))!, response('x' * 100));
     }
+
     expect(utf8.encode(prefs.getKeys().map(prefs.get).join()).length, lessThanOrEqualTo(900));
     final big = cache.capture(catalog, resource)!;
     await cache.write(big, response('x' * 1000));

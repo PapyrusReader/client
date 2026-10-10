@@ -28,6 +28,7 @@ void main() {
     final mediaUploadQueue = MediaUploadQueue(prefs);
     await mediaUploadQueue.activateScope(MediaStorageScope(profileKey: 'official', userId: 'user-1'));
     final importService = _RecordingBookImportService();
+
     final book = Book(
       id: 'book-1',
       title: 'Delete Me',
@@ -53,6 +54,7 @@ void main() {
         ),
       ],
     );
+
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
@@ -65,18 +67,15 @@ void main() {
         child: MaterialApp.router(routerConfig: router),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
-
     expect(find.text('Delete book?'), findsOneWidget);
-
     await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
     await tester.pumpAndSettle();
-
     expect(importService.deletedBookIds, [book.id]);
     expect(importService.deletedPendingCovers, ['official--user-1:${book.id}']);
     expect(importService.deletedGuestCovers, isEmpty);
@@ -93,7 +92,6 @@ void main() {
     final mediaUploadQueue = MediaUploadQueue(prefs);
     final importService = _RecordingBookImportService();
     final book = Book(id: 'book-1', title: 'Delete Guest', author: 'Author', addedAt: DateTime.utc(2026));
-
     await repository.upsert(book);
     await tester.pump();
 
@@ -110,6 +108,7 @@ void main() {
         ),
       ],
     );
+
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
@@ -122,15 +121,14 @@ void main() {
         child: MaterialApp.router(routerConfig: router),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Delete'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(FilledButton, 'Delete'));
     await tester.pumpAndSettle();
-
     expect(importService.deletedGuestCovers, [book.id]);
     expect(importService.deletedPendingCovers, isEmpty);
     expect(importService.deletedCachedCovers, isEmpty);
@@ -144,7 +142,6 @@ void main() {
     final mediaUploadQueue = MediaUploadQueue(prefs);
     final importService = _RecordingBookImportService();
     final book = Book(id: 'book-1', title: 'Download Me', author: 'Author', addedAt: DateTime.utc(2026));
-
     await repository.upsert(book);
     await tester.pump();
 
@@ -161,6 +158,7 @@ void main() {
         ),
       ],
     );
+
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
@@ -173,14 +171,12 @@ void main() {
         child: MaterialApp.router(routerConfig: router),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
-
     final downloadTop = tester.getTopLeft(find.text('Download')).dy;
     final deleteTop = tester.getTopLeft(find.text('Delete')).dy;
-
     expect(downloadTop, lessThan(deleteTop));
   });
 
@@ -192,6 +188,7 @@ void main() {
     final importService = _RecordingBookImportService();
     final downloadService = _RecordingBookDownloadService();
     final bytes = Uint8List.fromList('cached epub bytes'.codeUnits);
+
     final book = Book(
       id: 'book-1',
       title: 'Download Me',
@@ -218,6 +215,7 @@ void main() {
         ),
       ],
     );
+
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
@@ -232,14 +230,13 @@ void main() {
         child: MaterialApp.router(routerConfig: router),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Download'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 300));
-
     expect(downloadService.savedBooks, [book.id]);
     expect(downloadService.savedBytes, bytes);
     expect(find.text('Downloaded "Download Me"'), findsOneWidget);

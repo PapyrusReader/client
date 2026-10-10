@@ -50,31 +50,26 @@ void main() {
     group('rendering', () {
       testWidgets('displays highlight text in italic with quotes', (tester) async {
         await tester.pumpWidget(buildCard());
-
         expect(find.text('"The quick brown fox jumps over the lazy dog."'), findsOneWidget);
       });
 
       testWidgets('displays location', (tester) async {
         await tester.pumpWidget(buildCard());
-
         expect(find.text('Ch. 3, p. 45'), findsOneWidget);
       });
 
       testWidgets('displays date', (tester) async {
         await tester.pumpWidget(buildCard());
-
         expect(find.text('Jun 15, 2025'), findsOneWidget);
       });
 
       testWidgets('shows note section when annotation has a note', (tester) async {
         await tester.pumpWidget(buildCard());
-
         expect(find.text('A classic pangram used in typography.'), findsOneWidget);
       });
 
       testWidgets('hides note section when no note', (tester) async {
         await tester.pumpWidget(buildCard(annotation: annotationWithoutNote));
-
         expect(find.text('A classic pangram used in typography.'), findsNothing);
       });
 
@@ -86,30 +81,30 @@ void main() {
           if (widget is Container && widget.decoration is BoxDecoration) {
             final decoration = widget.decoration as BoxDecoration;
             final border = decoration.border;
+
             if (border is Border && border.left.width == 4) {
               return border.left.color == HighlightColor.blue.accentColor;
             }
           }
+
           return false;
         });
+
         expect(container, findsOneWidget);
       });
 
       testWidgets('shows action menu when showActionMenu is true', (tester) async {
         await tester.pumpWidget(buildCard(showActionMenu: true));
-
         expect(find.byIcon(Icons.more_vert), findsOneWidget);
       });
 
       testWidgets('hides action menu when showActionMenu is false', (tester) async {
         await tester.pumpWidget(buildCard(showActionMenu: false));
-
         expect(find.byIcon(Icons.more_vert), findsNothing);
       });
 
       testWidgets('displays location with chapter title when present', (tester) async {
         await tester.pumpWidget(buildCard(annotation: annotationWithoutNote));
-
         expect(find.text('Ch. 1, p. 12'), findsOneWidget);
       });
     });
@@ -118,30 +113,24 @@ void main() {
       testWidgets('tap calls onTap', (tester) async {
         var tapped = false;
         await tester.pumpWidget(buildCard(onTap: () => tapped = true));
-
         await tester.tap(find.byType(AnnotationCard));
         await tester.pump();
-
         expect(tapped, isTrue);
       });
 
       testWidgets('long press calls onLongPress', (tester) async {
         var longPressed = false;
         await tester.pumpWidget(buildCard(onLongPress: () => longPressed = true));
-
         await tester.longPress(find.byType(AnnotationCard));
         await tester.pump();
-
         expect(longPressed, isTrue);
       });
 
       testWidgets('action menu button calls onLongPress', (tester) async {
         var pressed = false;
         await tester.pumpWidget(buildCard(onLongPress: () => pressed = true));
-
         await tester.tap(find.byIcon(Icons.more_vert));
         await tester.pump();
-
         expect(pressed, isTrue);
       });
     });

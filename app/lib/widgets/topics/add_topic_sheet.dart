@@ -64,6 +64,7 @@ class _AddTopicSheetState extends State<AddTopicSheet> with PersistentSave<AddTo
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+
     return AppBottomSheet(
       title: _isEditing ? 'Edit topic' : 'Create new topic',
       onClose: () => Navigator.of(context).pop(),
@@ -218,7 +219,10 @@ class _AddTopicSheetState extends State<AddTopicSheet> with PersistentSave<AddTo
 
   Future<void> _onSave() async {
     final name = _nameController.text.trim();
-    if (name.isEmpty) return;
+
+    if (name.isEmpty) {
+      return;
+    }
 
     final saved = await persist(
       () => widget.onSave?.call(
@@ -227,6 +231,9 @@ class _AddTopicSheetState extends State<AddTopicSheet> with PersistentSave<AddTo
         _selectedColorHex,
       ),
     );
-    if (saved && mounted) Navigator.of(context).pop();
+
+    if (saved && mounted) {
+      Navigator.of(context).pop();
+    }
   }
 }

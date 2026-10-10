@@ -44,7 +44,6 @@ void main() {
 
   testWidgets('shows guidance before a search', (tester) async {
     await tester.pumpWidget(buildView());
-
     expect(find.text('Search connected sources'), findsOneWidget);
     expect(find.text('Search by title or author to find available releases.'), findsOneWidget);
     expect(find.byType(RemoteReleaseList), findsNothing);
@@ -52,7 +51,6 @@ void main() {
 
   testWidgets('shows query-aware loading before stale results', (tester) async {
     await tester.pumpWidget(buildView(isSearching: true, query: 'Dune', releases: const [release]));
-
     expect(find.byType(CircularProgressIndicator), findsOneWidget);
     expect(find.text('Searching connected sources for “Dune”…'), findsOneWidget);
     expect(find.text(release.title), findsNothing);
@@ -73,15 +71,12 @@ void main() {
     expect(retryCalls, 0);
     expect(find.text('The connected sources are unavailable.'), findsOneWidget);
     expect(find.text(release.title), findsNothing);
-
     await tester.tap(find.text('Try again'));
-
     expect(retryCalls, 1);
   });
 
   testWidgets('shows query-aware empty guidance after a search', (tester) async {
     await tester.pumpWidget(buildView(hasSearched: true, query: 'Dune'));
-
     expect(find.text('No releases found'), findsOneWidget);
     expect(find.text('No releases found for “Dune”. Try another title or author.'), findsOneWidget);
   });
@@ -102,9 +97,7 @@ void main() {
     expect(find.byType(RemoteReleaseList), findsOneWidget);
     expect(find.text(release.title), findsOneWidget);
     expect(find.text('The download client rejected this release.'), findsOneWidget);
-
     await tester.tap(find.text(release.title));
-
     expect(toggled, ['token-1']);
   });
 }

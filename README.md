@@ -8,7 +8,7 @@
     <a href="https://join.slack.com/t/papyrus-crew/shared_invite/zt-4btcyuevl-RVRivB9rreOiri4SQhVxdQ"><img src="https://img.shields.io/badge/Slack-Join%20the%20community-4A154B?logo=slack&logoColor=white" alt="Join the Papyrus community on Slack"/></a>
     <a href="https://trello.com/invite/b/681367b2ba91db4e40b0cfea/ATTI5156837607437467bd3d646f933528054D126F02/papyrus"><img src="https://img.shields.io/badge/Trello-blue?logo=trello&logoColor=white" alt="Trello"/></a>
     <a href="https://papyrusreader.github.io/docs/"><img src="https://img.shields.io/badge/Documentation-darkslateblue?logo=gitbook&logoColor=white" alt="Documentation"/></a>
-    <a href="https://codecov.io/gh/PapyrusReader/client"><img src="https://codecov.io/gh/PapyrusReader/client/branch/master/graph/badge.svg" alt="Coverage"/></a>
+    <a href="https://app.codecov.io/gh/PapyrusReader/client/branch/development"><img src="https://codecov.io/gh/PapyrusReader/client/branch/development/graph/badge.svg" alt="Coverage"/></a>
     <a href="https://github.com/PapyrusReader/client/tree/master?tab=AGPL-3.0-1-ov-file"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="License"/></a>
   </p>
 </div>
@@ -48,7 +48,7 @@ Many reading applications offer partial solutions but fall short on essential fe
 
 The built-in reader opens EPUB and PDF. Native metadata import also accepts MOBI,
 AZW3, TXT, CBR and CBZ; these formats do not have reading engines yet. The web
-file picker currently accepts EPUB. Additional cloud storage providers and
+file picker accepts EPUB and PDF. Additional cloud storage providers and
 selection-based reader annotations remain future work.
 
 ## Supported platforms
@@ -178,6 +178,37 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
    ```
 
 4. Open a pull request
+
+### Coverage
+
+CI runs `flutter test --coverage --file-reporter json:build/test-results/tests.json`
+from `app/`. The normal test log remains visible in Actions. A pinned JUnit
+converter turns the JSON results into XML for Codecov Test Analytics, which
+reports test duration and failures.
+Before conversion, runtime skips are normalized from the test runner's final
+result so they remain skipped in JUnit. The original JSON report is preserved.
+
+Coverage and test results are uploaded even when tests fail. The failing test
+step still fails the job; report generation and uploads cannot mask that failure.
+Missing or empty reports and failed uploads also fail the quality job. Both
+`client-coverage-<attempt>` and `client-test-results-<attempt>` artifacts are
+retained for 14 days, including the raw JSON results for troubleshooting.
+
+[`codecov.yml`](codecov.yml) uses `development` as the default branch. The
+project status compares coverage against the PR base or parent commit and allows
+a one percentage point drop. The patch status targets 80% of changed lines and
+is informational initially; it reports coverage without failing on the target.
+
+Four components show coverage for UI, state/models, auth/storage/sync, and
+reading/goals in Codecov and PR comments, using paths from the single client
+coverage upload. Reading/goals intentionally overlaps UI and state because it
+crosses those layers. Component checks are informational during rollout.
+
+Codecov's repository default branch must also be `development` under
+**Configuration → General**. Verify that **Configuration → Yaml** reflects the
+committed configuration and that `codecov/project` appears on GitHub before
+making that check required in branch protection. A successful upload alone does
+not prove that Codecov has applied the status-check configuration.
 
 ## Resources
 

@@ -7,7 +7,6 @@ void main() {
   final now = DateTime.utc(2026);
   final base = Shelf(id: 'shelf', name: 'Shelf', createdAt: now, updatedAt: now);
   const descriptorKeys = ['icon_code_point', 'icon_font_family', 'icon_font_package', 'icon_match_text_direction'];
-
   Map<String, Object?> descriptor(Map<String, Object?> row) => {for (final key in descriptorKeys) key: row[key]};
 
   test('all available constant icons round trip through shelf rows', () {
@@ -29,6 +28,7 @@ void main() {
       'icon_font_package': 'other_icons',
       'icon_match_text_direction': 1,
     };
+
     final restored = shelfRowMapper.fromRow(row);
     expect(restored.displayIcon, Icons.folder_outlined);
     final edited = restored.copyWith(name: 'Edited', description: 'Description', icon: restored.icon);
@@ -39,6 +39,7 @@ void main() {
 
   test('font identity and text direction must match before using a known icon', () {
     final known = shelfRowMapper.toRow(base.copyWith(icon: Icons.menu_book));
+
     for (final overrides in [
       {'icon_font_family': 'AnotherFamily'},
       {'icon_font_package': 'another_package'},
@@ -60,6 +61,7 @@ void main() {
       'icon_font_package': 'other_icons',
       'icon_match_text_direction': 1,
     });
+
     final updated = unknown.copyWith(icon: Icons.favorite_outline);
     final expected = base.copyWith(icon: Icons.favorite_outline);
     expect(descriptor(shelfRowMapper.toRow(updated)), descriptor(shelfRowMapper.toRow(expected)));
@@ -73,6 +75,7 @@ void main() {
       'icon_font_package': 'other_icons',
       'icon_match_text_direction': 1,
     });
+
     final cleared = unknown.copyWith(clearIcon: true);
     expect(cleared.icon, isNull);
     expect(cleared.iconDescriptor, isNull);

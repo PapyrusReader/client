@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
+import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 
 /// Lays out an add-book sheet with fixed header and footer regions.
 class AddBookSheetScaffold extends StatelessWidget {
@@ -31,41 +31,15 @@ class AddBookSheetScaffold extends StatelessWidget {
       builder: (context, constraints) {
         final isCompactHeight = constraints.maxHeight < 280;
         final verticalPadding = isCompactHeight ? 0.0 : Spacing.md;
-        final handleSpacing = isCompactHeight ? 0.0 : Spacing.lg;
 
         return Column(
           mainAxisSize: fitContent ? MainAxisSize.min : MainAxisSize.max,
           children: [
-            Container(
+            BottomSheetHeader(
               key: const Key('add-book-sheet-header'),
-              padding: EdgeInsets.fromLTRB(Spacing.lg, verticalPadding, Spacing.lg, verticalPadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const BottomSheetHandle(),
-                  SizedBox(height: handleSpacing),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          title,
-                          maxLines: isCompactHeight ? 1 : 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.headlineSmall,
-                          textScaler: isCompactHeight ? TextScaler.noScaling : null,
-                        ),
-                      ),
-                      IconButton(
-                        constraints: isCompactHeight ? const BoxConstraints.tightFor(width: 44, height: 44) : null,
-                        icon: const Icon(Icons.close),
-                        padding: isCompactHeight ? EdgeInsets.zero : null,
-                        tooltip: 'Close',
-                        onPressed: canClose ? onClose : null,
-                      ),
-                    ],
-                  ),
-                ],
-              ),
+              title: title,
+              onDismiss: canClose ? onClose : null,
+              compact: isCompactHeight,
             ),
             const Divider(height: 1),
             Flexible(fit: fitContent ? FlexFit.loose : FlexFit.tight, child: body),

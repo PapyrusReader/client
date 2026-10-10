@@ -3,6 +3,10 @@ import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/daily_activity.dart';
 import 'package:papyrus/models/genre_stats.dart';
 import 'package:papyrus/models/reading_streak.dart';
+import 'package:papyrus/models/reading_activity.dart';
+import 'package:papyrus/models/reading_goal.dart';
+import 'package:papyrus/goals/goal_calendar.dart';
+import 'package:papyrus/goals/goal_progress.dart';
 
 /// Time period for statistics filtering.
 enum StatsPeriod { week, month, year, allTime, custom }
@@ -43,6 +47,7 @@ class MonthlyStats {
       'November',
       'December',
     ];
+
     return months[month - 1];
   }
 }
@@ -64,10 +69,18 @@ class SessionStats {
   /// Formatted average session duration.
   String get averageSessionLabel {
     final avg = averageSessionDuration.round();
-    if (avg < 60) return '${avg}m';
+
+    if (avg < 60) {
+      return '${avg}m';
+    }
+
     final hours = avg ~/ 60;
     final minutes = avg % 60;
-    if (minutes == 0) return '${hours}h';
+
+    if (minutes == 0) {
+      return '${hours}h';
+    }
+
     return '${hours}h ${minutes}m';
   }
 
@@ -120,10 +133,6 @@ class StatisticsProvider extends ChangeNotifier {
     super.dispose();
   }
 
-  // ============================================================================
-  // GETTERS
-  // ============================================================================
-
   bool get isLoading => _isLoading;
   String? get error => _error;
 
@@ -133,42 +142,92 @@ class StatisticsProvider extends ChangeNotifier {
 
   /// Total books completed in the selected period.
   int get totalBooks {
-    if (_dataStore == null) return 0;
+    if (_dataStore == null) {
+      return 0;
+    }
+
     final range = _getDateRangeForPeriod();
-    return _dataStore!.books
-        .where(
-          (b) => b.completedAt != null && b.completedAt!.isAfter(range.start) && b.completedAt!.isBefore(range.end),
-        )
-        .length;
+    return _completedBooks(range.start, range.end).length;
+  }
+
+  Set<String> _completedBooks(DateTime start, DateTime end) {
+    final store = _dataStore;
+
+    if (store == null) {
+      return {};
+    }
+
+    final trackedBooks = store.readingActivities
+        .where((activity) => activity.kind == 'completion')
+        .map((activity) => activity.bookId)
+        .toSet();
+
+    return {
+      for (final activity in store.effectiveReadingActivities)
+        if (activity.kind == 'completion' && !activity.endTime.isBefore(start) && activity.endTime.isBefore(end))
+          activity.bookId,
+      // Pre-ledger completion dates remain history without contributing to new goals.
+      for (final book in store.books)
+        if (!trackedBooks.contains(book.id) &&
+            book.completedAt != null &&
+            !book.completedAt!.isBefore(start) &&
+            book.completedAt!.isBefore(end))
+          book.id,
+    };
   }
 
   /// Goals completed in the selected period.
   int get goalsCompleted {
-    if (_dataStore == null) return 0;
+    if (_dataStore == null) {
+      return 0;
+    }
+
     final range = _getDateRangeForPeriod();
-    return _dataStore!.readingGoals
+    final now = DateTime.now().toUtc();
+    final periods = <String, ReadingGoal>{};
+
+    for (final record in _dataStore!.goalPeriods) {
+      periods['${record.goalId}:${record.definition.startDate.microsecondsSinceEpoch}'] = record.definition;
+    }
+
+    for (final goal in _dataStore!.goalDefinitions) {
+      for (final period in GoalCalendar.pastPeriods(goal, now)) {
+        periods['${goal.id}:${period.start.microsecondsSinceEpoch}'] = goal.copyWith(
+          startDate: period.start,
+          endDate: period.end,
+          isRecurring: false,
+        );
+      }
+    }
+
+    return periods.values
         .where(
-          (g) => g.completedAt != null && g.completedAt!.isAfter(range.start) && g.completedAt!.isBefore(range.end),
+          (goal) =>
+              !goal.endDate.isBefore(range.start) &&
+              goal.endDate.isBefore(range.end) &&
+              projectGoal(goal, _dataStore!.readingActivities, now).reached,
         )
         .length;
   }
 
   /// Total reading minutes in the selected period.
   int get totalReadingMinutes {
-    if (_dataStore == null) return 0;
+    if (_dataStore == null) {
+      return 0;
+    }
+
     final range = _getDateRangeForPeriod();
-    return _dataStore!.readingSessions
-        .where((s) => s.startTime.isAfter(range.start) && s.startTime.isBefore(range.end))
-        .fold(0, (sum, s) => sum + s.durationMinutes);
+    return _dataStore!.activityTotals(range.start, range.end).seconds ~/ 60;
   }
 
   /// Pages read in the selected period.
   int get pagesRead {
-    if (_dataStore == null) return 0;
+    if (_dataStore == null) {
+      return 0;
+    }
+
     final range = _getDateRangeForPeriod();
-    return _dataStore!.readingSessions
-        .where((s) => s.startTime.isAfter(range.start) && s.startTime.isBefore(range.end))
-        .fold(0, (sum, s) => sum + (s.pagesRead ?? 0));
+    return _dataStore!.activityTotals(range.start, range.end).pages.floor();
   }
 
   /// Session statistics for the selected period.
@@ -176,16 +235,19 @@ class StatisticsProvider extends ChangeNotifier {
     if (_dataStore == null) {
       return const SessionStats(totalSessions: 0, totalMinutes: 0, totalPages: 0);
     }
-    final range = _getDateRangeForPeriod();
-    final sessions = _dataStore!.readingSessions
-        .where((s) => s.startTime.isAfter(range.start) && s.startTime.isBefore(range.end))
-        .toList();
 
-    return SessionStats(
-      totalSessions: sessions.length,
-      totalMinutes: sessions.fold(0, (sum, s) => sum + s.durationMinutes),
-      totalPages: sessions.fold(0, (sum, s) => sum + (s.pagesRead ?? 0)),
+    final range = _getDateRangeForPeriod();
+
+    final sessions = groupReadingActivities(
+      _dataStore!.effectiveReadingActivities.where(
+        (activity) =>
+            activity.kind == 'reading' &&
+            activity.endTime.isAfter(range.start) &&
+            activity.startTime.isBefore(range.end),
+      ),
     );
+
+    return SessionStats(totalSessions: sessions.length, totalMinutes: totalReadingMinutes, totalPages: pagesRead);
   }
 
   List<DailyActivity> get readingTimeData => _readingTimeData;
@@ -194,30 +256,43 @@ class StatisticsProvider extends ChangeNotifier {
   List<GenreStats> get genreDistribution => _genreDistribution;
   ReadingStreak get streak => _streak;
 
-  // ============================================================================
-  // COMPUTED PROPERTIES
-  // ============================================================================
-
   /// Total reading time formatted (e.g., "3.5h").
   String get totalReadingLabel {
     final hours = totalReadingMinutes / 60;
-    if (hours < 1) return '${totalReadingMinutes}m';
-    if (hours == hours.truncate()) return '${hours.truncate()}h';
+
+    if (hours < 1) {
+      return '${totalReadingMinutes}m';
+    }
+
+    if (hours == hours.truncate()) {
+      return '${hours.truncate()}h';
+    }
+
     return '${hours.toStringAsFixed(1)}h';
   }
 
   /// Average reading time per day for the period.
   String get averageReadingLabel {
-    if (_readingTimeData.isEmpty) return '0m';
+    if (_readingTimeData.isEmpty) {
+      return '0m';
+    }
+
     final avgMinutes = _readingTimeData.averageMinutes;
-    if (avgMinutes < 60) return '${avgMinutes}m';
+
+    if (avgMinutes < 60) {
+      return '${avgMinutes}m';
+    }
+
     final hours = avgMinutes / 60;
     return '${hours.toStringAsFixed(1)}h';
   }
 
   /// Average daily reading time in minutes.
   int get averageDailyMinutes {
-    if (_readingTimeData.isEmpty) return 0;
+    if (_readingTimeData.isEmpty) {
+      return 0;
+    }
+
     return _readingTimeData.averageMinutes;
   }
 
@@ -260,10 +335,6 @@ class StatisticsProvider extends ChangeNotifier {
   bool get hasCustomRange =>
       _selectedPeriod == StatsPeriod.custom && _customStartDate != null && _customEndDate != null;
 
-  // ============================================================================
-  // METHODS
-  // ============================================================================
-
   /// Loads statistics data. With DataStore, this is mainly for loading state UX.
   Future<void> loadStatistics() async {
     _isLoading = true;
@@ -273,13 +344,11 @@ class StatisticsProvider extends ChangeNotifier {
     try {
       // Simulate network delay for realistic UX
       await Future.delayed(const Duration(milliseconds: 100));
-
       _updateDataForPeriod();
-
       _isLoading = false;
       notifyListeners();
-    } catch (e) {
-      _error = 'Failed to load statistics: $e';
+    } catch (error) {
+      _error = 'Failed to load statistics: $error';
       _isLoading = false;
       notifyListeners();
     }
@@ -289,10 +358,12 @@ class StatisticsProvider extends ChangeNotifier {
   void setPeriod(StatsPeriod period) {
     if (_selectedPeriod != period) {
       _selectedPeriod = period;
+
       if (period != StatsPeriod.custom) {
         _customStartDate = null;
         _customEndDate = null;
       }
+
       _updateDataForPeriod();
       notifyListeners();
     }
@@ -312,108 +383,136 @@ class StatisticsProvider extends ChangeNotifier {
     await loadStatistics();
   }
 
-  // ============================================================================
-  // PRIVATE METHODS
-  // ============================================================================
-
   ({DateTime start, DateTime end}) _getDateRangeForPeriod() {
     final now = DateTime.now();
+
     switch (_selectedPeriod) {
       case StatsPeriod.week:
-        final weekStart = now.subtract(Duration(days: now.weekday - 1));
-        return (start: DateTime(weekStart.year, weekStart.month, weekStart.day), end: now.add(const Duration(days: 1)));
+        final weekStart = DateTime(now.year, now.month, now.day - now.weekday + 1);
+        return (
+          start: DateTime(weekStart.year, weekStart.month, weekStart.day),
+          end: DateTime(now.year, now.month, now.day + 1),
+        );
       case StatsPeriod.month:
-        return (start: DateTime(now.year, now.month, 1), end: now.add(const Duration(days: 1)));
+        return (start: DateTime(now.year, now.month, 1), end: DateTime(now.year, now.month, now.day + 1));
       case StatsPeriod.year:
-        return (start: DateTime(now.year, 1, 1), end: now.add(const Duration(days: 1)));
+        return (start: DateTime(now.year, 1, 1), end: DateTime(now.year, now.month, now.day + 1));
       case StatsPeriod.allTime:
-        return (start: DateTime(2000), end: now.add(const Duration(days: 1)));
+        return (start: DateTime(2000), end: DateTime(now.year, now.month, now.day + 1));
       case StatsPeriod.custom:
         if (_customStartDate != null && _customEndDate != null) {
-          return (start: _customStartDate!, end: _customEndDate!.add(const Duration(days: 1)));
+          return (
+            start: _customStartDate!,
+            end: DateTime(_customEndDate!.year, _customEndDate!.month, _customEndDate!.day + 1),
+          );
         }
-        return (start: now.subtract(const Duration(days: 7)), end: now.add(const Duration(days: 1)));
+        return (start: DateTime(now.year, now.month, now.day - 7), end: DateTime(now.year, now.month, now.day + 1));
     }
   }
 
   void _updateDataForPeriod() {
-    // Genre distribution (constant for now)
-    _genreDistribution = GenreStats.sample;
+    final books = _dataStore?.books ?? [];
+    final genres = <String, int>{};
 
-    // Streak
-    _streak = ReadingStreak.sample;
+    for (final book in books) {
+      final genre = book.customMetadata?['genre'];
 
-    // Monthly stats
+      if (genre is String && genre.trim().isNotEmpty) {
+        genres.update(genre.trim(), (n) => n + 1, ifAbsent: () => 1);
+      }
+    }
+
+    final count = genres.values.fold<int>(0, (total, value) => total + value);
+
+    _genreDistribution = genres.entries
+        .map((entry) => GenreStats(genre: entry.key, bookCount: entry.value, percentage: entry.value / count))
+        .toList();
+
+    final now = DateTime.now();
+    final qualified = _dataStore?.activityTotals(DateTime.utc(1900), now.toUtc()).qualifiedDays.toList() ?? [];
+    qualified.sort();
+    var best = 0;
+    var run = 0;
+    DateTime? previous;
+
+    for (final day in qualified) {
+      run = previous != null && GoalCalendar.nextDay(previous, GoalCalendar.systemTimezone) == day ? run + 1 : 1;
+
+      if (run > best) {
+        best = run;
+      }
+
+      previous = day;
+    }
+
+    final days = qualified.toSet();
+    var cursor = GoalCalendar.midnight(now, GoalCalendar.systemTimezone);
+
+    if (!days.contains(cursor)) {
+      cursor = GoalCalendar.dayOffset(cursor, -1, GoalCalendar.systemTimezone);
+    }
+
+    var current = 0;
+
+    while (days.contains(cursor)) {
+      current++;
+      cursor = GoalCalendar.dayOffset(cursor, -1, GoalCalendar.systemTimezone);
+    }
+
+    final local = GoalCalendar.local(now, GoalCalendar.systemTimezone);
+
+    _streak = ReadingStreak(
+      currentStreak: current,
+      bestStreak: best,
+      daysThisMonth: qualified.where((date) {
+        final day = GoalCalendar.local(date, GoalCalendar.systemTimezone);
+        return day.year == local.year && day.month == local.month;
+      }).length,
+      totalDaysInMonth: DateTime(local.year, local.month + 1, 0).day,
+    );
+
     _monthlyStats = _generateMonthlyStats();
-
-    // Daily activity data
     _readingTimeData = _generateActivityData();
     _pagesReadData = _readingTimeData;
   }
 
   List<DailyActivity> _generateActivityData() {
-    if (_dataStore == null) return DailyActivity.sampleWeek;
+    if (_dataStore == null) {
+      return [];
+    }
 
     final range = _getDateRangeForPeriod();
-    final days = range.end.difference(range.start).inDays;
+    final end = DateTime(range.end.year, range.end.month, range.end.day);
+    final count = end.difference(range.start).inDays.clamp(1, 60);
+    final first = DateTime(end.year, end.month, end.day - count);
 
-    // Limit to 60 days for performance
-    final dataPoints = days.clamp(1, 60);
-
-    return List.generate(dataPoints, (i) {
-      final date = range.start.add(Duration(days: i));
-      final dayStart = DateTime(date.year, date.month, date.day);
-      final dayEnd = dayStart.add(const Duration(days: 1));
-
-      final daySessions = _dataStore!.readingSessions.where(
-        (s) => s.startTime.isAfter(dayStart.subtract(const Duration(seconds: 1))) && s.startTime.isBefore(dayEnd),
-      );
+    return List.generate(count, (i) {
+      final day = DateTime(first.year, first.month, first.day + i);
+      final totals = _dataStore!.activityTotals(day, DateTime(day.year, day.month, day.day + 1));
 
       return DailyActivity(
-        date: date,
-        readingMinutes: daySessions.fold(0, (sum, s) => sum + s.durationMinutes),
-        pagesRead: daySessions.fold(0, (sum, s) => sum + (s.pagesRead ?? 0)),
-        booksRead: [],
+        date: day,
+        readingMinutes: totals.seconds ~/ 60,
+        pagesRead: totals.pages.floor(),
+        booksRead: _completedBooks(day, DateTime(day.year, day.month, day.day + 1)).toList(),
       );
     });
   }
 
   List<MonthlyStats> _generateMonthlyStats() {
     final now = DateTime.now();
+
     return List.generate(12, (i) {
-      final month = ((now.month - 1 - i) % 12) + 1;
-      final year = now.year - ((now.month - 1 - i) < 0 ? 1 : 0);
-
-      if (_dataStore == null) {
-        final seed = (i * 7 + 3) % 5;
-        return MonthlyStats(
-          month: month,
-          year: year,
-          booksRead: seed + 2,
-          pagesRead: (seed + 2) * 150,
-          readingMinutes: (seed + 2) * 120,
-        );
-      }
-
-      final monthStart = DateTime(year, month, 1);
-      final monthEnd = DateTime(year, month + 1, 1);
-
-      final monthSessions = _dataStore!.readingSessions.where(
-        (s) => s.startTime.isAfter(monthStart.subtract(const Duration(seconds: 1))) && s.startTime.isBefore(monthEnd),
-      );
-
-      final booksCompleted = _dataStore!.books
-          .where(
-            (b) => b.completedAt != null && b.completedAt!.isAfter(monthStart) && b.completedAt!.isBefore(monthEnd),
-          )
-          .length;
+      final start = DateTime(now.year, now.month - i);
+      final end = DateTime(start.year, start.month + 1);
+      final totals = _dataStore?.activityTotals(start, end);
 
       return MonthlyStats(
-        month: month,
-        year: year,
-        booksRead: booksCompleted,
-        pagesRead: monthSessions.fold(0, (sum, s) => sum + (s.pagesRead ?? 0)),
-        readingMinutes: monthSessions.fold(0, (sum, s) => sum + s.durationMinutes),
+        month: start.month,
+        year: start.year,
+        booksRead: _completedBooks(start, end).length,
+        pagesRead: totals?.pages.floor() ?? 0,
+        readingMinutes: (totals?.seconds ?? 0) ~/ 60,
       );
     }).reversed.toList();
   }

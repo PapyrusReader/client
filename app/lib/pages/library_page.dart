@@ -80,7 +80,6 @@ class _LibraryPageState extends State<LibraryPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final provider = widget.isShelfView ? null : context.read<AcquisitionDownloadsProvider?>();
-
     _updateVisibleDownloadsProvider(provider);
   }
 
@@ -168,10 +167,6 @@ class _LibraryPageState extends State<LibraryPage> {
     return provider.sortBooks(books);
   }
 
-  // ============================================================================
-  // MOBILE LAYOUT
-  // ============================================================================
-
   Widget _buildMobileLayout(
     BuildContext context,
     List<Book> books,
@@ -183,11 +178,14 @@ class _LibraryPageState extends State<LibraryPage> {
   ) {
     final isOnline =
         !widget.isShelfView && _presentationMode == _BooksPresentationMode.online && downloadsProvider != null;
+
     final isBookSelection = libraryProvider.isSelectionMode;
+
     final localItems = buildAcquisitionLibraryItems(
       books: sourceBooks,
       jobs: widget.isShelfView ? const [] : downloadsProvider?.jobs ?? const [],
     );
+
     final showDownloadingOnly = _showDownloadingOnly && localItems.hasDownloadingItems;
 
     final acquisitionView = _buildAcquisitionLibraryView(
@@ -216,23 +214,22 @@ class _LibraryPageState extends State<LibraryPage> {
                 left: libraryPageHorizontalPadding(context),
                 right: libraryPageHorizontalPadding(context),
               ),
-              child: isOnline
-                  ? _buildOnlineHeader(downloadsProvider)
-                  : hasJobSelection
-                  ? _buildJobSelectionHeader(
-                      downloadsProvider!,
-                      selectableJobs: acquisitionView.selectableJobs,
-                      includeActions: false,
-                    )
-                  : isBookSelection
-                  ? SelectionHeader(
-                      selectedCount: libraryProvider.selectedCount,
-                      totalCount: books.length,
-                      onClose: libraryProvider.exitSelectionMode,
-                      onSelectAll: () => libraryProvider.selectAll(books.map((b) => b.id).toList()),
-                      onDeselectAll: libraryProvider.deselectAll,
-                    )
-                  : _buildMobileLocalHeader(libraryProvider),
+              child: switch (downloadsProvider) {
+                final provider? when isOnline => _buildOnlineHeader(provider),
+                _ when hasJobSelection => _buildJobSelectionHeader(
+                  downloadsProvider!,
+                  selectableJobs: acquisitionView.selectableJobs,
+                  includeActions: false,
+                ),
+                _ when isBookSelection => SelectionHeader(
+                  selectedCount: libraryProvider.selectedCount,
+                  totalCount: books.length,
+                  onClose: libraryProvider.exitSelectionMode,
+                  onSelectAll: () => libraryProvider.selectAll(books.map((book) => book.id).toList()),
+                  onDeselectAll: libraryProvider.deselectAll,
+                ),
+                _ => _buildMobileLocalHeader(libraryProvider),
+              },
             ),
 
             if (!isOnline)
@@ -273,13 +270,14 @@ class _LibraryPageState extends State<LibraryPage> {
               tooltip: widget.isShelfView ? 'Add to shelf' : null,
               child: const Icon(Icons.add),
             ),
-      bottomNavigationBar: isOnline && downloadsProvider.selectedReleaseTokens.isNotEmpty
-          ? _buildMobileOnlineAction(downloadsProvider)
-          : hasJobSelection
-          ? _buildMobileJobActions(downloadsProvider!, selectedJobs)
-          : isBookSelection
-          ? buildMobileBottomActionBar(context, libraryProvider)
-          : null,
+      bottomNavigationBar: switch (downloadsProvider) {
+        final provider? when isOnline && provider.selectedReleaseTokens.isNotEmpty => _buildMobileOnlineAction(
+          provider,
+        ),
+        _ when hasJobSelection => _buildMobileJobActions(downloadsProvider!, selectedJobs),
+        _ when isBookSelection => buildMobileBottomActionBar(context, libraryProvider),
+        _ => null,
+      },
     );
   }
 
@@ -320,6 +318,7 @@ class _LibraryPageState extends State<LibraryPage> {
     final libraryProvider = context.read<LibraryProvider>();
     final dataStore = context.read<DataStore>();
     final sourceBooks = _sourceBooks(dataStore);
+
     final filters = await LibraryAdvancedFilterSheet.show(
       context,
       libraryProvider: libraryProvider,
@@ -447,7 +446,6 @@ class _LibraryPageState extends State<LibraryPage> {
       builder: (sheetContext) => AppBottomSheet(
         header: Text(
           'Download with',
-          style: Theme.of(context).textTheme.titleLarge,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),
@@ -489,6 +487,7 @@ class _LibraryPageState extends State<LibraryPage> {
   Widget _buildJobActions(AcquisitionDownloadsProvider provider, List<AcquisitionJob> selectedJobs) {
     final canCancel = selectedJobs.isNotEmpty && selectedJobs.every((job) => job.canCancel);
     final canRetry = selectedJobs.isNotEmpty && selectedJobs.every((job) => job.canRetryImport);
+
     final canRemove =
         selectedJobs.isNotEmpty &&
         selectedJobs.every(
@@ -529,6 +528,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
   Future<void> _cancelSelectedJobs(AcquisitionDownloadsProvider provider, List<AcquisitionJob> selectedJobs) async {
     final presentationGeneration = _presentationGeneration;
+
     final confirmed = await showAcquisitionConfirmationDialog(
       context: context,
       title: 'Cancel downloads',
@@ -551,6 +551,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
   Future<void> _removeSelectedJobs(AcquisitionDownloadsProvider provider, List<AcquisitionJob> selectedJobs) async {
     final presentationGeneration = _presentationGeneration;
+
     final confirmed = await showAcquisitionConfirmationDialog(
       context: context,
       title: 'Remove downloads',
@@ -587,10 +588,6 @@ class _LibraryPageState extends State<LibraryPage> {
       ..showSnackBar(snackBarAnimationStyle: AppMotion.animationStyle(context), SnackBar(content: Text(message)));
   }
 
-  // ============================================================================
-  // DESKTOP LAYOUT
-  // ============================================================================
-
   Widget _buildDesktopLayout(
     BuildContext context,
     List<Book> books,
@@ -602,18 +599,23 @@ class _LibraryPageState extends State<LibraryPage> {
   ) {
     final isOnline =
         !widget.isShelfView && _presentationMode == _BooksPresentationMode.online && downloadsProvider != null;
+
     final isBookSelection = libraryProvider.isSelectionMode;
+
     final localItems = buildAcquisitionLibraryItems(
       books: sourceBooks,
       jobs: widget.isShelfView ? const [] : downloadsProvider?.jobs ?? const [],
     );
+
     final showDownloadingOnly = _showDownloadingOnly && localItems.hasDownloadingItems;
+
     final acquisitionView = _buildAcquisitionLibraryView(
       books: books,
       items: localItems,
       libraryProvider: libraryProvider,
       showDownloadingOnly: showDownloadingOnly,
     );
+
     final selectedJobs = _visibleSelectedJobs(downloadsProvider, acquisitionView.selectableJobs);
     final hasJobSelection = selectedJobs.isNotEmpty;
     _pruneHiddenJobSelection(downloadsProvider, acquisitionView.selectableJobs);
@@ -647,24 +649,23 @@ class _LibraryPageState extends State<LibraryPage> {
                   left: libraryPageHorizontalPadding(context),
                   right: libraryPageHorizontalPadding(context),
                 ),
-                child: isOnline
-                    ? _buildOnlineHeader(downloadsProvider)
-                    : hasJobSelection
-                    ? _buildJobSelectionHeader(
-                        downloadsProvider!,
-                        selectableJobs: acquisitionView.selectableJobs,
-                        includeActions: true,
-                      )
-                    : isBookSelection
-                    ? SelectionHeader(
-                        selectedCount: libraryProvider.selectedCount,
-                        totalCount: books.length,
-                        onClose: libraryProvider.exitSelectionMode,
-                        onSelectAll: () => libraryProvider.selectAll(books.map((b) => b.id).toList()),
-                        onDeselectAll: libraryProvider.deselectAll,
-                        actions: buildBulkActionBar(context, libraryProvider),
-                      )
-                    : _buildDesktopLocalHeader(libraryProvider, downloadsProvider),
+                child: switch (downloadsProvider) {
+                  final provider? when isOnline => _buildOnlineHeader(provider),
+                  _ when hasJobSelection => _buildJobSelectionHeader(
+                    downloadsProvider!,
+                    selectableJobs: acquisitionView.selectableJobs,
+                    includeActions: true,
+                  ),
+                  _ when isBookSelection => SelectionHeader(
+                    selectedCount: libraryProvider.selectedCount,
+                    totalCount: books.length,
+                    onClose: libraryProvider.exitSelectionMode,
+                    onSelectAll: () => libraryProvider.selectAll(books.map((book) => book.id).toList()),
+                    onDeselectAll: libraryProvider.deselectAll,
+                    actions: buildBulkActionBar(context, libraryProvider),
+                  ),
+                  _ => _buildDesktopLocalHeader(libraryProvider, downloadsProvider),
+                },
               ),
               if (!isOnline)
                 Column(
@@ -713,6 +714,7 @@ class _LibraryPageState extends State<LibraryPage> {
         ),
       ],
     );
+
     if (!widget.isShelfView) {
       return toolbar;
     }
@@ -821,6 +823,14 @@ class _LibraryPageState extends State<LibraryPage> {
     }
 
     if (isLoading) {
+      if (context.watch<DataStore>().libraryLoadError != null) {
+        return const EmptyState(
+          icon: Icons.cloud_off_outlined,
+          title: 'Waiting for your library',
+          subtitle: 'Your books will appear when the connection is restored.',
+        );
+      }
+
       return const Center(child: AppCircularProgressIndicator());
     }
 
@@ -854,6 +864,7 @@ class _LibraryPageState extends State<LibraryPage> {
     }
 
     final horizontalPadding = libraryPageHorizontalPadding(context);
+
     return BookGrid(
       // Match the list row's vertical inset without adding padding to list mode.
       padding: EdgeInsets.only(top: Spacing.sm, left: horizontalPadding, right: horizontalPadding, bottom: Spacing.md),
@@ -877,11 +888,14 @@ class _LibraryPageState extends State<LibraryPage> {
     final visibleBooks = showDownloadingOnly
         ? books.where((book) => items.downloadingBookIds.contains(book.id)).toList()
         : books;
+
     final candidatePlaceholders = showDownloadingOnly ? items.downloadingOrphanJobs : items.orphanJobs;
     final normalizedQuery = libraryProvider.searchQuery.trim().toLowerCase();
+
     final visiblePlaceholderJobs = normalizedQuery.isEmpty
         ? candidatePlaceholders
         : candidatePlaceholders.where((job) => job.title.toLowerCase().contains(normalizedQuery)).toList();
+
     final selectableJobs = <AcquisitionJob>[];
     final seenJobIds = <String>{};
 
@@ -987,6 +1001,7 @@ class _LibraryPageState extends State<LibraryPage> {
         final book = books[index];
         final acquisitionJob = linkedJobsByBookId[book.id];
         final isFavorite = libraryProvider.isBookFavorite(book.id, book.isFavorite);
+
         if (acquisitionJob == null) {
           unawaited(storageStatusController?.ensureDeviceStatus(book));
         }

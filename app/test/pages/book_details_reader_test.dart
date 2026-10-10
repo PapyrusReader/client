@@ -17,6 +17,7 @@ void main() {
   testWidgets('book details scroll when the header leaves less room than the tabs need', (tester) async {
     const railKey = ValueKey('details tabs');
     const bodyKey = ValueKey('details body');
+
     await tester.pumpWidget(
       MaterialApp(
         home: Scaffold(
@@ -34,6 +35,7 @@ void main() {
         ),
       ),
     );
+
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await tester.dragFrom(const Offset(200, 450), const Offset(0, -500));
@@ -53,6 +55,7 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+
       final book = buildTestBook(
         title: "Alice's Adventures in Wonderland",
         author: 'Lewis Carroll',
@@ -61,8 +64,10 @@ void main() {
         pageCount: 98,
         description: List.filled(40, 'A long book description.').join('\n\n'),
       );
+
       final dataStore = DataStore()..loadData(books: [book]);
       addTearDown(dataStore.dispose);
+
       await tester.pumpWidget(
         ChangeNotifierProvider.value(
           value: dataStore,
@@ -84,9 +89,9 @@ void main() {
           ),
         ),
       );
+
       await tester.pumpAndSettle();
       expect(tester.takeException(), isNull);
-
       final rail = find.byType(BookDetailsTabRail);
       final appBarBottom = tester.getBottomLeft(find.byType(AppBar)).dy;
       final navigationTop = tester.getTopLeft(find.byType(NavigationBar)).dy;
@@ -113,12 +118,14 @@ void main() {
     final book = buildTestBook(pageCount: 735, description: List.filled(40, 'A long book description.').join('\n\n'));
     final dataStore = DataStore()..loadData(books: [book]);
     addTearDown(dataStore.dispose);
+
     await tester.pumpWidget(
       ChangeNotifierProvider.value(
         value: dataStore,
         child: MaterialApp(home: BookDetailsPage(id: book.id)),
       ),
     );
+
     await tester.pumpAndSettle();
     final rail = find.byType(BookDetailsTabRail);
     final headerBottom = tester.getBottomLeft(find.byType(AppBar)).dy;
@@ -153,6 +160,7 @@ void main() {
       final dataStore = DataStore()..loadData(books: [book]);
       addTearDown(dataStore.dispose);
       final detailsPath = '/library/details/${book.id}';
+
       final router = GoRouter(
         initialLocation: direct ? detailsPath : '/previous',
         routes: [
@@ -170,18 +178,23 @@ void main() {
           ),
         ],
       );
+
       addTearDown(router.dispose);
+
       await tester.pumpWidget(
         ChangeNotifierProvider.value(
           value: dataStore,
           child: MaterialApp.router(routerConfig: router),
         ),
       );
+
       await tester.pumpAndSettle();
+
       if (!direct) {
         router.push(detailsPath);
         await tester.pumpAndSettle();
       }
+
       expect(find.text('Book details'), findsOneWidget);
       final cover = tester.getRect(find.byType(CoverImagePreview));
       final rail = tester.getRect(find.byType(BookDetailsTabRail));
@@ -203,6 +216,7 @@ void main() {
     final book = buildTestBook(id: 'mobi-book', fileFormat: BookFormat.mobi);
     final dataStore = DataStore()..loadData(books: [book]);
     addTearDown(dataStore.dispose);
+
     final router = GoRouter(
       initialLocation: '/library/details/${book.id}',
       routes: [
@@ -212,6 +226,7 @@ void main() {
         ),
       ],
     );
+
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
@@ -220,11 +235,10 @@ void main() {
         child: MaterialApp.router(routerConfig: router),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Read'));
     await tester.pump();
-
     expect(find.text('This book format is not supported yet.'), findsOneWidget);
   });
 
@@ -232,6 +246,7 @@ void main() {
     final book = buildTestBook(id: 'epub-book', fileFormat: BookFormat.epub);
     final dataStore = DataStore()..loadData(books: [book]);
     addTearDown(dataStore.dispose);
+
     final router = GoRouter(
       initialLocation: '/library/details/${book.id}',
       routes: [
@@ -246,6 +261,7 @@ void main() {
         ),
       ],
     );
+
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
@@ -254,11 +270,10 @@ void main() {
         child: MaterialApp.router(routerConfig: router),
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     await tester.tap(find.text('Read'));
     await tester.pumpAndSettle();
-
     expect(find.text('Reader opened'), findsOneWidget);
   });
 }

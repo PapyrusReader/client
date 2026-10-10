@@ -53,19 +53,28 @@ class BookDetailsProvider extends ChangeNotifier {
 
   /// Get bookmarks for the current book from DataStore.
   List<Bookmark> get bookmarks {
-    if (_dataStore == null || _currentBookId == null) return [];
+    if (_dataStore == null || _currentBookId == null) {
+      return [];
+    }
+
     return _dataStore!.getBookmarksForBook(_currentBookId!);
   }
 
   /// Get annotations for the current book from DataStore.
   List<Annotation> get annotations {
-    if (_dataStore == null || _currentBookId == null) return [];
+    if (_dataStore == null || _currentBookId == null) {
+      return [];
+    }
+
     return _dataStore!.getAnnotationsForBook(_currentBookId!);
   }
 
   /// Get notes for the current book from DataStore.
   List<Note> get notes {
-    if (_dataStore == null || _currentBookId == null) return [];
+    if (_dataStore == null || _currentBookId == null) {
+      return [];
+    }
+
     return _dataStore!.getNotesForBook(_currentBookId!);
   }
 
@@ -97,11 +106,13 @@ class BookDetailsProvider extends ChangeNotifier {
       // Just refresh from DataStore in case data changed
       if (_dataStore != null) {
         final updatedBook = _dataStore!.getBook(bookId);
+
         if (updatedBook != null && updatedBook != _book) {
           _book = updatedBook;
           notifyListeners();
         }
       }
+
       return;
     }
 
@@ -113,10 +124,12 @@ class BookDetailsProvider extends ChangeNotifier {
     try {
       // Find book from DataStore (or sample data as fallback)
       Book? foundBook;
+
       if (_dataStore != null) {
         final dataStore = _dataStore!;
         final repository = dataStore.requireBookRepository();
         foundBook = dataStore.getBook(bookId) ?? await repository.getById(bookId);
+
         if (foundBook == null && !dataStore.isLoaded) {
           await dataStore.waitUntilLoaded();
           foundBook = dataStore.getBook(bookId) ?? await repository.getById(bookId);
@@ -124,7 +137,7 @@ class BookDetailsProvider extends ChangeNotifier {
       }
 
       // Fallback to sample data if not found in DataStore
-      foundBook ??= SampleData.books.cast<Book?>().firstWhere((b) => b?.id == bookId, orElse: () => null);
+      foundBook ??= SampleData.books.cast<Book?>().firstWhere((book) => book?.id == bookId, orElse: () => null);
 
       if (foundBook == null) {
         throw Exception('Book not found');
@@ -134,8 +147,8 @@ class BookDetailsProvider extends ChangeNotifier {
       // Notes and annotations are now fetched dynamically from DataStore
       // via the getters, so no need to load them here
       _error = null;
-    } catch (e) {
-      _error = e.toString();
+    } catch (error) {
+      _error = error.toString();
       _book = null;
       _currentBookId = null;
     } finally {
@@ -194,7 +207,11 @@ class BookDetailsProvider extends ChangeNotifier {
     EntityRepository<Bookmark>? repository,
   }) async {
     final bookmark = previous ?? _dataStore?.getBookmark(bookmarkId);
-    if (bookmark == null || _dataStore == null) return;
+
+    if (bookmark == null || _dataStore == null) {
+      return;
+    }
+
     await _dataStore!.updateBookmark(
       bookmark.copyWith(note: note),
       previous: bookmark,
@@ -210,7 +227,11 @@ class BookDetailsProvider extends ChangeNotifier {
     EntityRepository<Bookmark>? repository,
   }) async {
     final bookmark = previous ?? _dataStore?.getBookmark(bookmarkId);
-    if (bookmark == null || _dataStore == null) return;
+
+    if (bookmark == null || _dataStore == null) {
+      return;
+    }
+
     await _dataStore!.updateBookmark(
       bookmark.copyWith(colorHex: colorHex),
       previous: bookmark,
@@ -238,7 +259,11 @@ class BookDetailsProvider extends ChangeNotifier {
     EntityRepository<Annotation>? repository,
   }) async {
     final annotation = previous ?? _dataStore?.getAnnotation(annotationId);
-    if (annotation == null || _dataStore == null) return;
+
+    if (annotation == null || _dataStore == null) {
+      return;
+    }
+
     await _dataStore!.updateAnnotation(
       annotation.copyWith(note: note, clearNote: note == null),
       previous: annotation,
@@ -269,9 +294,11 @@ class BookDetailsProvider extends ChangeNotifier {
   void toggleFavorite() {
     if (_book != null) {
       _book = _book!.copyWith(isFavorite: !_book!.isFavorite);
+
       if (_dataStore != null) {
         _dataStore!.updateBook(_book!);
       }
+
       notifyListeners();
     }
   }
@@ -280,30 +307,34 @@ class BookDetailsProvider extends ChangeNotifier {
   void updateProgress(double progress) {
     if (_book != null) {
       _book = _book!.copyWith(currentPosition: progress.clamp(0.0, 1.0));
+
       if (_dataStore != null) {
         _dataStore!.updateBook(_book!);
       }
+
       notifyListeners();
     }
   }
 
   /// Update reading progress by page number. Calculates position from page count.
   void updatePageProgress(int page, double position) {
-    if (_book == null) return;
+    if (_book == null) {
+      return;
+    }
 
     _book = _book!.copyWith(
       currentPage: page,
       currentPosition: position.clamp(0.0, 1.0),
-      readingStatus: position >= 1.0
-          ? LibraryReadingStatus.completed
-          : position > 0
+      readingStatus: position > 0 && _book!.readingStatus == LibraryReadingStatus.unread
           ? LibraryReadingStatus.inProgress
           : _book!.readingStatus,
       lastReadAt: DateTime.now(),
     );
+
     if (_dataStore != null) {
       _dataStore!.updateBook(_book!);
     }
+
     notifyListeners();
   }
 

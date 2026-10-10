@@ -21,6 +21,7 @@ void main() {
       tester.view.physicalSize = const Size(1280, 900);
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.reset);
+
       await tester.pumpWidget(
         MaterialApp(
           home: Scaffold(
@@ -40,22 +41,21 @@ void main() {
           ),
         ),
       );
+
       final grid = tester.widget<GridView>(find.byType(GridView));
       expect((grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount).crossAxisCount, 2);
       expect(tester.takeException(), isNull);
     });
+
     testWidgets('renders books in a GridView', (tester) async {
       final books = [_book(id: 'book-1', title: 'First Book'), _book(id: 'book-2', title: 'Second Book')];
-
       await tester.pumpWidget(_buildGrid(books: books));
-
       expect(find.byType(GridView), findsOneWidget);
       expect(find.byType(BookCard), findsNWidgets(2));
     });
 
     testWidgets('renders an empty grid without items', (tester) async {
       await tester.pumpWidget(_buildGrid(books: const []));
-
       expect(find.byType(GridView), findsOneWidget);
       expect(find.byType(BookCard), findsNothing);
       expect(find.byType(AcquisitionPlaceholderCard), findsNothing);
@@ -65,9 +65,7 @@ void main() {
   group('BookGrid acquisition reconciliation', () {
     testWidgets('renders a job without a synchronized book once as an orphan', (tester) async {
       final orphan = _job(id: 'orphan-job', bookId: null, title: 'Waiting for Sync');
-
       await tester.pumpWidget(_buildGrid(books: const [], placeholderJobs: [orphan]));
-
       expect(find.byType(BookCard), findsNothing);
       expect(find.byType(AcquisitionPlaceholderCard), findsOneWidget);
       expect(find.text('Waiting for Sync'), findsOneWidget);
@@ -82,7 +80,6 @@ void main() {
       );
 
       final card = tester.widget<BookCard>(_bookCard(book.id));
-
       expect(card.acquisitionJob, same(linked));
       expect(find.byType(BookCard), findsOneWidget);
       expect(find.byType(AcquisitionPlaceholderCard), findsNothing);
@@ -91,9 +88,7 @@ void main() {
     testWidgets('defensively attaches a linked placeholder job by book id', (tester) async {
       final book = _book(id: 'book-1', title: 'Synchronized Book');
       final linked = _job(id: 'linked-job', bookId: book.id, title: book.title);
-
       await tester.pumpWidget(_buildGrid(books: [book], placeholderJobs: [linked]));
-
       expect(tester.widget<BookCard>(_bookCard(book.id)).acquisitionJob, same(linked));
       expect(find.byType(AcquisitionPlaceholderCard), findsNothing);
     });
@@ -118,17 +113,14 @@ void main() {
 
       final firstCard = tester.widget<BookCard>(_bookCard(firstBook.id));
       final secondCard = tester.widget<BookCard>(_bookCard(secondBook.id));
-
       expect(firstCard.acquisitionJob, same(firstJob));
       expect(firstCard.isSelectionMode, isTrue);
       expect(firstCard.isSelected, isTrue);
       expect(secondCard.acquisitionJob, isNull);
       expect(secondCard.isSelectionMode, isFalse);
       expect(secondCard.isSelected, isFalse);
-
       await tester.tap(_bookCard(firstBook.id));
       await tester.tap(_bookCard(secondBook.id));
-
       expect(acquisitionSelections, ['shared-job']);
       expect(ordinaryTaps, [secondBook.id]);
     });
@@ -156,9 +148,7 @@ void main() {
       final first = _job(id: 'job-1', bookId: 'pending-book', title: 'First');
       final duplicateId = _job(id: 'job-1', bookId: null, title: 'Duplicate ID');
       final duplicateBook = _job(id: 'job-2', bookId: 'pending-book', title: 'Duplicate Book');
-
       await tester.pumpWidget(_buildGrid(books: const [], placeholderJobs: [first, duplicateId, duplicateBook]));
-
       expect(find.byType(AcquisitionPlaceholderCard), findsOneWidget);
       expect(find.text('First'), findsOneWidget);
       expect(find.text('Duplicate ID'), findsNothing);
@@ -169,13 +159,10 @@ void main() {
       final first = _book(id: 'book-1', title: 'First Book');
       final second = _book(id: 'book-2', title: 'Second Book');
       final orphan = _job(id: 'orphan-job', bookId: null, title: 'Orphan Job');
-
       await tester.pumpWidget(_buildGrid(books: [first, second], placeholderJobs: [orphan]));
-
       final firstPosition = tester.getTopLeft(_bookCard(first.id));
       final secondPosition = tester.getTopLeft(_bookCard(second.id));
       final orphanPosition = tester.getTopLeft(find.byType(AcquisitionPlaceholderCard));
-
       expect(firstPosition.dy, secondPosition.dy);
       expect(orphanPosition.dy, greaterThan(firstPosition.dy));
     });
@@ -203,7 +190,6 @@ void main() {
       await tester.tap(find.byType(AcquisitionPlaceholderCard));
       await tester.longPress(_bookCard(linkedBook.id));
       await tester.longPress(find.byType(AcquisitionPlaceholderCard));
-
       expect(acquisitionTaps, ['job-linked', 'job-orphan']);
       expect(acquisitionToggles, ['job-linked', 'job-orphan']);
       expect(bookTaps, isEmpty);
@@ -229,13 +215,10 @@ void main() {
 
       final linkedCard = tester.widget<BookCard>(_bookCard(linkedBook.id));
       final orphanCard = tester.widget<AcquisitionPlaceholderCard>(find.byType(AcquisitionPlaceholderCard));
-
       expect(linkedCard.isSelected, isTrue);
       expect(orphanCard.isSelected, isFalse);
-
       await tester.tap(_bookCard(linkedBook.id));
       await tester.tap(find.byType(AcquisitionPlaceholderCard));
-
       expect(acquisitionToggles, ['job-linked', 'job-orphan']);
       expect(acquisitionTaps, isEmpty);
     });
@@ -243,12 +226,9 @@ void main() {
     testWidgets('does not open ordinary book actions for a linked job without callbacks', (tester) async {
       final linkedBook = _book(id: 'book-linked', title: 'Linked Book');
       final linkedJob = _job(id: 'job-linked', bookId: linkedBook.id, title: linkedBook.title);
-
       await tester.pumpWidget(_buildGrid(books: [linkedBook], acquisitionJobsByBookId: {linkedBook.id: linkedJob}));
-
       await tester.longPress(_bookCard(linkedBook.id));
       await tester.pumpAndSettle();
-
       expect(find.text('Select'), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -269,7 +249,6 @@ void main() {
       );
 
       await tester.tap(_bookCard(linkedBook.id));
-
       expect(ordinaryTaps, isEmpty);
       expect(tester.takeException(), isNull);
     });
@@ -285,7 +264,6 @@ void main() {
 
       final linkedCard = tester.widget<BookCard>(_bookCard(linkedBook.id));
       final ordinaryCard = tester.widget<BookCard>(_bookCard(ordinaryBook.id));
-
       expect(linkedCard.onToggleFavorite, isNull);
       expect(ordinaryCard.onToggleFavorite, isNotNull);
     });
@@ -306,12 +284,9 @@ void main() {
       );
 
       await tester.tap(_bookCard(ordinary.id));
-
       expect(tappedBooks, [ordinary.id]);
-
       tester.widget<BookCard>(_bookCard(ordinary.id)).onEnterSelectionMode!.call();
       await tester.pump();
-
       expect(provider.isBookSelected(ordinary.id), isTrue);
     });
 
@@ -331,7 +306,6 @@ void main() {
 
       final ordinaryCard = tester.widget<BookCard>(_bookCard(ordinary.id));
       final unselectedLinkedCard = tester.widget<BookCard>(_bookCard(linkedBook.id));
-
       expect(ordinaryCard.isSelectionMode, isTrue);
       expect(ordinaryCard.isSelected, isTrue);
       expect(unselectedLinkedCard.isSelectionMode, isFalse);
@@ -347,7 +321,6 @@ void main() {
       );
 
       final selectedLinkedCard = tester.widget<BookCard>(_bookCard(linkedBook.id));
-
       expect(selectedLinkedCard.isSelectionMode, isTrue);
       expect(selectedLinkedCard.isSelected, isTrue);
       expect(provider.isBookSelected(linkedBook.id), isFalse);
@@ -362,6 +335,7 @@ void main() {
         addTearDown(tester.view.reset);
         final provider = LibraryProvider()..setGridItemWidth(BookGridSize.minimum);
         addTearDown(provider.dispose);
+
         await tester.pumpWidget(
           _buildGrid(
             books: [_book(id: 'book-1', title: 'A book')],
@@ -370,29 +344,40 @@ void main() {
             showViewControls: true,
           ),
         );
+
         await tester.tap(find.text('View mode'));
         await tester.pumpAndSettle();
         expect(find.byType(Slider), findsNothing);
         final options = bookGridSizeOptions(width - 32);
-        if (width < 600) expect(options.map((option) => option.columns), [1, 2, 3, 4]);
+
+        if (width < 600) {
+          expect(options.map((option) => option.columns), [1, 2, 3, 4]);
+        }
+
         final columnChoices = find.byWidgetPredicate(
           (widget) => widget is ChoiceChip && widget.label is Text && (widget.label as Text).data!.contains('column'),
         );
+
         expect(columnChoices, findsNWidgets(options.length));
+
         for (final option in options) {
           final label = '${option.columns} ${option.columns == 1 ? 'column' : 'columns'}';
           await tester.tap(find.text(label));
           await tester.pumpAndSettle();
+
           final delegate =
               tester.widget<GridView>(find.byType(GridView)).gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+
           expect(delegate.crossAxisCount, option.columns);
           expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label)).selected, isTrue);
           final layout = bookGridLayout(width - 32, itemWidth: provider.gridItemWidth);
+
           expect(
             tester.getSize(_bookCard('book-1')).width * option.columns + layout.spacing * (option.columns - 1),
             closeTo(width - 32, .001),
           );
         }
+
         expect(tester.takeException(), isNull);
       });
     }
@@ -411,6 +396,7 @@ void main() {
         addTearDown(tester.view.reset);
         final provider = LibraryProvider()..setGridItemWidth(BookGridSize.minimum);
         addTearDown(provider.dispose);
+
         await tester.pumpWidget(
           _buildGrid(
             books: [_book(id: 'book-1', title: 'A long book title that uses two lines')],
@@ -420,34 +406,43 @@ void main() {
             textScaler: TextScaler.linear(scale),
           ),
         );
+
         Size? previous;
         Size? previousCover;
+
         for (final option in bookGridSizeOptions(width - 32).reversed) {
           provider.setGridItemWidth(option.preferredWidth);
           await tester.pumpAndSettle();
           final actual = tester.getSize(_bookCard('book-1'));
           expect(tester.widget<BookCard>(_bookCard('book-1')).compact, actual.width < BookGridSize.regularMinimum);
+
           expect(
             tester.widget<AcquisitionPlaceholderCard>(find.byType(AcquisitionPlaceholderCard)).compact,
             actual.width < BookGridSize.regularMinimum,
           );
+
           final cover = tester.getSize(find.descendant(of: _bookCard('book-1'), matching: find.byType(CoverImage)));
+
           if (previous != null) {
             expect(actual.width, greaterThan(previous.width), reason: '${option.columns} columns');
             expect(actual.height, greaterThan(previous.height), reason: '${option.columns} columns');
           }
+
           if (previousCover != null) {
             expect(cover.width, greaterThan(previousCover.width), reason: '${option.columns} columns');
+
             expect(
               cover.width * cover.height,
               greaterThan(previousCover.width * previousCover.height),
               reason: '${option.columns} columns',
             );
           }
+
           expect(actual.width, lessThanOrEqualTo(width - 32));
           final layout = bookGridLayout(width - 32, itemWidth: provider.gridItemWidth);
           expect(actual.width * option.columns + layout.spacing * (option.columns - 1), closeTo(width - 32, .001));
           expect(tester.getTopLeft(_bookCard('book-1')).dx, 16);
+
           if (option.columns > 1) {
             expect(
               tester.getTopLeft(find.byType(AcquisitionPlaceholderCard)).dx -
@@ -455,6 +450,7 @@ void main() {
               closeTo(layout.spacing, .001),
             );
           }
+
           expect(tester.getSize(find.byType(AcquisitionPlaceholderCard)), actual);
           expect(tester.takeException(), isNull);
           previous = actual;
@@ -495,12 +491,11 @@ void main() {
       for (final (width, columns) in const [(400.0, 2), (700.0, 3), (900.0, 5), (1300.0, 7)]) {
         tester.view.physicalSize = Size(width, 800);
         await tester.pumpWidget(_buildGrid(books: [book], placeholderJobs: [orphan], screenSize: Size(width, 800)));
-
         final grid = tester.widget<GridView>(find.byType(GridView));
         final delegate = grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
-
         expect(delegate.crossAxisCount, columns);
         expect(tester.getSize(_bookCard(book.id)).width, tester.getSize(find.byType(AcquisitionPlaceholderCard)).width);
+
         expect(
           tester.getSize(_bookCard(book.id)).height,
           tester.getSize(find.byType(AcquisitionPlaceholderCard)).height,

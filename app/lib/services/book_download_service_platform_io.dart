@@ -16,10 +16,13 @@ Future<String?> saveBookFileToDevice({
     bytes: Platform.isAndroid || Platform.isIOS ? bytes : null,
   );
 
-  if (path == null) return null;
+  if (path == null) {
+    return null;
+  }
 
   if (!Platform.isAndroid && !Platform.isIOS) {
     await File(path).writeAsBytes(bytes);
   }
+
   return path;
 }

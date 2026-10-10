@@ -21,6 +21,7 @@ class CatalogSourceTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final mobile = MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
     final colors = Theme.of(context).colorScheme;
+
     final tile = ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
       title: Text(catalog.name),
@@ -37,7 +38,10 @@ class CatalogSourceTile extends StatelessWidget {
               ],
             ),
     );
-    if (!mobile) return tile;
+
+    if (!mobile) {
+      return tile;
+    }
 
     return ClipRect(
       child: Dismissible(
@@ -52,6 +56,7 @@ class CatalogSourceTile extends StatelessWidget {
             onRemove();
           }
           // Swipes open a sheet; only its explicit confirmation may remove a source.
+
           return false;
         },
         background: _swipeBackground(

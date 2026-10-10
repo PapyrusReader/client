@@ -7,10 +7,6 @@ import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
-// =============================================================================
-// ANNOTATION NOTE SHEET
-// =============================================================================
-
 /// Bottom sheet for editing an annotation's attached note.
 class AnnotationNoteSheet extends StatefulWidget {
   final Annotation annotation;
@@ -68,7 +64,10 @@ class _AnnotationNoteSheetState extends State<AnnotationNoteSheet> with Persiste
             : () async {
                 final text = _controller.text.trim();
                 final saved = await persist(() => widget.onSave?.call(text));
-                if (saved && context.mounted) Navigator.pop(context, text);
+
+                if (saved && context.mounted) {
+                  Navigator.pop(context, text);
+                }
               },
       ),
       body: TextField(
@@ -86,10 +85,6 @@ class _AnnotationNoteSheetState extends State<AnnotationNoteSheet> with Persiste
     );
   }
 }
-
-// =============================================================================
-// DELETE ANNOTATION DIALOG
-// =============================================================================
 
 /// Confirmation dialog for deleting an annotation.
 class DeleteAnnotationDialog {
@@ -111,6 +106,7 @@ class DeleteAnnotationDialog {
         ],
       ),
     );
+
     return result ?? false;
   }
 }

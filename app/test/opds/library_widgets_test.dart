@@ -14,12 +14,14 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
   final catalog = OpdsCatalog(id: 'c', name: 'Catalog', uri: Uri.parse('https://books.test/feed'));
+
   final epub = OpdsLink(
     uri: Uri.parse('https://books.test/book.epub'),
     type: 'application/epub+zip',
     title: 'EPUB (no images, older E-readers)',
     rels: ['download'],
   );
+
   final pdf = OpdsLink(uri: Uri.parse('https://books.test/book.pdf'), type: 'application/pdf', rels: ['download']);
   final publication = OpdsPublication(id: 'one', title: 'A book', links: [epub, pdf]);
   final book = Book(id: 'local', title: 'A book', author: 'Author', addedAt: DateTime(2026));
@@ -39,6 +41,7 @@ void main() {
     library = OpdsLibrary(prefs, dataStore: store)..setScope('guest');
     downloads = OpdsDownloads(library: library, captureImport: () => throw StateError('Must not import'));
   });
+
   tearDown(() {
     downloads.dispose();
     library.dispose();
@@ -53,6 +56,7 @@ void main() {
       tester.view.devicePixelRatio = 1;
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
+
       final router = GoRouter(
         initialLocation: '/catalog',
         routes: [
@@ -75,7 +79,9 @@ void main() {
           ),
         ],
       );
+
       addTearDown(router.dispose);
+
       await tester.pumpWidget(
         MaterialApp.router(
           theme: AppTheme.eink,
@@ -86,6 +92,7 @@ void main() {
           ),
         ),
       );
+
       await tester.pumpAndSettle();
       expect(find.text('In library'), findsNothing);
       expect(find.text('Open book'), findsOneWidget);
@@ -97,12 +104,14 @@ void main() {
       final formatRect = tester.getRect(find.text('EPUB'));
       final detailRect = tester.getRect(find.text(epub.title!));
       final openRect = tester.getRect(find.ancestor(of: sheetOpen, matching: find.byType(FilledButton)));
+
       if (scale == 1) {
         expect(openRect.center.dy, closeTo((formatRect.top + detailRect.bottom) / 2, 0.1));
         expect(openRect.left, greaterThan(detailRect.right));
       } else {
         expect(openRect.top, greaterThan(detailRect.bottom));
       }
+
       expect(find.text('Download PDF'), findsOneWidget);
       expect(find.text('Download EPUB'), findsNothing);
       await tester.tap(sheetOpen);
@@ -135,6 +144,7 @@ void main() {
           OpdsPublication(id: 'another-edition', title: 'A book', links: [epub]),
         ],
       );
+
       await tester.pumpWidget(
         MaterialApp(
           theme: AppTheme.eink,
@@ -157,6 +167,7 @@ void main() {
           ),
         ),
       );
+
       await tester.pumpAndSettle();
       expect(find.textContaining('In library'), findsOneWidget);
       store.replaceBooksFromSync([]);

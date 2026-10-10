@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/widgets/book_details/note_dialog.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
+import 'package:papyrus/themes/design_tokens.dart';
 
 void main() {
   testWidgets('content field uses a bounded multiline height', (tester) async {
@@ -20,8 +22,8 @@ void main() {
 
     await tester.tap(find.text('Add note'));
     await tester.pumpAndSettle();
-
     final contentField = find.byKey(const Key('note-content-field'));
+
     final editableText = tester.widget<EditableText>(
       find.descendant(of: contentField, matching: find.byType(EditableText)),
     );
@@ -29,12 +31,12 @@ void main() {
     expect(editableText.expands, isFalse);
     expect(editableText.minLines, 8);
     expect(editableText.maxLines, 12);
-
     await tester.drag(find.byType(BottomSheetHandle), const Offset(0, -300));
     await tester.pumpAndSettle();
-
     final sheetBottom = tester.getBottomRight(find.byKey(const Key('note-bottom-sheet'))).dy;
     final tagsBottom = tester.getBottomRight(find.text('Tags will appear here')).dy;
-    expect(sheetBottom - tagsBottom, lessThan(80));
+    final footer = tester.getRect(find.byType(BottomSheetFooter));
+    expect(footer.top - tagsBottom, lessThanOrEqualTo(Spacing.lg));
+    expect(sheetBottom, footer.bottom);
   });
 }

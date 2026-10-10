@@ -12,6 +12,7 @@ import 'package:papyrus/widgets/add_book/book_import_item_card.dart';
 import 'package:papyrus/widgets/add_book/book_import_sheet_sections.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
+import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 
 void main() {
   testWidgets('mobile footer actions share a row and stay fixed while selecting more files', (tester) async {
@@ -19,6 +20,7 @@ void main() {
     tester.view.physicalSize = const Size(390, 844);
     addTearDown(tester.view.reset);
     var picks = 0;
+
     await tester.pumpWidget(
       MaterialApp(
         theme: ThemeData(platform: TargetPlatform.android),
@@ -29,6 +31,7 @@ void main() {
                 context,
                 pickFiles: () async {
                   picks++;
+
                   return List.generate(
                     12,
                     (i) => SelectedBookFile(name: 'batch-$picks-$i.epub', bytes: Uint8List.fromList([1])),
@@ -44,6 +47,7 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open import'));
     await tester.pumpAndSettle();
     expect(find.byType(ExpandableBottomSheet), findsOneWidget);
@@ -56,11 +60,13 @@ void main() {
     expect(tester.getSize(cancel).height, tester.getSize(initialImport).height);
     expect(tester.getTopLeft(cancel).dy, tester.getTopLeft(initialImport).dy);
     expect(tester.getTopLeft(initialImport).dx - tester.getTopRight(cancel).dx, 8);
+
     final primaryShape = tester
         .widget<FilledButton>(initialImport)
         .defaultStyleOf(tester.element(initialImport))
         .shape!
         .resolve({});
+
     final secondaryShape = OutlinedButtonTheme.of(tester.element(cancel)).style!.shape!.resolve({});
     expect(primaryShape, secondaryShape);
     expect(primaryShape, isA<StadiumBorder>());
@@ -91,9 +97,11 @@ void main() {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(320, 568);
     addTearDown(tester.view.reset);
+
     final files = [
       SelectedBookFile(name: 'a-long-book-filename.epub', bytes: Uint8List.fromList([1])),
     ];
+
     await tester.pumpWidget(
       MaterialApp(
         builder: (context, child) => MediaQuery(
@@ -115,6 +123,7 @@ void main() {
         ),
       ),
     );
+
     expect(tester.takeException(), isNull);
     expect(find.text('Import'), findsOneWidget);
     expect(tester.getSize(find.byTooltip('Remove a-long-book-filename.epub')).width, greaterThanOrEqualTo(48));
@@ -139,6 +148,7 @@ void main() {
         ),
       ),
     );
+
     final browse = find.widgetWithText(OutlinedButton, 'Browse files');
     final cancel = find.widgetWithText(OutlinedButton, 'Cancel');
     final import = find.widgetWithText(FilledButton, 'Import');
@@ -162,63 +172,80 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('route back waits for late processing and temporary file cleanup', (tester) async {
-    await tester.binding.setSurfaceSize(const Size(800, 1200));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    final processed = Completer<BookImportResult>();
-    final deleted = Completer<void>();
-    final deletions = <String>[];
-    final navigator = GlobalKey<NavigatorState>();
-    await tester.pumpWidget(
-      MaterialApp(
-        navigatorKey: navigator,
-        home: Scaffold(
-          body: Builder(
-            builder: (context) => TextButton(
-              onPressed: () => BookImportSheet.show(
-                context,
-                pickFiles: () async => [
-                  SelectedBookFile(name: 'book.epub', bytes: Uint8List.fromList([1])),
-                ],
-                processor: (_, _) => processed.future,
-                deleteBookFile: (id) async {
-                  deletions.add(id);
-                  await deleted.future;
-                },
-                committer: (_, _) async => throw StateError('Closed imports must not commit'),
+  for (final fromHandle in [false, true]) {
+    testWidgets(
+      '${fromHandle ? 'handle dismissal' : 'route back'} waits for late processing and temporary file cleanup',
+      (tester) async {
+        tester.view.devicePixelRatio = 1;
+        tester.view.physicalSize = fromHandle ? const Size(390, 844) : const Size(800, 1200);
+        addTearDown(tester.view.reset);
+        final processed = Completer<BookImportResult>();
+        final deleted = Completer<void>();
+        final deletions = <String>[];
+        final navigator = GlobalKey<NavigatorState>();
+
+        await tester.pumpWidget(
+          MaterialApp(
+            navigatorKey: navigator,
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => BookImportSheet.show(
+                    context,
+                    pickFiles: () async => [
+                      SelectedBookFile(name: 'book.epub', bytes: Uint8List.fromList([1])),
+                    ],
+                    processor: (_, _) => processed.future,
+                    deleteBookFile: (id) async {
+                      deletions.add(id);
+                      await deleted.future;
+                    },
+                    committer: (_, _) async => throw StateError('Closed imports must not commit'),
+                  ),
+                  child: const Text('Open import'),
+                ),
               ),
-              child: const Text('Open import'),
             ),
           ),
-        ),
-      ),
+        );
+
+        await tester.tap(find.text('Open import'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Browse files'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Import'));
+        await tester.pump();
+
+        if (fromHandle) {
+          expect(find.byType(ExpandableBottomSheet), findsOneWidget);
+          await tester.drag(find.byType(BottomSheetHandle), const Offset(0, 600));
+        } else {
+          await navigator.currentState!.maybePop();
+        }
+
+        await tester.pump();
+        expect(find.byType(BookImportSheet), findsOneWidget);
+
+        processed.complete(
+          const BookImportResult(
+            bookId: 'temporary',
+            title: 'Book',
+            author: 'Author',
+            fileSize: 1,
+            fileHash: 'hash',
+            fileExtension: 'epub',
+          ),
+        );
+
+        await tester.pump();
+        expect(deletions, ['temporary']);
+        expect(find.byType(BookImportSheet), findsOneWidget);
+        deleted.complete();
+        await tester.pumpAndSettle();
+        expect(find.byType(BookImportSheet), findsNothing);
+      },
     );
-    await tester.tap(find.text('Open import'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Browse files'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Import'));
-    await tester.pump();
-    await navigator.currentState!.maybePop();
-    await tester.pump();
-    expect(find.byType(BookImportSheet), findsOneWidget);
-    processed.complete(
-      const BookImportResult(
-        bookId: 'temporary',
-        title: 'Book',
-        author: 'Author',
-        fileSize: 1,
-        fileHash: 'hash',
-        fileExtension: 'epub',
-      ),
-    );
-    await tester.pump();
-    expect(deletions, ['temporary']);
-    expect(find.byType(BookImportSheet), findsOneWidget);
-    deleted.complete();
-    await tester.pumpAndSettle();
-    expect(find.byType(BookImportSheet), findsNothing);
-  });
+  }
 
   testWidgets('drop zone fills its body and shows desktop guidance', (tester) async {
     var browseCount = 0;
@@ -245,7 +272,6 @@ void main() {
     expect(find.text('EPUB, PDF, MOBI, AZW3, TXT, CBR, and CBZ'), findsOneWidget);
     expect(tester.getSize(find.widgetWithText(OutlinedButton, 'Browse files')).width, lessThan(200));
     expect(tester.widget<Text>(find.text('Browse files')).maxLines, 1);
-
     await tester.tap(find.widgetWithText(OutlinedButton, 'Browse files'));
     expect(browseCount, 1);
   });
@@ -269,7 +295,6 @@ void main() {
     final focusable = tester.widget<FocusableActionDetector>(find.byType(FocusableActionDetector));
     focusable.onShowHoverHighlight?.call(true);
     await tester.pumpAndSettle();
-
     expect(surfaceColor(), restingColor);
   });
 
@@ -351,6 +376,7 @@ void main() {
     );
 
     final dropTarget = tester.widget<DropTarget>(find.byType(DropTarget));
+
     dropTarget.onDragDone!(
       DropDoneDetails(
         files: [
@@ -361,8 +387,8 @@ void main() {
         globalPosition: Offset.zero,
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     expect(droppedFiles, hasLength(1));
     expect(droppedFiles!.single.name, 'book.epub');
     expect(droppedFiles!.single.bytes, [1, 2]);

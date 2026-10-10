@@ -52,13 +52,12 @@ class _ProfilePageState extends State<ProfilePage> {
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= Breakpoints.desktopSmall;
 
-    if (isDesktop) return _buildDesktopLayout(context);
+    if (isDesktop) {
+      return _buildDesktopLayout(context);
+    }
+
     return _buildMobileLayout(context);
   }
-
-  // ============================================================================
-  // MOBILE LAYOUT
-  // ============================================================================
 
   Widget _buildMobileLayout(BuildContext context) {
     return Scaffold(
@@ -109,10 +108,6 @@ class _ProfilePageState extends State<ProfilePage> {
       isDesktopLayout: false,
     );
   }
-
-  // ============================================================================
-  // DESKTOP LAYOUT
-  // ============================================================================
 
   Widget _buildDesktopLayout(BuildContext context) {
     return Scaffold(
@@ -229,16 +224,18 @@ class _ProfilePageState extends State<ProfilePage> {
     final textTheme = Theme.of(context).textTheme;
     final isSelected = section != null && _selectedSection == section;
 
-    final iconColor = isDestructive
-        ? colorScheme.error
-        : isSelected
-        ? colorScheme.onPrimaryContainer
-        : colorScheme.onSurfaceVariant;
-    final textColor = isDestructive
-        ? colorScheme.error
-        : isSelected
-        ? colorScheme.onPrimaryContainer
-        : null;
+    final iconColor = switch (isDestructive) {
+      true => colorScheme.error,
+      false when isSelected => colorScheme.onPrimaryContainer,
+      false => colorScheme.onSurfaceVariant,
+    };
+
+    final textColor = switch (isDestructive) {
+      true => colorScheme.error,
+      false when isSelected => colorScheme.onPrimaryContainer,
+      false => null,
+    };
+
     final bgColor = isSelected ? colorScheme.primaryContainer : Colors.transparent;
 
     return Padding(
@@ -277,10 +274,6 @@ class _ProfilePageState extends State<ProfilePage> {
       ),
     );
   }
-
-  // ============================================================================
-  // DESKTOP CONTENT PANEL
-  // ============================================================================
 
   Widget _buildDesktopContent(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
@@ -354,14 +347,13 @@ class _ProfilePageState extends State<ProfilePage> {
     }
   }
 
-  // ============================================================================
-  // LOGOUT
-  // ============================================================================
-
   Future<void> _handleLogout(BuildContext context) async {
     final authProvider = Provider.of<AuthProvider>(context, listen: false);
     await authProvider.signOut();
-    if (context.mounted) context.go('/login');
+
+    if (context.mounted) {
+      context.go('/login');
+    }
   }
 
   void _showLogoutConfirmation(BuildContext context) {

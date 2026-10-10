@@ -13,7 +13,10 @@ class LibrarySettingsSection extends StatelessWidget {
   const LibrarySettingsSection({super.key, this.isDesktop = false});
 
   static String capitalize(String s) {
-    if (s.isEmpty) return s;
+    if (s.isEmpty) {
+      return s;
+    }
+
     return s[0].toUpperCase() + s.substring(1);
   }
 
@@ -25,6 +28,7 @@ class LibrarySettingsSection extends StatelessWidget {
       'last_read': 'Last read',
       'rating': 'Rating',
     };
+
     return labels[value] ?? value;
   }
 
@@ -33,6 +37,7 @@ class LibrarySettingsSection extends StatelessWidget {
     if (isDesktop) {
       return _buildDesktop(context);
     }
+
     return _buildMobile(context);
   }
 
@@ -149,7 +154,9 @@ class LibrarySettingsSection extends StatelessWidget {
             return DropdownMenuEntry(value: option, label: displayLabel);
           }).toList(),
           onSelected: (selected) {
-            if (selected != null) onChanged(selected);
+            if (selected != null) {
+              onChanged(selected);
+            }
           },
         ),
       ],

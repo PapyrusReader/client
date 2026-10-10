@@ -18,13 +18,22 @@ class AppDrawerScope extends InheritedWidget {
 /// Opens the same drawer without a sliding transition on e-ink displays.
 void openAppDrawer(BuildContext context, ScaffoldState? scaffold) {
   scaffold = AppDrawerScope.maybeOf(context) ?? scaffold;
-  if (scaffold == null) return;
+
+  if (scaffold == null) {
+    return;
+  }
+
   if (!AppMotion.disabled(context)) {
     scaffold.openDrawer();
     return;
   }
+
   final drawer = scaffold.widget.drawer;
-  if (drawer == null) return;
+
+  if (drawer == null) {
+    return;
+  }
+
   showDialog<void>(
     context: context,
     useSafeArea: false,

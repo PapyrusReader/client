@@ -1,82 +1,153 @@
+import 'package:papyrus/services/reading_device_identity.dart';
+import 'dart:async';
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/data/repositories/tracking_repository.dart';
+import 'package:papyrus/goals/goal_calendar.dart';
+import 'package:papyrus/goals/goal_progress.dart';
+import 'package:papyrus/models/book.dart';
 import 'package:papyrus/models/reading_goal.dart';
+import 'package:papyrus/models/reading_activity.dart';
+import 'package:papyrus/models/goal_period_record.dart';
+import 'package:papyrus/providers/enums/library_reading_status.dart';
 
-/// Provider for goals page state management.
-/// Uses DataStore as the single source of truth.
 class GoalsProvider extends ChangeNotifier {
-  DataStore? _dataStore;
-
-  // Loading state
-  bool _isLoading = false;
+  GoalsProvider({DateTime Function()? now, this.watchClock = true}) : _now = now ?? DateTime.now;
+  final bool watchClock;
+  final DateTime Function() _now;
+  DataStore? _store;
+  bool _sealing = false;
   String? _error;
+  Timer? _clock;
+  DataStore get store => _store!;
 
-  /// Attach to a DataStore instance.
+  String? get error {
+    if (_store?.isLoaded != true && _store?.libraryLoadError != null) {
+      return 'Your reading goals will appear when the connection is restored.';
+    }
+
+    return _error;
+  }
+
+  bool get isLoading => _store?.isLoaded != true && error == null;
+  DateTime get now => _now().toUtc();
+
   void attach(DataStore dataStore) {
-    if (_dataStore != dataStore) {
-      _dataStore?.removeListener(_onDataStoreChanged);
-      _dataStore = dataStore;
-      _dataStore!.addListener(_onDataStoreChanged);
-      notifyListeners();
+    if (identical(_store, dataStore)) {
+      return;
+    }
+
+    _store?.removeListener(_changed);
+    _store = dataStore;
+    dataStore.addListener(_changed);
+
+    if (watchClock) {
+      _clock ??= Timer.periodic(const Duration(minutes: 1), (_) => _changed());
+    }
+    // Attaching from a page's dependency update must not persist periods and
+    // notify the DataStore's listeners while that page is still building.
+
+    scheduleMicrotask(() {
+      if (identical(_store, dataStore)) {
+        _changed();
+      }
+    });
+  }
+
+  void _changed() {
+    notifyListeners();
+
+    if (!_sealing && _store?.isLoaded == true) {
+      unawaited(_sealPeriods());
     }
   }
 
-  void _onDataStoreChanged() {
-    notifyListeners();
+  List<GoalProgress> get current => store.goalDefinitions
+      .where((goal) => !goal.isArchived)
+      .map((goal) => projectGoal(goal, store.readingActivities, now))
+      .where((progress) => progress.range.end.isAfter(now))
+      .toList();
+
+  List<ReadingGoal> get activeGoals => current.map((progress) => progress.projected).toList();
+  List<ReadingGoal> get completedGoals => store.goalDefinitions.where((goal) => goal.isArchived).toList();
+  bool get hasActiveGoals => current.isNotEmpty;
+  bool get hasCompletedGoals => store.goalPeriods.isNotEmpty || completedGoals.isNotEmpty;
+  GoalProgress progress(ReadingGoal goal) => projectGoal(goal, store.readingActivities, now);
+
+  List<GoalProgress> get history {
+    final all = <String, GoalProgress>{};
+
+    for (final goal in store.goalDefinitions) {
+      for (final period in GoalCalendar.pastPeriods(goal, now)) {
+        all['${goal.id}:${period.start}'] = projectGoal(goal, store.readingActivities, now, period: period);
+      }
+    }
+
+    for (final record in store.goalPeriods) {
+      all['${record.goalId}:${record.definition.startDate}'] = projectGoal(
+        store.getReadingGoal(record.goalId) ?? record.definition,
+        store.readingActivities,
+        now,
+        period: GoalRange(record.definition.startDate, record.definition.endDate),
+      );
+    }
+
+    final values = all.values.toList()..sort((left, right) => right.range.end.compareTo(left.range.end));
+    return values;
   }
 
-  @override
-  void dispose() {
-    _dataStore?.removeListener(_onDataStoreChanged);
-    super.dispose();
-  }
-
-  // ============================================================================
-  // GETTERS
-  // ============================================================================
-
-  bool get isLoading => _isLoading;
-  String? get error => _error;
-
-  /// Get active goals from DataStore.
-  List<ReadingGoal> get activeGoals {
-    if (_dataStore == null) return [];
-    return _dataStore!.activeGoals;
-  }
-
-  /// Get completed/archived goals from DataStore.
-  List<ReadingGoal> get completedGoals {
-    if (_dataStore == null) return [];
-    return _dataStore!.completedGoals;
-  }
-
-  bool get hasActiveGoals => activeGoals.isNotEmpty;
-  bool get hasCompletedGoals => completedGoals.isNotEmpty;
-
-  // ============================================================================
-  // METHODS
-  // ============================================================================
-
-  /// Loads all goals data. With DataStore, this is mainly for loading state UX.
-  Future<void> loadGoals() async {
-    _isLoading = true;
-    _error = null;
-    notifyListeners();
+  Future<void> _sealPeriods() async {
+    _sealing = true;
+    final target = store.trackingRepository;
 
     try {
-      // Simulate network delay for realistic UX
-      await Future.delayed(const Duration(milliseconds: 100));
+      final known = store.goalPeriods.map((value) => value.id).toSet();
+      final records = <GoalPeriodRecord>[];
 
-      _isLoading = false;
-      notifyListeners();
-    } catch (e) {
-      _error = 'Failed to load goals: $e';
-      _isLoading = false;
-      notifyListeners();
+      for (final goal in store.goalDefinitions) {
+        for (final period in GoalCalendar.pastPeriods(goal, now)) {
+          final id = const Uuid().v5(
+            Namespace.url.value,
+            'papyrus:goal-period:${goal.id}:${period.start.microsecondsSinceEpoch}',
+          );
+
+          if (known.contains(id)) {
+            continue;
+          }
+
+          final rule = ruleAt(goal, period.end.subtract(const Duration(microseconds: 1)));
+
+          final definition = goal.copyWith(
+            startDate: period.start,
+            endDate: period.end,
+            targetValue: rule.target,
+            title: rule.title,
+            isActive: rule.active,
+            isArchived: rule.archived,
+            isRecurring: false,
+            rules: goal.rules.where((rule) => rule.at.isBefore(period.end)).toList(),
+          );
+
+          records.add(GoalPeriodRecord(id: id, goalId: goal.id, definition: definition));
+        }
+      }
+
+      if (records.isNotEmpty) {
+        await store.commitTracking(periods: records, repository: target);
+      }
+
+      _error = null;
+    } catch (error) {
+      _error = 'Could not save goal history: $error';
+    } finally {
+      _sealing = false;
     }
   }
 
-  /// Creates a new goal. Persists to DataStore.
+  Future<void> loadGoals() => store.waitUntilLoaded();
+  Future<void> refresh() => _sealPeriods();
+
   Future<void> createGoal({
     required GoalType type,
     required int target,
@@ -84,126 +155,324 @@ class GoalsProvider extends ChangeNotifier {
     bool isRecurring = true,
     DateTime? startDate,
     DateTime? endDate,
+    String? title,
+    GoalScope scope = GoalScope.library,
+    String? scopeId,
+    List<String> bookIds = const [],
+    int minimumMinutes = 5,
+    String? timezone,
+    String? replaceGoalId,
+    TrackingRepository? repository,
   }) async {
-    if (_dataStore == null) {
-      throw Exception('DataStore not attached');
+    final origin = repository ?? store.trackingRepository;
+    final replacing = replaceGoalId == null ? null : store.getReadingGoal(replaceGoalId);
+
+    if (replaceGoalId != null && replacing == null) {
+      throw StateError('This goal no longer exists.');
     }
 
-    final now = DateTime.now();
-
-    // Calculate dates based on period or use provided custom dates
-    final DateTime goalStartDate;
-    final DateTime goalEndDate;
-
-    if (period == GoalPeriod.custom && startDate != null && endDate != null) {
-      goalStartDate = startDate;
-      goalEndDate = endDate;
-    } else {
-      goalStartDate = _getStartDateForPeriod(period, now);
-      goalEndDate = _getEndDateForPeriod(period, now);
+    if (target < 1 || minimumMinutes < 1 || minimumMinutes > 1440) {
+      throw ArgumentError('Targets must be positive.');
     }
 
-    final newGoal = ReadingGoal(
-      id: 'goal-${DateTime.now().millisecondsSinceEpoch}',
+    final selected = bookIds.toSet().toList()..sort();
+
+    if (selected.length > 1000) {
+      throw ArgumentError('Choose up to 1,000 books.');
+    }
+
+    if (scope == GoalScope.book && selected.isEmpty && scopeId != null) {
+      selected.add(scopeId);
+    }
+
+    if (scope == GoalScope.book && selected.isEmpty || scope == GoalScope.shelf && scopeId == null) {
+      throw ArgumentError('Choose books or a shelf.');
+    }
+
+    if (scope != GoalScope.book && selected.isNotEmpty) {
+      throw ArgumentError('Book selection requires a book scope.');
+    }
+
+    if (scope == GoalScope.book && type == GoalType.books && target > selected.length) {
+      throw ArgumentError('Target cannot exceed the number of selected books.');
+    }
+
+    final zone = timezone ?? await GoalCalendar.deviceTimezone();
+    final created = now;
+
+    final range = period == GoalPeriod.custom
+        ? GoalRange(startDate ?? created, endDate ?? GoalCalendar.nextDay(created.add(const Duration(days: 30)), zone))
+        : GoalCalendar.calendarPeriod(period, created, zone);
+
+    if (!range.end.isAfter(created)) {
+      throw ArgumentError('The deadline must be in the future.');
+    }
+
+    final goal = ReadingGoal(
+      id: const Uuid().v4(),
       type: type,
       targetValue: target,
-      currentValue: 0,
       period: period,
-      startDate: goalStartDate,
-      endDate: goalEndDate,
-      isRecurring: isRecurring,
+      startDate: range.start,
+      endDate: range.end,
+      createdAt: created,
+      title: title?.trim().isEmpty == true ? null : title,
+      timezone: zone,
+      scope: scope,
+      scopeId: scope == GoalScope.book ? selected.first : scopeId,
+      bookIds: selected.length > 1 ? List.unmodifiable(selected) : const [],
+      minimumMinutes: minimumMinutes,
+      isRecurring: period != GoalPeriod.custom && isRecurring,
+      rules: [GoalRule(at: created, target: target, title: title?.trim().isEmpty == true ? null : title)],
     );
 
-    _dataStore!.addReadingGoal(newGoal);
+    await store.commitTracking(
+      goals: [if (replacing != null) _revisedGoal(replacing, archived: true, active: false), goal],
+      repository: origin,
+    );
   }
 
-  /// Deletes a goal by ID. Persists to DataStore.
-  Future<void> deleteGoal(String goalId) async {
-    if (_dataStore == null) {
-      throw Exception('DataStore not attached');
+  Future<void> updateGoal({
+    required String goalId,
+    int? target,
+    String? title,
+    GoalType? type,
+    TrackingRepository? repository,
+  }) async {
+    final goal = store.getReadingGoal(goalId);
+
+    if (goal == null) {
+      throw StateError('This goal no longer exists.');
     }
-    _dataStore!.deleteReadingGoal(goalId);
+
+    if (type != null && type != goal.type) {
+      await createGoal(
+        type: type,
+        target: target ?? goal.targetValue,
+        period: goal.period,
+        isRecurring: goal.isRecurring,
+        endDate: goal.endDate,
+        title: title ?? goal.title,
+        scope: goal.scope,
+        scopeId: goal.scopeId,
+        bookIds: goal.bookIds,
+        minimumMinutes: goal.minimumMinutes,
+        timezone: goal.timezone,
+        replaceGoalId: goalId,
+        repository: repository,
+      );
+
+      return;
+    }
+
+    if (target != null && target < 1) {
+      throw ArgumentError('Target must be positive.');
+    }
+
+    if (target != null &&
+        goal.type == GoalType.books &&
+        goal.scope == GoalScope.book &&
+        target > goal.selectedBookIds.length) {
+      throw ArgumentError('Target cannot exceed the number of selected books.');
+    }
+
+    await _revise(goal, target: target, title: title, repository: repository);
   }
 
-  /// Updates the progress of a goal. Persists to DataStore.
-  Future<void> updateGoalProgress(String goalId, int newProgress) async {
-    if (_dataStore == null) {
-      throw Exception('DataStore not attached');
+  Future<void> _revise(
+    ReadingGoal goal, {
+    int? target,
+    String? title,
+    bool? active,
+    bool? archived,
+    TrackingRepository? repository,
+  }) => store.commitTracking(
+    goals: [_revisedGoal(goal, target: target, title: title, active: active, archived: archived)],
+    repository: repository,
+  );
+
+  ReadingGoal _revisedGoal(ReadingGoal goal, {int? target, String? title, bool? active, bool? archived}) {
+    var at = now;
+
+    final rules = goal.rules.isEmpty
+        ? [
+            GoalRule(
+              at: goal.createdAt,
+              target: goal.targetValue,
+              title: goal.title,
+              active: goal.isActive,
+              archived: goal.isArchived,
+            ),
+          ]
+        : [...goal.rules];
+
+    if (!at.isAfter(rules.last.at)) {
+      at = rules.last.at.add(const Duration(microseconds: 1));
     }
 
-    final goal = _dataStore!.getReadingGoal(goalId);
-    if (goal != null) {
-      var updatedGoal = goal.copyWith(currentValue: newProgress);
+    final rule = GoalRule(
+      at: at,
+      target: target ?? goal.targetValue,
+      title: title ?? goal.title,
+      active: active ?? goal.isActive,
+      archived: archived ?? goal.isArchived,
+    );
 
-      // Check if goal is now completed
-      if (updatedGoal.isCompleted && !goal.isArchived) {
-        updatedGoal = updatedGoal.copyWith(completedAt: DateTime.now(), isArchived: true);
-      }
-
-      _dataStore!.updateReadingGoal(updatedGoal);
-    }
+    return goal.copyWith(
+      targetValue: rule.target,
+      title: rule.title,
+      isActive: rule.active,
+      isArchived: rule.archived,
+      rules: [...rules, rule],
+    );
   }
 
-  /// Updates a goal's properties. Persists to DataStore.
-  Future<void> updateGoal({required String goalId, int? target, GoalType? type}) async {
-    if (_dataStore == null) {
-      throw Exception('DataStore not attached');
+  Future<void> pauseGoal(String id, bool paused, {TrackingRepository? repository}) =>
+      _revise(store.getReadingGoal(id)!, active: !paused, repository: repository);
+
+  Future<void> archiveGoal(String id, {TrackingRepository? repository}) =>
+      _revise(store.getReadingGoal(id)!, archived: true, active: false, repository: repository);
+
+  Future<void> restoreGoal(String id, {TrackingRepository? repository}) =>
+      _revise(store.getReadingGoal(id)!, archived: false, active: true, repository: repository);
+
+  Future<void> deleteGoal(String id, {TrackingRepository? repository}) async {
+    await _sealPeriods();
+    final goal = store.getReadingGoal(id);
+
+    if (goal == null) {
+      return;
     }
 
-    final goal = _dataStore!.getReadingGoal(goalId);
-    if (goal != null) {
-      _dataStore!.updateReadingGoal(goal.copyWith(targetValue: target ?? goal.targetValue, type: type ?? goal.type));
-    }
+    final period = GoalCalendar.currentPeriod(goal, now);
+
+    final record = GoalPeriodRecord(
+      id: const Uuid().v5(Namespace.url.value, 'papyrus:goal-period:$id:${period.start.microsecondsSinceEpoch}'),
+      goalId: id,
+      definition: goal.copyWith(
+        startDate: period.start,
+        endDate: now.isBefore(period.end) ? now : period.end,
+        isRecurring: false,
+        isArchived: true,
+        isActive: false,
+        rules: [
+          ...goal.rules,
+          GoalRule(
+            at: goal.rules.isNotEmpty && !now.isAfter(goal.rules.last.at)
+                ? goal.rules.last.at.add(const Duration(microseconds: 1))
+                : now,
+            target: goal.targetValue,
+            title: goal.title,
+            active: false,
+            archived: true,
+          ),
+        ],
+      ),
+    );
+
+    await store.commitTracking(periods: [record], deleteGoalId: id, repository: repository);
   }
 
-  /// Archives (completes) a goal. Persists to DataStore.
-  Future<void> archiveGoal(String goalId) async {
-    if (_dataStore == null) {
-      throw Exception('DataStore not attached');
+  Future<void> logReading({
+    required Book book,
+    required DateTime end,
+    int minutes = 0,
+    int pages = 0,
+    bool finished = false,
+    String? note,
+    ReadingActivity? correcting,
+    TrackingRepository? repository,
+  }) async {
+    if (end.isAfter(now) || minutes < 0 || pages < 0 || minutes == 0 && pages == 0 && !finished) {
+      throw ArgumentError('Choose a past time and enter reading time, pages, or completion.');
     }
 
-    final goal = _dataStore!.getReadingGoal(goalId);
-    if (goal != null) {
-      _dataStore!.updateReadingGoal(goal.copyWith(isArchived: true, completedAt: DateTime.now()));
+    final created = now;
+    final shelfIds = correcting?.shelfIds ?? store.getShelfIdsForBook(book.id);
+
+    final activities = <ReadingActivity>[
+      if (correcting != null) store.reversalFor(correcting, note: 'Corrected entry'),
+    ];
+
+    if (minutes > 0 || pages > 0) {
+      activities.add(
+        ReadingActivity(
+          id: const Uuid().v4(),
+          bookId: book.id,
+          bookTitle: book.title,
+          startTime: end.subtract(Duration(minutes: minutes)),
+          endTime: end,
+          createdAt: created,
+          deviceId: ReadingDeviceIdentity.current,
+          pages: pages,
+          shelfIds: shelfIds,
+          note: note,
+        ),
+      );
     }
+
+    if (finished) {
+      activities.add(
+        ReadingActivity(
+          id: const Uuid().v4(),
+          bookId: book.id,
+          bookTitle: book.title,
+          startTime: end,
+          endTime: end,
+          createdAt: created,
+          deviceId: ReadingDeviceIdentity.current,
+          kind: 'completion',
+          shelfIds: shelfIds,
+          note: note,
+        ),
+      );
+    }
+
+    final anotherCompletion = store.effectiveReadingActivities.any(
+      (activity) => activity.bookId == book.id && activity.kind == 'completion' && activity.id != correcting?.id,
+    );
+
+    final updated = switch (finished) {
+      true => book.copyWith(readingStatus: LibraryReadingStatus.completed, completedAt: end),
+      false when correcting?.kind == 'completion' && !anotherCompletion => book.copyWith(
+        readingStatus: LibraryReadingStatus.inProgress,
+        clearCompletedAt: true,
+      ),
+      false => book.copyWith(
+        lastReadAt: book.lastReadAt != null && book.lastReadAt!.isAfter(end) ? book.lastReadAt : end,
+      ),
+    };
+
+    await store.commitTracking(activities: activities, book: updated, previousBook: book, repository: repository);
   }
 
-  /// Refreshes goals data.
-  Future<void> refresh() async {
-    await loadGoals();
+  Future<void> reverseActivity(ReadingActivity original, {TrackingRepository? repository}) async {
+    final book = store.getBook(original.bookId);
+
+    final anotherCompletion = store.effectiveReadingActivities.any(
+      (activity) => activity.bookId == original.bookId && activity.kind == 'completion' && activity.id != original.id,
+    );
+
+    await store.commitTracking(
+      activities: [
+        for (final entry in store.effectiveReadingActivities.where(
+          (activity) => activity.id == original.id || original.constituentIds.contains(activity.id),
+        ))
+          store.reversalFor(entry, note: 'Undone from activity history'),
+      ],
+      book: original.kind == 'completion' && book?.readingStatus == LibraryReadingStatus.completed && !anotherCompletion
+          ? book!.copyWith(readingStatus: LibraryReadingStatus.inProgress, clearCompletedAt: true)
+          : null,
+      previousBook: book,
+      repository: repository,
+    );
   }
 
-  // ============================================================================
-  // PRIVATE HELPERS
-  // ============================================================================
-
-  DateTime _getStartDateForPeriod(GoalPeriod period, DateTime now) {
-    switch (period) {
-      case GoalPeriod.daily:
-        return DateTime(now.year, now.month, now.day);
-      case GoalPeriod.weekly:
-        return now.subtract(Duration(days: now.weekday - 1));
-      case GoalPeriod.monthly:
-        return DateTime(now.year, now.month, 1);
-      case GoalPeriod.yearly:
-        return DateTime(now.year, 1, 1);
-      case GoalPeriod.custom:
-        return now; // Should be provided by caller
-    }
-  }
-
-  DateTime _getEndDateForPeriod(GoalPeriod period, DateTime now) {
-    switch (period) {
-      case GoalPeriod.daily:
-        return DateTime(now.year, now.month, now.day, 23, 59, 59);
-      case GoalPeriod.weekly:
-        return now.add(Duration(days: 7 - now.weekday));
-      case GoalPeriod.monthly:
-        return DateTime(now.year, now.month + 1, 0);
-      case GoalPeriod.yearly:
-        return DateTime(now.year, 12, 31);
-      case GoalPeriod.custom:
-        return now.add(const Duration(days: 30)); // Should be provided by caller
-    }
+  @override
+  void dispose() {
+    _clock?.cancel();
+    _store?.removeListener(_changed);
+    _store = null;
+    super.dispose();
   }
 }

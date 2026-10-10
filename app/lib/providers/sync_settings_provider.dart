@@ -6,8 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum SyncServerType { official, custom }
-
 typedef DataSyncDiscoveryFetcher = Future<DataSyncDiscoverySettings> Function(Uri serverUrl);
 
 class SyncSettingsException implements Exception {
@@ -27,13 +25,13 @@ class DataSyncDiscoverySettings {
 
   factory DataSyncDiscoverySettings.fromJson(Map<String, dynamic> json) {
     final dataSyncUrl = json['data_sync_url'] as String?;
+
     if (dataSyncUrl == null || dataSyncUrl.trim().isEmpty) {
       throw const SyncSettingsException('Server did not provide data sync settings');
     }
 
     final fileStorage = json['file_storage'];
     final quotaBytes = fileStorage is Map<String, dynamic> ? fileStorage['quota_bytes'] as int? : null;
-
     return DataSyncDiscoverySettings(dataSyncUri: Uri.parse(dataSyncUrl), fileStorageQuotaBytes: quotaBytes);
   }
 }
@@ -80,30 +78,30 @@ class SyncSettingsProvider extends ChangeNotifier {
 
   static const _keyActiveServerId = 'sync_active_server_id';
   static const _keyCustomServers = 'sync_custom_servers';
-  static const _legacyKeyServerType = 'sync_server_type';
-  static const _legacyKeyCustomApiUrl = 'sync_custom_api_url';
-  static const _legacyKeyCustomPowerSyncUrl = 'sync_custom_powersync_url';
 
   final SharedPreferences _prefs;
   final DataSyncDiscoveryFetcher _discoveryFetcher;
   final PapyrusApiConfig officialConfig;
 
   SyncSettingsProvider(this._prefs, {required this.officialConfig, DataSyncDiscoveryFetcher? discoveryFetcher})
-    : _discoveryFetcher = discoveryFetcher ?? _fetchDataSyncSettings {
-    _migrateLegacyCustomServer();
-  }
+    : _discoveryFetcher = discoveryFetcher ?? _fetchDataSyncSettings;
 
   String get activeServerId {
     final id = _prefs.getString(_keyActiveServerId) ?? officialServerId;
+
     if (id == officialServerId || customServers.any((server) => server.id == id)) {
       return id;
     }
+
     return officialServerId;
   }
 
   List<CustomSyncServer> get customServers {
     final raw = _prefs.getString(_keyCustomServers);
-    if (raw == null || raw.isEmpty) return const [];
+
+    if (raw == null || raw.isEmpty) {
+      return const [];
+    }
 
     final decoded = jsonDecode(raw) as List<dynamic>;
     return decoded.map((item) => CustomSyncServer.fromJson(item as Map<String, dynamic>)).toList(growable: false);
@@ -111,10 +109,17 @@ class SyncSettingsProvider extends ChangeNotifier {
 
   CustomSyncServer? get activeCustomServer {
     final id = activeServerId;
-    if (id == officialServerId) return null;
-    for (final server in customServers) {
-      if (server.id == id) return server;
+
+    if (id == officialServerId) {
+      return null;
     }
+
+    for (final server in customServers) {
+      if (server.id == id) {
+        return server;
+      }
+    }
+
     return null;
   }
 
@@ -124,14 +129,20 @@ class SyncSettingsProvider extends ChangeNotifier {
 
   PapyrusApiConfig get activeApiConfig {
     final customServer = activeCustomServer;
-    if (customServer == null) return officialConfig;
+
+    if (customServer == null) {
+      return officialConfig;
+    }
 
     return PapyrusApiConfig(serverBaseUri: Uri.parse(customServer.url), powerSyncServiceUri: customServer.dataSyncUri);
   }
 
   String get activeProfileKey {
     final customServer = activeCustomServer;
-    if (customServer == null) return officialServerId;
+
+    if (customServer == null) {
+      return officialServerId;
+    }
 
     final digest = sha256.convert(utf8.encode(customServer.url)).toString();
     return 'custom-${digest.substring(0, 16)}';
@@ -143,7 +154,10 @@ class SyncSettingsProvider extends ChangeNotifier {
 
   String fileStorageLabel({required int usedBytes, int? quotaBytesOverride}) {
     final quotaBytes = quotaBytesOverride ?? fileStorageQuotaBytes;
-    if (quotaBytes == null) return '${_formatBytes(usedBytes)} used';
+
+    if (quotaBytes == null) {
+      return '${_formatBytes(usedBytes)} used';
+    }
 
     final availableBytes = quotaBytes > usedBytes ? quotaBytes - usedBytes : 0;
     return '${_formatBytes(usedBytes)} used, ${_formatBytes(availableBytes)} available of ${_formatBytes(quotaBytes)}';
@@ -155,6 +169,7 @@ class SyncSettingsProvider extends ChangeNotifier {
     final serverUri = _normalizeServerUri(url);
     final normalizedUrl = serverUri.toString();
     final servers = customServers;
+
     if (servers.any((server) => server.url == normalizedUrl)) {
       throw const SyncSettingsException('This custom server already exists');
     }
@@ -170,10 +185,14 @@ class SyncSettingsProvider extends ChangeNotifier {
   Future<CustomSyncServer> updateCustomServer(String id, String url) async {
     final servers = customServers;
     final index = servers.indexWhere((server) => server.id == id);
-    if (index == -1) throw const SyncSettingsException('Custom server was not found');
+
+    if (index == -1) {
+      throw const SyncSettingsException('Custom server was not found');
+    }
 
     final serverUri = _normalizeServerUri(url);
     final normalizedUrl = serverUri.toString();
+
     if (servers.any((server) => server.id != id && server.url == normalizedUrl)) {
       throw const SyncSettingsException('This custom server already exists');
     }
@@ -182,7 +201,11 @@ class SyncSettingsProvider extends ChangeNotifier {
     final updated = _customServerFromDiscovery(serverUri, settings);
     final nextServers = [...servers]..[index] = updated;
     _saveCustomServers(nextServers);
-    if (activeServerId == id) _setActiveServerId(updated.id);
+
+    if (activeServerId == id) {
+      _setActiveServerId(updated.id);
+    }
+
     notifyListeners();
     return updated;
   }
@@ -198,79 +221,23 @@ class SyncSettingsProvider extends ChangeNotifier {
 
   void removeCustomServer(String id) {
     final nextServers = customServers.where((server) => server.id != id).toList(growable: false);
+
     if (nextServers.length == customServers.length) {
       throw const SyncSettingsException('Custom server was not found');
     }
 
     _saveCustomServers(nextServers);
-    if (activeServerId == id) _setActiveServerId(officialServerId);
+
+    if (activeServerId == id) {
+      _setActiveServerId(officialServerId);
+    }
+
     notifyListeners();
-  }
-
-  @Deprecated('Use activeServerId instead.')
-  SyncServerType get serverType => activeServerId == officialServerId ? SyncServerType.official : SyncServerType.custom;
-
-  @Deprecated('Use selectServer instead.')
-  set serverType(SyncServerType value) {
-    if (value == SyncServerType.official) {
-      selectServer(officialServerId);
-      return;
-    }
-    if (customServers.isEmpty) {
-      throw const SyncSettingsException('Custom server was not found');
-    }
-    selectServer(customServers.first.id);
-  }
-
-  @Deprecated('Use customServers instead.')
-  String get customApiUrl => activeCustomServer?.url ?? '';
-
-  @Deprecated('Use customServers instead.')
-  String get customPowerSyncUrl => activeCustomServer?.dataSyncUri.toString() ?? '';
-
-  @Deprecated('Use addCustomServer instead.')
-  void setCustomServerUrls({required String apiUrl, required String powerSyncUrl}) {
-    final serverUri = _normalizeServerUri(apiUrl);
-    final dataSyncUri = _normalizeServerUri(powerSyncUrl);
-    final server = CustomSyncServer(
-      id: _customServerId(serverUri.toString()),
-      url: serverUri.toString(),
-      label: _labelForServerUri(serverUri),
-      dataSyncUri: dataSyncUri,
-      fileStorageQuotaBytes: null,
-    );
-    _saveCustomServers([server]);
-    _setActiveServerId(server.id);
-    notifyListeners();
-  }
-
-  void _migrateLegacyCustomServer() {
-    if (customServers.isNotEmpty) return;
-
-    final legacyApiUrl = _prefs.getString(_legacyKeyCustomApiUrl);
-    final legacyDataSyncUrl = _prefs.getString(_legacyKeyCustomPowerSyncUrl);
-    if (legacyApiUrl == null || legacyApiUrl.isEmpty || legacyDataSyncUrl == null || legacyDataSyncUrl.isEmpty) {
-      return;
-    }
-
-    final serverUri = _normalizeServerUri(legacyApiUrl);
-    final dataSyncUri = _normalizeServerUri(legacyDataSyncUrl);
-    final server = CustomSyncServer(
-      id: _customServerId(serverUri.toString()),
-      url: serverUri.toString(),
-      label: _labelForServerUri(serverUri),
-      dataSyncUri: dataSyncUri,
-      fileStorageQuotaBytes: null,
-    );
-
-    _saveCustomServers([server]);
-    if (_prefs.getString(_legacyKeyServerType) == SyncServerType.custom.name) {
-      _setActiveServerId(server.id);
-    }
   }
 
   CustomSyncServer _customServerFromDiscovery(Uri serverUri, DataSyncDiscoverySettings settings) {
     final normalizedUrl = serverUri.toString();
+
     return CustomSyncServer(
       id: _customServerId(normalizedUrl),
       url: normalizedUrl,
@@ -290,15 +257,21 @@ class SyncSettingsProvider extends ChangeNotifier {
 
   static Future<DataSyncDiscoverySettings> _fetchDataSyncSettings(Uri serverUrl) async {
     final client = http.Client();
+
     try {
       final config = PapyrusApiConfig(serverBaseUri: serverUrl);
       final response = await client.get(config.endpoint('/sync/settings'), headers: {'Accept': 'application/json'});
+
       if (response.statusCode < 200 || response.statusCode >= 300) {
         throw const SyncSettingsException('Server settings could not be loaded');
       }
+
       return DataSyncDiscoverySettings.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
     } catch (error) {
-      if (error is SyncSettingsException) rethrow;
+      if (error is SyncSettingsException) {
+        rethrow;
+      }
+
       throw const SyncSettingsException('Server settings could not be loaded');
     } finally {
       client.close();
@@ -332,14 +305,26 @@ class SyncSettingsProvider extends ChangeNotifier {
     const mib = 1024 * 1024;
     const gib = 1024 * mib;
 
-    if (bytes >= gib) return '${_formatByteValue(bytes / gib)} GB';
-    if (bytes == 0) return '0 MB';
+    if (bytes >= gib) {
+      return '${_formatByteValue(bytes / gib)} GB';
+    }
+
+    if (bytes == 0) {
+      return '0 MB';
+    }
+
     return '${_formatByteValue(bytes / mib)} MB';
   }
 
   String _formatByteValue(double value) {
-    if (value == value.roundToDouble()) return value.round().toString();
-    if (value >= 10) return value.toStringAsFixed(1);
+    if (value == value.roundToDouble()) {
+      return value.round().toString();
+    }
+
+    if (value >= 10) {
+      return value.toStringAsFixed(1);
+    }
+
     return value.toStringAsFixed(2);
   }
 }

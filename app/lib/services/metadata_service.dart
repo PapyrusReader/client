@@ -57,9 +57,31 @@ class MetadataService {
 
   MetadataService({http.Client? client}) : _client = client ?? http.Client();
 
+  static Uri _openLibrarySearchUri(String query, {int limit = 10}) {
+    return Uri.parse('https://openlibrary.org/search.json?q=${Uri.encodeComponent(query)}&limit=$limit');
+  }
+
+  static Uri _openLibraryIsbnUri(String isbn, {int limit = 5}) {
+    return Uri.parse('https://openlibrary.org/search.json?isbn=$isbn&limit=$limit');
+  }
+
+  static Uri _googleBooksSearchUri(String query, {int limit = 10}) {
+    return Uri.parse('https://www.googleapis.com/books/v1/volumes?q=${Uri.encodeComponent(query)}&maxResults=$limit');
+  }
+
+  static Uri _googleBooksIsbnUri(String isbn, {int limit = 5}) {
+    return Uri.parse('https://www.googleapis.com/books/v1/volumes?q=isbn:$isbn&maxResults=$limit');
+  }
+
+  static String _openLibraryCoverUrl(Object coverId) {
+    return 'https://covers.openlibrary.org/b/id/$coverId-L.jpg';
+  }
+
   /// Search for books by query (title, author, or general search).
   Future<List<BookMetadataResult>> search(String query, MetadataSource source) async {
-    if (query.trim().isEmpty) return [];
+    if (query.trim().isEmpty) {
+      return [];
+    }
 
     switch (source) {
       case MetadataSource.openLibrary:
@@ -72,7 +94,10 @@ class MetadataService {
   /// Search for a book by ISBN.
   Future<List<BookMetadataResult>> searchByIsbn(String isbn, MetadataSource source) async {
     final cleanIsbn = isbn.replaceAll(RegExp(r'[-\s]'), '');
-    if (cleanIsbn.isEmpty) return [];
+
+    if (cleanIsbn.isEmpty) {
+      return [];
+    }
 
     switch (source) {
       case MetadataSource.openLibrary:
@@ -82,139 +107,133 @@ class MetadataService {
     }
   }
 
-  // ============================================================================
-  // OPEN LIBRARY API
-  // ============================================================================
-
   Future<List<BookMetadataResult>> _searchOpenLibrary(String query) async {
     try {
-      final uri = Uri.parse('https://openlibrary.org/search.json?q=${Uri.encodeComponent(query)}&limit=10');
+      final uri = _openLibrarySearchUri(query);
       final response = await _client.get(uri);
 
-      if (response.statusCode != 200) return [];
+      if (response.statusCode != 200) {
+        return [];
+      }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final docs = data['docs'] as List<dynamic>? ?? [];
-
-      return docs.map((doc) => _parseOpenLibraryDoc(doc)).toList();
-    } catch (e) {
+      return docs.map((document) => _parseOpenLibraryDoc(document)).toList();
+    } catch (error) {
       return [];
     }
   }
 
   Future<List<BookMetadataResult>> _searchOpenLibraryByIsbn(String isbn) async {
     try {
-      final uri = Uri.parse('https://openlibrary.org/search.json?isbn=$isbn&limit=5');
+      final uri = _openLibraryIsbnUri(isbn);
       final response = await _client.get(uri);
 
-      if (response.statusCode != 200) return [];
+      if (response.statusCode != 200) {
+        return [];
+      }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final docs = data['docs'] as List<dynamic>? ?? [];
-
-      return docs.map((doc) => _parseOpenLibraryDoc(doc)).toList();
-    } catch (e) {
+      return docs.map((document) => _parseOpenLibraryDoc(document)).toList();
+    } catch (error) {
       return [];
     }
   }
 
-  BookMetadataResult _parseOpenLibraryDoc(Map<String, dynamic> doc) {
-    // Get cover URL from cover_i (cover ID)
+  BookMetadataResult _parseOpenLibraryDoc(Map<String, dynamic> document) {
     String? coverUrl;
-    final coverId = doc['cover_i'];
+    final coverId = document['cover_i'];
+
     if (coverId != null) {
-      coverUrl = 'https://covers.openlibrary.org/b/id/$coverId-L.jpg';
+      coverUrl = _openLibraryCoverUrl(coverId);
     }
 
-    // Get ISBNs
-    final isbns = doc['isbn'] as List<dynamic>?;
+    final isbns = document['isbn'] as List<dynamic>?;
     String? isbn;
     String? isbn13;
+
     if (isbns != null && isbns.isNotEmpty) {
-      for (final i in isbns) {
-        final isbnStr = i.toString();
-        if (isbnStr.length == 10 && isbn == null) {
-          isbn = isbnStr;
-        } else if (isbnStr.length == 13 && isbn13 == null) {
-          isbn13 = isbnStr;
+      for (final identifier in isbns) {
+        final isbnValue = identifier.toString();
+
+        if (isbnValue.length == 10 && isbn == null) {
+          isbn = isbnValue;
+        } else if (isbnValue.length == 13 && isbn13 == null) {
+          isbn13 = isbnValue;
         }
       }
     }
 
     return BookMetadataResult(
       source: MetadataSource.openLibrary,
-      title: doc['title'] as String?,
-      subtitle: doc['subtitle'] as String?,
-      authors: (doc['author_name'] as List<dynamic>?)?.cast<String>(),
-      publisher: (doc['publisher'] as List<dynamic>?)?.firstOrNull as String?,
-      publishedDate: doc['first_publish_year']?.toString(),
+      title: document['title'] as String?,
+      subtitle: document['subtitle'] as String?,
+      authors: (document['author_name'] as List<dynamic>?)?.cast<String>(),
+      publisher: (document['publisher'] as List<dynamic>?)?.firstOrNull as String?,
+      publishedDate: document['first_publish_year']?.toString(),
       description: null, // Open Library search doesn't include description
       coverUrl: coverUrl,
-      language: (doc['language'] as List<dynamic>?)?.firstOrNull as String?,
+      language: (document['language'] as List<dynamic>?)?.firstOrNull as String?,
       isbn: isbn,
       isbn13: isbn13,
-      pageCount: doc['number_of_pages_median'] as int?,
+      pageCount: document['number_of_pages_median'] as int?,
     );
   }
 
-  // ============================================================================
-  // GOOGLE BOOKS API
-  // ============================================================================
-
   Future<List<BookMetadataResult>> _searchGoogleBooks(String query) async {
     try {
-      final uri = Uri.parse(
-        'https://www.googleapis.com/books/v1/volumes?q=${Uri.encodeComponent(query)}&maxResults=10',
-      );
+      final uri = _googleBooksSearchUri(query);
       final response = await _client.get(uri);
 
-      if (response.statusCode != 200) return [];
+      if (response.statusCode != 200) {
+        return [];
+      }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final items = data['items'] as List<dynamic>? ?? [];
-
       return items.map((item) => _parseGoogleBooksItem(item)).toList();
-    } catch (e) {
+    } catch (error) {
       return [];
     }
   }
 
   Future<List<BookMetadataResult>> _searchGoogleBooksByIsbn(String isbn) async {
     try {
-      final uri = Uri.parse('https://www.googleapis.com/books/v1/volumes?q=isbn:$isbn&maxResults=5');
+      final uri = _googleBooksIsbnUri(isbn);
       final response = await _client.get(uri);
 
-      if (response.statusCode != 200) return [];
+      if (response.statusCode != 200) {
+        return [];
+      }
 
       final data = jsonDecode(response.body) as Map<String, dynamic>;
       final items = data['items'] as List<dynamic>? ?? [];
-
       return items.map((item) => _parseGoogleBooksItem(item)).toList();
-    } catch (e) {
+    } catch (error) {
       return [];
     }
   }
 
   BookMetadataResult _parseGoogleBooksItem(Map<String, dynamic> item) {
     final volumeInfo = item['volumeInfo'] as Map<String, dynamic>? ?? {};
-
-    // Get cover URL (prefer larger images)
     String? coverUrl;
     final imageLinks = volumeInfo['imageLinks'] as Map<String, dynamic>?;
+
     if (imageLinks != null) {
       coverUrl =
           imageLinks['large'] as String? ?? imageLinks['medium'] as String? ?? imageLinks['thumbnail'] as String?;
-      // Convert HTTP to HTTPS
       coverUrl = coverUrl?.replaceFirst('http://', 'https://');
     }
 
-    // Get ISBNs from industry identifiers
     String? isbn;
     String? isbn13;
     final identifiers = volumeInfo['industryIdentifiers'] as List<dynamic>? ?? [];
+
     for (final id in identifiers) {
       final type = id['type'] as String?;
       final identifier = id['identifier'] as String?;
+
       if (type == 'ISBN_10') {
         isbn = identifier;
       } else if (type == 'ISBN_13') {

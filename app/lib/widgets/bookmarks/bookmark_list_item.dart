@@ -160,25 +160,38 @@ class _BookmarkListItemState extends State<BookmarkListItem> {
     final now = DateTime.now();
     final diff = now.difference(date);
 
-    if (diff.inMinutes < 1) return 'Just now';
+    if (diff.inMinutes < 1) {
+      return 'Just now';
+    }
+
     if (diff.inMinutes < 60) {
       final m = diff.inMinutes;
       return '$m ${m == 1 ? 'minute' : 'minutes'} ago';
     }
+
     if (diff.inHours < 24) {
       final h = diff.inHours;
       return '$h ${h == 1 ? 'hour' : 'hours'} ago';
     }
-    if (diff.inDays == 1) return 'Yesterday';
-    if (diff.inDays < 7) return '${diff.inDays} days ago';
+
+    if (diff.inDays == 1) {
+      return 'Yesterday';
+    }
+
+    if (diff.inDays < 7) {
+      return '${diff.inDays} days ago';
+    }
+
     if (diff.inDays < 30) {
       final w = diff.inDays ~/ 7;
       return '$w ${w == 1 ? 'week' : 'weeks'} ago';
     }
+
     if (diff.inDays < 365) {
       final m = diff.inDays ~/ 30;
       return '$m ${m == 1 ? 'month' : 'months'} ago';
     }
+
     final y = diff.inDays ~/ 365;
     return '$y ${y == 1 ? 'year' : 'years'} ago';
   }

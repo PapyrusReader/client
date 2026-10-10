@@ -10,6 +10,7 @@ class BookAccountStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     final (label, icon, foreground, background) = switch (status) {
       BookAccountStatus.saved => (
         'Saved',

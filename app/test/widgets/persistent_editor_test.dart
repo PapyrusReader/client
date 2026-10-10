@@ -20,6 +20,7 @@ void main() {
       ) async {
         final write = Completer<void>();
         var calls = 0;
+
         Future<void> save() {
           calls++;
           return write.future;
@@ -63,15 +64,20 @@ void main() {
             ),
           ),
         );
+
         await tester.tap(find.text('Open'));
         await tester.pumpAndSettle();
+
         if (kind == 'shelf' || kind == 'topic' || kind == 'note') {
           await tester.enterText(find.byType(TextFormField).first, 'Name');
         }
+
         if (kind == 'note') {
           await tester.enterText(find.byKey(const Key('note-content-field')), 'Content');
         }
+
         await tester.pump();
+
         final button = find.widgetWithText(
           FilledButton,
           kind == 'shelf'
@@ -80,6 +86,7 @@ void main() {
               ? 'Create topic'
               : 'Save',
         );
+
         await tester.ensureVisible(button);
         await tester.tap(button);
         await tester.pump();
@@ -92,8 +99,10 @@ void main() {
         } else {
           write.complete();
         }
+
         await tester.pumpAndSettle();
         expect(button, fails ? findsOneWidget : findsNothing);
+
         if (fails) {
           expect(find.text('Could not save changes. Please try again.'), findsOneWidget);
           expect(tester.widget<FilledButton>(button).onPressed, isNotNull);

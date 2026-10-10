@@ -29,9 +29,7 @@ void main() {
   group('buildAcquisitionLibraryItems', () {
     test('links an active job to its synchronized book', () {
       final job = _job(id: 'job-1', bookId: 'book-1');
-
       final items = buildAcquisitionLibraryItems(books: [_book('book-1')], jobs: [job]);
-
       expect(items.linkedJobsByBookId, {'book-1': job});
       expect(items.orphanJobs, isEmpty);
       expect(items.downloadingBookIds, {'book-1'});
@@ -41,9 +39,7 @@ void main() {
 
     test('keeps an active orphan as a placeholder', () {
       final job = _job(id: 'job-1', bookId: null);
-
       final items = buildAcquisitionLibraryItems(books: const [], jobs: [job]);
-
       expect(items.linkedJobsByBookId, isEmpty);
       expect(items.orphanJobs, [job]);
       expect(items.downloadingBookIds, isEmpty);
@@ -53,10 +49,8 @@ void main() {
 
     test('does not resurrect a completed job as an orphan placeholder', () {
       final job = _job(id: 'job-1', bookId: 'book-1', status: AcquisitionJobStatus.completed);
-
       final pendingItems = buildAcquisitionLibraryItems(books: const [], jobs: [job]);
       final synchronizedItems = buildAcquisitionLibraryItems(books: [_book('book-1')], jobs: [job]);
-
       expect(pendingItems.orphanJobs, isEmpty);
       expect(pendingItems.hasDownloadingItems, isFalse);
       expect(synchronizedItems.linkedJobsByBookId, isEmpty);
@@ -66,9 +60,7 @@ void main() {
 
     test('keeps cancelled orphan in All until removal', () {
       final job = _job(id: 'job-1', bookId: null, status: AcquisitionJobStatus.cancelled);
-
       final items = buildAcquisitionLibraryItems(books: const [], jobs: [job]);
-
       expect(items.orphanJobs, [job]);
       expect(items.downloadingOrphanJobs, isEmpty);
       expect(items.hasDownloadingItems, isFalse);
@@ -76,9 +68,7 @@ void main() {
 
     test('does not create a placeholder for a synchronized book', () {
       final job = _job(id: 'job-1', bookId: 'book-1');
-
       final items = buildAcquisitionLibraryItems(books: [_book('book-1')], jobs: [job]);
-
       expect(items.linkedJobsByBookId.values, [job]);
       expect(items.orphanJobs, isEmpty);
       expect(items.downloadingOrphanJobs, isEmpty);
@@ -88,9 +78,7 @@ void main() {
       final first = _job(id: 'job-1', bookId: 'pending-book');
       final duplicateId = _job(id: 'job-1', bookId: null);
       final duplicateBook = _job(id: 'job-2', bookId: 'pending-book');
-
       final items = buildAcquisitionLibraryItems(books: const [], jobs: [first, duplicateId, duplicateBook]);
-
       expect(items.orphanJobs, [first]);
       expect(items.downloadingOrphanJobs, [first]);
     });

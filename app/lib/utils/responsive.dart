@@ -10,18 +10,16 @@ enum DeviceType { mobile, tablet, desktop }
 class Responsive {
   Responsive._();
 
-  // ===========================================================================
-  // BREAKPOINT DETECTION
-  // ===========================================================================
-
   /// Get the current device type based on screen width
   static DeviceType getDeviceType(BuildContext context) {
     final width = MediaQuery.of(context).size.width;
+
     if (width >= Breakpoints.desktopSmall) {
       return DeviceType.desktop;
     } else if (width >= Breakpoints.tablet) {
       return DeviceType.tablet;
     }
+
     return DeviceType.mobile;
   }
 
@@ -55,58 +53,71 @@ class Responsive {
     return MediaQuery.of(context).size.width >= Breakpoints.desktopLarge;
   }
 
-  // ===========================================================================
-  // PLATFORM DETECTION
-  // ===========================================================================
-
   /// Check if running on web
   static bool get isWeb => kIsWeb;
 
   /// Check if running on mobile platform (iOS or Android)
   static bool get isMobilePlatform {
-    if (kIsWeb) return false;
+    if (kIsWeb) {
+      return false;
+    }
+
     return Platform.isIOS || Platform.isAndroid;
   }
 
   /// Check if running on desktop platform (Windows, macOS, Linux)
   static bool get isDesktopPlatform {
-    if (kIsWeb) return false;
+    if (kIsWeb) {
+      return false;
+    }
+
     return Platform.isWindows || Platform.isMacOS || Platform.isLinux;
   }
 
   /// Check if running on iOS
   static bool get isIOS {
-    if (kIsWeb) return false;
+    if (kIsWeb) {
+      return false;
+    }
+
     return Platform.isIOS;
   }
 
   /// Check if running on Android
   static bool get isAndroid {
-    if (kIsWeb) return false;
+    if (kIsWeb) {
+      return false;
+    }
+
     return Platform.isAndroid;
   }
 
   /// Check if running on Windows
   static bool get isWindows {
-    if (kIsWeb) return false;
+    if (kIsWeb) {
+      return false;
+    }
+
     return Platform.isWindows;
   }
 
   /// Check if running on macOS
   static bool get isMacOS {
-    if (kIsWeb) return false;
+    if (kIsWeb) {
+      return false;
+    }
+
     return Platform.isMacOS;
   }
 
   /// Check if running on Linux
   static bool get isLinux {
-    if (kIsWeb) return false;
+    if (kIsWeb) {
+      return false;
+    }
+
     return Platform.isLinux;
   }
-
-  // ===========================================================================
-  // RESPONSIVE VALUES
-  // ===========================================================================
 
   /// Get page margin based on device type
   static double getPageMargin(BuildContext context) {

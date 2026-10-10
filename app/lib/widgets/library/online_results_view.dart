@@ -69,6 +69,7 @@ class OnlineResultsView extends StatelessWidget {
 
     if (releases.isEmpty) {
       final trimmedQuery = query.trim();
+
       final subtitle = trimmedQuery.isEmpty
           ? 'Try another title or author.'
           : 'No releases found for “$trimmedQuery”. Try another title or author.';

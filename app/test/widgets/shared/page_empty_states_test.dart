@@ -25,6 +25,7 @@ void main() {
             tester.view.physicalSize = Size(width, 900);
             addTearDown(tester.view.reset);
             var calls = 0;
+
             final tabs = [
               (BookNotes(notes: const [], onAddNote: () => calls++), Icons.note_outlined, 'Add note'),
               (
@@ -43,6 +44,7 @@ void main() {
                 'Add annotation',
               ),
             ];
+
             for (final (tab, icon, action) in tabs) {
               await tester.pumpWidget(
                 MaterialApp(
@@ -53,9 +55,11 @@ void main() {
                   ),
                 ),
               );
+
               await tester.pumpAndSettle();
               expect(tester.takeException(), isNull);
               expect(tester.getTopLeft(find.byIcon(icon)).dy, Spacing.xl);
+
               if (isPhysical || action == 'Add note') {
                 expect(find.text(action).hitTestable(), findsOneWidget);
                 await tester.tap(find.text(action));
@@ -63,6 +67,7 @@ void main() {
                 expect(find.text(action), findsNothing);
               }
             }
+
             expect(calls, isPhysical ? 3 : 1);
           },
         );
@@ -93,17 +98,21 @@ void main() {
             ),
           ),
         );
+
         expect(tester.takeException(), isNull);
         expect(find.byType(EmptyState), findsOneWidget);
         final title = tester.widget<Text>(find.text(entry.key));
         expect(title.style?.color, theme.colorScheme.onSurfaceVariant);
         expect(title.textAlign, TextAlign.center);
+
         // The original card message/action can still be reached when it is tall.
         for (final scroll in tester.stateList<ScrollableState>(find.byType(Scrollable))) {
           scroll.position.jumpTo(scroll.position.maxScrollExtent);
         }
+
         await tester.pump();
         final action = find.byType(EmptyStateAction);
+
         if (action.evaluate().isNotEmpty) {
           expect(find.descendant(of: action, matching: find.byType(FilledButton)).hitTestable(), findsOneWidget);
         }
@@ -130,9 +139,11 @@ void main() {
         ),
       ),
     );
+
     expect(tester.takeException(), isNull);
     expect(find.text('Browse library').hitTestable(), findsOneWidget);
     expect(find.text('Set a goal').hitTestable(), findsOneWidget);
+
     expect(
       tester.getSize(find.byType(ContinueReadingCard)).height,
       tester.getSize(find.byType(ReadingGoalCard)).height,

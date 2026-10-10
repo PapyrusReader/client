@@ -17,15 +17,19 @@ Future<void> deleteBookWithMediaCleanup({
 }) async {
   await mediaUploadQueue.removeTasksForBook(bookId);
   await _bestEffort(() => deleteBookFile(bookId));
+
   if (deletePendingCover != null) {
     await _bestEffort(() => deletePendingCover(bookId));
   }
+
   if (deleteGuestCover != null) {
     await _bestEffort(() => deleteGuestCover(bookId));
   }
+
   if (coverMediaId != null && deleteCoverFile != null) {
     await _bestEffort(() => deleteCoverFile(coverMediaId));
   }
+
   dataStore.deleteBook(bookId);
 }
 

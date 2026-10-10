@@ -123,6 +123,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
 
   Future<void> _onScanBarcode() async {
     final isbn = await IsbnScannerDialog.show(context);
+
     if (isbn != null && isbn.isNotEmpty && mounted) {
       _isbnController.text = isbn;
       _lookupIsbn(isbn);
@@ -130,7 +131,9 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
   }
 
   Future<void> _lookupIsbn(String isbn) async {
-    if (isbn.trim().isEmpty) return;
+    if (isbn.trim().isEmpty) {
+      return;
+    }
 
     setState(() {
       _lookupState = _IsbnLookupState.fetching;
@@ -146,42 +149,58 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
         results = await _metadataService.searchByIsbn(isbn.trim(), MetadataSource.googleBooks);
       }
 
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
 
       if (results.isNotEmpty) {
         final result = results.first;
+
         setState(() {
-          if (result.title != null) _titleController.text = result.title!;
+          if (result.title != null) {
+            _titleController.text = result.title!;
+          }
+
           if (result.primaryAuthor.isNotEmpty) {
             _authorController.text = result.primaryAuthor;
           }
+
           if (result.subtitle != null) {
             _subtitleController.text = result.subtitle!;
           }
+
           if (result.publisher != null) {
             _publisherController.text = result.publisher!;
           }
+
           if (result.pageCount != null) {
             _pageCountController.text = result.pageCount.toString();
           }
+
           if (result.description != null) {
             _descriptionController.text = result.description!;
           }
+
           if (result.isbn != null && _isbnController.text.isEmpty) {
             _isbnController.text = result.isbn!;
           }
+
           _coverUrl = result.coverUrl;
 
           // New fields from metadata
           _coAuthors = result.coAuthors;
+
           if (result.language != null) {
             _languageController.text = result.language!;
           }
+
           if (result.isbn13 != null) {
             _isbn13Controller.text = result.isbn13!;
           }
+
           if (result.publishedDate != null) {
             _publicationDate = _parsePublishedDate(result.publishedDate!);
+
             if (_publicationDate != null) {
               _publicationDateController.text = DateFormat.yMMMMd().format(_publicationDate!);
             }
@@ -196,7 +215,10 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
         });
       }
     } catch (e) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
         _lookupState = _IsbnLookupState.error;
         _lookupMessage = 'Could not look up. Check your internet connection.';
@@ -210,22 +232,29 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
       return DateTime.parse(dateStr);
     } catch (_) {}
     // Try year only
+
     final year = int.tryParse(dateStr);
-    if (year != null) return DateTime(year);
+
+    if (year != null) {
+      return DateTime(year);
+    }
+
     return null;
   }
 
   void _onSave() {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate()) {
+      return;
+    }
 
     final dataStore = context.read<DataStore>();
     final now = DateTime.now();
-
     final pageCount = int.tryParse(_pageCountController.text.trim());
     final seriesNumber = double.tryParse(_seriesNumberController.text.trim());
 
     // Convert cover image bytes to data URI if present
     String? coverUrl = _coverUrl;
+
     if (_coverImageBytes != null) {
       coverUrl = bytesToDataUri(_coverImageBytes!);
     }
@@ -265,18 +294,10 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
     );
   }
 
-  // ============================================================================
-  // HELPERS
-  // ============================================================================
-
   String? _nullIfEmpty(String text) {
     final trimmed = text.trim();
     return trimmed.isEmpty ? null : trimmed;
   }
-
-  // ============================================================================
-  // BUILD
-  // ============================================================================
 
   @override
   Widget build(BuildContext context) {
@@ -303,7 +324,10 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
                       onUrlChanged: (url) => setState(() => _coverUrl = url),
                       onFileChanged: (bytes) => setState(() {
                         _coverImageBytes = bytes;
-                        if (bytes != null) _coverUrl = null;
+
+                        if (bytes != null) {
+                          _coverUrl = null;
+                        }
                       }),
                       coverWidth: 240,
                     ),
@@ -330,10 +354,6 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
     );
   }
 
-  // ============================================================================
-  // SECTION CARD
-  // ============================================================================
-
   Widget _buildSectionCard({required String? title, required List<Widget> children}) {
     return Card(
       margin: const EdgeInsets.only(bottom: Spacing.xs),
@@ -352,10 +372,6 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
       ),
     );
   }
-
-  // ============================================================================
-  // FORM SECTIONS
-  // ============================================================================
 
   Widget _buildBasicInfoSection() {
     return _buildSectionCard(
@@ -443,10 +459,6 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
     );
   }
 
-  // ============================================================================
-  // ISBN SECTION
-  // ============================================================================
-
   Widget _buildIsbnSection() {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
@@ -524,8 +536,4 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
       ],
     );
   }
-
-  // ============================================================================
-  // ACTION BUTTONS
-  // ============================================================================
 }

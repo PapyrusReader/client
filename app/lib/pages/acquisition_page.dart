@@ -41,7 +41,11 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     final config = context.read<SyncSettingsProvider>().activeApiConfig;
-    if (_clientBaseUri == config.serverBaseUri) return;
+
+    if (_clientBaseUri == config.serverBaseUri) {
+      return;
+    }
+
     _client?.close();
     _client = widget.clientFactory?.call(config) ?? AcquisitionApiClient(config: config);
     _clientBaseUri = config.serverBaseUri;
@@ -74,52 +78,86 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     try {
       final capabilities = await _authenticated(_apiClient.capabilities);
       final endpoints = await _authenticated(_apiClient.listEndpoints);
-      if (!mounted) return;
+
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
         _capabilities = capabilities;
         _endpoints = endpoints;
       });
     } on AuthApiException catch (error) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+
       setState(() => _error = _messageFor(error));
     } catch (_) {
-      if (!mounted) return;
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
         _error = 'This Papyrus server does not expose the torrent acquisition API.';
       });
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) {
+        setState(() => _loading = false);
+      }
     }
   }
 
   Future<void> _runArrCommand(AcquisitionEndpoint endpoint) async {
     final capabilities = _capabilities;
     final commands = capabilities?.arrCommands[endpoint.kind] ?? const [];
-    if (commands.isEmpty) return;
+
+    if (commands.isEmpty) {
+      return;
+    }
 
     final command = await _pickArrCommand(endpoint, commands);
-    if (command == null) return;
+
+    if (command == null) {
+      return;
+    }
 
     final ids = await _askForIds(command);
-    if (ids == null) return;
+
+    if (ids == null) {
+      return;
+    }
 
     final submissionKey = 'arr:${endpoint.id}';
-    if (_submittingKeys.contains(submissionKey)) return;
+
+    if (_submittingKeys.contains(submissionKey)) {
+      return;
+    }
 
     setState(() => _submittingKeys.add(submissionKey));
+
     try {
       final job = await _authenticated((token) {
         return _apiClient.runArrCommand(accessToken: token, endpointId: endpoint.id, command: command, ids: ids);
       });
-      if (!mounted) return;
+
+      if (!mounted) {
+        return;
+      }
 
       _showMessage(job.isSubmitted ? '$command sent to ${endpoint.name}.' : job.error ?? 'Arr action failed.');
     } on AuthApiException catch (error) {
-      if (mounted) _showMessage(error.message);
+      if (mounted) {
+        _showMessage(error.message);
+      }
     } catch (_) {
-      if (mounted) _showMessage('Could not run this Arr action.');
+      if (mounted) {
+        _showMessage('Could not run this Arr action.');
+      }
     } finally {
-      if (mounted) setState(() => _submittingKeys.remove(submissionKey));
+      if (mounted) {
+        setState(() => _submittingKeys.remove(submissionKey));
+      }
     }
   }
 
@@ -139,9 +177,17 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
 
   Future<void> _showEndpointSheet({AcquisitionEndpoint? endpoint, List<AcquisitionEndpointKind>? allowedKinds}) async {
     final capabilities = _capabilities;
-    if (capabilities == null || capabilities.endpointKinds.isEmpty) return;
+
+    if (capabilities == null || capabilities.endpointKinds.isEmpty) {
+      return;
+    }
+
     final endpointKinds = allowedKinds ?? capabilities.endpointKinds;
-    if (endpointKinds.isEmpty) return;
+
+    if (endpointKinds.isEmpty) {
+      return;
+    }
+
     final downloadsProvider = context.read<AcquisitionDownloadsProvider?>();
 
     final saved = await showAcquisitionEndpointEditor(
@@ -185,6 +231,7 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
                   username: username,
                   password: password,
                 );
+
                 return;
               }
 
@@ -212,12 +259,16 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
   Future<void> _deleteEndpoint(AcquisitionEndpoint endpoint) async {
     final downloadsProvider = context.read<AcquisitionDownloadsProvider?>();
     final confirmed = await showAcquisitionRemoveDialog(context: context, endpointName: endpoint.name);
-    if (confirmed != true) return;
+
+    if (confirmed != true) {
+      return;
+    }
 
     try {
       await _authenticated((token) {
         return _apiClient.deleteEndpoint(accessToken: token, endpointId: endpoint.id);
       });
+
       await _load();
       await downloadsProvider?.refreshConfiguration();
     } catch (_) {
@@ -338,9 +389,17 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
       popUpAnimationStyle: AppMotion.animationStyle(context),
       tooltip: 'Actions for ${endpoint.name}',
       onSelected: (value) {
-        if (value == 'edit') _showEndpointSheet(endpoint: endpoint);
-        if (value == 'run' && runEnabled) _runArrCommand(endpoint);
-        if (value == 'delete') _deleteEndpoint(endpoint);
+        if (value == 'edit') {
+          _showEndpointSheet(endpoint: endpoint);
+        }
+
+        if (value == 'run' && runEnabled) {
+          _runArrCommand(endpoint);
+        }
+
+        if (value == 'delete') {
+          _deleteEndpoint(endpoint);
+        }
       },
       itemBuilder: (context) => [
         const PopupMenuItem(value: 'edit', child: Text('Edit')),
@@ -354,6 +413,7 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     if (error.statusCode == 404) {
       return 'This Papyrus server does not expose the torrent acquisition API.';
     }
+
     return error.message;
   }
 
@@ -395,6 +455,7 @@ class _ErrorBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return Card(
       color: colorScheme.errorContainer,
       child: ListTile(

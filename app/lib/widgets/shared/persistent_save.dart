@@ -8,8 +8,12 @@ mixin PersistentSave<T extends StatefulWidget> on State<T> {
   bool isSaving = false;
 
   Future<bool> persist(FutureOr<void> Function() save) async {
-    if (isSaving) return false;
+    if (isSaving) {
+      return false;
+    }
+
     setState(() => isSaving = true);
+
     try {
       await save();
       return mounted;
@@ -20,9 +24,12 @@ mixin PersistentSave<T extends StatefulWidget> on State<T> {
           const SnackBar(content: Text('Could not save changes. Please try again.')),
         );
       }
+
       return false;
     } finally {
-      if (mounted) setState(() => isSaving = false);
+      if (mounted) {
+        setState(() => isSaving = false);
+      }
     }
   }
 }

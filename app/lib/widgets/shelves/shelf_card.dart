@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:papyrus/models/shelf.dart' show CoverPreview, ShelfData;
+import 'package:papyrus/models/shelf.dart' show CoverPreview, Shelf;
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/themes/app_motion.dart';
@@ -9,7 +9,7 @@ import 'package:papyrus/themes/app_motion.dart';
 /// Shows shelf name, book count, color indicator, and cover previews.
 class ShelfCard extends StatefulWidget {
   /// The shelf data to display.
-  final ShelfData shelf;
+  final Shelf shelf;
 
   /// Called when the card is tapped.
   final VoidCallback? onTap;
@@ -49,10 +49,6 @@ class _ShelfCardState extends State<ShelfCard> {
       child: widget.isListItem ? _buildListItem(context) : _buildGridCard(context),
     );
   }
-
-  // ============================================================================
-  // GRID CARD
-  // ============================================================================
 
   Widget _buildGridCard(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
@@ -236,6 +232,7 @@ class _ShelfCardState extends State<ShelfCard> {
         builder: (context, constraints) {
           final showTitle = constraints.maxWidth >= 120 && constraints.maxHeight >= 160;
           final iconSize = (constraints.biggest.shortestSide * 0.5).clamp(0.0, IconSizes.display);
+
           return Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -276,10 +273,6 @@ class _ShelfCardState extends State<ShelfCard> {
       ),
     );
   }
-
-  // ============================================================================
-  // LIST ITEM
-  // ============================================================================
 
   Widget _buildListItem(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;

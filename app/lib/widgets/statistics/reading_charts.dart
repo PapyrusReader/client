@@ -8,10 +8,6 @@ import 'package:papyrus/providers/statistics_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
-// =============================================================================
-// DATA AGGREGATION
-// =============================================================================
-
 /// A bucket of aggregated daily activities (e.g., a week).
 class _AggregatedBucket {
   final DateTime startDate;
@@ -38,33 +34,45 @@ class _AggregatedBucket {
     if (startDate.month == endDate.month) {
       return '${_months[startDate.month - 1]} ${startDate.day}-${endDate.day}';
     }
+
     return '${_months[startDate.month - 1]} ${startDate.day} - ${_months[endDate.month - 1]} ${endDate.day}';
   }
 }
 
 /// Aggregates daily activities into weekly buckets.
 List<_AggregatedBucket> _aggregateWeekly(List<DailyActivity> activities) {
-  if (activities.isEmpty) return [];
+  if (activities.isEmpty) {
+    return [];
+  }
 
   final buckets = <_AggregatedBucket>[];
   var bucketStart = 0;
 
   while (bucketStart < activities.length) {
     var bucketEnd = bucketStart;
+
     while (bucketEnd + 1 < activities.length) {
       final nextDate = activities[bucketEnd + 1].date;
-      if (nextDate.weekday == DateTime.monday && bucketEnd > bucketStart) break;
-      if (bucketEnd - bucketStart >= 6) break;
+
+      if (nextDate.weekday == DateTime.monday && bucketEnd > bucketStart) {
+        break;
+      }
+
+      if (bucketEnd - bucketStart >= 6) {
+        break;
+      }
+
       bucketEnd++;
     }
 
     final slice = activities.sublist(bucketStart, bucketEnd + 1);
+
     buckets.add(
       _AggregatedBucket(
         startDate: slice.first.date,
         endDate: slice.last.date,
-        totalMinutes: slice.fold(0, (s, a) => s + a.readingMinutes),
-        totalPages: slice.fold(0, (s, a) => s + a.pagesRead),
+        totalMinutes: slice.fold(0, (total, item) => total + item.readingMinutes),
+        totalPages: slice.fold(0, (total, item) => total + item.pagesRead),
         dayCount: slice.length,
       ),
     );
@@ -75,39 +83,53 @@ List<_AggregatedBucket> _aggregateWeekly(List<DailyActivity> activities) {
   return buckets;
 }
 
-// =============================================================================
-// AXIS HELPERS
-// =============================================================================
-
 const _months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
 /// Formats a minutes value for the Y-axis (e.g., "0", "30m", "1h", "1.5h").
 String _formatMinutesLabel(double value) {
-  if (value <= 0) return '0';
-  if (value < 60) return '${value.round()}m';
+  if (value <= 0) {
+    return '0';
+  }
+
+  if (value < 60) {
+    return '${value.round()}m';
+  }
+
   final hours = value / 60;
-  if (hours == hours.truncateToDouble()) return '${hours.toInt()}h';
+
+  if (hours == hours.truncateToDouble()) {
+    return '${hours.toInt()}h';
+  }
+
   return '${hours.toStringAsFixed(1)}h';
 }
 
 /// Formats a pages value for the Y-axis.
 String _formatPagesLabel(double value) {
-  if (value <= 0) return '0';
+  if (value <= 0) {
+    return '0';
+  }
+
   return '${value.round()}';
 }
 
 /// Computes a nice Y-axis interval and maxY that align cleanly.
 ({double interval, double maxY}) _niceYAxis(double maxValue) {
-  if (maxValue <= 0) return (interval: 15.0, maxY: 60.0);
+  if (maxValue <= 0) {
+    return (interval: 15.0, maxY: 60.0);
+  }
+
   final rawInterval = maxValue / 3;
   const niceSteps = [5, 10, 15, 20, 25, 30, 50, 60, 100, 120, 150, 200, 250, 300, 500, 1000];
   var interval = (rawInterval / 100).ceil() * 100.0;
+
   for (final step in niceSteps) {
     if (step >= rawInterval) {
       interval = step.toDouble();
       break;
     }
   }
+
   final maxY = (maxValue / interval).ceil() * interval;
   return (interval: interval, maxY: maxY);
 }
@@ -126,11 +148,13 @@ Widget _buildYAxisLabel(double value, TextTheme textTheme, ColorScheme colorSche
 /// Builds a bottom axis label for chart data points.
 Widget _buildBottomLabel(double value, List<DailyActivity> activities, TextTheme textTheme, ColorScheme colorScheme) {
   final idx = value.toInt();
-  if (idx < 0 || idx >= activities.length) return const SizedBox.shrink();
+
+  if (idx < 0 || idx >= activities.length) {
+    return const SizedBox.shrink();
+  }
 
   final activity = activities[idx];
   final count = activities.length;
-
   String? label;
 
   if (count <= 7) {
@@ -138,6 +162,7 @@ Widget _buildBottomLabel(double value, List<DailyActivity> activities, TextTheme
   } else if (count <= 31) {
     final day = activity.date.day;
     final interval = count > 14 ? 5 : 3;
+
     if (day == 1 || day % interval == 0 || idx == count - 1) {
       label = '${activity.date.day}';
     }
@@ -147,7 +172,9 @@ Widget _buildBottomLabel(double value, List<DailyActivity> activities, TextTheme
     }
   }
 
-  if (label == null) return const SizedBox.shrink();
+  if (label == null) {
+    return const SizedBox.shrink();
+  }
 
   return Padding(
     padding: const EdgeInsets.only(top: 8),
@@ -170,9 +197,13 @@ Widget _buildBucketBottomLabel(
   ColorScheme colorScheme,
 ) {
   final idx = value.toInt();
-  if (idx < 0 || idx >= buckets.length) return const SizedBox.shrink();
+
+  if (idx < 0 || idx >= buckets.length) {
+    return const SizedBox.shrink();
+  }
 
   final bucket = buckets[idx];
+
   if (idx > 0 && buckets[idx].startDate.month == buckets[idx - 1].startDate.month) {
     return const SizedBox.shrink();
   }
@@ -190,10 +221,6 @@ Widget _buildBucketBottomLabel(
   );
 }
 
-// =============================================================================
-// READING TIME BAR CHART
-// =============================================================================
-
 /// A bar chart displaying reading time data using fl_chart.
 class ReadingTimeBarChart extends StatelessWidget {
   final List<DailyActivity> activities;
@@ -204,7 +231,9 @@ class ReadingTimeBarChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (activities.isEmpty) return _buildEmptyState(context);
+    if (activities.isEmpty) {
+      return _buildEmptyState(context);
+    }
 
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
@@ -213,6 +242,7 @@ class ReadingTimeBarChart extends StatelessWidget {
     if (activities.length > 21) {
       return _buildAggregatedChart(context, colorScheme, textTheme, chartHeight);
     }
+
     return _buildDailyChart(context, colorScheme, textTheme, chartHeight);
   }
 
@@ -239,6 +269,7 @@ class ReadingTimeBarChart extends StatelessWidget {
                   tooltipRoundedRadius: AppRadius.md,
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final activity = activities[groupIndex];
+
                     return BarTooltipItem(
                       '${activity.dayName}\n${activity.readingTimeLabel}',
                       textTheme.bodySmall!.copyWith(color: colorScheme.onInverseSurface),
@@ -278,6 +309,7 @@ class ReadingTimeBarChart extends StatelessWidget {
               barGroups: activities.asMap().entries.map((entry) {
                 final index = entry.key;
                 final activity = entry.value;
+
                 return BarChartGroupData(
                   x: index,
                   barRods: [
@@ -300,9 +332,16 @@ class ReadingTimeBarChart extends StatelessWidget {
 
   Widget _buildAggregatedChart(BuildContext context, ColorScheme colorScheme, TextTheme textTheme, double chartHeight) {
     final buckets = _aggregateWeekly(activities);
-    if (buckets.isEmpty) return _buildEmptyState(context);
 
-    final maxMinutes = buckets.map((b) => b.totalMinutes).reduce((a, b) => math.max(a, b)).toDouble();
+    if (buckets.isEmpty) {
+      return _buildEmptyState(context);
+    }
+
+    final maxMinutes = buckets
+        .map((item) => item.totalMinutes)
+        .reduce((total, value) => math.max(total, value))
+        .toDouble();
+
     final yAxis = _niceYAxis(maxMinutes);
 
     return SizedBox(
@@ -326,6 +365,7 @@ class ReadingTimeBarChart extends StatelessWidget {
                     final bucket = buckets[groupIndex];
                     final hours = bucket.totalMinutes / 60;
                     final timeLabel = hours >= 1 ? '${hours.toStringAsFixed(1)}h' : '${bucket.totalMinutes}m';
+
                     return BarTooltipItem(
                       '${bucket.label}\n$timeLabel total',
                       textTheme.bodySmall!.copyWith(color: colorScheme.onInverseSurface),
@@ -365,6 +405,7 @@ class ReadingTimeBarChart extends StatelessWidget {
               barGroups: buckets.asMap().entries.map((entry) {
                 final index = entry.key;
                 final bucket = entry.value;
+
                 return BarChartGroupData(
                   x: index,
                   barRods: [
@@ -393,10 +434,6 @@ class ReadingTimeBarChart extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// PAGES READ LINE CHART
-// =============================================================================
-
 /// A line chart displaying pages read trends using fl_chart.
 class PagesReadLineChart extends StatelessWidget {
   final List<DailyActivity> activities;
@@ -407,7 +444,9 @@ class PagesReadLineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (activities.isEmpty) return _buildEmptyState(context);
+    if (activities.isEmpty) {
+      return _buildEmptyState(context);
+    }
 
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
@@ -416,11 +455,16 @@ class PagesReadLineChart extends StatelessWidget {
     if (activities.length > 21) {
       return _buildAggregatedChart(context, colorScheme, textTheme, chartHeight);
     }
+
     return _buildDailyChart(context, colorScheme, textTheme, chartHeight);
   }
 
   Widget _buildDailyChart(BuildContext context, ColorScheme colorScheme, TextTheme textTheme, double chartHeight) {
-    final maxPages = activities.map((a) => a.pagesRead).reduce((a, b) => math.max(a, b)).toDouble();
+    final maxPages = activities
+        .map((item) => item.pagesRead)
+        .reduce((total, value) => math.max(total, value))
+        .toDouble();
+
     final yAxis = _niceYAxis(maxPages);
 
     final spots = activities.asMap().entries.map((entry) {
@@ -444,6 +488,7 @@ class PagesReadLineChart extends StatelessWidget {
               getTooltipItems: (touchedSpots) {
                 return touchedSpots.map((spot) {
                   final activity = activities[spot.x.toInt()];
+
                   return LineTooltipItem(
                     '${activity.dayName}\n${activity.pagesRead} pages',
                     textTheme.bodySmall!.copyWith(color: colorScheme.onInverseSurface),
@@ -511,9 +556,12 @@ class PagesReadLineChart extends StatelessWidget {
 
   Widget _buildAggregatedChart(BuildContext context, ColorScheme colorScheme, TextTheme textTheme, double chartHeight) {
     final buckets = _aggregateWeekly(activities);
-    if (buckets.isEmpty) return _buildEmptyState(context);
 
-    final maxPages = buckets.map((b) => b.totalPages).reduce((a, b) => math.max(a, b)).toDouble();
+    if (buckets.isEmpty) {
+      return _buildEmptyState(context);
+    }
+
+    final maxPages = buckets.map((item) => item.totalPages).reduce((total, value) => math.max(total, value)).toDouble();
     final yAxis = _niceYAxis(maxPages);
 
     final spots = buckets.asMap().entries.map((entry) {
@@ -537,6 +585,7 @@ class PagesReadLineChart extends StatelessWidget {
               getTooltipItems: (touchedSpots) {
                 return touchedSpots.map((spot) {
                   final bucket = buckets[spot.x.toInt()];
+
                   return LineTooltipItem(
                     '${bucket.label}\n${bucket.totalPages} pages',
                     textTheme.bodySmall!.copyWith(color: colorScheme.onInverseSurface),
@@ -610,10 +659,6 @@ class PagesReadLineChart extends StatelessWidget {
   }
 }
 
-// =============================================================================
-// BOOKS PER MONTH CHART
-// =============================================================================
-
 /// A bar chart displaying books read per month using fl_chart.
 class BooksPerMonthChart extends StatelessWidget {
   final List<MonthlyStats> monthlyStats;
@@ -623,11 +668,18 @@ class BooksPerMonthChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (monthlyStats.isEmpty) return _buildEmptyState(context);
+    if (monthlyStats.isEmpty) {
+      return _buildEmptyState(context);
+    }
 
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
-    final maxBooks = monthlyStats.map((m) => m.booksRead).reduce((a, b) => math.max(a, b)).toDouble();
+
+    final maxBooks = monthlyStats
+        .map((item) => item.booksRead)
+        .reduce((total, value) => math.max(total, value))
+        .toDouble();
+
     final chartHeight = isDesktop ? 200.0 : 160.0;
 
     // Take last 6 months for display
@@ -652,6 +704,7 @@ class BooksPerMonthChart extends StatelessWidget {
                   tooltipRoundedRadius: AppRadius.md,
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final stats = displayStats[groupIndex];
+
                     return BarTooltipItem(
                       '${stats.fullMonthLabel}\n${stats.booksRead} books',
                       textTheme.bodySmall!.copyWith(color: colorScheme.onInverseSurface),
@@ -670,7 +723,9 @@ class BooksPerMonthChart extends StatelessWidget {
                       if (value < 0 || value >= displayStats.length) {
                         return const SizedBox.shrink();
                       }
+
                       final stats = displayStats[value.toInt()];
+
                       return Padding(
                         padding: const EdgeInsets.only(top: 8),
                         child: Text(
@@ -697,6 +752,7 @@ class BooksPerMonthChart extends StatelessWidget {
                           ),
                         );
                       }
+
                       return const SizedBox.shrink();
                     },
                   ),
@@ -713,6 +769,7 @@ class BooksPerMonthChart extends StatelessWidget {
               barGroups: displayStats.asMap().entries.map((entry) {
                 final index = entry.key;
                 final stats = entry.value;
+
                 return BarChartGroupData(
                   x: index,
                   barRods: [

@@ -18,7 +18,11 @@ class MediaCacheService {
   /// hash, the bytes match the expected hash.
   Future<Uint8List?> getValidCachedBookFile(Book book, {required LocalBookFileReader readLocalBookFile}) async {
     final cached = await readLocalBookFile(book.id);
-    if (cached == null) return null;
+
+    if (cached == null) {
+      return null;
+    }
+
     return _matchesExpectedHash(cached, book.fileHash) ? cached : null;
   }
 
@@ -31,14 +35,19 @@ class MediaCacheService {
     required MediaDownloader downloadMedia,
   }) async {
     final cached = await getValidCachedBookFile(book, readLocalBookFile: readLocalBookFile);
-    if (cached != null) return cached;
+
+    if (cached != null) {
+      return cached;
+    }
 
     final mediaId = book.fileMediaId;
+
     if (mediaId == null || mediaId.isEmpty) {
       throw StateError('Book file is not available on this device or server.');
     }
 
     final downloaded = await downloadMedia(mediaId);
+
     if (!_matchesExpectedHash(downloaded, book.fileHash)) {
       throw StateError('Downloaded book file did not match the expected hash.');
     }
@@ -57,7 +66,10 @@ class MediaCacheService {
   }) {
     final key = '${scope.persistenceKey}:$mediaId';
     final existing = _coverDownloads[key];
-    if (existing != null) return existing;
+
+    if (existing != null) {
+      return existing;
+    }
 
     final operation = _loadAndPersistCover(
       scope: scope,
@@ -66,11 +78,14 @@ class MediaCacheService {
       writeLocalCover: writeLocalCover,
       downloadMedia: downloadMedia,
     );
+
     _coverDownloads[key] = operation;
+
     operation.then(
       (_) => _removeCoverOperation(key, operation),
       onError: (Object error, StackTrace stackTrace) => _removeCoverOperation(key, operation),
     );
+
     return operation;
   }
 
@@ -82,7 +97,10 @@ class MediaCacheService {
     required MediaDownloader downloadMedia,
   }) async {
     final cached = await readLocalCover(scope, mediaId);
-    if (cached != null) return cached;
+
+    if (cached != null) {
+      return cached;
+    }
 
     final downloaded = await downloadMedia(mediaId);
     await writeLocalCover(scope, mediaId, downloaded);
@@ -98,7 +116,10 @@ class MediaCacheService {
   String sha256Hex(Uint8List bytes) => sha256.convert(bytes).toString();
 
   bool _matchesExpectedHash(Uint8List bytes, String? expectedHash) {
-    if (expectedHash == null || expectedHash.isEmpty) return true;
+    if (expectedHash == null || expectedHash.isEmpty) {
+      return true;
+    }
+
     return sha256Hex(bytes) == expectedHash;
   }
 

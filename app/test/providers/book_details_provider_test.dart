@@ -18,6 +18,7 @@ void main() {
     setUp(() {
       provider = BookDetailsProvider();
       dataStore = DataStore();
+
       dataStore.loadData(
         books: [
           buildTestBook(
@@ -39,6 +40,7 @@ void main() {
         annotations: [buildTestAnnotation(id: 'ann-1', bookId: 'book-1', selectedText: 'Highlight 1')],
         notes: [buildTestNote(id: 'note-1', bookId: 'book-1', title: 'Note 1', content: 'Content 1')],
       );
+
       provider.setDataStore(dataStore);
     });
 
@@ -85,9 +87,7 @@ void main() {
         final startupStore = DataStore(bookRepository: repository);
         final startupProvider = BookDetailsProvider()..setDataStore(startupStore);
         addTearDown(startupProvider.dispose);
-
         await startupProvider.loadBook(storedBook.id);
-
         expect(startupProvider.book, storedBook);
         expect(startupProvider.error, isNull);
       });
@@ -98,16 +98,12 @@ void main() {
         final startupStore = DataStore(bookRepository: repository);
         final startupProvider = BookDetailsProvider()..setDataStore(startupStore);
         addTearDown(startupProvider.dispose);
-
         final load = startupProvider.loadBook(storedBook.id);
         await Future<void>.delayed(Duration.zero);
-
         expect(startupProvider.isLoading, isTrue);
         expect(startupProvider.error, isNull);
-
         repository.controller.add([storedBook]);
         await load;
-
         expect(startupProvider.book, storedBook);
         expect(startupProvider.error, isNull);
         await startupStore.disposeBookRepository();
@@ -116,7 +112,6 @@ void main() {
 
       test('loads a book from DataStore', () async {
         await provider.loadBook('book-1');
-
         expect(provider.hasBook, true);
         expect(provider.book!.id, 'book-1');
         expect(provider.book!.title, 'Test Book');
@@ -126,7 +121,6 @@ void main() {
 
       test('sets error when book not found', () async {
         await provider.loadBook('nonexistent');
-
         expect(provider.hasBook, false);
         expect(provider.error, isNotNull);
         expect(provider.error, contains('Book not found'));
@@ -134,7 +128,6 @@ void main() {
 
       test('loads bookmarks for the book', () async {
         await provider.loadBook('book-1');
-
         expect(provider.bookmarks.length, 2);
         expect(provider.hasBookmarks, true);
         expect(provider.bookmarkCount, 2);
@@ -142,7 +135,6 @@ void main() {
 
       test('loads annotations for the book', () async {
         await provider.loadBook('book-1');
-
         expect(provider.annotations.length, 1);
         expect(provider.hasAnnotations, true);
         expect(provider.annotationCount, 1);
@@ -150,7 +142,6 @@ void main() {
 
       test('loads notes for the book', () async {
         await provider.loadBook('book-1');
-
         expect(provider.notes.length, 1);
         expect(provider.hasNotes, true);
         expect(provider.noteCount, 1);
@@ -159,10 +150,8 @@ void main() {
       test('does not reload same book unnecessarily', () async {
         await provider.loadBook('book-1');
         final firstBook = provider.book;
-
         var notifyCount = 0;
         provider.addListener(() => notifyCount++);
-
         await provider.loadBook('book-1');
 
         // Should be the same object since the book didn't change
@@ -174,7 +163,6 @@ void main() {
       test('notifies listeners during load', () async {
         var notifyCount = 0;
         provider.addListener(() => notifyCount++);
-
         await provider.loadBook('book-1');
 
         // At least 2 notifications: loading start + loading complete
@@ -186,20 +174,16 @@ void main() {
       test('changes selected tab', () {
         provider.setTab(BookDetailsTab.bookmarks);
         expect(provider.selectedTab, BookDetailsTab.bookmarks);
-
         provider.setTab(BookDetailsTab.annotations);
         expect(provider.selectedTab, BookDetailsTab.annotations);
-
         provider.setTab(BookDetailsTab.notes);
         expect(provider.selectedTab, BookDetailsTab.notes);
       });
 
       test('does not notify when setting same tab', () {
         provider.setTab(BookDetailsTab.bookmarks);
-
         var notified = false;
         provider.addListener(() => notified = true);
-
         provider.setTab(BookDetailsTab.bookmarks);
         expect(notified, false);
       });
@@ -207,7 +191,6 @@ void main() {
       test('notifies when changing tab', () {
         var notified = false;
         provider.addListener(() => notified = true);
-
         provider.setTab(BookDetailsTab.notes);
         expect(notified, true);
       });
@@ -217,13 +200,10 @@ void main() {
       test('sets tab by index', () {
         provider.setTabIndex(0);
         expect(provider.selectedTab, BookDetailsTab.details);
-
         provider.setTabIndex(1);
         expect(provider.selectedTab, BookDetailsTab.bookmarks);
-
         provider.setTabIndex(2);
         expect(provider.selectedTab, BookDetailsTab.annotations);
-
         provider.setTabIndex(3);
         expect(provider.selectedTab, BookDetailsTab.notes);
       });
@@ -232,7 +212,6 @@ void main() {
         provider.setTab(BookDetailsTab.details);
         provider.setTabIndex(-1);
         expect(provider.selectedTab, BookDetailsTab.details);
-
         provider.setTabIndex(10);
         expect(provider.selectedTab, BookDetailsTab.details);
       });
@@ -241,10 +220,8 @@ void main() {
     group('toggleDescriptionExpanded', () {
       test('toggles expanded state', () {
         expect(provider.isDescriptionExpanded, false);
-
         provider.toggleDescriptionExpanded();
         expect(provider.isDescriptionExpanded, true);
-
         provider.toggleDescriptionExpanded();
         expect(provider.isDescriptionExpanded, false);
       });
@@ -266,14 +243,11 @@ void main() {
 
       test('addNote persists to DataStore and notifies', () async {
         final note = buildTestNote(id: 'new-note', bookId: 'book-1', title: 'New Note', content: 'New content');
-
         var notified = false;
         provider.addListener(() => notified = true);
-
         await provider.addNote(note);
-
         expect(provider.notes.length, 2);
-        expect(provider.notes.any((n) => n.id == 'new-note'), true);
+        expect(provider.notes.any((note) => note.id == 'new-note'), true);
         expect(dataStore.getNote('new-note'), isNotNull);
         expect(notified, true);
       });
@@ -287,13 +261,11 @@ void main() {
         );
 
         await provider.updateNote('note-1', updatedNote);
-
         expect(dataStore.getNote('note-1')!.title, 'Updated Title');
       });
 
       test('deleteNote removes from DataStore', () async {
         await provider.deleteNote('note-1');
-
         expect(provider.notes, isEmpty);
         expect(dataStore.getNote('note-1'), isNull);
       });
@@ -306,16 +278,13 @@ void main() {
 
       test('addBookmark persists to DataStore', () async {
         final bookmark = buildTestBookmark(id: 'new-bm', bookId: 'book-1', position: 0.8);
-
         await provider.addBookmark(bookmark);
-
         expect(provider.bookmarks.length, 3);
         expect(dataStore.getBookmark('new-bm'), isNotNull);
       });
 
       test('updateBookmarkNote updates the bookmark note', () async {
         await provider.updateBookmarkNote('bm-1', 'Updated note');
-
         expect(dataStore.getBookmark('bm-1')!.note, 'Updated note');
       });
 
@@ -331,13 +300,11 @@ void main() {
 
       test('updateBookmarkColor updates the bookmark color', () async {
         await provider.updateBookmarkColor('bm-1', '#FF0000');
-
         expect(dataStore.getBookmark('bm-1')!.colorHex, '#FF0000');
       });
 
       test('deleteBookmark removes from DataStore', () async {
         await provider.deleteBookmark('bm-1');
-
         expect(provider.bookmarks.length, 1);
         expect(dataStore.getBookmark('bm-1'), isNull);
       });
@@ -345,9 +312,7 @@ void main() {
       test('updateBookmarkNote does nothing for nonexistent bookmark', () async {
         var notified = false;
         provider.addListener(() => notified = true);
-
         await provider.updateBookmarkNote('nonexistent', 'A note');
-
         expect(notified, false);
       });
     });
@@ -359,16 +324,13 @@ void main() {
 
       test('addAnnotation persists to DataStore', () async {
         final annotation = buildTestAnnotation(id: 'new-ann', bookId: 'book-1', selectedText: 'New highlight');
-
         await provider.addAnnotation(annotation);
-
         expect(provider.annotations.length, 2);
         expect(dataStore.getAnnotation('new-ann'), isNotNull);
       });
 
       test('updateAnnotationNote updates the annotation note', () async {
         await provider.updateAnnotationNote('ann-1', 'Updated note');
-
         expect(dataStore.getAnnotation('ann-1')!.note, 'Updated note');
       });
 
@@ -381,14 +343,12 @@ void main() {
         );
 
         await provider.updateAnnotation('ann-1', updated);
-
         expect(dataStore.getAnnotation('ann-1')!.selectedText, 'Replaced text');
         expect(dataStore.getAnnotation('ann-1')!.color, HighlightColor.pink);
       });
 
       test('deleteAnnotation removes from DataStore', () async {
         await provider.deleteAnnotation('ann-1');
-
         expect(provider.annotations, isEmpty);
         expect(dataStore.getAnnotation('ann-1'), isNull);
       });
@@ -396,9 +356,7 @@ void main() {
       test('updateAnnotationNote does nothing for nonexistent annotation', () async {
         var notified = false;
         provider.addListener(() => notified = true);
-
         await provider.updateAnnotationNote('nonexistent', 'A note');
-
         expect(notified, false);
       });
     });
@@ -407,14 +365,10 @@ void main() {
       test('toggles favorite status and persists', () async {
         await provider.loadBook('book-1');
         expect(provider.book!.isFavorite, false);
-
         provider.toggleFavorite();
-
         expect(provider.book!.isFavorite, true);
         expect(dataStore.getBook('book-1')!.isFavorite, true);
-
         provider.toggleFavorite();
-
         expect(provider.book!.isFavorite, false);
         expect(dataStore.getBook('book-1')!.isFavorite, false);
       });
@@ -422,9 +376,7 @@ void main() {
       test('does nothing when no book loaded', () {
         var notified = false;
         provider.addListener(() => notified = true);
-
         provider.toggleFavorite();
-
         expect(notified, false);
       });
     });
@@ -432,19 +384,15 @@ void main() {
     group('updateProgress', () {
       test('updates position and persists', () async {
         await provider.loadBook('book-1');
-
         provider.updateProgress(0.75);
-
         expect(provider.book!.currentPosition, 0.75);
         expect(dataStore.getBook('book-1')!.currentPosition, 0.75);
       });
 
       test('clamps value to 0.0-1.0', () async {
         await provider.loadBook('book-1');
-
         provider.updateProgress(1.5);
         expect(provider.book!.currentPosition, 1.0);
-
         provider.updateProgress(-0.5);
         expect(provider.book!.currentPosition, 0.0);
       });
@@ -452,9 +400,7 @@ void main() {
       test('does nothing when no book loaded', () {
         var notified = false;
         provider.addListener(() => notified = true);
-
         provider.updateProgress(0.5);
-
         expect(notified, false);
       });
     });
@@ -462,53 +408,41 @@ void main() {
     group('updatePageProgress', () {
       test('updates page and position', () async {
         await provider.loadBook('book-1');
-
         provider.updatePageProgress(150, 0.5);
-
         expect(provider.book!.currentPage, 150);
         expect(provider.book!.currentPosition, 0.5);
         expect(provider.book!.lastReadAt, isNotNull);
       });
 
-      test('sets status to completed when position >= 1.0', () async {
+      test('reaching the end keeps completion explicit', () async {
         await provider.loadBook('book-1');
-
         provider.updatePageProgress(300, 1.0);
-
-        expect(provider.book!.readingStatus, LibraryReadingStatus.completed);
+        expect(provider.book!.readingStatus, LibraryReadingStatus.inProgress);
       });
 
       test('sets status to inProgress when position > 0', () async {
         // Load a not-started book
         await provider.loadBook('book-2');
-
         provider.updatePageProgress(10, 0.1);
-
         expect(provider.book!.readingStatus, LibraryReadingStatus.inProgress);
       });
 
       test('clamps position to 0.0-1.0', () async {
         await provider.loadBook('book-1');
-
         provider.updatePageProgress(999, 2.0);
-
         expect(provider.book!.currentPosition, 1.0);
       });
 
       test('does nothing when no book loaded', () {
         var notified = false;
         provider.addListener(() => notified = true);
-
         provider.updatePageProgress(10, 0.1);
-
         expect(notified, false);
       });
 
       test('persists to DataStore', () async {
         await provider.loadBook('book-1');
-
         provider.updatePageProgress(200, 0.67);
-
         final stored = dataStore.getBook('book-1')!;
         expect(stored.currentPage, 200);
         expect(stored.currentPosition, 0.67);
@@ -534,9 +468,7 @@ void main() {
         await provider.loadBook('book-1');
         provider.setTab(BookDetailsTab.notes);
         provider.toggleDescriptionExpanded();
-
         provider.clear();
-
         expect(provider.book, isNull);
         expect(provider.hasBook, false);
         expect(provider.selectedTab, BookDetailsTab.details);
@@ -550,10 +482,8 @@ void main() {
       test('switches to new DataStore and removes old listener', () {
         final oldStore = DataStore();
         oldStore.loadData(books: [buildTestBook(id: 'old-book')]);
-
         final newStore = DataStore();
         newStore.loadData(books: [buildTestBook(id: 'new-book')]);
-
         final p = BookDetailsProvider();
         p.setDataStore(oldStore);
         p.setDataStore(newStore);
@@ -561,7 +491,6 @@ void main() {
         // Updating old store should not affect provider
         // (no crash = listener was properly removed)
         oldStore.addBook(buildTestBook(id: 'another'));
-
         p.dispose();
       });
 

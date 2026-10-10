@@ -15,6 +15,7 @@ void main() {
     expect(ink.colorScheme.outline, Colors.black);
     expect(ink.splashFactory, NoSplash.splashFactory);
     expect(ink.filledButtonTheme.style?.animationDuration, Duration.zero);
+
     expect(
       ink.pageTransitionsTheme.builders.values.every((builder) => builder.transitionDuration == Duration.zero),
       isTrue,
@@ -25,6 +26,7 @@ void main() {
     final disabled = ValueNotifier(false);
     addTearDown(disabled.dispose);
     final readings = <(bool, Size, TextScaler)>[];
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.light,
@@ -45,6 +47,7 @@ void main() {
                     MediaQuery.sizeOf(context),
                     MediaQuery.textScalerOf(context),
                   ));
+
                   return const SizedBox();
                 },
               ),
@@ -53,6 +56,7 @@ void main() {
         ),
       ),
     );
+
     expect(readings.last, (true, const Size(1200, 800), const TextScaler.linear(1.3)));
     disabled.value = true;
     await tester.pump();
@@ -62,6 +66,7 @@ void main() {
   testWidgets('e-ink loading indicators stay static and still report actual progress', (tester) async {
     final progress = ValueNotifier<double?>(null);
     addTearDown(progress.dispose);
+
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.eink,
@@ -78,6 +83,7 @@ void main() {
         ),
       ),
     );
+
     await tester.pump();
     final circle = tester.widget<CircularProgressIndicator>(find.byType(CircularProgressIndicator));
     final line = tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator));
@@ -102,6 +108,7 @@ void main() {
         home: const Scaffold(body: AppCircularProgressIndicator()),
       ),
     );
+
     await tester.pump(const Duration(milliseconds: 50));
     expect(tester.binding.hasScheduledFrame, isTrue);
     await tester.pumpWidget(const SizedBox());

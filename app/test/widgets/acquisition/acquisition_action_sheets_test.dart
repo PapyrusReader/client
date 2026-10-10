@@ -5,10 +5,8 @@ import 'package:papyrus/widgets/acquisition/acquisition_action_sheets.dart';
 void main() {
   testWidgets('command selection uses a sheet and returns the raw command', (tester) async {
     await tester.pumpWidget(const _ActionSheetLauncher());
-
     await tester.tap(find.text('Open commands'));
     await tester.pumpAndSettle();
-
     final sheet = find.byKey(const Key('acquisition-command-sheet'));
     expect(sheet, findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
@@ -17,22 +15,18 @@ void main() {
     expect(find.text('Search monitored books'), findsOneWidget);
     expect(find.text('search'), findsOneWidget);
     expect(find.byIcon(Icons.play_arrow), findsNWidgets(2));
-
     await tester.tap(find.text('Search monitored books'));
     await tester.pumpAndSettle();
-
     expect(find.byKey(const Key('acquisition-command-sheet')), findsNothing);
     expect(find.text('command: search'), findsOneWidget);
   });
 
   testWidgets('command cancellation returns null', (tester) async {
     await tester.pumpWidget(const _ActionSheetLauncher());
-
     await tester.tap(find.text('Open commands'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
     await tester.pumpAndSettle();
-
     expect(find.text('command: null'), findsOneWidget);
   });
 
@@ -40,10 +34,8 @@ void main() {
     tester.view.viewInsets = const FakeViewPadding(bottom: 180);
     addTearDown(tester.view.resetViewInsets);
     await tester.pumpWidget(const _ActionSheetLauncher());
-
     await tester.tap(find.text('Open IDs'));
     await tester.pumpAndSettle();
-
     final sheet = find.byKey(const Key('acquisition-arr-ids-sheet'));
     final keyboardPadding = find.descendant(of: sheet, matching: find.byType(Padding)).first;
     final keyboardInset = tester.view.viewInsets.bottom / tester.view.devicePixelRatio;
@@ -56,59 +48,48 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Run'), findsOneWidget);
     expect(find.text('IDs'), findsOneWidget);
     expect(find.text('Comma-separated IDs from the Arr application'), findsOneWidget);
-
     await tester.enterText(find.byType(TextField), '42, invalid, 84');
     await tester.ensureVisible(find.widgetWithText(FilledButton, 'Run'));
     expect(find.widgetWithText(FilledButton, 'Run').hitTestable(), findsOneWidget);
     await tester.tap(find.widgetWithText(FilledButton, 'Run'));
     await tester.pumpAndSettle();
-
     expect(find.text('ids: [42, 84]'), findsOneWidget);
   });
 
   testWidgets('Arr ID cancellation returns null', (tester) async {
     await tester.pumpWidget(const _ActionSheetLauncher());
-
     await tester.tap(find.text('Open IDs'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(OutlinedButton, 'Cancel'));
     await tester.pumpAndSettle();
-
     expect(find.text('ids: null'), findsOneWidget);
   });
 
   testWidgets('removal uses the destructive shelf-style confirmation dialog and returns true', (tester) async {
     await tester.pumpWidget(const _ActionSheetLauncher());
-
     await tester.tap(find.text('Open removal'));
     await tester.pumpAndSettle();
-
     expect(find.byType(AlertDialog), findsOneWidget);
     expect(find.byType(BottomSheet), findsNothing);
     expect(find.text('Remove integration'), findsOneWidget);
     expect(find.text('Remove "Readarr"? Saved credentials for this integration will be removed.'), findsOneWidget);
     expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);
-
     final removeFinder = find.widgetWithText(FilledButton, 'Remove');
     expect(removeFinder, findsOneWidget);
     final button = tester.widget<FilledButton>(removeFinder);
     final colorScheme = Theme.of(tester.element(removeFinder)).colorScheme;
     expect(button.style?.backgroundColor?.resolve(<WidgetState>{}), colorScheme.error);
-
     await tester.tap(removeFinder);
     await tester.pumpAndSettle();
-
     expect(find.text('remove: true'), findsOneWidget);
   });
 
   testWidgets('removal cancellation returns false', (tester) async {
     await tester.pumpWidget(const _ActionSheetLauncher());
-
     await tester.tap(find.text('Open removal'));
     await tester.pumpAndSettle();
     await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
     await tester.pumpAndSettle();
-
     expect(find.text('remove: false'), findsOneWidget);
   });
 }

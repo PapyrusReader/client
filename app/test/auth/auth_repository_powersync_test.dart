@@ -30,6 +30,7 @@ void main() {
     var powerSyncTokenCalls = 0;
     final store = TokenStore(MemoryRefreshTokenStorage());
     await store.saveTokens(accessToken: 'expired-access', refreshToken: 'refresh-token');
+
     final repository = AuthRepository(
       apiClient: AuthApiClient(
         config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test')),
@@ -62,7 +63,6 @@ void main() {
     );
 
     final token = await repository.createPowerSyncToken();
-
     expect(token.token, 'powersync-token');
     expect(powerSyncTokenCalls, 2);
     expect(store.accessToken, 'fresh-access');

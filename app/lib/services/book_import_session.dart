@@ -20,6 +20,7 @@ class BookImportSession {
     required this.commit,
     required this.isCurrent,
   });
+
   final Future<BookImportResult> Function(Uint8List bytes, String filename) process;
   final Future<void> Function(String bookId) deleteFile;
   final Future<Book> Function(BookImportResult result, String filename) commit;
@@ -44,18 +45,22 @@ class BookImportSession {
     final authenticated = authProvider.isSignedIn && powerSyncService.mode == LibraryDatabaseMode.authenticated;
     final scope = authenticated ? queue.activeScope : null;
     final userId = authProvider.user?.userId;
+
     if (authenticated && scope == null) {
       throw StateError('Cannot import account media without an active media storage scope');
     }
+
     if ((authProvider.isSignedIn && (!authenticated || scope?.userId != userId)) ||
         (authProvider.isOfflineMode && powerSyncService.mode != LibraryDatabaseMode.guest)) {
       throw StateError('Wait for the selected library to finish loading before importing.');
     }
+
     bool isCurrent() =>
         dataStore.isBookRepositoryCurrent(repository) &&
         authProvider.user?.userId == userId &&
         (authProvider.isSignedIn && powerSyncService.mode == LibraryDatabaseMode.authenticated) == authenticated &&
         queue.activeScope == scope;
+
     final service = BookImportCommitService(
       storePendingCover: importService.storePendingCoverFile,
       storeGuestCover: importService.storeGuestCoverFile,
@@ -66,6 +71,7 @@ class BookImportSession {
       enqueueImportedBookMedia: queue.enqueueImportedBookMedia,
       isLibraryContextCurrent: isCurrent,
     );
+
     return BookImportSession(
       process: importService.importBook,
       deleteFile: importService.deleteBookFile,

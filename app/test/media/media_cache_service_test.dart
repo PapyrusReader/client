@@ -108,7 +108,6 @@ void main() {
 
     final first = await load();
     final second = await load();
-
     expect(first, Uint8List.fromList([1, 2, 3]));
     expect(second, first);
     expect(downloads, 1);
@@ -138,7 +137,6 @@ void main() {
     await Future<void>.delayed(Duration.zero);
     expect(downloads, 1);
     gate.complete(Uint8List.fromList([1, 2, 3]));
-
     expect(await first, await second);
     expect(downloads, 1);
   });
@@ -156,7 +154,11 @@ void main() {
         writeLocalCover: (_, _, _) async {},
         downloadMedia: (_) async {
           downloads++;
-          if (downloads == 1) throw StateError('offline');
+
+          if (downloads == 1) {
+            throw StateError('offline');
+          }
+
           return Uint8List.fromList([1]);
         },
       );

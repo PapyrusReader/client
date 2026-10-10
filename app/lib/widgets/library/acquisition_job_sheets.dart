@@ -113,14 +113,6 @@ Future<void> _handleActionOutcome({
   }
 }
 
-Future<void> showAcquisitionJobAttentionSheet({
-  required BuildContext context,
-  required AcquisitionDownloadsProvider provider,
-  required AcquisitionJob job,
-}) {
-  return showAcquisitionJobDetailsSheet(context: context, provider: provider, job: job);
-}
-
 class _LiveAcquisitionJobDetailsContent extends StatelessWidget {
   const _LiveAcquisitionJobDetailsContent({required this.provider, required this.fallbackJob, required this.onAction});
 
@@ -170,11 +162,12 @@ class _AcquisitionJobDetailsContent extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
+
     return AppBottomSheet(
       header: Semantics(
         key: const Key('acquisition-job-details-title'),
         header: true,
-        child: Text(job.title, style: textTheme.headlineSmall),
+        child: Text(job.title),
       ),
       footer: actionsEnabled && (job.canCancel || job.canRetryImport)
           ? BottomSheetActions(
@@ -325,6 +318,5 @@ class _SelectFile extends _AcquisitionJobAction {
 
 String _fileName(String path) {
   final segments = path.split(RegExp(r'[/\\]'));
-
   return segments.lastWhere((segment) => segment.isNotEmpty, orElse: () => path);
 }

@@ -1,8 +1,5 @@
 import 'package:flutter/material.dart';
 
-/// Backwards compatibility alias.
-typedef ShelfData = Shelf;
-
 /// Lightweight cover preview data for shelf mosaic.
 class CoverPreview {
   final String bookId;
@@ -79,13 +76,18 @@ class Shelf {
 
   /// Get display text for book count.
   String get bookCountLabel {
-    if (bookCount == 1) return '1 book';
+    if (bookCount == 1) {
+      return '1 book';
+    }
+
     return '$bookCount books';
   }
 
-  /// Get the color from hex string.
   Color? get color {
-    if (colorHex == null) return null;
+    if (colorHex == null) {
+      return null;
+    }
+
     try {
       final hex = colorHex!.replaceFirst('#', '');
       return Color(int.parse('FF$hex', radix: 16));
@@ -141,9 +143,9 @@ class Shelf {
     );
   }
 
-  /// Convert to JSON for API/storage.
   Map<String, dynamic> toJson() {
     final descriptor = iconDescriptor;
+
     return {
       'id': id,
       'name': name,
@@ -162,20 +164,18 @@ class Shelf {
     };
   }
 
-  /// Create from JSON.
   factory Shelf.fromJson(Map<String, dynamic> json) {
     final codePoint = json['icon'] as int?;
+
     final descriptor = codePoint == null
         ? null
         : ShelfIconDescriptor(
             codePoint: codePoint,
-            // Legacy shelf JSON stored only the Material icon's code point.
-            fontFamily: json.containsKey('icon_font_family')
-                ? json['icon_font_family'] as String?
-                : Icons.folder_outlined.fontFamily,
+            fontFamily: json['icon_font_family'] as String?,
             fontPackage: json['icon_font_package'] as String?,
             matchTextDirection: json['icon_match_text_direction'] as bool? ?? false,
           );
+
     return Shelf(
       id: json['id'] as String,
       name: json['name'] as String,
@@ -195,12 +195,18 @@ class Shelf {
   /// Resolve a stored descriptor to a constant display icon.
   /// Only returns icons from availableIcons to allow tree shaking.
   static IconData? _iconFromDescriptor(ShelfIconDescriptor? descriptor) {
-    if (descriptor == null) return null;
+    if (descriptor == null) {
+      return null;
+    }
     // Look up in available icons only (for tree shaking compatibility)
+
     for (final icon in availableIcons) {
-      if (descriptor.matches(icon)) return icon;
+      if (descriptor.matches(icon)) {
+        return icon;
+      }
     }
     // Return default icon if not found (instead of creating non-const IconData)
+
     return Icons.folder_outlined;
   }
 
@@ -247,91 +253,4 @@ class Shelf {
     Icons.sports_esports,
     Icons.travel_explore,
   ];
-
-  /// Sample shelves for backwards compatibility.
-  static List<Shelf> get sampleShelves {
-    final now = DateTime.now();
-    return [
-      Shelf(
-        id: 'shelf-1',
-        name: 'Currently reading',
-        description: 'Books I am reading right now',
-        colorHex: '#4CAF50',
-        icon: Icons.menu_book,
-        sortOrder: 0,
-        createdAt: now.subtract(const Duration(days: 90)),
-        updatedAt: now.subtract(const Duration(hours: 2)),
-      ),
-      Shelf(
-        id: 'shelf-2',
-        name: 'Want to read',
-        description: 'My reading backlog',
-        colorHex: '#2196F3',
-        icon: Icons.bookmark_outline,
-        sortOrder: 1,
-        createdAt: now.subtract(const Duration(days: 90)),
-        updatedAt: now.subtract(const Duration(days: 1)),
-      ),
-      Shelf(
-        id: 'shelf-3',
-        name: 'Finished',
-        description: 'Books I have completed',
-        colorHex: '#9C27B0',
-        icon: Icons.check_circle_outline,
-        sortOrder: 2,
-        createdAt: now.subtract(const Duration(days: 90)),
-        updatedAt: now.subtract(const Duration(days: 7)),
-      ),
-      Shelf(
-        id: 'shelf-4',
-        name: 'Technical',
-        description: 'Programming and software development books',
-        colorHex: '#FF9800',
-        icon: Icons.code,
-        sortOrder: 3,
-        createdAt: now.subtract(const Duration(days: 60)),
-        updatedAt: now.subtract(const Duration(days: 3)),
-      ),
-      Shelf(
-        id: 'shelf-5',
-        name: 'Fiction',
-        description: 'Novels and fiction books',
-        colorHex: '#E91E63',
-        icon: Icons.auto_stories,
-        sortOrder: 4,
-        createdAt: now.subtract(const Duration(days: 45)),
-        updatedAt: now.subtract(const Duration(days: 5)),
-      ),
-      Shelf(
-        id: 'shelf-6',
-        name: 'Sci-Fi',
-        description: 'Science fiction and space opera',
-        colorHex: '#00BCD4',
-        icon: Icons.rocket_launch,
-        sortOrder: 5,
-        createdAt: now.subtract(const Duration(days: 30)),
-        updatedAt: now.subtract(const Duration(days: 10)),
-      ),
-      Shelf(
-        id: 'shelf-7',
-        name: 'Non-Fiction',
-        description: 'History, science, and self-help',
-        colorHex: '#795548',
-        icon: Icons.school,
-        sortOrder: 6,
-        createdAt: now.subtract(const Duration(days: 20)),
-        updatedAt: now.subtract(const Duration(days: 5)),
-      ),
-      Shelf(
-        id: 'shelf-8',
-        name: 'Reference',
-        description: 'Books for quick reference and lookup',
-        colorHex: '#607D8B',
-        icon: Icons.library_books,
-        sortOrder: 7,
-        createdAt: now.subtract(const Duration(days: 15)),
-        updatedAt: now.subtract(const Duration(days: 14)),
-      ),
-    ];
-  }
 }

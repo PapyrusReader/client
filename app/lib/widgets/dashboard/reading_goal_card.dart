@@ -21,13 +21,12 @@ class ReadingGoalCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (goals.isEmpty) return _buildEmptyState(context);
+    if (goals.isEmpty) {
+      return _buildEmptyState(context);
+    }
+
     return _buildCard(context);
   }
-
-  // ============================================================================
-  // CARD WITH GOALS
-  // ============================================================================
 
   /// Builds the card showing up to 3 active reading goals.
   Widget _buildCard(BuildContext context) {
@@ -111,13 +110,10 @@ class ReadingGoalCard extends StatelessWidget {
     );
   }
 
-  // ============================================================================
-  // EMPTY STATE
-  // ============================================================================
-
   /// Builds the empty state when no reading goals are set.
   Widget _buildEmptyState(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
+
     return Container(
       decoration: BoxDecoration(
         color: colorScheme.surfaceContainerLow,

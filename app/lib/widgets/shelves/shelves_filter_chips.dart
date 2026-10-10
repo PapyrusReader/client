@@ -12,6 +12,7 @@ typedef _ShelfSortSelection = ({ShelfSortOption option, bool ascending});
 
 bool _isEinkTheme(ThemeData theme) {
   final border = theme.inputDecorationTheme.border;
+
   return border is OutlineInputBorder &&
       border.borderRadius == BorderRadius.zero &&
       border.borderSide.width >= BorderWidths.einkDefault;
@@ -107,7 +108,7 @@ class _SingleSelectionSheet<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppBottomSheet(
-      header: Text(title, style: Theme.of(context).textTheme.titleLarge),
+      header: Text(title),
       scrollable: false,
       contentPadding: EdgeInsets.zero,
       body: ListView.builder(
@@ -272,9 +273,9 @@ class ShelvesFilterChips extends StatelessWidget {
       ),
     ];
 
-    chips.sort((a, b) {
-      final activeComparison = (b.isActive ? 1 : 0).compareTo(a.isActive ? 1 : 0);
-      return activeComparison != 0 ? activeComparison : a.defaultOrder.compareTo(b.defaultOrder);
+    chips.sort((left, right) {
+      final activeComparison = (right.isActive ? 1 : 0).compareTo(left.isActive ? 1 : 0);
+      return activeComparison != 0 ? activeComparison : left.defaultOrder.compareTo(right.defaultOrder);
     });
 
     final orderKey = [...chips.map((chip) => chip.id), if (provider.hasActiveShelfControls) 'clear-all'].join('-');
@@ -288,6 +289,7 @@ class ShelvesFilterChips extends StatelessWidget {
         switchOutCurve: Curves.easeInCubic,
         transitionBuilder: (child, animation) {
           final offsetAnimation = Tween<Offset>(begin: const Offset(0.03, 0), end: Offset.zero).animate(animation);
+
           return FadeTransition(
             opacity: animation,
             child: SlideTransition(position: offsetAnimation, child: child),

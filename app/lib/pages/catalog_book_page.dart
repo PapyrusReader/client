@@ -25,6 +25,7 @@ class CatalogBookSelection {
     required this.scope,
     this.cached = false,
   });
+
   final OpdsCatalog catalog;
   final OpdsPublication publication;
   final String? scope;
@@ -55,6 +56,7 @@ class CatalogBookPage extends StatefulWidget {
     this.query = '',
     this.initial,
   });
+
   final String catalogId;
   final Uri? source;
   final String publicationId;
@@ -83,8 +85,13 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
 
   void _cacheChanged() {
     final token = _previewCacheToken;
-    if (!mounted || token == null || _browser.httpClient.cache!.isCurrent(token)) return;
+
+    if (!mounted || token == null || _browser.httpClient.cache!.isCurrent(token)) {
+      return;
+    }
+
     _previewCacheToken = null;
+
     setState(() {
       _publication = null;
       _loading = false;
@@ -94,7 +101,11 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
 
   void _scheduleLoad(OpdsCatalogs catalogs, OpdsCatalog? catalog) {
     final key = '${catalogs.scope}/${catalogs.revision}/${widget.catalogId}/${widget.source}/${widget.publicationId}';
-    if (key == _loadKey) return;
+
+    if (key == _loadKey) {
+      return;
+    }
+
     _loadKey = key;
     _browser.clear();
     _previewCacheToken = null;
@@ -103,101 +114,178 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
     _cachedPreview = false;
     _error = null;
     _loading = catalog != null;
-    if (catalog == null) return;
+
+    if (catalog == null) {
+      return;
+    }
+
     _previewCacheToken = _browser.httpClient.cache?.capture(catalog, catalog.uri);
     final initial = widget.initial;
+
     if (initial != null &&
         initial.scope == catalogs.scope &&
         identical(initial.catalog, catalog) &&
         initial.publication.id == widget.publicationId) {
       _publication = initial.publication;
     }
+
     final resolveSource = _publication == null || initial?.cached == true;
+
     if (resolveSource) {
       _publication = _readCachedPublication(catalog) ?? _publication;
       _cachedPreview = _publication != null;
     }
+
     WidgetsBinding.instance.addPostFrameCallback((_) async {
-      if (!mounted || key != _loadKey) return;
+      if (!mounted || key != _loadKey) {
+        return;
+      }
+
       try {
         final credentials = await catalogs.credentials(catalog.id);
-        if (!mounted || key != _loadKey) return;
+
+        if (!mounted || key != _loadKey) {
+          return;
+        }
+
         _credentials = credentials;
+
         if (resolveSource) {
           final source = widget.source;
+
           if (source == null || !source.hasScheme || widget.publicationId.isEmpty) {
             throw const OpdsException('This book link is incomplete. Return to the catalog and select the book again.');
           }
+
           await _browser.load(catalog, source, credentials: credentials);
-          if (!mounted || key != _loadKey) return;
-          if (_browser.authorizationFailed || _browser.cacheInvalidated) _publication = null;
+
+          if (!mounted || key != _loadKey) {
+            return;
+          }
+
+          if (_browser.authorizationFailed || _browser.cacheInvalidated) {
+            _publication = null;
+          }
+
           final feed = _browser.feed;
-          if (feed == null) throw OpdsException(_browser.error ?? 'Could not load this book.');
-          if (_browser.error != null) _error = 'Showing saved content. ${_browser.error}';
+
+          if (feed == null) {
+            throw OpdsException(_browser.error ?? 'Could not load this book.');
+          }
+
+          if (_browser.error != null) {
+            _error = 'Showing saved content. ${_browser.error}';
+          }
+
           _publication = [
             ...feed.publications,
             for (final group in feed.groups) ...group.publications,
           ].where((book) => book.id == widget.publicationId).firstOrNull;
-          if (_publication == null) throw const OpdsException('This book is no longer available in this catalog feed.');
+
+          if (_publication == null) {
+            throw const OpdsException('This book is no longer available in this catalog feed.');
+          }
+
           setState(() {});
         }
         // Resolve standalone publication metadata using the existing OPDS parser
         // and detail-link classification. Multi-edition feeds remain distinct.
+
         final detail = _publication!.detailLink;
+
         if (detail != null && detail.uri != widget.source) {
           await _browser.load(catalog, detail.uri, credentials: credentials);
-          if (!mounted || key != _loadKey) return;
+
+          if (!mounted || key != _loadKey) {
+            return;
+          }
+
           if (_browser.authorizationFailed || _browser.cacheInvalidated) {
             _publication = null;
             throw OpdsException(_browser.error!);
           }
+
           final books = _browser.feed?.publications ?? <OpdsPublication>[];
           final type = detail.type?.toLowerCase() ?? '';
+
           final standalone =
               type.startsWith('application/opds-publication+json') || RegExp(r'type\s*=\s*"?entry').hasMatch(type);
+
           final matching = books.where((book) => book.id == _publication!.id).firstOrNull;
+
           if (matching != null || (standalone && books.length == 1)) {
             _publication = matching ?? books.single;
-            if (_browser.error != null) _error = 'Showing saved content. ${_browser.error}';
+
+            if (_browser.error != null) {
+              _error = 'Showing saved content. ${_browser.error}';
+            }
           } else if (_browser.error != null) {
             _error = _browser.error;
           }
         }
       } catch (error) {
-        if (!mounted || key != _loadKey) return;
+        if (!mounted || key != _loadKey) {
+          return;
+        }
+
         _error = opdsErrorMessage(error);
       } finally {
-        if (mounted && key == _loadKey) setState(() => _loading = false);
+        if (mounted && key == _loadKey) {
+          setState(() => _loading = false);
+        }
       }
     });
   }
 
   OpdsPublication? _readCachedPublication(OpdsCatalog catalog) {
     final source = widget.source;
-    if (source == null) return null;
+
+    if (source == null) {
+      return null;
+    }
+
     final feed = _readCachedFeed(catalog, source);
-    if (feed == null) return null;
+
+    if (feed == null) {
+      return null;
+    }
+
     final publication = [
       ...feed.publications,
       for (final group in feed.groups) ...group.publications,
     ].where((book) => book.id == widget.publicationId).firstOrNull;
+
     final detail = publication?.detailLink;
-    if (detail == null || detail.uri == source) return publication;
+
+    if (detail == null || detail.uri == source) {
+      return publication;
+    }
+
     final books = _readCachedFeed(catalog, detail.uri)?.publications ?? <OpdsPublication>[];
     final type = detail.type?.toLowerCase() ?? '';
+
     final standalone =
         type.startsWith('application/opds-publication+json') || RegExp(r'type\s*=\s*"?entry').hasMatch(type);
+
     return books.where((book) => book.id == publication!.id).firstOrNull ??
         (standalone && books.length == 1 ? books.single : publication);
   }
 
   OpdsFeed? _readCachedFeed(OpdsCatalog catalog, Uri source) {
     final cache = _browser.httpClient.cache;
-    if (cache == null) return null;
+
+    if (cache == null) {
+      return null;
+    }
+
     try {
       final token = cache.capture(catalog, source);
       final response = token == null ? null : cache.read(token)?.response;
-      if (response == null) return null;
+
+      if (response == null) {
+        return null;
+      }
+
       return OpdsParser.parse(response.text, response.uri, contentType: response.headers['content-type']);
     } catch (_) {
       return null;
@@ -217,6 +305,7 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
       path: '/library/catalogs/${Uri.encodeComponent(widget.catalogId)}',
       queryParameters: {if (uri != null) 'feed': uri.toString(), if (widget.query.isNotEmpty) 'q': widget.query},
     ).toString();
+
     if (replace) {
       context.go(location);
     } else {
@@ -225,21 +314,32 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
   }
 
   Future<void> _download(OpdsCatalog catalog, OpdsPublication publication, OpdsLink link) async {
-    if (!mounted) return;
+    if (!mounted) {
+      return;
+    }
+
     final catalogs = context.read<OpdsCatalogs>();
     final downloads = context.read<OpdsDownloads>();
     final scope = catalogs.scope;
     final revision = catalogs.revision;
+
     if (!identical(catalogs.find(catalog.id), catalog)) {
       _message('The catalog or account changed. Close these details and reopen the book.');
       return;
     }
+
     try {
       final credentials = await catalogs.credentials(catalog.id);
-      if (!mounted || scope != catalogs.scope || revision != catalogs.revision) return;
+
+      if (!mounted || scope != catalogs.scope || revision != catalogs.revision) {
+        return;
+      }
+
       await downloads.start(catalog, publication, link, credentials: credentials);
     } catch (error) {
-      if (mounted) _message(opdsErrorMessage(error));
+      if (mounted) {
+        _message(opdsErrorMessage(error));
+      }
     }
   }
 
@@ -247,7 +347,11 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
 
   void _retry() {
     final catalogs = context.read<OpdsCatalogs>();
-    if (catalogs.error != null) catalogs.reload();
+
+    if (catalogs.error != null) {
+      catalogs.reload();
+    }
+
     setState(() => _loadKey = null);
   }
 
@@ -265,6 +369,7 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
     final downloads = context.watch<OpdsDownloads>();
     _scheduleLoad(catalogs, catalog);
     final publication = _publication;
+
     return SafeArea(
       child: LayoutBuilder(
         builder: (context, constraints) => Column(
@@ -334,23 +439,24 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
                         ),
                       ),
                     Expanded(
-                      child: catalog == null
-                          ? _unavailable(catalogs.error ?? 'This catalog is not saved for the active account.')
-                          : _loading && _publication == null
-                          ? const Center(child: AppCircularProgressIndicator())
-                          : _publication == null
-                          ? _unavailable(_error ?? 'This book is unavailable.')
-                          : OpdsPublicationDetails(
-                              key: ValueKey('${catalogs.scope}/${catalogs.revision}/${_publication!.id}'),
-                              catalog: catalog,
-                              publication: _publication!,
-                              httpClient: _browser.httpClient,
-                              credentials: _credentials,
-                              downloads: downloads,
-                              onNavigate: _navigate,
-                              resolving: _loading && !_cachedPreview,
-                              onDownload: (link) => unawaited(_download(catalog, publication!, link)),
-                            ),
+                      child: switch (catalog) {
+                        null => _unavailable(catalogs.error ?? 'This catalog is not saved for the active account.'),
+                        _ when _loading && _publication == null => const Center(
+                          child: AppCircularProgressIndicator(),
+                        ),
+                        _ when _publication == null => _unavailable(_error ?? 'This book is unavailable.'),
+                        final catalog => OpdsPublicationDetails(
+                          key: ValueKey('${catalogs.scope}/${catalogs.revision}/${_publication!.id}'),
+                          catalog: catalog,
+                          publication: _publication!,
+                          httpClient: _browser.httpClient,
+                          credentials: _credentials,
+                          downloads: downloads,
+                          onNavigate: _navigate,
+                          resolving: _loading && !_cachedPreview,
+                          onDownload: (link) => unawaited(_download(catalog, publication!, link)),
+                        ),
+                      },
                     ),
                   ],
                 ),

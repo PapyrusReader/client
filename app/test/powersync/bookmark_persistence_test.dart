@@ -22,22 +22,26 @@ void main() {
       colorHex: '#2196F3',
       createdAt: DateTime.utc(2026),
     );
+
     expect(bookmarkRowMapper.fromRow(bookmarkRowMapper.toRow(bookmark)).toJson(), bookmark.toJson());
   });
 
   for (final guest in [true, false]) {
     test('bookmarks persist, merge, clear, react, and isolate in ${guest ? 'guest' : 'account'} storage', () async {
       final directory = await Directory.systemTemp.createTemp('papyrus-bookmarks-');
+
       PapyrusPowerSyncService open() => PapyrusPowerSyncService(
         connectorFactory: OfflineConnector.new,
         connectAuthenticated: false,
         pathResolver: (mode, profile, user) async =>
             '${directory.path}/${mode == LibraryDatabaseMode.guest ? 'guest' : '$profile-$user'}.db',
       );
+
       Future<void> activate(PapyrusPowerSyncService db) => guest ? db.activateGuest() : db.activateAuthenticated('one');
       var db = open();
       await activate(db);
       await db.upsert(buildTestBook(id: 'book', isPhysical: true));
+
       final bookmark = Bookmark(
         id: 'mark',
         bookId: 'book',
@@ -47,6 +51,7 @@ void main() {
         note: 'Remember',
         createdAt: DateTime.utc(2026),
       );
+
       await db.bookmarks.upsert(bookmark);
       await db.watchLibrary().firstWhere((snapshot) => snapshot.bookmarks.isNotEmpty);
       final store = DataStore(bookRepository: db);

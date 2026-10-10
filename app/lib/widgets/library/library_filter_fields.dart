@@ -7,6 +7,7 @@ import 'package:papyrus/widgets/shared/app_motion_control.dart';
 
 bool isLibraryFilterEinkTheme(ThemeData theme) {
   final border = theme.inputDecorationTheme.border;
+
   return border is OutlineInputBorder &&
       border.borderRadius == BorderRadius.zero &&
       border.borderSide.width >= BorderWidths.einkDefault;
@@ -113,15 +114,18 @@ class LibrarySmallFacet<T> extends StatelessWidget {
             Builder(
               builder: (context) {
                 final isSelected = selectedValues.contains(option.value);
+
                 return _selectionChip(
                   context,
                   label: option.label,
                   isSelected: isSelected,
                   onSelected: () {
                     final values = Set<T>.of(selectedValues);
+
                     if (!values.add(option.value)) {
                       values.remove(option.value);
                     }
+
                     onChanged(values);
                   },
                 );
@@ -295,15 +299,18 @@ class LibraryRatingFilterField extends StatelessWidget {
             Builder(
               builder: (context) {
                 final isSelected = ratings.contains(rating);
+
                 return _selectionChip(
                   context,
                   label: List.filled(rating, '★').join(),
                   isSelected: isSelected,
                   onSelected: () {
                     final values = Set<int>.of(ratings);
+
                     if (!values.add(rating)) {
                       values.remove(rating);
                     }
+
                     onChanged(values, includeUnrated);
                   },
                 );
@@ -324,6 +331,7 @@ class LibraryDateRangeField extends StatelessWidget {
 
   Future<void> _pickRange(BuildContext context) async {
     final now = DateTime.now();
+
     final selectedRange = await showAppDateRangePicker(
       context: context,
       firstDate: DateTime(1000),
@@ -343,10 +351,13 @@ class LibraryDateRangeField extends StatelessWidget {
     final isEink = isLibraryFilterEinkTheme(theme);
     final localizations = MaterialLocalizations.of(context);
     final value = this.value;
+
     final summary = value == null
         ? 'Any'
         : '${localizations.formatCompactDate(value.start)} – ${localizations.formatCompactDate(value.end)}';
+
     final borderRadius = BorderRadius.circular(isEink ? AppRadius.none : AppRadius.sm);
+
     final pickerBorderRadius = value == null
         ? borderRadius
         : BorderRadius.horizontal(left: Radius.circular(isEink ? AppRadius.none : AppRadius.sm));

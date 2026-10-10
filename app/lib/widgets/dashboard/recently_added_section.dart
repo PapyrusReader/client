@@ -23,13 +23,12 @@ class RecentlyAddedSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    if (books.isEmpty) return _buildEmptyState(context);
+    if (books.isEmpty) {
+      return _buildEmptyState(context);
+    }
+
     return _buildSection(context);
   }
-
-  // ============================================================================
-  // STANDARD LAYOUT
-  // ============================================================================
 
   /// Builds the section with header and horizontal book scroll.
   Widget _buildSection(BuildContext context) {
@@ -90,7 +89,7 @@ class RecentlyAddedSection extends StatelessWidget {
           clipBehavior: Clip.antiAlias,
           child: CoverImage(
             bookId: book.id,
-            imageUrl: book.coverURL,
+            imageUrl: book.coverUrl,
             mediaId: book.coverMediaId,
             placeholder: _buildCoverPlaceholder(context, book),
           ),
@@ -138,18 +137,10 @@ class RecentlyAddedSection extends StatelessWidget {
     );
   }
 
-  // ============================================================================
-  // EMPTY STATE
-  // ============================================================================
-
   /// Builds the empty state when no books have been added recently.
   Widget _buildEmptyState(BuildContext context) {
     return const EmptyState.compact(icon: Icons.library_books_outlined, title: 'No books added recently');
   }
-
-  // ============================================================================
-  // HELPERS
-  // ============================================================================
 
   void _onBookTap(BuildContext context, Book book) {
     if (onBookTap != null) {

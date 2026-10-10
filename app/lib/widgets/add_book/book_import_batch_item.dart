@@ -73,7 +73,9 @@ class BookImportBatchItem {
     if (status != BookImportBatchStatus.ready && status != BookImportBatchStatus.commitFailed) {
       throw StateError('Cannot start adding an item with status $status.');
     }
+
     final value = result;
+
     if (value == null) {
       throw StateError('Cannot add an item without a processed result.');
     }
@@ -85,7 +87,9 @@ class BookImportBatchItem {
     if (status != BookImportBatchStatus.adding) {
       throw StateError('Cannot finish adding an item with status $status.');
     }
+
     final value = result;
+
     if (value == null) {
       throw StateError('Cannot finish adding an item without a processed result.');
     }
@@ -97,7 +101,9 @@ class BookImportBatchItem {
     if (status != BookImportBatchStatus.adding) {
       throw StateError('Cannot fail adding an item with status $status.');
     }
+
     final value = result;
+
     if (value == null) {
       throw StateError('Cannot fail adding an item without a processed result.');
     }

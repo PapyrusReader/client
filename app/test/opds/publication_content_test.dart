@@ -11,6 +11,7 @@ void main() {
     name: 'Renamed catalog',
     uri: Uri.parse('https://www.gutenberg.org/ebooks.opds'),
   );
+
   const description = '''This edition has images.
 
 Title: A book
@@ -48,6 +49,7 @@ Another paragraph of prose.''';
       language: 'en',
       subjects: ['Fiction'],
     );
+
     final content = OpdsPublicationContent.from(gutenberg, publication);
     expect(content.description, startsWith('A story about a reader.\n\nThis edition has images.'));
     expect(content.description, endsWith('Another paragraph of prose.'));
@@ -67,13 +69,17 @@ Another paragraph of prose.''';
   test('other catalogs and unrecognized Gutenberg prose remain unchanged', () {
     for (final host in ['books.test', 'gutenberg.org.example.test']) {
       final catalog = OpdsCatalog(id: 'other', name: 'Project Gutenberg', uri: Uri.parse('https://$host/feed'));
+
       final result = OpdsPublicationContent.from(
         catalog,
         OpdsPublication(id: '1', title: 'A book', description: description),
       );
+
       expect(result.description, description);
     }
+
     const prose = 'Summary: A single ordinary paragraph.\n\nNothing to extract.';
+
     expect(
       OpdsPublicationContent.from(gutenberg, OpdsPublication(id: '1', title: 'Book', description: prose)).description,
       prose,
@@ -91,6 +97,7 @@ Another paragraph of prose.''';
             'Title: Another title\n\nPublisher: First publisher\n\nPublisher: Second publisher\n\nSummary: Story.',
       ),
     );
+
     expect(result.information['Publisher'], 'Structured publisher\nFirst publisher\nSecond publisher');
     expect(result.information['Catalog title'], 'Another title');
     expect(result.description, 'Story.');
@@ -107,6 +114,7 @@ Another paragraph of prose.''';
             'Summary: Story.\n\nReading Level: Reading ease score: 84.0\n\nLoCC: English literature\n\nCategory: Text',
       ),
     );
+
     expect(result.information['Reading level'], 'Reading ease score: 84.0');
     expect(result.information['Classification'], 'English literature');
     expect(result.information['Category'], 'Text');
@@ -122,12 +130,15 @@ Another paragraph of prose.''';
         <category term="fiction" label="Fiction"/><category term="Fiction"/>
         <category term="History"/><category term=""/>
       </entry>''', gutenberg.uri).publications.single;
+
     expect(publication.published, '1900');
     expect(publication.rights, 'Public domain');
     expect(publication.subjects, ['Fiction', 'History']);
+
     final onlyTimestamp = OpdsParser.parse('''
       <entry xmlns="http://www.w3.org/2005/Atom"><title>Book</title><published>2026-09-23</published></entry>
       ''', gutenberg.uri).publications.single;
+
     expect(onlyTimestamp.published, isNull);
   });
 
@@ -152,6 +163,7 @@ Another paragraph of prose.''';
       }),
       gutenberg.uri,
     ).publications.single;
+
     expect(publication.numberOfPages, 240);
     expect(publication.subjects, ['Fiction', 'History']);
     expect(OpdsPublicationContent.from(gutenberg, publication).information['Published'], 'June 1, 1900');

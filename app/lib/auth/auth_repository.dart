@@ -100,11 +100,11 @@ class AuthRepository {
   Future<AuthTokens?> signInWithGoogle({required String clientType, String? deviceLabel}) async {
     await apiClient.ensureServerReachable();
 
-    final redirectUri = kIsWeb
-        ? _webOAuthRedirectUri()
-        : _usesDesktopLoopbackOAuth
-        ? desktopOAuthRedirectUri
-        : nativeOAuthRedirectUri;
+    final redirectUri = switch (kIsWeb) {
+      true => _webOAuthRedirectUri(),
+      false when _usesDesktopLoopbackOAuth => desktopOAuthRedirectUri,
+      false => nativeOAuthRedirectUri,
+    };
 
     final startUri = apiClient.googleOAuthStartUri(redirectUri);
 
@@ -137,7 +137,6 @@ class AuthRepository {
     }
 
     final tokens = await apiClient.exchangeCode(code: code, clientType: clientType, deviceLabel: deviceLabel);
-
     await _save(tokens);
     return tokens;
   }
@@ -161,7 +160,6 @@ class AuthRepository {
 
   Future<PapyrusUser> updateCurrentUser({String? displayName, String? avatarUrl}) async {
     final accessToken = await _requireAccessToken();
-
     return apiClient.updateCurrentUser(accessToken: accessToken, displayName: displayName, avatarUrl: avatarUrl);
   }
 

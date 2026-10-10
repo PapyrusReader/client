@@ -38,10 +38,6 @@ class AnnotationsProvider extends ChangeNotifier {
     super.dispose();
   }
 
-  // ============================================================================
-  // GETTERS
-  // ============================================================================
-
   AnnotationSortOption get sortOption => _sortOption;
   Set<HighlightColor> get activeColors => _selectedColors;
   String get searchQuery => _searchQuery;
@@ -60,7 +56,10 @@ class AnnotationsProvider extends ChangeNotifier {
 
   /// All annotations, filtered and sorted.
   List<Annotation> get annotations {
-    if (_dataStore == null) return [];
+    if (_dataStore == null) {
+      return [];
+    }
+
     var list = List<Annotation>.from(_dataStore!.annotations);
     list = _applyFilters(list);
     _applySorting(list);
@@ -71,9 +70,11 @@ class AnnotationsProvider extends ChangeNotifier {
   Map<String, List<Annotation>> get annotationsByBook {
     final filtered = annotations;
     final map = <String, List<Annotation>>{};
+
     for (final annotation in filtered) {
       map.putIfAbsent(annotation.bookId, () => []).add(annotation);
     }
+
     return map;
   }
 
@@ -91,10 +92,6 @@ class AnnotationsProvider extends ChangeNotifier {
     return _dataStore?.getBook(bookId)?.coverMediaId;
   }
 
-  // ============================================================================
-  // SORTING & FILTERING
-  // ============================================================================
-
   void setSortOption(AnnotationSortOption option) {
     _sortOption = option;
     notifyListeners();
@@ -102,11 +99,13 @@ class AnnotationsProvider extends ChangeNotifier {
 
   void toggleColorFilter(HighlightColor color) {
     _selectedColors = Set.from(_selectedColors);
+
     if (_selectedColors.contains(color)) {
       _selectedColors.remove(color);
     } else {
       _selectedColors.add(color);
     }
+
     notifyListeners();
   }
 
@@ -131,10 +130,6 @@ class AnnotationsProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  // ============================================================================
-  // CRUD (delegated to DataStore)
-  // ============================================================================
-
   Future<void> updateAnnotationNote(
     String annotationId,
     String? note, {
@@ -142,7 +137,11 @@ class AnnotationsProvider extends ChangeNotifier {
     EntityRepository<Annotation>? repository,
   }) async {
     final annotation = previous ?? _dataStore?.getAnnotation(annotationId);
-    if (annotation == null || _dataStore == null) return;
+
+    if (annotation == null || _dataStore == null) {
+      return;
+    }
+
     await _dataStore!.updateAnnotation(
       annotation.copyWith(note: note, clearNote: note == null),
       previous: annotation,
@@ -154,24 +153,22 @@ class AnnotationsProvider extends ChangeNotifier {
     await _dataStore?.deleteAnnotation(annotationId, repository: repository);
   }
 
-  // ============================================================================
-  // PRIVATE HELPERS
-  // ============================================================================
-
   List<Annotation> _applyFilters(List<Annotation> all) {
     var result = all;
 
     if (_selectedColors.isNotEmpty) {
-      result = result.where((a) => _selectedColors.contains(a.color)).toList();
+      result = result.where((annotation) => _selectedColors.contains(annotation.color)).toList();
     }
 
     if (_searchQuery.isNotEmpty) {
       final query = _searchQuery.toLowerCase();
-      result = result.where((a) {
-        final bookTitle = getBookTitle(a.bookId).toLowerCase();
-        final highlightText = a.highlightText.toLowerCase();
-        final note = a.note?.toLowerCase() ?? '';
-        final location = a.location.displayLocation.toLowerCase();
+
+      result = result.where((annotation) {
+        final bookTitle = getBookTitle(annotation.bookId).toLowerCase();
+        final highlightText = annotation.selectedText.toLowerCase();
+        final note = annotation.note?.toLowerCase() ?? '';
+        final location = annotation.location.displayLocation.toLowerCase();
+
         return bookTitle.contains(query) ||
             highlightText.contains(query) ||
             note.contains(query) ||
@@ -183,16 +180,16 @@ class AnnotationsProvider extends ChangeNotifier {
   }
 
   void _applySorting(List<Annotation> list) {
-    list.sort((a, b) {
+    list.sort((left, right) {
       switch (_sortOption) {
         case AnnotationSortOption.dateNewest:
-          return b.createdAt.compareTo(a.createdAt);
+          return right.createdAt.compareTo(left.createdAt);
         case AnnotationSortOption.dateOldest:
-          return a.createdAt.compareTo(b.createdAt);
+          return left.createdAt.compareTo(right.createdAt);
         case AnnotationSortOption.bookTitle:
-          return getBookTitle(a.bookId).toLowerCase().compareTo(getBookTitle(b.bookId).toLowerCase());
+          return getBookTitle(left.bookId).toLowerCase().compareTo(getBookTitle(right.bookId).toLowerCase());
         case AnnotationSortOption.position:
-          return a.location.pageNumber.compareTo(b.location.pageNumber);
+          return left.location.pageNumber.compareTo(right.location.pageNumber);
       }
     });
   }

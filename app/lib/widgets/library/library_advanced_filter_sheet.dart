@@ -60,6 +60,7 @@ class LibraryAdvancedFilterSheet extends StatefulWidget {
             ),
           );
         }
+
         return DraggableScrollableSheet(
           expand: false,
           initialChildSize: 0.85,
@@ -97,6 +98,7 @@ class LibraryAdvancedFilterSheet extends StatefulWidget {
 class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet> {
   late LibraryFilters _draft = widget.libraryProvider.filters;
   late final List<Book> _sourceBooks = widget.sourceBooks ?? widget.dataStore.books;
+
   late final LibraryFilterOptions _options =
       widget.filterOptions ??
       (widget.sourceBooks == null
@@ -135,16 +137,22 @@ class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet>
   String _authorLabel(String value) {
     for (final book in widget.dataStore.books) {
       for (final author in [book.author, ...book.coAuthors]) {
-        if (author.trim().toLowerCase() == value) return author.trim();
+        if (author.trim().toLowerCase() == value) {
+          return author.trim();
+        }
       }
     }
+
     return 'Unknown author ($value)';
   }
 
   String _languageLabel(String value) {
     for (final book in widget.dataStore.books) {
-      if (normalizeBookLanguage(book.language) == value) return bookLanguageLabel(book.language ?? value);
+      if (normalizeBookLanguage(book.language) == value) {
+        return bookLanguageLabel(book.language ?? value);
+      }
     }
+
     final label = bookLanguageLabel(value);
     return label == value ? 'Unknown language ($value)' : label;
   }
@@ -152,22 +160,32 @@ class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet>
   String _bookFieldLabel(String value, String? Function(Book book) field, String fieldName) {
     for (final book in widget.dataStore.books) {
       final label = field(book)?.trim();
-      if (label != null && label.toLowerCase() == value) return label;
+
+      if (label != null && label.toLowerCase() == value) {
+        return label;
+      }
     }
+
     return 'Unknown $fieldName ($value)';
   }
 
   String _shelfLabel(String value) {
     for (final shelf in widget.dataStore.shelves) {
-      if (shelf.id == value) return shelf.name;
+      if (shelf.id == value) {
+        return shelf.name;
+      }
     }
+
     return 'Unknown shelf ($value)';
   }
 
   String _topicLabel(String value) {
     for (final topic in widget.dataStore.tags) {
-      if (topic.id == value) return topic.name;
+      if (topic.id == value) {
+        return topic.name;
+      }
     }
+
     return 'Unknown topic ($value)';
   }
 
@@ -175,36 +193,44 @@ class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet>
   Widget build(BuildContext context) {
     final authorOptions = _withSelectedOptions(_options.authors, _draft.authors, _authorLabel);
     final languageOptions = _withSelectedOptions(_options.languages, _draft.languages, _languageLabel);
+
     final publisherOptions = _withSelectedOptions(
       _options.publishers,
       _draft.publishers,
       (value) => _bookFieldLabel(value, (book) => book.publisher, 'publisher'),
     );
+
     final formatOptions = _withSelectedOptions(
       _options.formats,
       _draft.formats,
       (value) => _bookFieldLabel(value, (book) => book.formatLabel, 'format'),
     );
+
     final seriesOptions = _withSelectedOptions(
       _options.series,
       _draft.seriesNames,
       (value) => _bookFieldLabel(value, (book) => book.seriesName, 'series'),
     );
+
     final shelfOptions = _withSelectedOptions(_options.shelves, _draft.shelfIds, _shelfLabel);
     final topicOptions = _withSelectedOptions(_options.topics, _draft.topicIds, _topicLabel);
+
     final readingStatusOptions = _withSelectedOptions(
       _options.readingStatuses,
       _draft.statuses,
       (status) => status.label,
     );
+
     final availableRatings = {..._options.ratings, ..._draft.ratings}.toList()..sort();
     final showUnrated = _options.hasUnrated || _draft.includeUnrated;
+
     final hasMetadataOptions =
         authorOptions.isNotEmpty ||
         languageOptions.isNotEmpty ||
         formatOptions.isNotEmpty ||
         publisherOptions.isNotEmpty ||
         seriesOptions.isNotEmpty;
+
     final hasOrganizationOptions = shelfOptions.isNotEmpty || topicOptions.isNotEmpty;
     final hasRatingOptions = availableRatings.isNotEmpty || showUnrated;
 
@@ -329,6 +355,7 @@ class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet>
 
   Widget _buildActionBar(BuildContext context) {
     final count = _matchingBookCount;
+
     return BottomSheetFormActions(
       onCancel: _resetDraft,
       cancelLabel: 'Reset',
@@ -348,6 +375,7 @@ class _SectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final colorScheme = theme.colorScheme;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -421,11 +449,13 @@ class _SearchableFacetState<T> extends State<_SearchableFacet<T>> {
 
   void _updateSelection(LibraryFilterOption<T> option, bool isSelected) {
     final values = Set<T>.of(widget.selectedValues);
+
     if (isSelected) {
       values.add(option.value);
     } else {
       values.remove(option.value);
     }
+
     widget.onChanged(values);
   }
 
@@ -436,11 +466,14 @@ class _SearchableFacetState<T> extends State<_SearchableFacet<T>> {
     final inputDecorationTheme = theme.inputDecorationTheme;
     final isEink = isLibraryFilterEinkTheme(theme);
     final borderRadius = BorderRadius.circular(isEink ? AppRadius.none : AppRadius.lg);
+
     final headerBorderRadius = _isExpanded
         ? BorderRadius.vertical(top: Radius.circular(isEink ? AppRadius.none : AppRadius.lg))
         : borderRadius;
+
     final selectionSummary = widget.selectedValues.isEmpty ? 'Any' : '${widget.selectedValues.length} selected';
     final normalizedQuery = _query.trim().toLowerCase();
+
     final visibleOptions = normalizedQuery.isEmpty
         ? widget.options
         : widget.options.where((option) => option.label.toLowerCase().contains(normalizedQuery)).toList();
@@ -563,6 +596,7 @@ class _SearchableFacetState<T> extends State<_SearchableFacet<T>> {
                           itemBuilder: (context, index) {
                             final option = visibleOptions[index];
                             final isSelected = widget.selectedValues.contains(option.value);
+
                             return _FacetOptionRow(
                               label: option.label,
                               isSelected: isSelected,

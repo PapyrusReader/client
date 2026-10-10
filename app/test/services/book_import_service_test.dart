@@ -19,16 +19,17 @@ class _FakePathProvider extends Fake with MockPlatformInterfaceMixin implements 
 
 void main() {
   final uuidMatcher = matches(RegExp(r'^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$'));
-
   late BookImportService service;
   late Directory tempDir;
 
   Uint8List? loadTestFile(String name) {
     final file = File('test/data/$name');
+
     if (!file.existsSync()) {
       markTestSkipped('Test book file $name not available');
       return null;
     }
+
     return file.readAsBytesSync();
   }
 
@@ -40,6 +41,7 @@ void main() {
 
   tearDown(() async {
     service.dispose();
+
     if (tempDir.existsSync()) {
       await tempDir.delete(recursive: true);
     }
@@ -49,10 +51,12 @@ void main() {
     group('importBook', () {
       test('imports book1.epub with metadata', () async {
         final bytes = loadTestFile('book1.epub');
-        if (bytes == null) return;
+
+        if (bytes == null) {
+          return;
+        }
 
         final result = await service.importBook(bytes, 'book1.epub');
-
         expect(result.bookId, uuidMatcher);
         expect(result.title, isNotEmpty);
         expect(result.fileSize, bytes.length);
@@ -63,10 +67,12 @@ void main() {
 
       test('imports book2.epub with metadata', () async {
         final bytes = loadTestFile('book2.epub');
-        if (bytes == null) return;
+
+        if (bytes == null) {
+          return;
+        }
 
         final result = await service.importBook(bytes, 'book2.epub');
-
         expect(result.bookId, uuidMatcher);
         expect(result.title, isNotEmpty);
         expect(result.fileSize, bytes.length);
@@ -76,10 +82,12 @@ void main() {
 
       test('imports book3.epub with metadata', () async {
         final bytes = loadTestFile('book3.epub');
-        if (bytes == null) return;
+
+        if (bytes == null) {
+          return;
+        }
 
         final result = await service.importBook(bytes, 'book3.epub');
-
         expect(result.bookId, uuidMatcher);
         expect(result.title, isNotEmpty);
         expect(result.fileSize, bytes.length);
@@ -89,41 +97,49 @@ void main() {
 
       test('generates unique book IDs', () async {
         final bytes = loadTestFile('book1.epub');
-        if (bytes == null) return;
+
+        if (bytes == null) {
+          return;
+        }
 
         final result1 = await service.importBook(bytes, 'book1.epub');
         final result2 = await service.importBook(bytes, 'book1.epub');
-
         expect(result1.bookId, isNot(result2.bookId));
       });
 
       test('same file produces same hash', () async {
         final bytes = loadTestFile('book1.epub');
-        if (bytes == null) return;
+
+        if (bytes == null) {
+          return;
+        }
 
         final result1 = await service.importBook(bytes, 'book1.epub');
         final result2 = await service.importBook(bytes, 'book1.epub');
-
         expect(result1.fileHash, result2.fileHash);
       });
 
       test('different files produce different hashes', () async {
         final bytes1 = loadTestFile('book1.epub');
         final bytes2 = loadTestFile('book2.epub');
-        if (bytes1 == null || bytes2 == null) return;
+
+        if (bytes1 == null || bytes2 == null) {
+          return;
+        }
 
         final result1 = await service.importBook(bytes1, 'book1.epub');
         final result2 = await service.importBook(bytes2, 'book2.epub');
-
         expect(result1.fileHash, isNot(result2.fileHash));
       });
 
       test('stores file to disk', () async {
         final bytes = loadTestFile('book1.epub');
-        if (bytes == null) return;
+
+        if (bytes == null) {
+          return;
+        }
 
         final result = await service.importBook(bytes, 'book1.epub');
-
         final storedFile = File(p.join(tempDir.path, 'books', '${result.bookId}.epub'));
         expect(storedFile.existsSync(), isTrue);
         expect(storedFile.lengthSync(), bytes.length);
@@ -131,13 +147,11 @@ void main() {
 
       test('throws ArgumentError for files without extension', () async {
         final bytes = Uint8List(10);
-
         expect(() => service.importBook(bytes, 'noext'), throwsArgumentError);
       });
 
       test('handles corrupted epub gracefully', () async {
         final bytes = Uint8List.fromList([0, 1, 2, 3, 4, 5]);
-
         final result = await service.importBook(bytes, 'bad.epub');
 
         // Should still return a result (FileMetadataService never throws)
@@ -149,9 +163,7 @@ void main() {
 
       test('imports txt file with author-title pattern', () async {
         final bytes = Uint8List.fromList('Hello, this is a test book with some content.'.codeUnits);
-
         final result = await service.importBook(bytes, 'Jane Austen - Pride and Prejudice.txt');
-
         expect(result.title, 'Pride and Prejudice');
         expect(result.author, 'Jane Austen');
         expect(result.fileExtension, 'txt');
@@ -161,18 +173,19 @@ void main() {
     group('getBookFile', () {
       test('retrieves stored file bytes', () async {
         final bytes = loadTestFile('book1.epub');
-        if (bytes == null) return;
+
+        if (bytes == null) {
+          return;
+        }
 
         final result = await service.importBook(bytes, 'book1.epub');
         final retrieved = await service.getBookFile(result.bookId);
-
         expect(retrieved, isNotNull);
         expect(retrieved!.length, bytes.length);
       });
 
       test('returns null for non-existent book', () async {
         final result = await service.getBookFile('non-existent-id');
-
         expect(result, isNull);
       });
     });
@@ -180,9 +193,7 @@ void main() {
     group('hasBookFile', () {
       test('checks file presence without loading file bytes', () async {
         expect(await service.hasBookFile('cached-book'), isFalse);
-
         await service.storeBookFile('cached-book', 'epub', Uint8List.fromList([1, 2, 3]));
-
         expect(await service.hasBookFile('cached-book'), isTrue);
       });
     });
@@ -190,9 +201,7 @@ void main() {
     group('storeBookFile', () {
       test('stores downloaded book bytes with the provided extension', () async {
         final bytes = Uint8List.fromList('downloaded epub bytes'.codeUnits);
-
         await service.storeBookFile('downloaded-book', 'epub', bytes);
-
         final retrieved = await service.getBookFile('downloaded-book');
         final storedFile = File(p.join(tempDir.path, 'books', 'downloaded-book.epub'));
         expect(storedFile.existsSync(), isTrue);
@@ -202,7 +211,6 @@ void main() {
       test('normalizes extension and replaces existing cached file', () async {
         await service.storeBookFile('downloaded-book', '.epub', Uint8List.fromList([1, 2, 3]));
         await service.storeBookFile('downloaded-book', 'epub', Uint8List.fromList([4, 5]));
-
         final retrieved = await service.getBookFile('downloaded-book');
         expect(retrieved, Uint8List.fromList([4, 5]));
       });
@@ -211,7 +219,10 @@ void main() {
     group('deleteBookFile', () {
       test('removes stored file', () async {
         final bytes = loadTestFile('book1.epub');
-        if (bytes == null) return;
+
+        if (bytes == null) {
+          return;
+        }
 
         final result = await service.importBook(bytes, 'book1.epub');
 
@@ -236,7 +247,10 @@ void main() {
     group('round-trip', () {
       test('import → get → delete → get returns null', () async {
         final bytes = loadTestFile('book1.epub');
-        if (bytes == null) return;
+
+        if (bytes == null) {
+          return;
+        }
 
         final result = await service.importBook(bytes, 'book1.epub');
 

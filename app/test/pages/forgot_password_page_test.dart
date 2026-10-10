@@ -83,11 +83,9 @@ void main() {
   testWidgets('forgot password request shows check email state without token field', (tester) async {
     setViewport(tester, const Size(390, 844));
     final repository = await pumpPage(tester);
-
     await tester.enterText(find.byType(TextFormField), 'reader@example.com');
     await tester.tap(find.text('Continue'));
     await tester.pump();
-
     expect(repository.forgotPasswordEmail, 'reader@example.com');
     expect(find.text('Check your email'), findsOneWidget);
     expect(find.text('We sent a password reset link to reader@example.com'), findsOneWidget);
@@ -98,12 +96,10 @@ void main() {
   testWidgets('reset link page submits URL token with new password', (tester) async {
     setViewport(tester, const Size(390, 844));
     final repository = await pumpPage(tester, resetToken: 'reset-token-123', isResetLink: true);
-
     await tester.enterText(find.widgetWithText(TextFormField, 'New password'), ' NewSecureP@ss123 ');
     await tester.enterText(find.widgetWithText(TextFormField, 'Confirm new password'), ' NewSecureP@ss123 ');
     await tester.tap(find.text('Continue'));
     await tester.pump();
-
     expect(repository.resetToken, 'reset-token-123');
     expect(repository.resetPasswordValue, ' NewSecureP@ss123 ');
     expect(find.text('Password reset'), findsOneWidget);
@@ -112,7 +108,6 @@ void main() {
   testWidgets('reset link page shows invalid state without token', (tester) async {
     setViewport(tester, const Size(390, 844));
     await pumpPage(tester, isResetLink: true);
-
     expect(find.text('Invalid reset link'), findsOneWidget);
     expect(find.text('Request new link'), findsOneWidget);
     expect(find.text('Reset token'), findsNothing);

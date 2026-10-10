@@ -6,6 +6,7 @@ import 'package:papyrus/widgets/opds/opds_publication_information.dart';
 
 void main() {
   final catalog = OpdsCatalog(id: 'g', name: 'Gutenberg', uri: Uri.parse('https://www.gutenberg.org/ebooks.opds'));
+
   final publication = OpdsPublication(
     id: 'book',
     title: 'Book',
@@ -25,6 +26,7 @@ void main() {
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
+
         await tester.pumpWidget(
           MaterialApp(
             theme: theme,
@@ -38,6 +40,7 @@ void main() {
             ),
           ),
         );
+
         expect(find.text('Description'), findsOneWidget);
         expect(find.text('Information'), findsOneWidget);
         expect(find.text('Subjects'), findsOneWidget);
@@ -48,6 +51,7 @@ void main() {
         expect(find.byType(ExpansionTile), findsNothing);
         final description = tester.getTopLeft(find.text('Description'));
         final information = tester.getTopLeft(find.text('Information'));
+
         if (width >= 840 && scale == 1) {
           expect(information.dy, description.dy);
           expect(information.dx, greaterThan(description.dx));
@@ -55,6 +59,7 @@ void main() {
           expect(information.dy, greaterThan(description.dy));
           expect(information.dx, description.dx);
         }
+
         expect(tester.takeException(), isNull);
       });
     }
@@ -71,6 +76,7 @@ void main() {
         ),
       ),
     );
+
     expect(find.text('No description available.'), findsOneWidget);
     expect(find.text('Information'), findsNothing);
     expect(find.text('Subjects'), findsNothing);

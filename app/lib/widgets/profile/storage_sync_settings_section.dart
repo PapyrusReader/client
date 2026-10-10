@@ -33,12 +33,9 @@ class StorageSyncSettingsSection extends StatelessWidget {
     if (isDesktop) {
       return _buildDesktopContent(context);
     }
+
     return _buildMobileSection(context);
   }
-
-  // ============================================================================
-  // MOBILE PRESENTATION
-  // ============================================================================
 
   Widget _buildMobileSection(BuildContext context) {
     final controller = _storageSyncController(context);
@@ -95,16 +92,14 @@ class StorageSyncSettingsSection extends StatelessWidget {
     );
   }
 
-  // ============================================================================
-  // DESKTOP PRESENTATION
-  // ============================================================================
-
   Widget _buildDesktopContent(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
     final controller = _storageSyncController(context);
 
-    if (controller.isGuest) return _buildOfflineStorageSyncContent(context);
+    if (controller.isGuest) {
+      return _buildOfflineStorageSyncContent(context);
+    }
 
     return Column(
       children: [
@@ -215,13 +210,12 @@ class StorageSyncSettingsSection extends StatelessWidget {
     );
   }
 
-  // ============================================================================
-  // ACQUISITION HELPERS
-  // ============================================================================
-
   static Widget buildMobileAcquisitionSection(BuildContext context) {
     final auth = context.watch<AuthProvider>();
-    if (auth.isOfflineMode) return const SizedBox.shrink();
+
+    if (auth.isOfflineMode) {
+      return const SizedBox.shrink();
+    }
 
     return Column(
       key: const Key('profile-acquisition-section'),
@@ -287,10 +281,6 @@ class StorageSyncSettingsSection extends StatelessWidget {
     };
   }
 
-  // ============================================================================
-  // STORAGE CONTROLLER & HELPERS
-  // ============================================================================
-
   StorageSyncController _storageSyncController(BuildContext context) {
     return StorageSyncController(
       authProvider: context.watch<AuthProvider>(),
@@ -329,10 +319,6 @@ class StorageSyncSettingsSection extends StatelessWidget {
       ),
     );
   }
-
-  // ============================================================================
-  // ACTIONS & DIALOGS
-  // ============================================================================
 
   void _showManageSyncServersSheet(BuildContext context) {
     showModalBottomSheet(
@@ -432,7 +418,10 @@ class StorageSyncSettingsSection extends StatelessWidget {
                   } else {
                     await settings.updateCustomServer(server.id, urlController.text);
                   }
-                  if (dialogContext.mounted) Navigator.pop(dialogContext);
+
+                  if (dialogContext.mounted) {
+                    Navigator.pop(dialogContext);
+                  }
                 } catch (error) {
                   messenger.showSnackBar(
                     snackBarAnimationStyle: snackBarAnimationStyle,
@@ -453,8 +442,10 @@ class StorageSyncSettingsSection extends StatelessWidget {
   Future<void> _handleReconnectSync(BuildContext context) async {
     final messenger = ScaffoldMessenger.of(context);
     final snackBarAnimationStyle = AppMotion.animationStyle(context);
+
     try {
       await context.read<PapyrusPowerSyncService>().reconnect();
+
       messenger.showSnackBar(
         snackBarAnimationStyle: snackBarAnimationStyle,
         const SnackBar(content: Text('Sync reconnect requested.')),
@@ -471,6 +462,7 @@ class StorageSyncSettingsSection extends StatelessWidget {
     final messenger = ScaffoldMessenger.of(context);
     final snackBarAnimationStyle = AppMotion.animationStyle(context);
     await context.read<MediaUploadQueue>().retryFailed();
+
     messenger.showSnackBar(
       snackBarAnimationStyle: snackBarAnimationStyle,
       const SnackBar(content: Text('Media uploads will retry on the next sync.')),
@@ -528,12 +520,17 @@ class StorageSyncSettingsSection extends StatelessWidget {
           'This deletes the library stored on this device. This cannot be undone unless you have exported a backup.',
       actionLabel: 'Clear library',
     );
-    if (!confirmed || !context.mounted) return;
+
+    if (!confirmed || !context.mounted) {
+      return;
+    }
 
     final messenger = ScaffoldMessenger.of(context);
     final snackBarAnimationStyle = AppMotion.animationStyle(context);
+
     try {
       await context.read<PapyrusPowerSyncService>().clearGuestLibrary();
+
       messenger.showSnackBar(
         snackBarAnimationStyle: snackBarAnimationStyle,
         const SnackBar(content: Text('Local library cleared.')),
@@ -554,18 +551,24 @@ class StorageSyncSettingsSection extends StatelessWidget {
           'This removes synced library data stored on this device. Your library stays on the server and will download again when sync reconnects.',
       actionLabel: 'Clear local copy',
     );
-    if (!confirmed || !context.mounted) return;
+
+    if (!confirmed || !context.mounted) {
+      return;
+    }
 
     final messenger = ScaffoldMessenger.of(context);
     final snackBarAnimationStyle = AppMotion.animationStyle(context);
+
     try {
       final scope = context.read<MediaUploadQueue>().activeScope;
       final powerSyncService = context.read<PapyrusPowerSyncService>();
       final importService = context.read<BookImportService>();
       await powerSyncService.clearAuthenticatedCache();
+
       if (scope != null) {
         await importService.clearCoverFiles(scope);
       }
+
       messenger.showSnackBar(
         snackBarAnimationStyle: snackBarAnimationStyle,
         const SnackBar(content: Text('Local copy cleared.')),

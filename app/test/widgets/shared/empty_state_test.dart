@@ -46,6 +46,7 @@ void main() {
           action: ElevatedButton(onPressed: () {}, child: const Text('Add books')),
         ),
       );
+
       expect(find.text('Add books'), findsOneWidget);
       expect(find.byType(ElevatedButton), findsOneWidget);
     });
@@ -96,6 +97,7 @@ void main() {
           ),
         ),
       );
+
       final fullIcon = tester.widget<Icon>(find.byIcon(Icons.shelves));
       final compactIcon = tester.widget<Icon>(find.byIcon(Icons.library_books_outlined));
       expect(fullIcon.color, compactIcon.color);
@@ -104,16 +106,19 @@ void main() {
       final compactTitle = tester.widget<Text>(find.text('Compact title'));
       expect(title.style?.color, compactTitle.style?.color);
       expect(title.style?.color, theme.colorScheme.onSurfaceVariant);
+
       expect(
         tester.widget<Text>(find.text('Full description')).style,
         tester.widget<Text>(find.text('Compact description')).style,
       );
+
       expect(tester.takeException(), isNull);
     });
   }
 
   testWidgets('message and action remain reachable in a short viewport with large text', (tester) async {
     var called = false;
+
     await tester.pumpWidget(
       MaterialApp(
         home: MediaQuery(
@@ -133,6 +138,7 @@ void main() {
         ),
       ),
     );
+
     expect(tester.takeException(), isNull);
     final scroll = tester.state<ScrollableState>(find.byType(Scrollable));
     expect(scroll.position.maxScrollExtent, greaterThan(0));

@@ -17,6 +17,7 @@ Future<T?> showOpdsSheet<T>(
   EdgeInsetsGeometry contentPadding = const EdgeInsets.all(Spacing.lg),
 }) {
   final reduceAnimations = AppMotion.disabled(context);
+
   return showModalBottomSheet<T>(
     context: context,
     useRootNavigator: true,

@@ -102,20 +102,63 @@ class LibraryFilters {
 
   int get activeCategoryCount {
     var count = 0;
-    if (authors.isNotEmpty) count++;
-    if (languages.isNotEmpty) count++;
-    if (formats.isNotEmpty) count++;
-    if (topicIds.isNotEmpty) count++;
-    if (shelfIds.isNotEmpty) count++;
-    if (publishers.isNotEmpty) count++;
-    if (seriesNames.isNotEmpty) count++;
-    if (statuses.isNotEmpty) count++;
-    if (favoriteFilter != FavoriteFilter.any) count++;
-    if (progressRange != null) count++;
-    if (ratings.isNotEmpty || includeUnrated) count++;
-    if (publicationDateRange != null) count++;
-    if (dateAddedRange != null) count++;
-    if (lastReadDateRange != null) count++;
+
+    if (authors.isNotEmpty) {
+      count++;
+    }
+
+    if (languages.isNotEmpty) {
+      count++;
+    }
+
+    if (formats.isNotEmpty) {
+      count++;
+    }
+
+    if (topicIds.isNotEmpty) {
+      count++;
+    }
+
+    if (shelfIds.isNotEmpty) {
+      count++;
+    }
+
+    if (publishers.isNotEmpty) {
+      count++;
+    }
+
+    if (seriesNames.isNotEmpty) {
+      count++;
+    }
+
+    if (statuses.isNotEmpty) {
+      count++;
+    }
+
+    if (favoriteFilter != FavoriteFilter.any) {
+      count++;
+    }
+
+    if (progressRange != null) {
+      count++;
+    }
+
+    if (ratings.isNotEmpty || includeUnrated) {
+      count++;
+    }
+
+    if (publicationDateRange != null) {
+      count++;
+    }
+
+    if (dateAddedRange != null) {
+      count++;
+    }
+
+    if (lastReadDateRange != null) {
+      count++;
+    }
+
     return count;
   }
 

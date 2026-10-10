@@ -32,7 +32,10 @@ class OpdsLibrary extends ChangeNotifier {
   String _key(String scope) => 'papyrus.opds.imports.v1.${Uri.encodeComponent(scope)}';
 
   void setScope(String? scope) {
-    if (_scope == scope) return;
+    if (_scope == scope) {
+      return;
+    }
+
     _scope = scope;
     _generation++;
     _imports = scope == null ? {} : _scopedImports.putIfAbsent(scope, () => _read(scope));
@@ -41,16 +44,29 @@ class OpdsLibrary extends ChangeNotifier {
 
   Map<String, Map<String, dynamic>> _read(String scope) {
     final imports = <String, Map<String, dynamic>>{};
+
     try {
       final raw = _prefs.getString(_key(scope));
-      if (raw == null) return imports;
+
+      if (raw == null) {
+        return imports;
+      }
+
       final decoded = jsonDecode(raw) as Map<String, dynamic>;
+
       for (final entry in decoded.entries) {
         try {
           final parts = jsonDecode(entry.key);
-          if (parts is! List || parts.length != 4 || parts.any((part) => part is! String)) continue;
+
+          if (parts is! List || parts.length != 4 || parts.any((part) => part is! String)) {
+            continue;
+          }
+
           final value = Map<String, dynamic>.from(entry.value as Map);
-          if (value['book'] is String && value['sample'] is bool) imports[entry.key] = value;
+
+          if (value['book'] is String && value['sample'] is bool) {
+            imports[entry.key] = value;
+          }
         } catch (_) {
           // Ignore a damaged record without losing unrelated import identities.
         }
@@ -58,12 +74,17 @@ class OpdsLibrary extends ChangeNotifier {
     } catch (_) {
       // Broken optional provenance must not prevent opening the library.
     }
+
     return imports;
   }
 
   OpdsImportIdentity? capture(OpdsCatalog catalog, OpdsPublication publication, OpdsLink link) {
     final scope = _scope;
-    if (scope == null || publication.id.isEmpty) return null;
+
+    if (scope == null || publication.id.isEmpty) {
+      return null;
+    }
+
     return OpdsImportIdentity(scope, _generation, [
       catalog.id,
       catalog.uri.toString(),
@@ -73,21 +94,36 @@ class OpdsLibrary extends ChangeNotifier {
   }
 
   String? bookId(OpdsCatalog catalog, OpdsPublication publication, {OpdsLink? link}) {
-    if (_scope == null || !_dataStore.isLoaded || publication.id.isEmpty) return null;
+    if (_scope == null || !_dataStore.isLoaded || publication.id.isEmpty) {
+      return null;
+    }
+
     for (final entry in _imports.entries) {
       final parts = (jsonDecode(entry.key) as List).cast<String>();
+
       if (parts.length != 4 || parts[0] != catalog.id || parts[1] != '${catalog.uri}' || parts[2] != publication.id) {
         continue;
       }
-      if (link != null ? parts[3] != '${link.uri}' : entry.value['sample'] == true) continue;
+
+      if (link != null ? parts[3] != '${link.uri}' : entry.value['sample'] == true) {
+        continue;
+      }
+
       final id = entry.value['book'] as String;
-      if (_dataStore.getBook(id) != null) return id;
+
+      if (_dataStore.getBook(id) != null) {
+        return id;
+      }
     }
+
     return null;
   }
 
   Future<void> record(OpdsImportIdentity identity, String bookId) async {
-    if (_disposed || identity.scope != _scope || identity.generation != _generation) return;
+    if (_disposed || identity.scope != _scope || identity.generation != _generation) {
+      return;
+    }
+
     _imports[jsonEncode(identity.parts)] = {'book': bookId, 'sample': identity.sample};
     _changed();
     await _persist(identity.scope, _imports);
@@ -97,7 +133,11 @@ class OpdsLibrary extends ChangeNotifier {
   Future<void> forgetCatalog(String catalogId, {required String scope}) async {
     final imports = _scopedImports.putIfAbsent(scope, () => _read(scope));
     imports.removeWhere((key, _) => (jsonDecode(key) as List).first == catalogId);
-    if (_scope == scope) _generation++;
+
+    if (_scope == scope) {
+      _generation++;
+    }
+
     _changed();
     await _persist(scope, imports);
   }
@@ -105,6 +145,7 @@ class OpdsLibrary extends ChangeNotifier {
   Future<void> _persist(String scope, Map<String, Map<String, dynamic>> imports) {
     final json = jsonEncode(imports);
     // Serialize snapshots, including when an older scope's write is still pending.
+
     _pending = _pending.then((_) async {
       try {
         await _prefs.setString(_key(scope), json);
@@ -112,11 +153,14 @@ class OpdsLibrary extends ChangeNotifier {
         // The imported book remains valid even if optional local metadata cannot save.
       }
     });
+
     return _pending;
   }
 
   void _changed() {
-    if (!_disposed) notifyListeners();
+    if (!_disposed) {
+      notifyListeners();
+    }
   }
 
   @override

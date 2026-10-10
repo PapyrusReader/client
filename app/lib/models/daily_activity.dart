@@ -30,13 +30,21 @@ class DailyActivity {
 
   /// Formatted reading time (e.g., "45m", "1h 30m").
   String get readingTimeLabel {
-    if (readingMinutes == 0) return '0m';
-    if (readingMinutes < 60) return '${readingMinutes}m';
+    if (readingMinutes == 0) {
+      return '0m';
+    }
+
+    if (readingMinutes < 60) {
+      return '${readingMinutes}m';
+    }
 
     final hours = readingMinutes ~/ 60;
     final minutes = readingMinutes % 60;
 
-    if (minutes == 0) return '${hours}h';
+    if (minutes == 0) {
+      return '${hours}h';
+    }
+
     return '${hours}h ${minutes}m';
   }
 
@@ -86,7 +94,6 @@ class DailyActivity {
   static List<DailyActivity> get emptyWeek {
     final now = DateTime.now();
     final monday = now.subtract(Duration(days: now.weekday - 1));
-
     return List.generate(7, (index) => DailyActivity(date: monday.add(Duration(days: index)), readingMinutes: 0));
   }
 }
@@ -102,23 +109,37 @@ extension WeeklyActivityStats on List<DailyActivity> {
   /// Formatted total reading time.
   String get totalTimeLabel {
     final minutes = totalMinutes;
-    if (minutes == 0) return '0m';
-    if (minutes < 60) return '${minutes}m';
+
+    if (minutes == 0) {
+      return '0m';
+    }
+
+    if (minutes < 60) {
+      return '${minutes}m';
+    }
 
     final hours = minutes ~/ 60;
     final remainingMinutes = minutes % 60;
 
-    if (remainingMinutes == 0) return '${hours}h';
+    if (remainingMinutes == 0) {
+      return '${hours}h';
+    }
+
     return '${hours}h ${remainingMinutes}m';
   }
 
   /// Formatted average reading time.
   String get averageTimeLabel {
     final avg = averageMinutes;
-    if (avg == 0) return '0m';
+
+    if (avg == 0) {
+      return '0m';
+    }
+
     return '${avg}m';
   }
 
   /// Maximum reading minutes in a single day.
-  int get maxMinutes => isEmpty ? 0 : map((a) => a.readingMinutes).reduce((a, b) => a > b ? a : b);
+  int get maxMinutes =>
+      isEmpty ? 0 : map((item) => item.readingMinutes).reduce((total, value) => total > value ? total : value);
 }

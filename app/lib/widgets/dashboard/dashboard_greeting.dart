@@ -25,7 +25,6 @@ class DashboardGreeting extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-
     final greetingStyle = isDesktop ? textTheme.headlineMedium : textTheme.titleLarge;
 
     return Padding(

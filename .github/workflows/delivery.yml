@@ -1,0 +1,113 @@
+name: Deliver published release
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        required: true
+        type: string
+      destination:
+        type: string
+        default: all
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Existing published tag (vMAJOR.MINOR.PATCH+BUILD)'
+        required: true
+        type: string
+      destination:
+        description: Destination to retry without rebuilding
+        type: choice
+        options: [all, web, play]
+        default: all
+
+permissions:
+  contents: read
+
+jobs:
+  web:
+    if: github.ref == 'refs/heads/master' && (inputs.destination == 'all' || inputs.destination == 'web')
+    runs-on: ubuntu-24.04
+    environment: release
+    timeout-minutes: 15
+    concurrency:
+      group: web-production-delivery
+      cancel-in-progress: false
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download and verify published assets
+        id: assets
+        run: python3 tools/release_assets.py download artifacts --tag "$RELEASE_TAG"
+      - name: Deploy and verify web app
+        env:
+          RELEASE_REVISION: ${{ steps.assets.outputs.revision }}
+          WEB_SSH_HOST: ${{ vars.WEB_SSH_HOST }}
+          WEB_SSH_USER: ${{ vars.WEB_SSH_USER }}
+          WEB_SSH_KNOWN_HOSTS: ${{ vars.WEB_SSH_KNOWN_HOSTS }}
+          WEB_SSH_PRIVATE_KEY: ${{ secrets.WEB_SSH_PRIVATE_KEY }}
+        run: python3 tools/deploy_web.py artifacts --tag "$RELEASE_TAG" --revision "$RELEASE_REVISION"
+
+  play:
+    if: github.ref == 'refs/heads/master' && (inputs.destination == 'all' || inputs.destination == 'play')
+    runs-on: ubuntu-24.04
+    environment: release
+    timeout-minutes: 30
+    concurrency:
+      group: play-internal-delivery
+      cancel-in-progress: false
+    env:
+      RELEASE_TAG: ${{ inputs.tag }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Download and verify published assets
+        id: assets
+        run: python3 tools/release_assets.py download artifacts --tag "$RELEASE_TAG"
+      - name: Require Play configuration
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+        run: test -n "$PLAY_SERVICE_ACCOUNT_JSON" || { echo 'Configure PLAY_SERVICE_ACCOUNT_JSON and initialize the app in Play Console'; exit 1; }
+      - name: Install pinned Play authentication dependencies
+        run: python3 -m pip install -r tools/play-requirements.txt
+      - name: Inspect destination and recover matching upload
+        id: preflight
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          RELEASE_REVISION: ${{ steps.assets.outputs.revision }}
+        run: python3 tools/play_internal.py artifacts --tag "$RELEASE_TAG" --revision "$RELEASE_REVISION"
+      - name: Publish new bundle to internal testing
+        if: steps.preflight.outputs.upload == 'true'
+        uses: r0adkll/upload-google-play@e738b9dd8f2476ea806d921b64aacd24f34515a5 # v1
+        with:
+          serviceAccountJsonPlainText: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          packageName: com.papyrus.reader
+          releaseFiles: artifacts/papyrus-${{ inputs.tag }}-android-universal.aab
+          releaseName: ${{ inputs.tag }}
+          track: internal
+          status: completed
+      - name: Confirm internal release identity
+        env:
+          PLAY_SERVICE_ACCOUNT_JSON: ${{ secrets.PLAY_SERVICE_ACCOUNT_JSON }}
+          RELEASE_REVISION: ${{ steps.assets.outputs.revision }}
+        run: python3 tools/play_internal.py artifacts --tag "$RELEASE_TAG" --revision "$RELEASE_REVISION" --verify-delivered
+
+  summary:
+    if: always()
+    needs: [web, play]
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Report delivery results
+        env:
+          WEB_RESULT: ${{ needs.web.result }}
+          PLAY_RESULT: ${{ needs.play.result }}
+          RELEASE_TAG: ${{ inputs.tag }}
+        run: |
+          printf '## Delivery: %s\n\n| Destination | Result |\n| --- | --- |\n| Web | %s |\n| Play internal | %s |\n' \
+            "$RELEASE_TAG" "$WEB_RESULT" "$PLAY_RESULT" >> "$GITHUB_STEP_SUMMARY"

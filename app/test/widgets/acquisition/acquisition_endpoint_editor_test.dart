@@ -13,13 +13,12 @@ void main() {
   testWidgets('uses a content-driven draggable bottom sheet on narrow windows', (tester) async {
     await _setWindowSize(tester, const Size(390, 844));
     await tester.pumpWidget(_EditorLauncher());
-
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     final sheet = find.byKey(const Key('acquisition-endpoint-sheet'));
     expect(sheet, findsOneWidget);
     expect(find.byKey(const Key('acquisition-endpoint-dialog')), findsNothing);
+
     expect(
       find.descendant(
         of: sheet,
@@ -27,14 +26,17 @@ void main() {
       ),
       findsNothing,
     );
+
     expect(find.ancestor(of: sheet, matching: find.byType(AnimatedPadding)), findsOneWidget);
     final bottomSheet = tester.widget<BottomSheet>(find.byType(BottomSheet));
     expect(bottomSheet.enableDrag, isTrue);
     expect(bottomSheet.showDragHandle, isFalse);
     expect(find.byType(BottomSheetHandle), findsOneWidget);
     expect(find.byType(BottomSheetFormActions), findsOneWidget);
-    final headerPadding = tester.widget<Padding>(find.byKey(const Key('acquisition-editor-header')));
-    expect(headerPadding.padding, const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md));
+    final header = find.byKey(const Key('acquisition-editor-header'));
+    final handle = find.byType(BottomSheetHandle);
+    expect(tester.getSize(header).height, 48);
+    expect(tester.getTopLeft(handle).dy - tester.getTopLeft(header).dy, Spacing.sm);
     final bodyScroll = tester.widget<SingleChildScrollView>(find.byKey(const Key('acquisition-editor-body')));
     expect(bodyScroll.padding, const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md));
     expect(find.ancestor(of: sheet, matching: find.byType(SafeArea)), findsOneWidget);
@@ -43,13 +45,12 @@ void main() {
   testWidgets('short editor hugs its content on wide windows', (tester) async {
     await _setWindowSize(tester, const Size(900, 900));
     await tester.pumpWidget(_EditorLauncher());
-
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     final sheet = find.byKey(const Key('acquisition-endpoint-sheet'));
     expect(sheet, findsOneWidget);
     expect(find.byKey(const Key('acquisition-endpoint-dialog')), findsNothing);
+
     expect(
       find.descendant(
         of: sheet,
@@ -57,6 +58,7 @@ void main() {
       ),
       findsNothing,
     );
+
     expect(tester.getSize(sheet).height, lessThan(700));
     expect(find.ancestor(of: sheet, matching: find.byType(SafeArea)), findsOneWidget);
   });
@@ -78,25 +80,25 @@ void main() {
     tester.view.viewInsets = const FakeViewPadding(bottom: 300);
     addTearDown(() => tester.view.viewInsets = FakeViewPadding.zero);
     await tester.pumpWidget(_EditorLauncher(endpoint: _downloadClient));
-
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     final keyboardInset = tester.view.viewInsets.bottom;
     final availableHeight = 844 - keyboardInset;
     final bottomSheet = find.byType(BottomSheet);
     expect(tester.getSize(bottomSheet).height, lessThanOrEqualTo(keyboardInset + availableHeight * .92));
+
     expect(
       tester.getBottomLeft(find.byKey(const Key('acquisition-editor-header'))).dy,
       lessThanOrEqualTo(availableHeight),
     );
+
     expect(find.byType(SingleChildScrollView), findsOneWidget);
 
     final verticalScrollable = find
         .byWidgetPredicate((widget) => widget is Scrollable && widget.axisDirection == AxisDirection.down)
         .first;
-    await tester.scrollUntilVisible(find.byKey(const Key('acquisition-password')), 200, scrollable: verticalScrollable);
 
+    await tester.scrollUntilVisible(find.byKey(const Key('acquisition-password')), 200, scrollable: verticalScrollable);
     expect(find.byKey(const Key('acquisition-password')), findsOneWidget);
     expect(find.byKey(const Key('acquisition-editor-header')), findsOneWidget);
   });
@@ -106,7 +108,6 @@ void main() {
     await tester.pumpWidget(_EditorLauncher());
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     expect(find.text('Integration'), findsOneWidget);
     expect(find.text('Connection'), findsOneWidget);
     expect(find.byKey(const Key('acquisition-name')), findsOneWidget);
@@ -115,26 +116,22 @@ void main() {
     expect(find.byKey(const Key('acquisition-api-key')), findsOneWidget);
     expect(find.byKey(const Key('acquisition-username')), findsNothing);
     expect(find.byKey(const Key('acquisition-password')), findsNothing);
+
     expect(
       find.byWidgetPredicate((widget) => widget is SizedBox && widget.height == Spacing.formFieldSpacing),
       findsAtLeastNWidgets(3),
     );
 
     await _chooseKind(tester, 'qBittorrent');
-
     expect(find.byKey(const Key('acquisition-api-key')), findsNothing);
     expect(find.byKey(const Key('acquisition-username')), findsOneWidget);
     expect(find.byKey(const Key('acquisition-password')), findsOneWidget);
     expect(find.byKey(const Key('acquisition-download-root')), findsOneWidget);
-
     await _chooseKind(tester, 'Transmission');
-
     expect(find.byKey(const Key('acquisition-username')), findsOneWidget);
     expect(find.byKey(const Key('acquisition-password')), findsOneWidget);
     expect(find.byKey(const Key('acquisition-download-root')), findsNothing);
-
     await _chooseKind(tester, 'Deluge');
-
     expect(find.byKey(const Key('acquisition-api-key')), findsNothing);
     expect(find.byKey(const Key('acquisition-username')), findsNothing);
     expect(find.byKey(const Key('acquisition-password')), findsOneWidget);
@@ -145,15 +142,12 @@ void main() {
     await tester.pumpWidget(_EditorLauncher());
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     expect(find.widgetWithText(SwitchListTile, 'Enabled'), findsNothing);
-
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
     await tester.pumpWidget(_EditorLauncher(endpoint: _endpoint));
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     expect(find.widgetWithText(SwitchListTile, 'Enabled'), findsOneWidget);
   });
 
@@ -162,19 +156,16 @@ void main() {
     await tester.pumpWidget(_EditorLauncher());
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     await tester.tap(find.byKey(const Key('acquisition-save')));
     await tester.pump();
-
     expect(find.text('Enter a name'), findsOneWidget);
     expect(find.text('Enter a valid server URL'), findsOneWidget);
-
     await tester.enterText(find.byKey(const Key('acquisition-name')), 'Prowlarr');
+
     for (final invalidUrl in ['prowlarr.local', 'https://', 'https://reader:secret@prowlarr.local']) {
       await tester.enterText(find.byKey(const Key('acquisition-url')), invalidUrl);
       await tester.tap(find.byKey(const Key('acquisition-save')));
       await tester.pump();
-
       expect(find.text('Enter a valid server URL'), findsOneWidget);
     }
   });
@@ -183,6 +174,7 @@ void main() {
     await _setWindowSize(tester, const Size(900, 900));
     var saveCalls = 0;
     String? savedDownloadRoot;
+
     await tester.pumpWidget(
       _EditorLauncher(
         onSave:
@@ -201,22 +193,19 @@ void main() {
             },
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await _chooseKind(tester, 'qBittorrent');
     await tester.enterText(find.byKey(const Key('acquisition-name')), 'Downloads');
     await tester.enterText(find.byKey(const Key('acquisition-url')), 'https://qbittorrent.local');
-
     await tester.tap(find.byKey(const Key('acquisition-save')));
     await tester.pump();
-
     expect(find.text('Enter the download root'), findsOneWidget);
     expect(saveCalls, 0);
-
     await tester.enterText(find.byKey(const Key('acquisition-download-root')), '  /books  ');
     await tester.tap(find.byKey(const Key('acquisition-save')));
     await tester.pumpAndSettle();
-
     expect(saveCalls, 1);
     expect(savedDownloadRoot, '/books');
   });
@@ -247,36 +236,39 @@ void main() {
           .obscureText,
       isFalse,
     );
+
     expect(find.byTooltip('Hide API key'), findsOneWidget);
   });
 
   testWidgets('keeps connection testing in the body and reports success', (tester) async {
     await _setWindowSize(tester, const Size(900, 900));
     final completer = Completer<void>();
+
     await tester.pumpWidget(
       _EditorLauncher(onTest: ({required kind, required baseUrl, apiKey, username, password}) => completer.future),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await _enterRequiredFields(tester);
-
     final testButton = find.byKey(const Key('acquisition-test-connection'));
     final header = find.byKey(const Key('acquisition-editor-header'));
     expect(find.descendant(of: header, matching: testButton), findsNothing);
-
     await tester.tap(testButton);
     await tester.pump();
-
     expect(tester.widget<OutlinedButton>(testButton).onPressed, isNull);
     expect(tester.widget<FilledButton>(find.byKey(const Key('acquisition-save'))).onPressed, isNull);
     expect(tester.widget<TextFormField>(find.byKey(const Key('acquisition-name'))).enabled, isFalse);
+
     expect(
       tester
           .widget<DropdownButtonFormField<AcquisitionEndpointKind>>(find.byKey(const Key('acquisition-type')))
           .onChanged,
       isNull,
     );
+
     expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Cancel')).onPressed, isNull);
+
     expect(
       tester
           .widget<IconButton>(
@@ -288,13 +280,13 @@ void main() {
 
     completer.complete();
     await tester.pumpAndSettle();
-
     expect(find.text('Connection successful.'), findsOneWidget);
   });
 
   testWidgets('tests valid connection details without requiring a name', (tester) async {
     await _setWindowSize(tester, const Size(900, 900));
     var testCalls = 0;
+
     await tester.pumpWidget(
       _EditorLauncher(
         onTest: ({required kind, required baseUrl, apiKey, username, password}) async {
@@ -302,13 +294,12 @@ void main() {
         },
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('acquisition-url')), 'https://prowlarr.local');
-
     await tester.tap(find.byKey(const Key('acquisition-test-connection')));
     await tester.pumpAndSettle();
-
     expect(testCalls, 1);
     expect(find.text('Enter a name'), findsNothing);
     expect(find.text('Connection successful.'), findsOneWidget);
@@ -317,6 +308,7 @@ void main() {
   testWidgets('testing a corrected URL clears the error from a failed save', (tester) async {
     await _setWindowSize(tester, const Size(900, 900));
     var testCalls = 0;
+
     await tester.pumpWidget(
       _EditorLauncher(
         onTest: ({required kind, required baseUrl, apiKey, username, password}) async {
@@ -324,19 +316,17 @@ void main() {
         },
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const Key('acquisition-name')), 'Prowlarr');
     await tester.enterText(find.byKey(const Key('acquisition-url')), 'https://');
-
     await tester.tap(find.byKey(const Key('acquisition-save')));
     await tester.pump();
     expect(find.text('Enter a valid server URL'), findsOneWidget);
-
     await tester.enterText(find.byKey(const Key('acquisition-url')), 'https://prowlarr.local');
     await tester.tap(find.byKey(const Key('acquisition-test-connection')));
     await tester.pumpAndSettle();
-
     expect(testCalls, 1);
     expect(find.text('Enter a valid server URL'), findsNothing);
     expect(find.text('Connection successful.'), findsOneWidget);
@@ -344,25 +334,26 @@ void main() {
 
   testWidgets('reports connection errors locally', (tester) async {
     await _setWindowSize(tester, const Size(900, 900));
+
     await tester.pumpWidget(
       _EditorLauncher(
         onTest: ({required kind, required baseUrl, apiKey, username, password}) =>
             Future<void>.error(const AuthApiException(statusCode: 502, message: 'Prowlarr connection test failed')),
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await _enterRequiredFields(tester);
-
     await tester.tap(find.byKey(const Key('acquisition-test-connection')));
     await tester.pumpAndSettle();
-
     expect(find.text('Prowlarr connection test failed'), findsOneWidget);
   });
 
   testWidgets('failed save restores idle drag and handle behavior', (tester) async {
     final saveCompleter = Completer<void>();
     await _setWindowSize(tester, const Size(390, 844));
+
     await tester.pumpWidget(
       _EditorLauncher(
         onSave:
@@ -378,28 +369,23 @@ void main() {
             }) => saveCompleter.future,
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await _enterRequiredFields(tester);
-
     await tester.tap(find.byKey(const Key('acquisition-save')));
     await tester.pump();
-
     var bottomSheet = tester.widget<BottomSheet>(find.byType(BottomSheet));
     expect(bottomSheet.enableDrag, isFalse);
     expect(bottomSheet.showDragHandle, isFalse);
-
     saveCompleter.completeError(const AuthApiException(statusCode: 502, message: 'Could not save integration'));
     await tester.pumpAndSettle();
-
     bottomSheet = tester.widget<BottomSheet>(find.byType(BottomSheet));
     expect(bottomSheet.enableDrag, isTrue);
     expect(bottomSheet.showDragHandle, isFalse);
     expect(find.byType(BottomSheetHandle), findsOneWidget);
-
     await tester.drag(find.byType(BottomSheet), const Offset(0, 700));
     await tester.pumpAndSettle();
-
     expect(find.byKey(const Key('acquisition-endpoint-sheet')), findsNothing);
   });
 
@@ -411,14 +397,11 @@ void main() {
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
     await _enterRequiredFields(tester);
-
     await tester.tap(find.byKey(const Key('acquisition-save')));
     await tester.pump();
     expect(result, isNull);
-
     saveCompleter.complete();
     await tester.pumpAndSettle();
-
     expect(result, isTrue);
     expect(find.byType(AcquisitionEndpointEditor), findsNothing);
   });
@@ -442,6 +425,7 @@ void main() {
     String? savedApiKey = 'not-called';
     String? savedUsername = 'not-called';
     String? savedPassword = 'not-called';
+
     await tester.pumpWidget(
       _EditorLauncher(
         endpoint: _endpoint,
@@ -462,12 +446,11 @@ void main() {
             },
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     await tester.tap(find.byKey(const Key('acquisition-save')));
     await tester.pumpAndSettle();
-
     expect(savedApiKey, isNull);
     expect(savedUsername, isNull);
     expect(savedPassword, isNull);
@@ -478,6 +461,7 @@ void main() {
     String? savedUsername = 'not-called';
     String? savedPassword = 'not-called';
     String? savedDownloadRoot;
+
     await tester.pumpWidget(
       _EditorLauncher(
         endpoint: _downloadClient,
@@ -498,15 +482,13 @@ void main() {
             },
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     expect(find.byKey(const Key('acquisition-username')), findsOneWidget);
     expect(find.byKey(const Key('acquisition-password')), findsOneWidget);
-
     await tester.tap(find.byKey(const Key('acquisition-save')));
     await tester.pumpAndSettle();
-
     expect(savedUsername, isNull);
     expect(savedPassword, isNull);
     expect(savedDownloadRoot, '/downloads');
@@ -585,6 +567,7 @@ class _SaveRaceLauncher extends StatelessWidget {
               onPressed: () async {
                 late BuildContext editorContext;
                 var wasBusy = false;
+
                 final result = await showModalBottomSheet<bool>(
                   context: context,
                   isScrollControlled: true,
@@ -662,14 +645,15 @@ Future<void> _expectIdleSheetDismisses(WidgetTester tester, _DismissAttempt atte
     case _DismissAttempt.drag:
       await tester.drag(find.byType(BottomSheet), const Offset(0, 700));
   }
-  await tester.pumpAndSettle();
 
+  await tester.pumpAndSettle();
   expect(find.byKey(const Key('acquisition-endpoint-sheet')), findsNothing);
 }
 
 Future<void> _expectPendingSaveBlocksDismissal(WidgetTester tester, _DismissAttempt attempt) async {
   await _setWindowSize(tester, const Size(390, 844));
   final saveCompleter = Completer<void>();
+
   await tester.pumpWidget(
     _EditorLauncher(
       onSave:
@@ -685,13 +669,12 @@ Future<void> _expectPendingSaveBlocksDismissal(WidgetTester tester, _DismissAtte
           }) => saveCompleter.future,
     ),
   );
+
   await tester.tap(find.text('Open'));
   await tester.pumpAndSettle();
   await _enterRequiredFields(tester);
-
   await tester.tap(find.byKey(const Key('acquisition-save')));
   await tester.pump();
-
   expect(tester.widget<OutlinedButton>(find.widgetWithText(OutlinedButton, 'Cancel')).onPressed, isNull);
   final bottomSheet = tester.widget<BottomSheet>(find.byType(BottomSheet));
   expect(bottomSheet.enableDrag, isFalse);
@@ -705,13 +688,11 @@ Future<void> _expectPendingSaveBlocksDismissal(WidgetTester tester, _DismissAtte
     case _DismissAttempt.drag:
       await tester.drag(find.byType(BottomSheet), const Offset(0, 700));
   }
+
   await tester.pump(const Duration(milliseconds: 500));
-
   expect(find.byKey(const Key('acquisition-endpoint-sheet')), findsOneWidget);
-
   saveCompleter.complete();
   await tester.pumpAndSettle();
-
   expect(find.byKey(const Key('acquisition-endpoint-sheet')), findsNothing);
 }
 

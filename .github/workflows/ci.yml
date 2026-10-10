@@ -2,17 +2,15 @@ name: CI
 
 on:
   push:
-    branches: [master, main]
+    branches: [development, master, main]
     paths:
       - 'app/**'
       - 'packages/**'
       - '.github/workflows/**'
+      - '.github/scripts/**'
+      - 'codecov.yml'
   pull_request:
-    branches: [master, main]
-    paths:
-      - 'app/**'
-      - 'packages/**'
-      - '.github/workflows/**'
+    branches: [development, master, main]
   workflow_dispatch:
 
 concurrency:
@@ -49,12 +47,69 @@ jobs:
       - name: Analyze code
         run: flutter analyze --no-fatal-warnings --no-fatal-infos
 
+      - name: Install JUnit converter
+        run: dart pub global activate junitreport 2.0.2
+
+      - name: Check report normalization
+        run: python3 -m unittest discover -s ../.github/scripts -p 'test_*.py'
+
       - name: Run tests with coverage
-        run: flutter test --coverage
+        id: tests
+        run: |
+          mkdir -p build/test-results
+          flutter test --coverage --file-reporter json:build/test-results/tests.json
+
+      - name: Generate JUnit report
+        if: ${{ !cancelled() && (steps.tests.outcome == 'success' || steps.tests.outcome == 'failure') }}
+        run: |
+          python3 ../.github/scripts/normalize_test_report.py \
+            build/test-results/tests.json build/test-results/tests.junit.json
+          dart pub global run junitreport:tojunit \
+            --input build/test-results/tests.junit.json \
+            --output build/test-results/junit.xml \
+            --base "$PWD/" \
+            --package app
+          test -s build/test-results/junit.xml
+
+      - name: Save test results
+        if: ${{ !cancelled() && hashFiles('app/build/test-results/tests.json') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: client-test-results-${{ github.run_attempt }}
+          path: app/build/test-results/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Upload test results to Codecov
+        if: ${{ !cancelled() && hashFiles('app/build/test-results/junit.xml') != '' }}
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
+        with:
+          report_type: test_results
+          files: app/build/test-results/junit.xml
+          flags: client
+          token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          disable_search: true
+
+      - name: Validate coverage report
+        if: ${{ !cancelled() && (steps.tests.outcome == 'success' || steps.tests.outcome == 'failure') }}
+        run: test -s coverage/lcov.info
+
+      - name: Save coverage report
+        if: ${{ !cancelled() && hashFiles('app/coverage/lcov.info') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: client-coverage-${{ github.run_attempt }}
+          path: app/coverage/lcov.info
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v4
+        if: ${{ !cancelled() && hashFiles('app/coverage/lcov.info') != '' }}
+        uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7.1.1
         with:
           files: app/coverage/lcov.info
           flags: client
           token: ${{ secrets.CODECOV_TOKEN }}
+          fail_ci_if_error: true
+          disable_search: true

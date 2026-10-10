@@ -7,7 +7,10 @@ abstract final class BookGridSize {
   static const double defaultWidth = 160;
 
   static double normalize(double width) {
-    if (!width.isFinite) return defaultWidth;
+    if (!width.isFinite) {
+      return defaultWidth;
+    }
+
     return (minimum + ((width - minimum) / step).round() * step).clamp(minimum, maximum);
   }
 }

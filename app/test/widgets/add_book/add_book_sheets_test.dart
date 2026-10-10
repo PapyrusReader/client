@@ -52,9 +52,9 @@ void main() {
       (context) =>
           () => AddBookChoiceSheet.show(context),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     expect(find.byType(BottomSheet), findsOneWidget);
     expect(find.byType(Dialog), findsNothing);
     expect(find.byType(BottomSheetHandle), findsOneWidget);
@@ -67,9 +67,9 @@ void main() {
       (context) =>
           () => AddBookChoiceSheet.show(context),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     expect(find.text('Find books online'), findsNothing);
   });
 
@@ -116,7 +116,6 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Open add book'));
     await tester.pumpAndSettle();
-
     expect(find.byIcon(Icons.travel_explore_outlined), findsOneWidget);
     expect(find.text('Find books online'), findsOneWidget);
     expect(find.text('Search connected book sources'), findsOneWidget);
@@ -128,7 +127,6 @@ void main() {
     onlineOption.onTap!();
     onlineOption.onTap!();
     await tester.pumpAndSettle();
-
     expect(find.byType(BottomSheet), findsNothing);
     expect(findOnlineCalls, 1);
     expect(sheetWasAbsentAtCallback, isTrue);
@@ -139,6 +137,7 @@ void main() {
   testWidgets('digital import uses one unified modal route', (tester) async {
     final observer = _CountingNavigatorObserver();
     final selected = SelectedBookFile(name: 'selected.epub', bytes: Uint8List.fromList([1]));
+
     await pumpLauncher(
       tester,
       (context) =>
@@ -158,27 +157,26 @@ void main() {
       navigatorObservers: [observer],
       theme: AppTheme.dark.copyWith(platform: TargetPlatform.linux),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     final initialPushCount = observer.pushCount;
-
     await tester.tap(find.text('Import digital books'));
     await tester.pumpAndSettle();
-
     expect(find.text('Browse files'), findsOneWidget);
     expect(find.byType(BookImportDropZone), findsOneWidget);
     expect(find.text('Add book'), findsNothing);
     expect(observer.pushCount, initialPushCount + 1);
-
     final sheetRect = tester.getRect(find.byKey(const Key('add-book-sheet-header')));
+
     final dropZoneRect = tester.getRect(
       find.descendant(of: find.byType(BookImportDropZone), matching: find.byType(AnimatedContainer)),
     );
+
     expect(dropZoneRect.left, sheetRect.left + 24);
     expect(dropZoneRect.right, sheetRect.right - 24);
-
     final dropTarget = tester.widget<DropTarget>(find.byType(DropTarget));
+
     dropTarget.onDragDone!(
       DropDoneDetails(
         files: [
@@ -188,11 +186,10 @@ void main() {
         globalPosition: Offset.zero,
       ),
     );
-    await tester.pumpAndSettle();
 
+    await tester.pumpAndSettle();
     expect(find.text('dropped.epub'), findsOneWidget);
     expect(find.byType(BookImportDropZone), findsNothing);
-
     await tester.tap(find.widgetWithText(TextButton, 'Reset'));
     await tester.pump();
     await tester.tap(find.text('Browse files'));
@@ -204,20 +201,19 @@ void main() {
 
   testWidgets('physical choice dismisses before opening its separate sheet', (tester) async {
     final observer = _CountingNavigatorObserver();
+
     await pumpLauncher(
       tester,
       (context) =>
           () => AddBookChoiceSheet.show(context),
       navigatorObservers: [observer],
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     final initialPushCount = observer.pushCount;
-
     await tester.tap(find.text('Add physical book'));
     await tester.pumpAndSettle();
-
     expect(find.text('Add physical book'), findsOneWidget);
     expect(find.byKey(const Key('add-book-sheet-header')), findsOneWidget);
     expect(find.text('Add book'), findsNothing);
@@ -230,6 +226,7 @@ void main() {
       (context) =>
           () => AddPhysicalBookSheet.show(context),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
 
@@ -240,6 +237,7 @@ void main() {
       ),
       findsOneWidget,
     );
+
     expect(
       find.ancestor(
         of: find.widgetWithText(FilledButton, 'Add'),
@@ -264,22 +262,19 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     expect(tester.takeException(), isNull);
     expect(find.byKey(const Key('add-book-sheet-footer')), findsOneWidget);
     expect(tester.getRect(find.byKey(const Key('add-book-sheet-footer'))).bottom, lessThanOrEqualTo(150));
-
     final listView = find.byType(ListView);
-    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    final position = tester.widget<ListView>(listView).controller!.position;
     expect(tester.getSize(listView).height, greaterThan(0));
-    expect(scrollable.position.maxScrollExtent, greaterThan(0));
-
-    scrollable.position.jumpTo(1);
+    expect(position.maxScrollExtent, greaterThan(0));
+    position.jumpTo(1);
     await tester.pump();
-
-    expect(scrollable.position.pixels, 1);
+    expect(position.pixels, 1);
   });
 
   testWidgets('physical import keeps scaled compact controls above the landscape keyboard', (tester) async {
@@ -299,9 +294,9 @@ void main() {
         ),
       ),
     );
+
     await tester.tap(find.text('Open'));
     await tester.pumpAndSettle();
-
     expect(tester.takeException(), isNull);
     expect(tester.getRect(find.byKey(const Key('add-book-sheet-footer'))).bottom, lessThanOrEqualTo(150));
 
@@ -309,11 +304,11 @@ void main() {
       of: find.byKey(const Key('add-book-sheet-header')),
       matching: find.byType(IconButton),
     );
-    expect(tester.getSize(closeButton).width, greaterThanOrEqualTo(44));
-    expect(tester.getSize(closeButton).height, greaterThanOrEqualTo(44));
 
-    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(closeButton, findsNothing);
+    expect(find.text('Cancel').hitTestable(), findsOneWidget);
+    final position = tester.widget<ListView>(find.byType(ListView)).controller!.position;
     expect(tester.getSize(find.byType(ListView)).height, greaterThan(0));
-    expect(scrollable.position.maxScrollExtent, greaterThan(0));
+    expect(position.maxScrollExtent, greaterThan(0));
   });
 }

@@ -68,8 +68,13 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
   }
 
   Future<void> _save() async {
-    if (isSaving) return;
-    if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (isSaving) {
+      return;
+    }
+
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
 
     final page = int.parse(_pageController.text);
     final chapter = _chapterController.text.trim();
@@ -90,8 +95,12 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
       createdAt: widget.existingAnnotation?.createdAt ?? DateTime.now(),
       updatedAt: _isEditing ? DateTime.now() : null,
     );
+
     final saved = await persist(() => widget.onSave?.call(annotation));
-    if (saved && mounted) Navigator.of(context).pop(annotation);
+
+    if (saved && mounted) {
+      Navigator.of(context).pop(annotation);
+    }
   }
 
   @override
@@ -128,6 +137,7 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter the highlighted text';
                 }
+
                 return null;
               },
             ),
@@ -143,10 +153,13 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
                 if (value == null || value.trim().isEmpty) {
                   return 'Please enter a page number';
                 }
+
                 final page = int.tryParse(value);
+
                 if (page == null || page < 1) {
                   return 'Enter a valid page number';
                 }
+
                 return null;
               },
             ),
@@ -182,6 +195,7 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
               spacing: Spacing.sm,
               children: HighlightColor.values.map((color) {
                 final isSelected = color == _selectedColor;
+
                 return GestureDetector(
                   key: Key('annotation-color-${color.name}'),
                   onTap: () => setState(() => _selectedColor = color),

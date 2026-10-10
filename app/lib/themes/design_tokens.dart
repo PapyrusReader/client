@@ -1,10 +1,6 @@
 // Design tokens for the Papyrus book management application.
 // These tokens define the visual language across all platforms and themes.
 
-// =============================================================================
-// SPACING SYSTEM (8px grid)
-// =============================================================================
-
 class Spacing {
   Spacing._();
 
@@ -29,10 +25,6 @@ class Spacing {
   static const double pageMarginsDesktop = 32.0;
   static const double pageMarginsEink = 48.0;
 }
-
-// =============================================================================
-// RESPONSIVE BREAKPOINTS
-// =============================================================================
 
 class Breakpoints {
   Breakpoints._();
@@ -60,10 +52,6 @@ class Breakpoints {
   static const double desktopLargeMargin = 32.0;
 }
 
-// =============================================================================
-// BORDER RADIUS
-// =============================================================================
-
 class AppRadius {
   AppRadius._();
 
@@ -89,10 +77,6 @@ class AppRadius {
   static const double einkCard = 0.0;
 }
 
-// =============================================================================
-// TOUCH TARGETS
-// =============================================================================
-
 class TouchTargets {
   TouchTargets._();
 
@@ -111,10 +95,6 @@ class TouchTargets {
   static const double einkRecommended = 64.0;
   static const double einkSpacing = 16.0;
 }
-
-// =============================================================================
-// COMPONENT SIZES
-// =============================================================================
 
 class ComponentSizes {
   ComponentSizes._();
@@ -164,10 +144,6 @@ class ComponentSizes {
   static const double bookCoverHeightList = 90.0;
 }
 
-// =============================================================================
-// ELEVATION / SHADOWS
-// =============================================================================
-
 class AppElevation {
   AppElevation._();
 
@@ -182,10 +158,6 @@ class AppElevation {
   static const double eink = 0.0;
 }
 
-// =============================================================================
-// ANIMATION DURATIONS
-// =============================================================================
-
 class AnimationDurations {
   AnimationDurations._();
 
@@ -197,10 +169,6 @@ class AnimationDurations {
   // E-ink: instant (no animations)
   static const Duration eink = Duration.zero;
 }
-
-// =============================================================================
-// BORDER WIDTHS
-// =============================================================================
 
 class BorderWidths {
   BorderWidths._();
@@ -219,10 +187,6 @@ class BorderWidths {
   static const double einkFocused = 4.0;
   static const double einkError = 4.0;
 }
-
-// =============================================================================
-// ICON SIZES
-// =============================================================================
 
 class IconSizes {
   IconSizes._();

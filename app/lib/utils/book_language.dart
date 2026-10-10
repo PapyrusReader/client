@@ -105,6 +105,7 @@ const Map<String, String> _languageAliases = {
 
 String? normalizeBookLanguage(String? language) {
   final normalized = language?.trim().toLowerCase();
+
   if (normalized == null || normalized.isEmpty) {
     return null;
   }
@@ -114,6 +115,7 @@ String? normalizeBookLanguage(String? language) {
 
 String bookLanguageLabel(String language) {
   final normalized = normalizeBookLanguage(language);
+
   if (normalized == null) {
     return '';
   }

@@ -10,15 +10,19 @@ class PapyrusApiConfig {
     : powerSyncServiceUri = powerSyncServiceUri ?? Uri.parse(_defaultPowerSyncServiceUrl);
 
   factory PapyrusApiConfig.fromEnvironment() {
-    const rawBaseUrl = String.fromEnvironment('PAPYRUS_API_BASE_URL', defaultValue: _defaultBaseUrl);
-    const rawPowerSyncServiceUrl = String.fromEnvironment(
+    const baseUrl = String.fromEnvironment(
+      'PAPYRUS_API_BASE_URL',
+      defaultValue: _defaultBaseUrl,
+    );
+
+    const powerSyncServiceUrl = String.fromEnvironment(
       'POWERSYNC_SERVICE_URL',
       defaultValue: _defaultPowerSyncServiceUrl,
     );
 
     return PapyrusApiConfig(
-      serverBaseUri: Uri.parse(rawBaseUrl),
-      powerSyncServiceUri: Uri.parse(rawPowerSyncServiceUrl),
+      serverBaseUri: Uri.parse(baseUrl),
+      powerSyncServiceUri: Uri.parse(powerSyncServiceUrl),
     );
   }
 
@@ -30,7 +34,6 @@ class PapyrusApiConfig {
   Uri endpoint(String path, [Map<String, String>? queryParameters]) {
     final normalizedPath = path.startsWith('/') ? path : '/$path';
     final apiPath = '${apiBaseUri.path}$normalizedPath';
-
     return apiBaseUri.replace(path: apiPath, queryParameters: queryParameters);
   }
 }

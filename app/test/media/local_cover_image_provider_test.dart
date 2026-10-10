@@ -19,6 +19,7 @@ void main() {
         return _pngBytes;
       },
     );
+
     final second = _provider(
       loadBytes: () async {
         loads++;
@@ -30,13 +31,11 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await tester.pump();
     await _pumpImage(tester, second);
-
     expect(loads, 1);
   });
 
   test('scope, bucket, and file ID participate in key equality', () {
     final key = _provider().key;
-
     expect(_provider().key, key);
     expect(_provider(scopeKey: 'official--user-2').key, isNot(key));
     expect(_provider(bucket: CoverStorageBucket.pending).key, isNot(key));
@@ -46,6 +45,7 @@ void main() {
   testWidgets('null bytes surface an image-stream error', (tester) async {
     Object? streamError;
     final stream = _provider(loadBytes: () async => null).resolve(ImageConfiguration.empty);
+
     final listener = ImageStreamListener(
       (_, _) {},
       onError: (Object error, StackTrace? stackTrace) {
@@ -57,12 +57,12 @@ void main() {
     await tester.pump();
     await tester.pump();
     stream.removeListener(listener);
-
     expect(streamError, isA<StateError>());
   });
 
   testWidgets('evicting a key makes an equal provider load again', (tester) async {
     var loads = 0;
+
     Future<Uint8List?> load() async {
       loads++;
       return _pngBytes;
@@ -82,7 +82,6 @@ void main() {
     );
 
     await _pumpImage(tester, _provider(loadBytes: load));
-
     expect(loads, 2);
   });
 }

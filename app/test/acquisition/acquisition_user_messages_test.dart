@@ -9,6 +9,7 @@ void main() {
         searchErrorMessage(const AuthApiException(statusCode: 401, message: 'raw server response')),
         'Your session expired. Sign in and try again.',
       );
+
       expect(
         searchErrorMessage(const AuthApiException(statusCode: 403, message: 'raw server response')),
         'Your session expired. Sign in and try again.',
@@ -29,6 +30,7 @@ void main() {
         searchErrorMessage(const AuthApiException(statusCode: 422, message: 'raw server response')),
         'Could not search connected sources. Try again.',
       );
+
       expect(
         searchErrorMessage(StateError('https://server.local/secret')),
         'Could not search connected sources. Try again.',
@@ -46,6 +48,7 @@ void main() {
 
     test('hides timeout details', () {
       expect(submissionErrorMessage('request timed out after 30s'), 'The download client did not respond in time.');
+
       expect(
         submissionErrorMessage('timeout while contacting endpoint-17'),
         'The download client did not respond in time.',
@@ -64,6 +67,7 @@ void main() {
         submissionErrorMessage('remote client said: https://client.local/path'),
         'This release could not be sent to the download client.',
       );
+
       expect(submissionErrorMessage(null), 'This release could not be sent to the download client.');
     });
   });
@@ -71,7 +75,6 @@ void main() {
   group('download operation error messages', () {
     test('uses safe task-specific messages for provider operation failures', () {
       final rawError = StateError('https://download-client.local/endpoint-17?token=secret');
-
       expect(configurationErrorMessage(rawError), 'Could not load download settings. Try again.');
       expect(jobRefreshErrorMessage(rawError), 'Could not refresh downloads. Try again.');
       expect(cancelDownloadErrorMessage(rawError), 'Could not cancel the download. Try again.');

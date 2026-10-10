@@ -1,0 +1,65 @@
+codecov:
+  branch: development
+
+coverage:
+  status:
+    project:
+      default:
+        # Compare with the PR base; tolerate a one percentage point drop.
+        target: auto
+        threshold: 1%
+        if_not_found: failure
+        flags:
+          - client
+    patch:
+      default:
+        # Report the target before enforcing it on existing workflows.
+        target: 80%
+        threshold: 0%
+        informational: true
+        flags:
+          - client
+
+comment:
+  layout: "header, diff, flags, components"
+  hide_project_coverage: false
+
+component_management:
+  default_rules:
+    statuses:
+      - type: project
+        target: auto
+        threshold: 1%
+        informational: true
+  individual_components:
+    - component_id: client_ui
+      name: UI
+      paths:
+        - app/lib/pages/**
+        - app/lib/widgets/**
+        - app/lib/themes/**
+    - component_id: client_state
+      name: State and models
+      paths:
+        - app/lib/providers/**
+        - app/lib/models/**
+    - component_id: client_auth_storage_sync
+      name: Auth, storage and sync
+      paths:
+        - app/lib/auth/**
+        - app/lib/data/**
+        - app/lib/powersync/**
+        - app/lib/media/**
+    - component_id: client_reading_goals
+      name: Reading and goals
+      # This feature spans UI and state, so intentionally overlaps those groups.
+      paths:
+        - app/lib/reader/**
+        - app/lib/goals/**
+        - app/lib/models/reading_*.dart
+        - app/lib/models/goal_period_record.dart
+        - app/lib/providers/goals_provider.dart
+        - app/lib/providers/statistics_provider.dart
+        - app/lib/pages/goals_page.dart
+        - app/lib/pages/reader_page.dart
+        - app/lib/widgets/goals/**
