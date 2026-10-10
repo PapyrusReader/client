@@ -73,8 +73,15 @@ release PRs. Publication and production delivery remain pending.
   test profiles and clean up only their own data.
 - The stronger Linux lifecycle probe caught an application-data path mismatch.
   Updating `path_provider_linux` from 2.2.1 to 2.2.2 uses the versioned GLib SONAME
-  consistently in installed and bundled packages. The final native run must
-  confirm the same imported-library and settings preservation on Ubuntu.
+  consistently in installed and bundled packages. Linux run
+  [38092080634](https://github.com/PapyrusReader/client/actions/runs/38092080634)
+  at `f337831` passed the real imported-library, reading-position and settings
+  preservation probes across Ubuntu upgrade/removal/reinstall, plus all three
+  Ubuntu/Debian packaged reader reports. The headless Linux fixture does not
+  exercise a desktop Secret Service credential store.
+- Windows run [38092080651](https://github.com/PapyrusReader/client/actions/runs/38092080651)
+  at the same `f337831` revision passed all installer, runtime, reader and
+  credential-preservation checks again.
 - A connected Android device reports `versionName=0.0.1`, `versionCode=1` and
   both installer and initiating package `com.android.vending`. This confirms
   the existing Play installation, not installation of the next release.
