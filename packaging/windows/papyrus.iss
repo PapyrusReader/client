@@ -53,6 +53,7 @@ begin
   Result := '';
   if not HasWebViewRuntime then
   begin
+    Log('Papyrus: installing missing WebView2 runtime');
     ExtractTemporaryFile('MicrosoftEdgeWebView2RuntimeInstallerX64.exe');
     if not Exec(ExpandConstant('{tmp}\MicrosoftEdgeWebView2RuntimeInstallerX64.exe'),
       '/silent /install', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
@@ -63,5 +64,7 @@ begin
       NeedsRestart := True
     else if not HasWebViewRuntime then
       Result := 'Microsoft WebView2 Runtime was not detected after installation.';
-  end;
+  end
+  else
+    Log('Papyrus: existing WebView2 runtime retained');
 end;

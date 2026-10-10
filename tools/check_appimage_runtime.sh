@@ -12,7 +12,7 @@ trap 'rm -rf "$work"' EXIT
 test -x "$work/squashfs-root/usr/lib/webkit2gtk-4.1/WebKitWebProcess"
 test -x "$work/squashfs-root/usr/lib/webkit2gtk-4.1/WebKitNetworkProcess"
 set +e
-timeout 20s xvfb-run -a dbus-run-session -- "${namespace[@]}" "$work/squashfs-root/AppRun" > "$work/launch.log" 2>&1
+timeout --kill-after=5s 20s xvfb-run -a dbus-run-session -- "${namespace[@]}" "$work/squashfs-root/AppRun" > "$work/launch.log" 2>&1
 result=$?
 set -e
 cat "$work/launch.log"
@@ -25,5 +25,6 @@ if grep -Ei 'error while loading shared libraries|symbol lookup error|Failed to 
 fi
 # Replace only the disposable extracted executable to exercise the packaged
 # WebKit runtime. The release AppImage is never changed by this test.
+rm "$work/squashfs-root/usr/bin/papyrus"
 cp "$smoke" "$work/squashfs-root/usr/bin/papyrus"
-timeout 45s xvfb-run -a dbus-run-session -- "${namespace[@]}" "$work/squashfs-root/AppRun"
+timeout --kill-after=5s 45s xvfb-run -a dbus-run-session -- "${namespace[@]}" "$work/squashfs-root/AppRun"

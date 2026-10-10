@@ -38,7 +38,7 @@ jobs:
       - run: flutter pub get --enforce-lockfile
       - run: flutter build windows --release
       - run: ../tools/package_windows.ps1 -Tag 'v0.0.0+1'
-      - run: ../tools/check_windows_package.ps1 -Tag 'v0.0.0+1'
+      - run: ../tools/check_windows_package.ps1 -Tag 'v0.0.0+1' -RequireMissingRuntime
       - name: Build instrumented reader package
         run: flutter build windows --release --target integration_test/desktop_package_smoke.dart --dart-define=INTEGRATION_TEST_SHOULD_REPORT_RESULTS_TO_NATIVE=false
       - name: Package reader test build

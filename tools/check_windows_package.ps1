@@ -1,7 +1,25 @@
-param([Parameter(Mandatory)][string]$Tag)
+param([Parameter(Mandatory)][string]$Tag, [switch]$RequireMissingRuntime)
 $ErrorActionPreference = 'Stop'
 Set-StrictMode -Version Latest
 Set-Location (Join-Path $PSScriptRoot '../app')
+if ($RequireMissingRuntime) {
+    if ($env:GITHUB_ACTIONS -ne 'true') { throw 'Runtime removal is restricted to disposable CI runners' }
+    $RuntimeRoot = Join-Path ${env:ProgramFiles(x86)} 'Microsoft/EdgeWebView/Application'
+    foreach ($Setup in @(Get-ChildItem "$RuntimeRoot/*/Installer/setup.exe" -ErrorAction SilentlyContinue)) {
+        $Removal = Start-Process $Setup.FullName -ArgumentList @('--uninstall', '--msedgewebview', '--system-level', '--force-uninstall') -Wait -PassThru
+        if ($Removal.ExitCode -ne 0) { throw "WebView2 removal failed: $($Removal.ExitCode)" }
+    }
+    $ClientKey = 'Software/Microsoft/EdgeUpdate/Clients/{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}'
+    foreach ($Key in @("HKLM:/Software/WOW6432Node/Microsoft/EdgeUpdate/Clients/{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}", "HKCU:/$ClientKey")) {
+        $Runtime = Get-ItemProperty $Key -Name pv -ErrorAction SilentlyContinue
+        if ($null -ne $Runtime -and $Runtime.pv -and $Runtime.pv -ne '0.0.0.0') {
+            throw 'WebView2 remains installed; missing-runtime coverage cannot be claimed'
+        }
+    }
+    if (Get-ChildItem "$RuntimeRoot/*/msedgewebview2.exe" -ErrorAction SilentlyContinue) {
+        throw 'WebView2 executable remains after removal'
+    }
+}
 $Installer = (Resolve-Path "dist/papyrus-$Tag-windows-x64-setup.exe").Path
 $Directory = Join-Path ([IO.Path]::GetTempPath()) ('papyrus-install-' + [Guid]::NewGuid().ToString())
 $UserData = Join-Path $env:APPDATA 'com.papyrus/papyrus'
@@ -11,8 +29,16 @@ if (Test-Path $Sentinel) { throw 'Packaging test sentinel already exists' }
 Set-Content $Sentinel 'preserve-user-data'
 try {
     foreach ($Pass in @(1, 2)) {
-        $Process = Start-Process $Installer -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/DIR=`"$Directory`"") -Wait -PassThru
+        $Log = Join-Path ([IO.Path]::GetTempPath()) ('papyrus-install-' + [Guid]::NewGuid().ToString() + '.log')
+        $Process = Start-Process $Installer -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$Log`"", "/DIR=`"$Directory`"") -Wait -PassThru
         if ($Process.ExitCode -ne 0) { throw "Installer failed on pass $Pass with $($Process.ExitCode)" }
+        $ExpectedRuntime = 'Papyrus: existing WebView2 runtime retained'
+        if ($Pass -eq 1 -and $RequireMissingRuntime) { $ExpectedRuntime = 'Papyrus: installing missing WebView2 runtime' }
+        if (($Pass -eq 2 -or $RequireMissingRuntime) -and -not (Select-String -Path $Log -SimpleMatch $ExpectedRuntime)) {
+            throw "Installer did not verify the expected runtime path: $ExpectedRuntime"
+        }
+        Write-Output "Installer pass $Pass runtime validation: $ExpectedRuntime"
+        Remove-Item $Log
         foreach ($Name in @('papyrus.exe', 'flutter_windows.dll', 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll', 'data/app.so')) {
             if (-not (Test-Path (Join-Path $Directory $Name))) { throw "Missing packaged file: $Name" }
         }
