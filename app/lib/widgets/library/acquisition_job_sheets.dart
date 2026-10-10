@@ -175,7 +175,7 @@ class _AcquisitionJobDetailsContent extends StatelessWidget {
       header: Semantics(
         key: const Key('acquisition-job-details-title'),
         header: true,
-        child: Text(job.title, style: textTheme.headlineSmall),
+        child: Text(job.title),
       ),
       footer: actionsEnabled && (job.canCancel || job.canRetryImport)
           ? BottomSheetActions(

@@ -106,9 +106,9 @@ void main() {
         final header = find.byKey(const Key('bottom-sheet-header'));
         final title = find.text(category == 'Format' ? 'Formats' : 'Favorite state');
         final handle = find.byType(BottomSheetHandle);
-        expect(tester.getTopLeft(handle).dy - tester.getTopLeft(header).dy, Spacing.md);
-        expect(tester.getTopLeft(title).dy - tester.getBottomRight(handle).dy, Spacing.lg);
-        expect(tester.getBottomRight(header).dy - tester.getBottomRight(title).dy, Spacing.md);
+        expect(tester.getTopLeft(handle).dy - tester.getTopLeft(header).dy, Spacing.sm);
+        expect(tester.getTopLeft(title).dy - tester.getBottomRight(handle).dy, Spacing.xs);
+        expect(tester.getBottomRight(header).dy - tester.getBottomRight(title).dy, Spacing.sm);
         expect(tester.takeException(), isNull);
       });
     }

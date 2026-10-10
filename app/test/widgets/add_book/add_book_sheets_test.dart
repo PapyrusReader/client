@@ -269,12 +269,12 @@ void main() {
     expect(find.byKey(const Key('add-book-sheet-footer')), findsOneWidget);
     expect(tester.getRect(find.byKey(const Key('add-book-sheet-footer'))).bottom, lessThanOrEqualTo(150));
     final listView = find.byType(ListView);
-    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    final position = tester.widget<ListView>(listView).controller!.position;
     expect(tester.getSize(listView).height, greaterThan(0));
-    expect(scrollable.position.maxScrollExtent, greaterThan(0));
-    scrollable.position.jumpTo(1);
+    expect(position.maxScrollExtent, greaterThan(0));
+    position.jumpTo(1);
     await tester.pump();
-    expect(scrollable.position.pixels, 1);
+    expect(position.pixels, 1);
   });
 
   testWidgets('physical import keeps scaled compact controls above the landscape keyboard', (tester) async {
@@ -305,10 +305,10 @@ void main() {
       matching: find.byType(IconButton),
     );
 
-    expect(tester.getSize(closeButton).width, greaterThanOrEqualTo(44));
-    expect(tester.getSize(closeButton).height, greaterThanOrEqualTo(44));
-    final scrollable = tester.state<ScrollableState>(find.byType(Scrollable));
+    expect(closeButton, findsNothing);
+    expect(find.text('Cancel').hitTestable(), findsOneWidget);
+    final position = tester.widget<ListView>(find.byType(ListView)).controller!.position;
     expect(tester.getSize(find.byType(ListView)).height, greaterThan(0));
-    expect(scrollable.position.maxScrollExtent, greaterThan(0));
+    expect(position.maxScrollExtent, greaterThan(0));
   });
 }

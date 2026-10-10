@@ -132,7 +132,6 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> with PersistentSave
                   widget.isBulkMode
                       ? 'Add ${widget.bulkBookIds!.length} ${maybePluralize(widget.bulkBookIds!.length, "book")} to shelves'
                       : 'Add to shelves',
-                  style: textTheme.titleLarge,
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis,
                 ),

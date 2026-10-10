@@ -94,7 +94,7 @@ class _SingleSelectionSheet<T> extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppBottomSheet(
-      header: Text(title, style: Theme.of(context).textTheme.titleLarge),
+      header: Text(title),
       scrollable: false,
       contentPadding: EdgeInsets.zero,
       body: ListView.builder(
@@ -148,7 +148,7 @@ class _MultiSelectionSheetState<T> extends State<_MultiSelectionSheet<T>> {
         : widget.options.where((option) => option.label.toLowerCase().contains(normalizedQuery)).toList();
 
     return AppBottomSheet(
-      header: Text(widget.title, style: Theme.of(context).textTheme.titleLarge),
+      header: Text(widget.title),
       scrollable: false,
       contentPadding: EdgeInsets.zero,
       footer: BottomSheetFormActions(

@@ -262,7 +262,6 @@ class _EditProfilePageState extends State<EditProfilePage> {
       builder: (sheetContext) => AppBottomSheet(
         header: Text(
           'Profile photo',
-          style: Theme.of(context).textTheme.titleLarge,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),

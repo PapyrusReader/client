@@ -446,7 +446,6 @@ class _LibraryPageState extends State<LibraryPage> {
       builder: (sheetContext) => AppBottomSheet(
         header: Text(
           'Download with',
-          style: Theme.of(context).textTheme.titleLarge,
           maxLines: 2,
           overflow: TextOverflow.ellipsis,
         ),

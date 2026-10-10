@@ -1,93 +1,84 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_header.dart';
 
 void main() {
-  group('BottomSheetHeader', () {
-    Widget buildHeader({
-      String title = 'Test title',
-      VoidCallback? onCancel,
-      VoidCallback? onSave,
-      String saveLabel = 'Save',
-      bool canCancel = true,
-      bool canSave = true,
-    }) {
-      return MaterialApp(
-        home: Scaffold(
-          body: BottomSheetHeader(
-            title: title,
-            onCancel: onCancel ?? () {},
-            onSave: onSave ?? () {},
-            saveLabel: saveLabel,
-            canCancel: canCancel,
-            canSave: canSave,
+  for (final theme in [AppTheme.light, AppTheme.dark, AppTheme.eink]) {
+    testWidgets('compact header keeps its 48-pixel frame with ${theme.brightness} theme', (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(390, 844);
+      addTearDown(tester.view.reset);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: const Scaffold(
+            body: BottomSheetHeader(title: 'New shelf'),
           ),
         ),
       );
-    }
 
-    testWidgets('renders title, cancel, and save buttons', (tester) async {
-      await tester.pumpWidget(buildHeader(title: 'Edit bookmark'));
-      expect(find.text('Edit bookmark'), findsOneWidget);
-      expect(find.text('Cancel'), findsOneWidget);
-      expect(find.text('Save'), findsOneWidget);
-    });
-
-    testWidgets('cancel button calls onCancel', (tester) async {
-      var cancelled = false;
-      await tester.pumpWidget(buildHeader(onCancel: () => cancelled = true));
-      await tester.tap(find.text('Cancel'));
-      expect(cancelled, isTrue);
-    });
-
-    testWidgets('save button calls onSave', (tester) async {
-      var saved = false;
-      await tester.pumpWidget(buildHeader(onSave: () => saved = true));
-      await tester.tap(find.text('Save'));
-      expect(saved, isTrue);
-    });
-
-    testWidgets('save button is disabled when canSave is false', (tester) async {
-      var saved = false;
-      await tester.pumpWidget(buildHeader(canSave: false, onSave: () => saved = true));
-      await tester.tap(find.text('Save'));
-      expect(saved, isFalse);
-    });
-
-    testWidgets('cancel button is disabled when canCancel is false', (tester) async {
-      var cancelled = false;
-      await tester.pumpWidget(buildHeader(canCancel: false, onCancel: () => cancelled = true));
-      final cancelButton = tester.widget<TextButton>(find.widgetWithText(TextButton, 'Cancel'));
-      expect(cancelButton.onPressed, isNull);
-      await tester.tap(find.text('Cancel'));
-      expect(cancelled, isFalse);
-    });
-
-    testWidgets('uses custom save label', (tester) async {
-      await tester.pumpWidget(buildHeader(saveLabel: 'Done'));
-      expect(find.text('Done'), findsOneWidget);
-      expect(find.text('Save'), findsNothing);
-    });
-
-    testWidgets('save button is a FilledButton', (tester) async {
-      await tester.pumpWidget(buildHeader());
-      final filledButton = find.ancestor(of: find.text('Save'), matching: find.byType(FilledButton));
-      expect(filledButton, findsOneWidget);
-    });
-
-    testWidgets('keeps long titles and actions visible on narrow text-scaled layouts', (tester) async {
-      tester.view.devicePixelRatio = 1;
-      tester.view.physicalSize = const Size(320, 568);
-      tester.platformDispatcher.textScaleFactorTestValue = 2;
-      addTearDown(tester.view.reset);
-      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
-      await tester.pumpWidget(buildHeader(title: 'Search all monitored books', saveLabel: 'Run'));
+      expect(tester.getSize(find.byType(BottomSheetHeader)).height, 48);
+      expect(find.byIcon(Icons.close), findsNothing);
+      expect(tester.getTopLeft(find.text('New shelf')).dx, 24);
       expect(tester.takeException(), isNull);
-      expect(find.text('Search all monitored books'), findsOneWidget);
-      expect(find.widgetWithText(TextButton, 'Cancel'), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Run'), findsOneWidget);
-      expect(find.widgetWithText(TextButton, 'Cancel').hitTestable(), findsOneWidget);
-      expect(find.widgetWithText(FilledButton, 'Run').hitTestable(), findsOneWidget);
     });
+  }
+
+  testWidgets('desktop titles are larger without restoring the tall header', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: const Scaffold(body: BottomSheetHeader(title: 'New shelf')),
+      ),
+    );
+
+    final titleContext = tester.element(find.text('New shelf'));
+    expect(DefaultTextStyle.of(titleContext).style.fontSize, 22);
+    expect(tester.getSize(find.byType(BottomSheetHeader)).height, lessThan(56));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('long titles wrap and grow with accessibility text size', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(320, 568);
+    addTearDown(tester.view.reset);
+    const title = 'A very long sheet title that should remain fully readable';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: const MediaQuery(
+          data: MediaQueryData(textScaler: TextScaler.linear(2)),
+          child: Scaffold(body: BottomSheetHeader(title: title)),
+        ),
+      ),
+    );
+
+    final text = tester.widget<Text>(find.text(title));
+    expect(text.maxLines, isNull);
+    expect(tester.getSize(find.byType(BottomSheetHeader)).height, greaterThan(48));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('offers an accessible dismiss action without an extra button', (tester) async {
+    final semantics = tester.ensureSemantics();
+    var dismissed = false;
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: BottomSheetHeader(title: 'Details', onDismiss: () => dismissed = true),
+        ),
+      ),
+    );
+
+    final dismiss = find.byWidgetPredicate((widget) => widget is Semantics && widget.properties.onDismiss != null);
+    expect(dismiss, findsOneWidget);
+    tester.widget<Semantics>(dismiss).properties.onDismiss!();
+    expect(dismissed, isTrue);
+    expect(find.byType(IconButton), findsNothing);
+    semantics.dispose();
   });
 }

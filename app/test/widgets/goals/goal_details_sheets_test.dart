@@ -326,7 +326,7 @@ void main() {
         final delete = find.widgetWithText(OutlinedButton, 'Delete');
         expect(done.hitTestable(), findsOneWidget);
         expect(delete.hitTestable(), findsOneWidget);
-        expect(find.byTooltip('Close').hitTestable(), findsOneWidget);
+        expect(find.byTooltip('Close'), findsNothing);
         expect(tester.getRect(done).bottom, lessThanOrEqualTo(652));
         expect(tester.getRect(delete).top, tester.getRect(done).top);
         expect(find.widgetWithText(OutlinedButton, 'Delete goal'), findsNothing);

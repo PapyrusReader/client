@@ -33,8 +33,10 @@ void main() {
     expect(bottomSheet.showDragHandle, isFalse);
     expect(find.byType(BottomSheetHandle), findsOneWidget);
     expect(find.byType(BottomSheetFormActions), findsOneWidget);
-    final headerPadding = tester.widget<Padding>(find.byKey(const Key('acquisition-editor-header')));
-    expect(headerPadding.padding, const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md));
+    final header = find.byKey(const Key('acquisition-editor-header'));
+    final handle = find.byType(BottomSheetHandle);
+    expect(tester.getSize(header).height, 48);
+    expect(tester.getTopLeft(handle).dy - tester.getTopLeft(header).dy, Spacing.sm);
     final bodyScroll = tester.widget<SingleChildScrollView>(find.byKey(const Key('acquisition-editor-body')));
     expect(bodyScroll.padding, const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md));
     expect(find.ancestor(of: sheet, matching: find.byType(SafeArea)), findsOneWidget);

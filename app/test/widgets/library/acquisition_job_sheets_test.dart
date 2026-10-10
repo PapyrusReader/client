@@ -48,9 +48,8 @@ void main() {
       isTrue,
     );
 
-    final title = tester.widget<Text>(find.text('Example Book'));
     final titleContext = tester.element(find.text('Example Book'));
-    expect(title.style, Theme.of(titleContext).textTheme.headlineSmall);
+    expect(DefaultTextStyle.of(titleContext).style.fontSize, Theme.of(titleContext).textTheme.titleLarge!.fontSize);
     final sheet = tester.widget<BottomSheet>(find.byType(BottomSheet));
 
     expect(

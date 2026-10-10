@@ -171,12 +171,12 @@ void main() {
       await tester.tap(fab);
       await tester.pumpAndSettle();
       expect(find.text('Books finished'), findsOneWidget);
-      await tester.tap(find.byTooltip('Close'));
+      await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
       await tester.tap(log);
       await tester.pumpAndSettle();
       expect(find.text('Save reading'), findsOneWidget);
-      await tester.tap(find.byTooltip('Close'));
+      await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
     }
 
