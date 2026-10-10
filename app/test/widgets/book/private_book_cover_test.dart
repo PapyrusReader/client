@@ -506,7 +506,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    harness.syncSettings.setCustomServerUrls(apiUrl: 'https://custom.test', powerSyncUrl: 'https://sync.custom.test');
+    await harness.syncSettings.addCustomServer('https://custom.test');
     await tester.pumpAndSettle();
     expect(scopes.map((scope) => scope.profileKey), [SyncSettingsProvider.officialServerId, startsWith('custom-')]);
     final customScope = scopes.last;
@@ -559,7 +559,7 @@ void main() {
       fileId: 'book-1',
     );
 
-    harness.syncSettings.setCustomServerUrls(apiUrl: 'https://custom.test', powerSyncUrl: 'https://sync.custom.test');
+    await harness.syncSettings.addCustomServer('https://custom.test');
     await tester.pumpAndSettle();
     expect(scopes.map((scope) => scope.profileKey), [SyncSettingsProvider.officialServerId, startsWith('custom-')]);
 
@@ -790,6 +790,10 @@ Future<_ProviderHarness> _buildProviderHarness({
 
   final syncSettings = SyncSettingsProvider(
     prefs,
+    discoveryFetcher: (_) async => DataSyncDiscoverySettings(
+      dataSyncUri: Uri.parse('https://sync.custom.test'),
+      fileStorageQuotaBytes: null,
+    ),
     officialConfig: PapyrusApiConfig(
       serverBaseUri: Uri.parse('https://api.test'),
       powerSyncServiceUri: Uri.parse('https://sync.test'),

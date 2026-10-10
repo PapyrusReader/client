@@ -117,18 +117,6 @@ class Book {
     this.lastReadAt,
   });
 
-  // Backwards compatibility aliases
-  double get progress => currentPosition;
-  String? get coverURL => coverUrl;
-  int? get totalPages => pageCount;
-
-  // Shelves and topics are now managed via junction tables in DataStore.
-  // These empty lists provide backwards compatibility for code that reads them.
-  // To get actual shelves/topics for a book, use DataStore.getShelvesForBook(bookId)
-  // and DataStore.getTagsForBook(bookId).
-  List<String> get shelves => const [];
-  List<String> get topics => const [];
-
   /// Progress as a percentage (0-100).
   int get progressPercent => (currentPosition * 100).round();
 

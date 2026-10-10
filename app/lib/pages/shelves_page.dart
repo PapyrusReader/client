@@ -272,7 +272,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
     );
   }
 
-  void _showEditShelfSheet(BuildContext context, ShelfData shelf) {
+  void _showEditShelfSheet(BuildContext context, Shelf shelf) {
     final repository = context.read<DataStore>().libraryRepository?.shelves;
 
     AddShelfSheet.show(
@@ -293,11 +293,11 @@ class _ShelvesPageState extends State<ShelvesPage> {
     );
   }
 
-  void _showShelfDetail(BuildContext context, ShelfData shelf) {
+  void _showShelfDetail(BuildContext context, Shelf shelf) {
     context.go('/library/shelves/${shelf.id}');
   }
 
-  void _showShelfOptions(BuildContext context, ShelfData shelf) {
+  void _showShelfOptions(BuildContext context, Shelf shelf) {
     final colorScheme = Theme.of(context).colorScheme;
 
     showModalBottomSheet(
@@ -340,7 +340,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
     );
   }
 
-  void _confirmDeleteShelf(BuildContext context, ShelfData shelf) {
+  void _confirmDeleteShelf(BuildContext context, Shelf shelf) {
     final repository = context.read<DataStore>().libraryRepository?.shelves;
     final colorScheme = Theme.of(context).colorScheme;
 

@@ -11,6 +11,7 @@ import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/reader/reader_book_adapter.dart';
 import 'package:papyrus/reader/reader_session.dart';
+import 'package:papyrus/reader/reader_panel_sheet.dart';
 import 'package:papyrus/services/book_import_service_stub.dart'
     if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus_reader/papyrus_reader.dart';
@@ -229,8 +230,8 @@ class _ReaderPageState extends State<ReaderPage> {
 
     if (book == null || document == null || preferences == null) {
       return Scaffold(
-        appBar: AppBar(leading: BackButton(onPressed: _close)),
-        body: const Center(child: AppCircularProgressIndicator()),
+        backgroundColor: Theme.of(context).colorScheme.surface,
+        body: const SafeArea(child: _ReaderLoading()),
       );
     }
 
@@ -238,6 +239,10 @@ class _ReaderPageState extends State<ReaderPage> {
       document: document,
       initialLocator: _initialLocator,
       initialPreferences: preferences,
+      builders: ReaderUiBuilders(
+        loading: (context, state) => const _ReaderLoading(),
+        compactPanelRoute: (_, panel) => buildReaderPanelSheet(context, panel),
+      ),
       onLocatorChanged: _session!.updateLocator,
       onActivity: _onActivity,
       onPreferencesChanged: (updated) {
@@ -348,5 +353,14 @@ class _ReaderPageState extends State<ReaderPage> {
     }
 
     context.goNamed('BOOK_DETAILS', pathParameters: {'bookId': widget.bookId});
+  }
+}
+
+class _ReaderLoading extends StatelessWidget {
+  const _ReaderLoading();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(child: AppCircularProgressIndicator(semanticsLabel: 'Opening book'));
   }
 }

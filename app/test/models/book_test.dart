@@ -7,11 +7,6 @@ import '../helpers/test_helpers.dart';
 void main() {
   group('Book', () {
     group('computed properties', () {
-      test('progress returns currentPosition', () {
-        final book = buildTestBook(currentPosition: 0.75);
-        expect(book.progress, 0.75);
-      });
-
       test('progressPercent rounds to nearest integer', () {
         expect(buildTestBook(currentPosition: 0.333).progressPercent, 33);
         expect(buildTestBook(currentPosition: 0.999).progressPercent, 100);
@@ -50,24 +45,6 @@ void main() {
       test('allAuthors joins author with co-authors', () {
         final book = buildTestBook(author: 'Alice', coAuthors: ['Bob', 'Charlie']);
         expect(book.allAuthors, 'Alice, Bob, Charlie');
-      });
-
-      test('coverURL is backwards compat alias for coverUrl', () {
-        final book = buildTestBook(coverUrl: 'http://example.com/cover.jpg');
-        expect(book.coverURL, 'http://example.com/cover.jpg');
-      });
-
-      test('totalPages is backwards compat alias for pageCount', () {
-        final book = buildTestBook(pageCount: 300);
-        expect(book.totalPages, 300);
-      });
-
-      test('shelves returns empty list', () {
-        expect(buildTestBook().shelves, isEmpty);
-      });
-
-      test('topics returns empty list', () {
-        expect(buildTestBook().topics, isEmpty);
       });
     });
 

@@ -287,7 +287,7 @@ void main() {
     expect(find.text('Select file'), findsNothing);
   });
 
-  testWidgets('attention compatibility wrapper delegates to the details sheet', (tester) async {
+  testWidgets('unknown jobs display a readable attention state', (tester) async {
     final provider = AcquisitionDownloadsProvider(gateway: _RecordingGateway(), pollingInterval: Duration.zero);
     addTearDown(provider.dispose);
 
@@ -295,7 +295,6 @@ void main() {
       tester,
       provider: provider,
       job: _job(status: AcquisitionJobStatus.unknown),
-      useCompatibilityWrapper: true,
     );
 
     await tester.tap(find.text('Open details'));
@@ -523,7 +522,6 @@ Future<void> _pumpLauncher(
   WidgetTester tester, {
   required AcquisitionDownloadsProvider provider,
   required AcquisitionJob job,
-  bool useCompatibilityWrapper = false,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = const Size(1200, 900);
@@ -536,11 +534,7 @@ Future<void> _pumpLauncher(
         builder: (context) => Scaffold(
           body: FilledButton(
             onPressed: () {
-              if (useCompatibilityWrapper) {
-                showAcquisitionJobAttentionSheet(context: context, provider: provider, job: job);
-              } else {
-                showAcquisitionJobDetailsSheet(context: context, provider: provider, job: job);
-              }
+              showAcquisitionJobDetailsSheet(context: context, provider: provider, job: job);
             },
             child: const Text('Open details'),
           ),

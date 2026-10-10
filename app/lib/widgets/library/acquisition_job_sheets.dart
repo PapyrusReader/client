@@ -113,14 +113,6 @@ Future<void> _handleActionOutcome({
   }
 }
 
-Future<void> showAcquisitionJobAttentionSheet({
-  required BuildContext context,
-  required AcquisitionDownloadsProvider provider,
-  required AcquisitionJob job,
-}) {
-  return showAcquisitionJobDetailsSheet(context: context, provider: provider, job: job);
-}
-
 class _LiveAcquisitionJobDetailsContent extends StatelessWidget {
   const _LiveAcquisitionJobDetailsContent({required this.provider, required this.fallbackJob, required this.onAction});
 

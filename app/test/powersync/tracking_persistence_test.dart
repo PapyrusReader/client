@@ -64,7 +64,7 @@ void main() {
     await directory.delete(recursive: true);
   });
 
-  test('reconnect refreshes cached capabilities after upgrade, downgrade and discovery failure', () async {
+  test('reconnect refreshes tracking availability after discovery changes', () async {
     var version = 2;
     var failDiscovery = false;
 
@@ -92,7 +92,7 @@ void main() {
       version = supported;
       await db.reconnect();
       expect(db.trackingSchemaVersion, supported);
-      expect(db.supportsTracking, supported > 0);
+      expect(db.supportsTracking, supported == 2);
 
       final snapshot = await db.watchLibrary().firstWhere(
         (item) => item.activities.isNotEmpty && item.books.isNotEmpty,
@@ -150,7 +150,7 @@ void main() {
     await reopened.close();
   });
 
-  test('a downgraded server receives library writes while queued tracking is retained for promotion', () async {
+  test('unavailable tracking discovery retains queued tracking while library writes upload', () async {
     final db = PowerSyncDatabase(path: '${directory.path}/downgrade.db', schema: papyrusAccountSchema);
     await db.initialize();
     final library = LibraryDatabase(db, () async {});
@@ -176,12 +176,12 @@ void main() {
     await db.close();
   });
 
-  test('v1 keeps book sets local across restart while ordinary tracking uploads', () async {
+  test('all tracking stays local across restart until current contract is available', () async {
     final path = '${directory.path}/book-sets.db';
     final db = PowerSyncDatabase(path: path, schema: papyrusAccountSchema);
     await db.initialize();
     final library = LibraryDatabase(db, () async {});
-    await library.enableTracking(schemaVersion: 1);
+    await library.enableTracking(schemaVersion: 0);
     final selected = goal.copyWith(id: 'selected', scope: GoalScope.book, scopeId: 'a', bookIds: ['a', 'b']);
 
     final period = GoalPeriodRecord(
@@ -191,15 +191,15 @@ void main() {
     );
 
     await library.commitTracking(goals: [selected, goal], activities: [activity], periods: [period]);
-    expect((await db.getAll('SELECT * FROM tracking_staging')).length, 2);
-    expect((await db.getAll('SELECT * FROM ps_crud')).length, 2);
+    expect((await db.getAll('SELECT * FROM tracking_staging')).length, 4);
+    expect((await db.getAll('SELECT * FROM ps_crud')).length, 0);
     await db.close();
     final reopened = PowerSyncDatabase(path: path, schema: papyrusAccountSchema);
     await reopened.initialize();
     final supported = LibraryDatabase(reopened, () async {});
-    await supported.enableTracking(schemaVersion: 1);
+    await supported.enableTracking(schemaVersion: 0);
     expect((await supported.snapshot()).goals.firstWhere((goal) => goal.id == 'selected').selectedBookIds, ['a', 'b']);
-    expect((await reopened.getAll('SELECT * FROM tracking_staging')).length, 2);
+    expect((await reopened.getAll('SELECT * FROM tracking_staging')).length, 4);
     expect((await supported.snapshot()).goalPeriods.single.definition.selectedBookIds, ['a', 'b']);
     await supported.enableTracking();
     expect(await reopened.getAll('SELECT * FROM tracking_staging'), isEmpty);
@@ -209,7 +209,7 @@ void main() {
     await reopened.close();
   });
 
-  test('queued v2 goals defer on a v1 server without blocking library or activity uploads', () async {
+  test('unsupported tracking contracts defer all tracking uploads', () async {
     final db = PowerSyncDatabase(path: '${directory.path}/book-set-downgrade.db', schema: papyrusAccountSchema);
     await db.initialize();
     final library = LibraryDatabase(db, () async {});
@@ -226,12 +226,12 @@ void main() {
     );
 
     await connector.uploadData(db);
-    expect(auth.batches.expand((batch) => batch).map((entry) => entry['type']), ['reading_activities', 'books']);
+    expect(auth.batches.expand((batch) => batch).map((entry) => entry['type']), ['books']);
     expect(await db.getAll('SELECT * FROM ps_crud'), isEmpty);
-    expect((await db.getAll('SELECT * FROM tracking_staging')).length, 1);
+    expect((await db.getAll('SELECT * FROM tracking_staging')).length, 2);
     await library.enableTracking();
     expect(await db.getAll('SELECT * FROM tracking_staging'), isEmpty);
-    expect((await db.getAll('SELECT * FROM ps_crud')).length, 1);
+    expect((await db.getAll('SELECT * FROM ps_crud')).length, 2);
     await db.close();
   });
 
@@ -271,7 +271,11 @@ void main() {
     final updated = (await db.getById(book.id))!;
     expect(updated.title, 'Edited title');
     expect(updated.customMetadata?['keep'], 'value');
+    expect(updated.customMetadata?['reader_locator'], {'version': 1});
     expect(updated.currentPosition, .4);
+
+    await db.trackingRepository.commitTracking(readerBookId: book.id, readerPatch: {'current_position': .5});
+    expect((await db.getById(book.id))!.customMetadata?['reader_locator'], {'version': 1});
 
     final invalid = ReadingActivity(
       id: 'rollback',

@@ -44,9 +44,6 @@ const syncedBookColumns = [
 
 class PowerSyncBookMapper {
   static Book fromRow(Map<String, Object?> row) {
-    final metadata = _decodeObject(row['custom_metadata']);
-    Object? field(String key) => row.containsKey(key) ? row[key] : metadata[key];
-
     return Book(
       id: row['id'] as String,
       title: row['title'] as String? ?? 'Untitled Book',
@@ -55,7 +52,7 @@ class PowerSyncBookMapper {
       coAuthors: _decodeStringList(row['co_authors']),
       isbn: row['isbn'] as String?,
       isbn13: row['isbn13'] as String?,
-      publicationDate: _parseDate(field('publication_date')),
+      publicationDate: _parseDate(row['publication_date']),
       publisher: row['publisher'] as String?,
       language: row['language'] as String?,
       pageCount: _toInt(row['page_count']),
@@ -63,32 +60,31 @@ class PowerSyncBookMapper {
       coverUrl: row['cover_image_url'] as String?,
       fileMediaId: row['file_media_id'] as String?,
       coverMediaId: row['cover_media_id'] as String?,
-      fileFormat: _bookFormat(field('file_format')),
-      fileSize: _toInt(field('file_size')),
-      fileHash: field('file_hash') as String?,
-      isPhysical: _toBool(field('is_physical')),
-      physicalLocation: field('physical_location') as String?,
-      lentTo: field('lent_to') as String?,
-      lentAt: _parseDate(field('lent_at')),
+      fileFormat: _bookFormat(row['file_format']),
+      fileSize: _toInt(row['file_size']),
+      fileHash: row['file_hash'] as String?,
+      isPhysical: _toBool(row['is_physical']),
+      physicalLocation: row['physical_location'] as String?,
+      lentTo: row['lent_to'] as String?,
+      lentAt: _parseDate(row['lent_at']),
       readingStatus: _readingStatus(row['reading_status']),
       currentPage: _toInt(row['current_page']),
       currentPosition: _toDouble(row['current_position']) ?? 0.0,
       currentCfi: row['current_cfi'] as String?,
       isFavorite: _toBool(row['is_favorite']),
       rating: _toInt(row['rating']),
-      customMetadata: _decodeNestedMetadata(metadata['custom_metadata']),
-      seriesId: field('series_id') as String?,
-      seriesName: field('series_name') as String?,
-      seriesNumber: _toDouble(field('series_number')),
+      customMetadata: row['custom_metadata'] == null ? null : _decodeObject(row['custom_metadata']),
+      seriesId: row['series_id'] as String?,
+      seriesName: row['series_name'] as String?,
+      seriesNumber: _toDouble(row['series_number']),
       addedAt: _parseDate(row['added_at']) ?? DateTime.now(),
-      startedAt: _parseDate(field('started_at')),
-      completedAt: _parseDate(field('completed_at')),
-      lastReadAt: _parseDate(field('last_read_at')),
+      startedAt: _parseDate(row['started_at']),
+      completedAt: _parseDate(row['completed_at']),
+      lastReadAt: _parseDate(row['last_read_at']),
     );
   }
 
   static Map<String, Object?> toRow(Book book) {
-    final metadata = <String, Object?>{'custom_metadata': book.customMetadata};
     final now = DateTime.now().toIso8601String();
 
     return {
@@ -112,7 +108,7 @@ class PowerSyncBookMapper {
       'current_cfi': book.currentCfi,
       'is_favorite': book.isFavorite ? 1 : 0,
       'rating': book.rating,
-      'custom_metadata': jsonEncode(metadata),
+      'custom_metadata': book.customMetadata == null ? null : jsonEncode(book.customMetadata),
       'added_at': book.addedAt.toIso8601String(),
       'updated_at': now,
       'publication_date': book.publicationDate?.toUtc().toIso8601String(),
@@ -188,10 +184,6 @@ WHERE id = ?
       return value;
     }
 
-    if (value is Map<String, Object?>) {
-      return value;
-    }
-
     if (value is String && value.isNotEmpty) {
       final decoded = jsonDecode(value);
 
@@ -201,18 +193,6 @@ WHERE id = ?
     }
 
     return {};
-  }
-
-  static Map<String, dynamic>? _decodeNestedMetadata(Object? value) {
-    if (value is Map<String, dynamic>) {
-      return value;
-    }
-
-    if (value is Map<String, Object?>) {
-      return Map<String, dynamic>.from(value);
-    }
-
-    return null;
   }
 
   static List<String> _decodeStringList(Object? value) {
@@ -285,8 +265,8 @@ WHERE id = ?
 
   static LibraryReadingStatus _readingStatus(Object? value) {
     return switch (value) {
-      'inProgress' || 'in_progress' || 'reading' => LibraryReadingStatus.inProgress,
-      'completed' || 'finished' => LibraryReadingStatus.completed,
+      'inProgress' => LibraryReadingStatus.inProgress,
+      'completed' => LibraryReadingStatus.completed,
       'paused' => LibraryReadingStatus.paused,
       'abandoned' => LibraryReadingStatus.abandoned,
       _ => LibraryReadingStatus.unread,

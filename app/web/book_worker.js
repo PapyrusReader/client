@@ -1,11 +1,11 @@
 /**
- * book_worker.js — Web Worker for EPUB processing and OPFS file storage.
+ * book_worker.js — Web Worker for EPUB processing, PDF import and OPFS file storage.
  *
  * Runs off the main thread so the Flutter UI stays responsive.
  *
  * Message protocol:
  *   Incoming:
- *     { type: 'process', format: 'epub', bookId, fileData: ArrayBuffer }
+ *     { type: 'process', format: 'epub' | 'pdf', bookId, fileData: ArrayBuffer, metadata? }
  *     { type: 'delete',  bookId }
  *     { type: 'getFile', bookId }
  *     { type: 'hasFile', bookId }
@@ -89,6 +89,9 @@ async function handleProcess(msg) {
   switch (format) {
     case 'epub':
       await processEpub(bookId, fileData);
+      break;
+    case 'pdf':
+      await processPdf(bookId, fileData, msg.metadata);
       break;
     default:
       postMessage({
@@ -199,6 +202,28 @@ async function handleClearCovers(msg) {
 // ---------------------------------------------------------------------------
 // EPUB processing
 // ---------------------------------------------------------------------------
+
+// PDF metadata is read by the shared Dart parser before transferring bytes.
+// Hashing and durable storage use the same worker path as EPUB imports.
+async function processPdf(bookId, fileData, metadata) {
+  if (!metadata || !Number.isInteger(metadata.pageCount) || metadata.pageCount < 1) {
+    throw new Error('PDF contains no readable pages');
+  }
+
+  const bytes = new Uint8Array(fileData);
+  const fileHash = bufferToHex(await crypto.subtle.digest('SHA-256', fileData));
+  await opfsWrite(bookId, 'pdf', bytes);
+  postMessage({
+    type: 'success',
+    action: 'process',
+    bookId,
+    metadata,
+    coverData: null,
+    coverMimeType: null,
+    fileSize: bytes.byteLength,
+    fileHash,
+  });
+}
 
 async function processEpub(bookId, fileData) {
   const bytes = new Uint8Array(fileData);

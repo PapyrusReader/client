@@ -48,11 +48,6 @@ void main() {
 
   group('Annotation', () {
     group('computed properties', () {
-      test('highlightText is alias for selectedText', () {
-        final annotation = buildTestAnnotation(selectedText: 'Test highlight');
-        expect(annotation.highlightText, 'Test highlight');
-      });
-
       test('hasNote is true for non-empty note', () {
         expect(buildTestAnnotation(note: 'A note').hasNote, true);
       });

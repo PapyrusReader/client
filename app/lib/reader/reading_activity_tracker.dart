@@ -115,7 +115,6 @@ class ReadingActivityTracker {
       'current_position': position,
       'last_read_at': _now().toUtc().toIso8601String(),
       if (locator is PdfReaderLocator) 'current_page': locator.pageIndex + 1,
-      if (locator is EpubReaderLocator) 'current_cfi': locator.cfi,
     };
   }
 

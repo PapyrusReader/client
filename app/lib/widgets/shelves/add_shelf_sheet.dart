@@ -11,7 +11,7 @@ import 'package:papyrus/themes/app_motion.dart';
 /// Bottom sheet for creating or editing a shelf.
 class AddShelfSheet extends StatefulWidget {
   /// The shelf to edit, or null to create a new shelf.
-  final ShelfData? shelf;
+  final Shelf? shelf;
 
   /// Called when the shelf is saved.
   final FutureOr<void> Function(String name, String? description, String? colorHex, IconData? icon)? onSave;
@@ -21,7 +21,7 @@ class AddShelfSheet extends StatefulWidget {
   /// Shows the add/edit shelf sheet.
   static Future<void> show(
     BuildContext context, {
-    ShelfData? shelf,
+    Shelf? shelf,
     FutureOr<void> Function(String name, String? description, String? colorHex, IconData? icon)? onSave,
   }) {
     return showModalBottomSheet(
@@ -52,7 +52,7 @@ class _AddShelfSheetState extends State<AddShelfSheet> with PersistentSave<AddSh
     super.initState();
     _nameController = TextEditingController(text: widget.shelf?.name ?? '');
     _descriptionController = TextEditingController(text: widget.shelf?.description ?? '');
-    _selectedColorHex = widget.shelf?.colorHex ?? ShelfData.availableColors[5];
+    _selectedColorHex = widget.shelf?.colorHex ?? Shelf.availableColors[5];
     _selectedIcon = widget.shelf?.icon ?? Icons.folder_outlined;
   }
 
@@ -141,7 +141,7 @@ class _AddShelfSheetState extends State<AddShelfSheet> with PersistentSave<AddSh
     return Wrap(
       spacing: Spacing.sm,
       runSpacing: Spacing.sm,
-      children: ShelfData.availableColors.map((colorHex) {
+      children: Shelf.availableColors.map((colorHex) {
         final color = parseHexColor(colorHex);
         final isSelected = _selectedColorHex == colorHex;
 
@@ -172,7 +172,7 @@ class _AddShelfSheetState extends State<AddShelfSheet> with PersistentSave<AddSh
     return Wrap(
       spacing: Spacing.sm,
       runSpacing: Spacing.sm,
-      children: ShelfData.availableIcons.map((icon) {
+      children: Shelf.availableIcons.map((icon) {
         final isSelected = _selectedIcon == icon;
 
         return GestureDetector(

@@ -50,17 +50,12 @@ class PapyrusPowerSyncConnector extends PowerSyncBackendConnector {
         return;
       }
 
-      final version = supportsTracking?.call() == false ? 0 : trackingSchemaVersion?.call() ?? 2;
-      final deferred = <CrudEntry>[];
-
-      for (final entry in transaction.crud.where((entry) => trackingTableNames.contains(entry.table))) {
-        final raw = entry.opData?['payload'];
-        final payload = raw is String ? Map<String, dynamic>.from(jsonDecode(raw) as Map) : <String, dynamic>{};
-
-        if (requiredTrackingSchemaVersion(payload) > version) {
-          deferred.add(entry);
-        }
-      }
+      final version = supportsTracking?.call() == false
+          ? 0
+          : trackingSchemaVersion?.call() ?? currentTrackingSchemaVersion;
+      final deferred = version == currentTrackingSchemaVersion
+          ? <CrudEntry>[]
+          : transaction.crud.where((entry) => trackingTableNames.contains(entry.table)).toList();
 
       if (deferred.isNotEmpty) {
         await database.writeTransaction((tx) async {

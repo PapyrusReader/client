@@ -177,13 +177,13 @@ class _BookListItemState extends State<BookListItem> {
                               minHeight: 3,
                             ),
                           ],
-                        ] else if (widget.showProgress && widget.book.progress > 0) ...[
+                        ] else if (widget.showProgress && widget.book.currentPosition > 0) ...[
                           const SizedBox(height: Spacing.xs),
                           Row(
                             children: [
                               Expanded(
                                 child: AppLinearProgressIndicator(
-                                  value: widget.book.progress,
+                                  value: widget.book.currentPosition,
                                   backgroundColor: colorScheme.surfaceContainerHighest,
                                   color: widget.book.readingStatus == LibraryReadingStatus.completed
                                       ? colorScheme.tertiary
@@ -272,7 +272,7 @@ class _BookListItemState extends State<BookListItem> {
   Widget _buildCover(BuildContext context) {
     final cover = CoverImage(
       bookId: widget.book.id,
-      imageUrl: widget.book.coverURL,
+      imageUrl: widget.book.coverUrl,
       mediaId: widget.book.coverMediaId,
       placeholder: _buildPlaceholder(context),
     );

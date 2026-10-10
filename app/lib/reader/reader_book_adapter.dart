@@ -52,11 +52,6 @@ final class ReaderBookAdapter {
       PdfReaderLocator(:final pageIndex) => pageIndex + 1,
     };
 
-    final cfi = switch (locator) {
-      EpubReaderLocator(:final cfi) => cfi,
-      PdfReaderLocator() => null,
-    };
-
     final status = book.readingStatus == LibraryReadingStatus.unread && position > 0
         ? LibraryReadingStatus.inProgress
         : book.readingStatus;
@@ -64,7 +59,6 @@ final class ReaderBookAdapter {
     return book.copyWith(
       currentPage: page,
       currentPosition: position,
-      currentCfi: cfi,
       readingStatus: status,
       customMetadata: metadata,
       startedAt: book.startedAt ?? (position > 0 ? now : null),

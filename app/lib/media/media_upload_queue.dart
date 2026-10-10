@@ -23,7 +23,6 @@ class MediaUploadTask {
     required this.filename,
     required this.contentType,
     required this.status,
-    this.coverBase64,
     this.errorMessage,
   });
 
@@ -33,7 +32,6 @@ class MediaUploadTask {
   final String filename;
   final String contentType;
   final MediaUploadTaskStatus status;
-  final String? coverBase64;
   final String? errorMessage;
 
   MediaUploadTask copyWith({MediaUploadTaskStatus? status, String? errorMessage}) {
@@ -44,7 +42,6 @@ class MediaUploadTask {
       filename: filename,
       contentType: contentType,
       status: status ?? this.status,
-      coverBase64: coverBase64,
       errorMessage: errorMessage,
     );
   }
@@ -57,7 +54,6 @@ class MediaUploadTask {
       'filename': filename,
       'content_type': contentType,
       'status': status.name,
-      if (coverBase64 != null) 'cover_base64': coverBase64,
       'error_message': errorMessage,
     };
   }
@@ -70,7 +66,6 @@ class MediaUploadTask {
       filename: json['filename'] as String,
       contentType: json['content_type'] as String,
       status: MediaUploadTaskStatus.values.byName(json['status'] as String? ?? MediaUploadTaskStatus.pending.name),
-      coverBase64: json['cover_base64'] as String?,
       errorMessage: json['error_message'] as String?,
     );
   }
@@ -474,12 +469,6 @@ class MediaUploadQueue extends ChangeNotifier {
     PendingCoverReader readPendingCover,
   ) async {
     if (task.kind == MediaKind.coverImage) {
-      final coverBase64 = task.coverBase64;
-
-      if (coverBase64 != null) {
-        return base64Decode(coverBase64);
-      }
-
       return readPendingCover(scope, task.bookId);
     }
 

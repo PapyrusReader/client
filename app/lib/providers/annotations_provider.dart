@@ -165,7 +165,7 @@ class AnnotationsProvider extends ChangeNotifier {
 
       result = result.where((annotation) {
         final bookTitle = getBookTitle(annotation.bookId).toLowerCase();
-        final highlightText = annotation.highlightText.toLowerCase();
+        final highlightText = annotation.selectedText.toLowerCase();
         final note = annotation.note?.toLowerCase() ?? '';
         final location = annotation.location.displayLocation.toLowerCase();
 

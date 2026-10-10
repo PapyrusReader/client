@@ -24,7 +24,6 @@ void main() {
           ReaderBookAdapter.locatorMetadataKey: {
             'version': 1,
             'type': 'epub',
-            'cfi': 'epubcfi(/6/2)',
             'spineIndex': 2,
             'localProgression': 0.25,
             'totalProgression': 0.4,
@@ -34,7 +33,7 @@ void main() {
 
       expect(
         ReaderBookAdapter.restoreLocator(book),
-        EpubReaderLocator(cfi: 'epubcfi(/6/2)', spineIndex: 2, localProgression: 0.25, totalProgression: 0.4),
+        EpubReaderLocator(spineIndex: 2, localProgression: 0.25, totalProgression: 0.4),
       );
     });
 
@@ -55,7 +54,6 @@ void main() {
           ReaderBookAdapter.locatorMetadataKey: {
             'version': 1,
             'type': 'epub',
-            'cfi': 'epubcfi(/6/2)',
             'spineIndex': 0,
             'localProgression': 0.1,
             'totalProgression': 0.1,

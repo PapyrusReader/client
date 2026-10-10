@@ -21,8 +21,8 @@ class BookInfoGrid extends StatelessWidget {
     final entries = <_InfoEntry>[];
     entries.add(_InfoEntry('Format', book.formatLabel));
 
-    if (book.totalPages != null) {
-      entries.add(_InfoEntry('Pages', '${book.totalPages}'));
+    if (book.pageCount != null) {
+      entries.add(_InfoEntry('Pages', '${book.pageCount}'));
     }
 
     if (book.publisher != null && book.publisher!.isNotEmpty) {

@@ -41,18 +41,18 @@ union stable document coverage; confirmed books count once per period. Reading
 days default to five cumulative minutes. Period records retain rules, not editable
 progress, and can be reprojected after corrections arrive.
 
-## Sync and compatibility
+## Sync contract
 
-`GET /v1/sync/settings` advertises `tracking_schema_version: 2`. Version 2
-adds goals scoped to multiple selected books through `book_ids`; single-book and
-library goals retain version-1 payloads. A books-finished target cannot exceed
-the selected book count. The server validates ownership of every selected book. New tables are
-`reading_goals`, `reading_activities`, and `goal_periods`, with an owner-scoped JSON
-payload. Older servers keep tracking in local-only `tracking_staging`. Queued
-tracking after a server downgrade is retained there while ordinary library uploads
-continue. Capability discovery promotes supported staged records atomically. Multi-book
-goals remain staged against version-1 servers without blocking ordinary tracking
-or library synchronization.
+`GET /v1/sync/settings` advertises the current `tracking_schema_version: 2`.
+All tracking uses this contract; the client does not select older payload variants.
+Goals can cover multiple selected books through `book_ids`. A books-finished target
+cannot exceed the selected book count, and the server validates ownership of every
+selected book. `reading_goals`, `reading_activities`, and `goal_periods` hold
+owner-scoped JSON payloads.
+
+Until discovery confirms the current contract, tracking writes remain in local-only
+`tracking_staging` while ordinary library synchronization continues. Discovery
+promotes staged writes atomically. Upload failures retain queued writes for retry.
 
 Deploy the server migration, PostgreSQL publication/grants, and PowerSync streams
 before releasing this client. Versions are unchanged; merge feature PRs into

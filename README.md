@@ -48,7 +48,7 @@ Many reading applications offer partial solutions but fall short on essential fe
 
 The built-in reader opens EPUB and PDF. Native metadata import also accepts MOBI,
 AZW3, TXT, CBR and CBZ; these formats do not have reading engines yet. The web
-file picker currently accepts EPUB. Additional cloud storage providers and
+file picker accepts EPUB and PDF. Additional cloud storage providers and
 selection-based reader annotations remain future work.
 
 ## Supported platforms

@@ -30,7 +30,8 @@ class NoNetworkConnector extends PowerSyncBackendConnector {
 }
 
 class FixtureMediaCache extends MediaCacheService {
-  FixtureMediaCache(this.bytes);
+  FixtureMediaCache(this.bytes, {this.gate});
+  final Future<void>? gate;
   final Map<String, Uint8List> bytes;
 
   @override
@@ -39,7 +40,10 @@ class FixtureMediaCache extends MediaCacheService {
     required LocalBookFileReader readLocalBookFile,
     required LocalBookFileWriter writeLocalBookFile,
     required MediaDownloader downloadMedia,
-  }) async => bytes[book.id]!;
+  }) async {
+    await gate;
+    return bytes[book.id]!;
+  }
 }
 
 class FixtureAuth extends ChangeNotifier implements AuthProvider {
@@ -140,11 +144,11 @@ class TrackingValidationApp {
     );
   }
 
-  Widget build({ThemeData? theme, double textScale = 1}) => MultiProvider(
+  Widget build({ThemeData? theme, double textScale = 1, Future<void>? mediaGate}) => MultiProvider(
     providers: [
       ChangeNotifierProvider.value(value: store),
       ChangeNotifierProvider.value(value: preferences),
-      Provider<MediaCacheService>.value(value: FixtureMediaCache(bytes)),
+      Provider<MediaCacheService>.value(value: FixtureMediaCache(bytes, gate: mediaGate)),
       Provider<BookImportService>(create: (_) => BookImportService()),
       ChangeNotifierProvider<AuthProvider>.value(value: fixtureAuth),
     ],

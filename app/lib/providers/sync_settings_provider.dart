@@ -6,8 +6,6 @@ import 'package:http/http.dart' as http;
 import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-enum SyncServerType { official, custom }
-
 typedef DataSyncDiscoveryFetcher = Future<DataSyncDiscoverySettings> Function(Uri serverUrl);
 
 class SyncSettingsException implements Exception {
@@ -80,18 +78,13 @@ class SyncSettingsProvider extends ChangeNotifier {
 
   static const _keyActiveServerId = 'sync_active_server_id';
   static const _keyCustomServers = 'sync_custom_servers';
-  static const _legacyKeyServerType = 'sync_server_type';
-  static const _legacyKeyCustomApiUrl = 'sync_custom_api_url';
-  static const _legacyKeyCustomPowerSyncUrl = 'sync_custom_powersync_url';
 
   final SharedPreferences _prefs;
   final DataSyncDiscoveryFetcher _discoveryFetcher;
   final PapyrusApiConfig officialConfig;
 
   SyncSettingsProvider(this._prefs, {required this.officialConfig, DataSyncDiscoveryFetcher? discoveryFetcher})
-    : _discoveryFetcher = discoveryFetcher ?? _fetchDataSyncSettings {
-    _migrateLegacyCustomServer();
-  }
+    : _discoveryFetcher = discoveryFetcher ?? _fetchDataSyncSettings;
 
   String get activeServerId {
     final id = _prefs.getString(_keyActiveServerId) ?? officialServerId;
@@ -240,77 +233,6 @@ class SyncSettingsProvider extends ChangeNotifier {
     }
 
     notifyListeners();
-  }
-
-  @Deprecated('Use activeServerId instead.')
-  SyncServerType get serverType => activeServerId == officialServerId ? SyncServerType.official : SyncServerType.custom;
-
-  @Deprecated('Use selectServer instead.')
-  set serverType(SyncServerType value) {
-    if (value == SyncServerType.official) {
-      selectServer(officialServerId);
-      return;
-    }
-
-    if (customServers.isEmpty) {
-      throw const SyncSettingsException('Custom server was not found');
-    }
-
-    selectServer(customServers.first.id);
-  }
-
-  @Deprecated('Use customServers instead.')
-  String get customApiUrl => activeCustomServer?.url ?? '';
-
-  @Deprecated('Use customServers instead.')
-  String get customPowerSyncUrl => activeCustomServer?.dataSyncUri.toString() ?? '';
-
-  @Deprecated('Use addCustomServer instead.')
-  void setCustomServerUrls({required String apiUrl, required String powerSyncUrl}) {
-    final serverUri = _normalizeServerUri(apiUrl);
-    final dataSyncUri = _normalizeServerUri(powerSyncUrl);
-
-    final server = CustomSyncServer(
-      id: _customServerId(serverUri.toString()),
-      url: serverUri.toString(),
-      label: _labelForServerUri(serverUri),
-      dataSyncUri: dataSyncUri,
-      fileStorageQuotaBytes: null,
-    );
-
-    _saveCustomServers([server]);
-    _setActiveServerId(server.id);
-    notifyListeners();
-  }
-
-  void _migrateLegacyCustomServer() {
-    if (customServers.isNotEmpty) {
-      return;
-    }
-
-    final legacyApiUrl = _prefs.getString(_legacyKeyCustomApiUrl);
-    final legacyDataSyncUrl = _prefs.getString(_legacyKeyCustomPowerSyncUrl);
-
-    if (legacyApiUrl == null || legacyApiUrl.isEmpty || legacyDataSyncUrl == null || legacyDataSyncUrl.isEmpty) {
-      return;
-    }
-
-    final serverUri = _normalizeServerUri(legacyApiUrl);
-    final dataSyncUri = _normalizeServerUri(legacyDataSyncUrl);
-
-    final server = CustomSyncServer(
-      id: _customServerId(serverUri.toString()),
-      url: serverUri.toString(),
-      label: _labelForServerUri(serverUri),
-      dataSyncUri: dataSyncUri,
-      fileStorageQuotaBytes: null,
-    );
-
-    _saveCustomServers([server]);
-
-    if (_prefs.getString(_legacyKeyServerType) == SyncServerType.custom.name) {
-      _setActiveServerId(server.id);
-    }
   }
 
   CustomSyncServer _customServerFromDiscovery(Uri serverUri, DataSyncDiscoverySettings settings) {
