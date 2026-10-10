@@ -1,6 +1,9 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/data/repositories/book_repository.dart';
+import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/pages/goals_page.dart';
 import 'package:papyrus/models/reading_goal.dart';
 import 'package:papyrus/models/book.dart';
@@ -16,6 +19,31 @@ import 'package:provider/provider.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
+  testWidgets('first-sync failure shows a recoverable offline state on both tabs', (tester) async {
+    final repository = _LoadingLibraryRepository();
+    final store = DataStore(bookRepository: repository);
+    addTearDown(store.dispose);
+    addTearDown(repository.snapshots.close);
+    await tester.pumpWidget(createTestPage(page: const GoalsPage(), dataStore: store));
+    await tester.pump();
+    expect(find.byType(CircularProgressIndicator), findsWidgets);
+    repository.snapshots.add(LibrarySnapshot(isLoaded: false, loadError: StateError('Connection unavailable')));
+    await tester.pumpAndSettle();
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    expect(find.text('Waiting for your library').hitTestable(), findsOneWidget);
+    expect(find.text('Your reading goals will appear when the connection is restored.').hitTestable(), findsOneWidget);
+    await tester.tap(find.text('Activity'));
+    await tester.pumpAndSettle();
+    expect(find.text('Waiting for your library').hitTestable(), findsOneWidget);
+    repository.snapshots.add(const LibrarySnapshot());
+    await tester.pumpAndSettle();
+    expect(find.text('Waiting for your library'), findsNothing);
+    await tester.tap(find.text('Overview'));
+    await tester.pumpAndSettle();
+    expect(find.text('No goals yet'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   Future<void> toggleCompleted(WidgetTester tester) async {
     await tester.tap(find.byTooltip('Goal filters'));
     await tester.pumpAndSettle();
@@ -677,4 +705,14 @@ void main() {
       });
     }
   }
+}
+
+class _LoadingLibraryRepository extends InMemoryBookRepository implements LibraryRepository {
+  final snapshots = StreamController<LibrarySnapshot>();
+
+  @override
+  Stream<LibrarySnapshot> watchLibrary() => snapshots.stream;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

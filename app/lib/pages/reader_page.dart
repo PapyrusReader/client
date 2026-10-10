@@ -123,17 +123,14 @@ class _ReaderPageState extends State<ReaderPage> {
         return;
       }
 
-      if (!dataStore.isBookRepositoryCurrent(repository)) {
+      if (!dataStore.isBookRepositoryCurrent(repository) || trackingRepository?.isCurrent == false) {
+        setState(() => _error = 'Your library changed. Reopen this book from the library.');
         return;
       }
 
       ReadingActivityTracker? tracker;
 
       if (trackingRepository != null) {
-        if (!mounted || !trackingRepository.isCurrent) {
-          return;
-        }
-
         tracker = ReadingActivityTracker(
           repository: trackingRepository,
           book: book,
