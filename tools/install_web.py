@@ -72,16 +72,21 @@ def verify_public(url: str, metadata: dict, release: Path) -> None:
                 ("/", "index.html"),
                 ("/login", "index.html"),
                 ("/flutter_bootstrap.js", "flutter_bootstrap.js"),
+                ("/main.dart.js", "main.dart.js"),
             ):
                 request = urllib.request.Request(
-                    f"{url}{route}?deployment={metadata['revision']}",
+                    f"{url}{route}",
                     headers={
-                        "Cache-Control": "no-cache",
                         "User-Agent": "PapyrusReleaseVerifier/1.0 (+https://github.com/PapyrusReader/client)",
                     },
                 )
 
                 with urllib.request.urlopen(request, timeout=10) as response:
+                    directives = {value.strip().lower() for value in response.headers.get("Cache-Control", "").split(",")}
+
+                    if not directives.intersection({"no-cache", "no-store"}):
+                        raise ValueError(f"Public web content must revalidate before reuse: {route}")
+
                     if response.read() != (release / filename).read_bytes():
                         raise ValueError(f"Public web content does not match the release: {route}")
 
