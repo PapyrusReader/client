@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/input/validated_text_form_field.dart';
 
 /// A reusable password input field with visibility toggle and validation.
 class PasswordInput extends StatefulWidget {
   /// Label text displayed for the input field
   final String labelText;
+  final Listenable? validationDependency;
 
   /// Optional text controller for the input
   final TextEditingController? controller;
@@ -28,6 +30,7 @@ class PasswordInput extends StatefulWidget {
     this.controller,
     this.extraValidator,
     required this.labelText,
+    this.validationDependency,
     this.focusNode,
     this.onEditingComplete,
     this.textInputAction,
@@ -49,7 +52,7 @@ class _PasswordInputState extends State<PasswordInput> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return TextFormField(
+    return ValidatedTextFormField(
       decoration: InputDecoration(
         border: const OutlineInputBorder(),
         labelText: widget.labelText,
@@ -69,8 +72,8 @@ class _PasswordInputState extends State<PasswordInput> {
       textInputAction: widget.textInputAction ?? TextInputAction.done,
       onEditingComplete: widget.onEditingComplete,
       onFieldSubmitted: widget.onFieldSubmitted,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
       validator: _validate,
+      validationDependency: widget.validationDependency,
     );
   }
 

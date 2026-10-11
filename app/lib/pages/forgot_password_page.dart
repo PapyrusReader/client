@@ -8,6 +8,7 @@ import 'package:papyrus/widgets/auth/auth_page_layouts.dart';
 import 'package:papyrus/widgets/auth/auth_switch_link.dart';
 import 'package:papyrus/widgets/input/email_input.dart';
 import 'package:papyrus/widgets/input/password_input.dart';
+import 'package:papyrus/widgets/input/validated_text_form_field.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
@@ -53,13 +54,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       return;
     }
 
-    // Hide keyboard
-    FocusScope.of(context).unfocus();
-
-    if (!_formKey.currentState!.validate()) {
+    if (!validateAndFocusForm(_formKey.currentState!)) {
       return;
     }
 
+    FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
@@ -93,7 +92,6 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       return;
     }
 
-    FocusScope.of(context).unfocus();
     final resetToken = widget.resetToken;
 
     if (resetToken == null || resetToken.isEmpty) {
@@ -101,10 +99,11 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       return;
     }
 
-    if (!_resetFormKey.currentState!.validate()) {
+    if (!validateAndFocusForm(_resetFormKey.currentState!)) {
       return;
     }
 
+    FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
@@ -179,7 +178,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
   }
 
   void _navigateToLogin() {
-    context.go('/login');
+    context.push('/login');
   }
 
   Widget _buildForm({required bool isDesktop}) {
@@ -220,9 +219,9 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
     );
   }
 
-  List<Widget> _buildFooter() {
+  List<Widget> _buildFooter({bool isDesktop = false}) {
     return [
-      const SizedBox(height: Spacing.md),
+      SizedBox(height: isDesktop ? Spacing.md : Spacing.sm),
       AuthSwitchLink(promptText: 'Remember your password?', actionText: 'Sign in', onPressed: _navigateToLogin),
     ];
   }
@@ -250,7 +249,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         subtitle: subtitle,
         showHeader: showHeader,
         form: _buildForm(isDesktop: true),
-        footer: _buildFooter(),
+        footer: _buildFooter(isDesktop: true),
       ),
     );
   }
@@ -383,6 +382,7 @@ class _SetNewPasswordForm extends StatelessWidget {
             focusNode: confirmPasswordFocusNode,
             textInputAction: TextInputAction.done,
             extraValidator: validateConfirmPassword,
+            validationDependency: passwordController,
             onFieldSubmitted: (_) => onSubmit(),
           ),
           const SizedBox(height: Spacing.lg),
@@ -418,7 +418,7 @@ class _InvalidResetLink extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         const SizedBox(height: Spacing.lg),
-        FilledButton(onPressed: () => context.go('/forgot-password'), child: const Text('Request new link')),
+        FilledButton(onPressed: () => context.push('/forgot-password'), child: const Text('Request new link')),
       ],
     );
   }

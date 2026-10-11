@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/auth/offline_link.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/auth/auth_branding.dart';
 import 'package:papyrus/widgets/titled_divider.dart';
 
 class WelcomePage extends StatelessWidget {
@@ -70,9 +71,19 @@ class WelcomePage extends StatelessWidget {
                   );
                 }
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacing.pageMarginsTablet, vertical: Spacing.md),
-                  child: _MobileWelcomeContent(maxHeight: constraints.maxHeight - (Spacing.md * 2)),
+                return CustomScrollView(
+                  slivers: [
+                    SliverFillRemaining(
+                      hasScrollBody: false,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: Spacing.pageMarginsTablet,
+                          vertical: Spacing.md,
+                        ),
+                        child: _MobileWelcomeContent(maxHeight: constraints.maxHeight - (Spacing.md * 2)),
+                      ),
+                    ),
+                  ],
                 );
               },
             ),
@@ -113,20 +124,17 @@ class _DesktopWelcomeContent extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             children: [
               _WelcomeCopy(
-                titleStyle: (isShortDesktop ? theme.textTheme.headlineLarge : theme.textTheme.displaySmall)?.copyWith(
-                  color: theme.colorScheme.onSurface,
-                  fontFamily: 'MadimiOne',
-                ),
-                subtitleStyle: (isShortDesktop ? theme.textTheme.bodyLarge : theme.textTheme.titleLarge)?.copyWith(
+                textColor: theme.colorScheme.onSurface,
+                fontSize: isShortDesktop ? 36 : 40,
+                subtitleStyle: theme.textTheme.bodyLarge?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
-                  height: 1.55,
+                  fontSize: 18,
+                  fontWeight: FontWeight.normal,
+                  height: 1.35,
                 ),
-                center: true,
-                logoSize: isShortDesktop ? 96 : 120,
-                titleSpacing: isShortDesktop ? 12 : 20,
-                subtitleSpacing: isShortDesktop ? 12 : Spacing.md,
+                logoSize: isShortDesktop ? 80 : 96,
               ),
-              SizedBox(height: isShortDesktop ? Spacing.lg : Spacing.xl),
+              SizedBox(height: isShortDesktop ? Spacing.xl : Spacing.xxl),
               _WelcomeActions(center: true, compact: isShortDesktop, useSurfaceColors: true, isDesktop: true),
             ],
           ),
@@ -146,64 +154,62 @@ class _MobileWelcomeContent extends StatelessWidget {
     final theme = Theme.of(context);
     final isShortScreen = maxHeight < 760;
 
-    return SizedBox(
-      height: maxHeight,
-      child: Column(
-        children: [
-          Spacer(flex: isShortScreen ? 2 : 3),
-          _WelcomeCopy(
-            titleStyle: (isShortScreen ? theme.textTheme.headlineMedium : theme.textTheme.headlineLarge)?.copyWith(
-              color: Colors.white,
-              fontFamily: 'MadimiOne',
-            ),
-            subtitleStyle: (isShortScreen ? theme.textTheme.bodyMedium : theme.textTheme.bodyLarge)?.copyWith(
-              color: Colors.white.withValues(alpha: 0.82),
-              height: isShortScreen ? 1.5 : 1.55,
-            ),
-            center: true,
-            logoSize: isShortScreen ? 88 : 104,
-            titleSpacing: isShortScreen ? 12 : 20,
-            subtitleSpacing: isShortScreen ? 12 : Spacing.md,
+    return Column(
+      children: [
+        Spacer(flex: isShortScreen ? 2 : 3),
+        _WelcomeCopy(
+          textColor: Colors.white,
+          fontSize: isShortScreen ? 32 : 36,
+          subtitleStyle: theme.textTheme.bodyLarge?.copyWith(
+            color: Colors.white.withValues(alpha: 0.87),
+            fontSize: 18,
+            fontWeight: FontWeight.normal,
+            height: 1.35,
           ),
-          SizedBox(height: isShortScreen ? Spacing.lg : Spacing.xl),
-          const _WelcomeActions(center: true, compact: true),
-          Spacer(flex: isShortScreen ? 3 : 4),
-          SizedBox(height: isShortScreen ? Spacing.lg : Spacing.xl),
-        ],
-      ),
+          logoSize: isShortScreen ? 72 : 88,
+        ),
+        SizedBox(height: isShortScreen ? Spacing.xl : Spacing.xxl),
+        const _WelcomeActions(center: true, compact: true),
+        Spacer(flex: isShortScreen ? 3 : 4),
+        SizedBox(height: isShortScreen ? Spacing.lg : Spacing.xl),
+      ],
     );
   }
 }
 
 class _WelcomeCopy extends StatelessWidget {
-  final TextStyle? titleStyle;
+  final Color textColor;
+  final double fontSize;
   final TextStyle? subtitleStyle;
-  final bool center;
   final double logoSize;
-  final double titleSpacing;
-  final double subtitleSpacing;
 
   const _WelcomeCopy({
-    required this.titleStyle,
+    required this.textColor,
+    required this.fontSize,
     required this.subtitleStyle,
-    required this.center,
-    this.logoSize = 128,
-    this.titleSpacing = Spacing.lg,
-    this.subtitleSpacing = Spacing.md,
+    required this.logoSize,
   });
 
   @override
   Widget build(BuildContext context) {
     return Column(
       mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: center ? CrossAxisAlignment.center : CrossAxisAlignment.start,
       children: [
-        Image.asset('assets/images/logo.png', width: logoSize, height: logoSize, fit: BoxFit.contain),
-        Text('Papyrus', textAlign: center ? TextAlign.center : TextAlign.left, style: titleStyle),
-        Text(
-          'Your personal library, always within reach',
-          textAlign: center ? TextAlign.center : TextAlign.left,
-          style: subtitleStyle,
+        AuthBranding.hero(
+          textColor: textColor,
+          iconSize: logoSize,
+          fontSize: fontSize,
+          direction: Axis.vertical,
+          spacing: 0,
+        ),
+        const SizedBox(height: Spacing.md),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 320),
+          child: Text(
+            'Your personal library,\nalways within reach',
+            textAlign: TextAlign.center,
+            style: subtitleStyle,
+          ),
         ),
       ],
     );

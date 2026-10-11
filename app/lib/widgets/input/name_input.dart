@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/input/validated_text_form_field.dart';
 
 /// A reusable name input field with validation.
 class NameInput extends StatelessWidget {
@@ -30,7 +31,7 @@ class NameInput extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return TextFormField(
+    return ValidatedTextFormField(
       decoration: InputDecoration(
         border: const OutlineInputBorder(),
         labelText: labelText,
@@ -42,7 +43,6 @@ class NameInput extends StatelessWidget {
       textInputAction: textInputAction ?? TextInputAction.next,
       onEditingComplete: onEditingComplete,
       textCapitalization: TextCapitalization.words,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
       validator: _validateName,
     );
   }

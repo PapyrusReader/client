@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/utils/responsive.dart';
 
 /// A link row at the bottom of auth forms to switch between login and register.
 /// Displays prompt text and an action button (e.g. "Don't have an account? Sign up").
@@ -16,6 +18,7 @@ class AuthSwitchLink extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final isCompact = !Responsive.isDesktop(context);
 
     return Wrap(
       alignment: WrapAlignment.center,
@@ -27,6 +30,9 @@ class AuthSwitchLink extends StatelessWidget {
           style: TextButton.styleFrom(
             foregroundColor: theme.colorScheme.primary,
             textStyle: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
+            minimumSize: isCompact ? const Size(ComponentSizes.buttonMinWidth, 40) : null,
+            padding: isCompact ? const EdgeInsets.symmetric(horizontal: 12, vertical: Spacing.xs) : null,
+            tapTargetSize: isCompact ? MaterialTapTargetSize.shrinkWrap : null,
           ),
           child: Text(actionText),
         ),

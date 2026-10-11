@@ -133,7 +133,7 @@ class ComponentSizes {
   static const double authHeroMinWidth = 400.0;
   static const double authFormPanelMaxWidth = 400.0;
   static const double authFormPanelPadding = 48.0;
-  static const double mobileHeroHeight = 200.0;
+  static const double mobileHeroHeight = 128.0;
 
   // Book covers
   static const double bookCoverWidthDesktop = 240.0;
