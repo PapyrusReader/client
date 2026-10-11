@@ -60,7 +60,9 @@ class _ValidatedTextFormFieldState extends State<ValidatedTextFormField> {
       _controller.removeListener(_clearResolvedError);
 
       if (oldWidget.controller == null) {
-        _controller.dispose();
+        final controller = _controller;
+        // The descendant field still uses the old controller until its update finishes.
+        WidgetsBinding.instance.addPostFrameCallback((_) => controller.dispose());
       }
 
       _controller = widget.controller ?? TextEditingController.fromValue(value);
@@ -69,7 +71,8 @@ class _ValidatedTextFormFieldState extends State<ValidatedTextFormField> {
 
     if (oldWidget.focusNode != widget.focusNode) {
       if (oldWidget.focusNode == null) {
-        _focusNode.dispose();
+        final focusNode = _focusNode;
+        WidgetsBinding.instance.addPostFrameCallback((_) => focusNode.dispose());
       }
 
       _focusNode = widget.focusNode ?? FocusNode();
