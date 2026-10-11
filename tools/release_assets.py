@@ -30,6 +30,7 @@ def names(tag: str) -> dict[str, str]:
 
     return {
         "android": f"papyrus-{tag}-android-universal.aab",
+        "android_apk": f"papyrus-{tag}-android-universal.apk",
         "web": f"papyrus-{tag}-web.zip",
         "linux_archive": f"papyrus-{tag}-linux-x64.tar.gz",
         "deb": f"papyrus-{tag}-linux-x64.deb",
@@ -67,6 +68,10 @@ def verify(root: Path, tag: str, revision: str) -> dict:
         raise ValueError("Artifact identity does not match the release tag and commit")
 
     files = names(tag)
+
+    # Published AAB-only releases stay retryable without modifying their assets.
+    if "android_apk" not in metadata["assets"]:
+        files.pop("android_apk")
 
     if set(metadata["assets"]) != set(files):
         raise ValueError("Unexpected release assets")

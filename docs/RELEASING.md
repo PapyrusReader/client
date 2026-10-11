@@ -29,9 +29,9 @@ release builds. Normal PR CI continues independently. Manual dispatch on `master
 is available for the first build or a retry of an unreleased commit. Tags are
 created after builds, not used as a second build trigger. A released tag cannot
 be reused for a different commit. Client tags include the build number, e.g.
-`v0.0.1+1`. Version changes build Android, web, Linux and Windows as before; the
-Android artifact is now a signed AAB, which Google Play turns into device APKs.
-The Android artifact is available even if an unrelated desktop job fails.
+`v0.0.1+1`. Version changes build Android, web, Linux and Windows. Android
+produces a signed AAB for Play and a signed universal APK for direct installation.
+Both Android artifacts are available even if an unrelated desktop job fails.
 
 Use the workspace `tools/release.py bump` command to coordinate manifest changes
 with the server rather than editing each version separately. See the workspace
@@ -70,8 +70,13 @@ Put these secrets in the same GitHub environment:
 | `ANDROID_KEY_PASSWORD` | Key password |
 
 The workflow restores the file in runner temporary storage, builds the AAB,
-checks 64-bit native ELF alignment for 16 KB page support, uploads the artifact,
-and removes the temporary key. Never commit a keystore or passwords.
+checks 64-bit native ELF alignment for 16 KB page support, and uses the pinned
+bundletool to generate a universal APK from that same bundle. APK packaging
+requires the upload key explicitly, verifies its signature, package/version,
+16 KB ZIP alignment and ELF alignment, then uploads both artifacts and removes
+temporary signing files. Passwords are passed through restricted temporary files.
+Direct APKs use the upload signing key, which can differ from Play's app signing
+key. See INSTALL.md before switching installation sources. Never commit a keystore or passwords.
 
 Local release builds use the same four environment variables (replace
 `ANDROID_KEYSTORE_BASE64` with `ANDROID_KEYSTORE_PATH`, an absolute local path),
@@ -138,8 +143,8 @@ Official references:
 ## Distribution artifacts
 
 Every download includes `vMAJOR.MINOR.PATCH+BUILD` in its filename. Desktop
-artifacts also include `x64`; the Android AAB is `android-universal` and web is
-architecture independent. GitHub releases contain the AAB, web ZIP, Linux tarball,
+artifacts also include `x64`. The Android AAB and APK are `android-universal` and web is
+architecture independent. GitHub releases contain the AAB, APK, web ZIP, Linux tarball,
 `.deb`, AppImage, Windows ZIP and installer, plus `INSTALL.md`,
 `release-manifest.json` and `SHA256SUMS`. See [installation instructions](INSTALL.md).
 

@@ -42,6 +42,29 @@ class ReleaseAssetsTest(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "checksum"):
             assets.verify(self.root, TAG, REVISION)
 
+    def test_new_release_requires_apk_and_checks_its_checksum(self):
+        apk = self.root / assets.names(TAG)["android_apk"]
+        apk.write_bytes(b"changed")
+
+        with self.assertRaisesRegex(ValueError, "checksum"):
+            assets.verify(self.root, TAG, REVISION)
+
+        apk.unlink()
+        (self.root / "release-manifest.json").unlink()
+        (self.root / "SHA256SUMS").unlink()
+
+        with self.assertRaisesRegex(ValueError, "expected assets"):
+            assets.seal(self.root, TAG, REVISION)
+
+    def test_published_aab_only_release_remains_verifiable(self):
+        manifest = self.root / "release-manifest.json"
+        metadata = json.loads(manifest.read_text())
+        (self.root / metadata["assets"].pop("android_apk")["name"]).unlink()
+        manifest.write_text(json.dumps(metadata, indent=2) + "\n")
+        files = sorted(path for path in self.root.iterdir() if path.name != "SHA256SUMS")
+        (self.root / "SHA256SUMS").write_text("".join(f"{assets.digest(path)}  {path.name}\n" for path in files))
+        self.assertEqual(assets.verify(self.root, TAG, REVISION), metadata)
+
     def test_wrong_commit_rejected(self):
         with self.assertRaisesRegex(ValueError, "identity"):
             assets.verify(self.root, TAG, "b" * 40)
