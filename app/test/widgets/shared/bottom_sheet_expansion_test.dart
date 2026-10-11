@@ -108,6 +108,41 @@ void main() {
     },
   };
 
+  for (final entry in longSheets.entries.where(
+    (entry) => entry.key == 'shelf selection' || entry.key == 'advanced filters',
+  )) {
+    testWidgets('${entry.key} stays open after a fling back to the beginning', (tester) async {
+      final store = DataStore()
+        ..loadData(
+          books: createTestBooks(),
+          shelves: List.generate(20, (index) => buildTestShelf(id: 'shelf-$index', name: 'Shelf $index')),
+          tags: List.generate(20, (index) => buildTestTag(id: 'topic-$index', name: 'Topic $index')),
+        );
+
+      await openSheet(tester, entry.value, store: store);
+      await tester.drag(find.byType(BottomSheetHandle), const Offset(0, -500));
+      await tester.pumpAndSettle();
+
+      final scrollable = find
+          .descendant(of: find.byType(ExpandableBottomSheet), matching: find.byType(Scrollable))
+          .first;
+
+      final position = tester.state<ScrollableState>(scrollable).position;
+      expect(position.maxScrollExtent, greaterThan(100));
+      position.jumpTo(100);
+      await tester.pump();
+      await tester.fling(scrollable, const Offset(0, 250), 4000);
+
+      final draggable = tester.widget<DraggableScrollableSheet>(find.byType(DraggableScrollableSheet));
+      expect(draggable.controller!.size, greaterThan(draggable.minChildSize));
+      await tester.pumpAndSettle();
+      expect(find.byType(ExpandableBottomSheet), findsOneWidget);
+      expect(draggable.controller!.size, closeTo(draggable.minChildSize, .001));
+      expect(position.pixels, 0);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   for (final entry in longSheets.entries) {
     testWidgets('${entry.key} expands before scrolling on mobile', (tester) async {
       final store = DataStore()
