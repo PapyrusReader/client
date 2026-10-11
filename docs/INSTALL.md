@@ -7,9 +7,18 @@ or compare the selected file's hash with its entry in `SHA256SUMS`.
 
 ## Android
 
-Android releases are for Google Play **internal testing**. Join the tester list
-and use its Play opt-in link. The AAB is a Play upload artifact, not a directly
-installable APK. Public Play production distribution is not enabled.
+Download `papyrus-vVERSION+BUILD-android-universal.apk` for direct installation.
+Open it on your Android device and allow installation from that browser or file
+manager when prompted. Install subsequent APKs over the existing app to retain
+your library and settings.
+
+Google Play internal testers can instead use the Play opt-in link. The AAB is
+for Play publishing. Use the APK when installing a downloaded file.
+
+Direct APKs use Papyrus's upload signing key. Google Play uses its app signing
+key, so Android may reject switching between the two installation sources.
+Stay with the same source for updates. Do not uninstall an existing app just to
+switch sources without first exporting any local-only books and data.
 
 ## Web
 

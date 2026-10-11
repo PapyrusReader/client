@@ -98,7 +98,7 @@ class BookImportSheet extends StatefulWidget {
 
         if (MediaQuery.sizeOf(sheetContext).width < Breakpoints.tablet) {
           // Import dismissal must go through the session's cleanup callback.
-          return ExpandableBottomSheet(canClose: false, builder: (_, controller) => buildSheet(controller));
+          return ExpandableBottomSheet(builder: (_, controller) => buildSheet(controller));
         }
 
         return DraggableScrollableSheet(

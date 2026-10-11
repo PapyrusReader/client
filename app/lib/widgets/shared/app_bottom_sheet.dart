@@ -93,7 +93,6 @@ class AppBottomSheet extends StatelessWidget {
       child: LayoutBuilder(
         builder: (context, constraints) => expandable
             ? ExpandableBottomSheet(
-                canClose: canClose && (ModalRoute.of(context) as ModalBottomSheetRoute).enableDrag,
                 builder: (context, controller) => buildFrame(controller, compact: constraints.maxHeight < 280),
               )
             : ConstrainedBox(
