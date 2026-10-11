@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/input/validated_text_form_field.dart';
 
 /// A reusable email input field with validation.
 class EmailInput extends StatelessWidget {
@@ -30,7 +31,7 @@ class EmailInput extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return TextFormField(
+    return ValidatedTextFormField(
       decoration: InputDecoration(
         border: const OutlineInputBorder(),
         labelText: labelText,
@@ -43,7 +44,6 @@ class EmailInput extends StatelessWidget {
       onEditingComplete: onEditingComplete,
       autocorrect: false,
       enableSuggestions: false,
-      autovalidateMode: AutovalidateMode.onUserInteraction,
       validator: _validateEmail,
     );
   }

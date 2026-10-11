@@ -1,16 +1,80 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:papyrus/pages/login_page.dart';
+import 'package:papyrus/pages/register_page.dart';
+import 'package:papyrus/pages/welcome_page.dart';
+import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/auth/auth_branding.dart';
 import 'package:papyrus/widgets/auth/auth_page_layouts.dart';
 
 void main() {
+  setUpAll(() async {
+    final flutterRoot = Platform.environment['FLUTTER_ROOT']!;
+    final font = File('$flutterRoot/bin/cache/artifacts/material_fonts/Roboto-Regular.ttf');
+    await (FontLoader('Roboto')..addFont(Future.value(ByteData.sublistView(font.readAsBytesSync())))).load();
+    await (FontLoader('MadimiOne')..addFont(rootBundle.load('fonts/MadimiOne-Regular.ttf'))).load();
+  });
+
   void setViewport(WidgetTester tester, Size size) {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = size;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
+  }
+
+  for (final (size, scale) in [
+    (const Size(384, 832), 1.0),
+    (const Size(360, 640), 1.0),
+    (const Size(360, 640), 1.5),
+    (const Size(1200, 800), 1.0),
+  ]) {
+    for (final dark in [false, true]) {
+      testWidgets('welcome branding and actions fit $size at text scale $scale (dark: $dark)', (tester) async {
+        setViewport(tester, size);
+        tester.view.padding = const FakeViewPadding(top: 24, bottom: 48);
+        tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 48);
+        addTearDown(tester.view.resetPadding);
+        addTearDown(tester.view.resetViewPadding);
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: dark ? AppTheme.dark : AppTheme.light,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+              child: child!,
+            ),
+            home: const WelcomePage(),
+          ),
+        );
+
+        await tester.pumpAndSettle();
+        expect(find.byType(AuthBranding), findsOneWidget);
+        expect(find.text('Papyrus'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+
+        if (scale == 1.0) {
+          final scrollable = tester.state<ScrollableState>(find.byType(Scrollable).first);
+          expect(scrollable.position.maxScrollExtent, 0);
+          final brandingPosition = tester.getTopLeft(find.byType(AuthBranding));
+          await tester.drag(find.byType(Scrollable).first, const Offset(0, -100));
+          await tester.pumpAndSettle();
+          expect(tester.getTopLeft(find.byType(AuthBranding)), brandingPosition);
+        }
+
+        for (final label in ['Create an account', 'Sign in', 'Continue offline']) {
+          final action = find.text(label);
+          await tester.ensureVisible(action);
+          await tester.pumpAndSettle();
+          expect(action.hitTestable(), findsOneWidget);
+        }
+
+        expect(tester.takeException(), isNull);
+      });
+    }
   }
 
   testWidgets('desktop auth layout shows branding over the hero image', (tester) async {
@@ -36,6 +100,8 @@ void main() {
 
   testWidgets('mobile auth layout shows branding over the compact image header', (tester) async {
     setViewport(tester, const Size(390, 844));
+    tester.view.padding = const FakeViewPadding(top: 24);
+    addTearDown(tester.view.resetPadding);
 
     await tester.pumpWidget(
       MaterialApp(
@@ -52,8 +118,56 @@ void main() {
     expect(find.text('Papyrus'), findsOneWidget);
     expect(branding, findsOneWidget);
     expect(tester.getCenter(branding).dx, moreOrLessEquals(195));
-    expect(tester.getTopLeft(branding).dy, Spacing.lg);
+    expect(tester.getCenter(branding).dy, moreOrLessEquals((24 + ComponentSizes.mobileHeroHeight - 30) / 2));
   });
+
+  for (final register in [false, true]) {
+    testWidgets('${register ? 'register' : 'login'} fits a phone viewport above system navigation', (tester) async {
+      setViewport(tester, const Size(384, 832));
+      tester.view.padding = const FakeViewPadding(top: 24, bottom: 48);
+      tester.view.viewPadding = const FakeViewPadding(top: 24, bottom: 48);
+      addTearDown(tester.view.resetPadding);
+      addTearDown(tester.view.resetViewPadding);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          home: register ? const RegisterPage() : const LoginPage(),
+        ),
+      );
+
+      final scrollable = tester.state<ScrollableState>(find.byType(Scrollable).first);
+      final offlineButton = find.widgetWithText(TextButton, 'Continue offline');
+      expect(scrollable.position.maxScrollExtent, 0);
+      expect(tester.getRect(offlineButton).bottom, lessThanOrEqualTo(784));
+      expect(offlineButton.hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('${register ? 'register' : 'login'} remains scrollable with large text and keyboard', (tester) async {
+      setViewport(tester, const Size(360, 780));
+      tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+      addTearDown(tester.view.resetViewInsets);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.3)),
+            child: child!,
+          ),
+          home: register ? const RegisterPage() : const LoginPage(),
+        ),
+      );
+
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -1200));
+      await tester.pumpAndSettle();
+      final offlineButton = find.widgetWithText(TextButton, 'Continue offline');
+      expect(tester.getRect(offlineButton).bottom, lessThanOrEqualTo(480));
+      expect(offlineButton.hitTestable(), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   for (final keyboard in [false, true]) {
     testWidgets('mobile auth footer stays above ${keyboard ? 'the keyboard' : 'system navigation'}', (tester) async {

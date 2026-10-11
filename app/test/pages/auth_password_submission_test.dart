@@ -110,4 +110,14 @@ void main() {
     await tester.pump();
     expect(repository.registerPassword, ' NewSecureP@ss123 ');
   });
+
+  testWidgets('login does not enforce password creation rules', (tester) async {
+    setViewport(tester);
+    final repository = await pumpAuthPage(tester, const LoginPage());
+    await tester.enterText(find.widgetWithText(TextFormField, 'Email address'), 'reader@example.com');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'short');
+    await tester.tap(find.text('Continue'));
+    await tester.pump();
+    expect(repository.loginPassword, 'short');
+  });
 }

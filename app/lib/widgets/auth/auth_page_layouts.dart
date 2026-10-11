@@ -47,10 +47,8 @@ class MobileAuthLayout extends StatelessWidget {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const SizedBox(height: Spacing.xl),
+                          const SizedBox(height: Spacing.md),
                           if (showHeader) ...[
-                            // const AuthBranding(),
-                            const SizedBox(height: Spacing.md),
                             Text(
                               heading,
                               style: theme.textTheme.headlineMedium?.copyWith(
@@ -65,9 +63,8 @@ class MobileAuthLayout extends StatelessWidget {
                             const SizedBox(height: Spacing.lg),
                           ],
                           form,
-                          const Spacer(),
                           ...footer,
-                          const SizedBox(height: Spacing.lg),
+                          const SizedBox(height: Spacing.md),
                         ],
                       ),
                     ),

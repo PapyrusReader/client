@@ -74,6 +74,58 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  for (final (entry, firstPath, next, secondPath) in [
+    ('Sign in', '/login', 'Sign up', '/register'),
+    ('Create an account', '/register', 'Sign in', '/login'),
+    ('Sign in', '/login', 'Forgot password?', '/forgot-password'),
+  ]) {
+    testWidgets('Back from $secondPath restores $firstPath before the landing page', (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(400, 1000);
+      addTearDown(tester.view.reset);
+      final prefs = await SharedPreferences.getInstance();
+      final auth = AuthProvider(prefs, repository: FakeAuthRepository(), bootstrapOnCreate: false);
+      await auth.bootstrap();
+      final appRouter = await _buildRouter(authProvider: auth, prefs: prefs);
+
+      addTearDown(() async {
+        await tester.pumpWidget(const SizedBox.shrink());
+        appRouter.router.dispose();
+        auth.dispose();
+        appRouter.preferencesProvider.dispose();
+        appRouter.syncSettingsProvider.dispose();
+        appRouter.acquisitionAvailabilityProvider.dispose();
+      });
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: auth,
+          child: MaterialApp.router(theme: AppTheme.dark, routerConfig: appRouter.router),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(entry));
+      await tester.pumpAndSettle();
+      expect(appRouter.router.routeInformationProvider.value.uri.path, firstPath);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Email address'), 'reader@example.com');
+      await tester.ensureVisible(find.text(next));
+      await tester.tap(find.text(next));
+      await tester.pumpAndSettle();
+      expect(appRouter.router.routeInformationProvider.value.uri.path, secondPath);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(appRouter.router.routeInformationProvider.value.uri.path, firstPath);
+      expect(find.text('reader@example.com'), findsOneWidget);
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(appRouter.router.routeInformationProvider.value.uri.path, '/');
+      expect(find.byType(WelcomePage), findsOneWidget);
+      expect(appRouter.router.canPop(), isFalse);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   for (final signedIn in [true, false]) {
     for (final destination in ['/', '/login', '/library/books?view=list']) {
       testWidgets('defers $destination until ${signedIn ? 'signed-in' : 'signed-out'} session restore finishes', (

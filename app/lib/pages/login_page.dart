@@ -10,6 +10,7 @@ import 'package:papyrus/widgets/auth/auth_switch_link.dart';
 import 'package:papyrus/widgets/buttons/google_sign_in.dart';
 import 'package:papyrus/widgets/input/email_input.dart';
 import 'package:papyrus/widgets/input/password_input.dart';
+import 'package:papyrus/widgets/input/validated_text_form_field.dart';
 import 'package:papyrus/widgets/titled_divider.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
@@ -44,12 +45,11 @@ class _LoginPageState extends State<LoginPage> {
       return;
     }
 
-    FocusScope.of(context).unfocus();
-
-    if (!_formKey.currentState!.validate()) {
+    if (!validateAndFocusForm(_formKey.currentState!)) {
       return;
     }
 
+    FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
@@ -93,11 +93,11 @@ class _LoginPageState extends State<LoginPage> {
     );
   }
 
-  List<Widget> _buildFooter() {
+  List<Widget> _buildFooter({bool isDesktop = false}) {
     return [
-      const TitledDivider(title: 'Or continue with'),
+      TitledDivider(title: 'Or continue with', verticalPadding: isDesktop ? Spacing.lg : Spacing.md),
       const GoogleSignInButton(title: 'Sign in with Google'),
-      const SizedBox(height: Spacing.md),
+      SizedBox(height: isDesktop ? Spacing.md : Spacing.xs),
       AuthSwitchLink(
         promptText: "Don't have an account?",
         actionText: 'Sign up',
@@ -142,7 +142,7 @@ class _LoginPageState extends State<LoginPage> {
           onLogin: _handleLogin,
           isDesktop: true,
         ),
-        footer: _buildFooter(),
+        footer: _buildFooter(isDesktop: true),
       ),
     );
   }
@@ -197,7 +197,7 @@ class _LoginForm extends StatelessWidget {
             alignment: Alignment.centerRight,
             child: TextButton(
               onPressed: () {
-                context.go('/forgot-password');
+                context.push('/forgot-password');
               },
               style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
               child: const Text('Forgot password?', style: TextStyle(fontWeight: FontWeight.w500)),
