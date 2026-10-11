@@ -1,6 +1,7 @@
 """Regression tests for release identity, Play retries and transactional web delivery."""
 
 import hashlib
+import io
 import json
 import os
 import sys
@@ -172,6 +173,54 @@ class WebDeploymentTest(unittest.TestCase):
         self.assertEqual(os.readlink(self.root / "current"), f"releases/{REVISION}")
         self.assertEqual(os.readlink(self.root / "previous"), "releases/initial")
         self.assertEqual((self.root / "previous/index.html").read_text(), "previous")
+
+    def public_response(self, request, timeout):
+        route = request.full_url.split("?", 1)[0].removeprefix("https://app.example.com")
+        filename = "index.html" if route in ("/", "/login") else route.removeprefix("/")
+        response = io.BytesIO((self.root / "current" / filename).read_bytes())
+        response.headers = {"Cache-Control": "no-cache"}
+        return response
+
+    def test_public_probe_checks_entrypoints_and_compiled_app(self):
+        self.install()
+
+        with patch.object(web.urllib.request, "urlopen", side_effect=self.public_response) as request:
+            web.verify_public("https://app.example.com", self.metadata, self.root / "current")
+
+        routes = [call.args[0].full_url.split("?", 1)[0] for call in request.call_args_list]
+        self.assertEqual(len(routes), 5)
+        self.assertIn("https://app.example.com/main.dart.js", routes)
+
+    def test_cdn_cache_override_rolls_back_release(self):
+        def response(request, timeout):
+            result = self.public_response(request, timeout)
+
+            if "/flutter_bootstrap.js?" in request.full_url:
+                result.headers["Cache-Control"] = "max-age=14400"
+
+            return result
+
+        with patch.object(web.urllib.request, "urlopen", side_effect=response), patch.object(web.time, "sleep"):
+            with self.assertRaisesRegex(ValueError, "must revalidate"):
+                self.install(lambda metadata, release: web.verify_public("https://app.example.com", metadata, release))
+
+        self.assertEqual(os.readlink(self.root / "current"), "releases/initial")
+
+    def test_stale_compiled_app_rolls_back_release(self):
+        def response(request, timeout):
+            result = self.public_response(request, timeout)
+
+            if "/main.dart.js?" in request.full_url:
+                result = io.BytesIO(b"previous compiled app")
+                result.headers = {"Cache-Control": "no-cache"}
+
+            return result
+
+        with patch.object(web.urllib.request, "urlopen", side_effect=response), patch.object(web.time, "sleep"):
+            with self.assertRaisesRegex(ValueError, "does not match"):
+                self.install(lambda metadata, release: web.verify_public("https://app.example.com", metadata, release))
+
+        self.assertEqual(os.readlink(self.root / "current"), "releases/initial")
 
     def test_older_build_is_rejected_without_activation(self):
         self.install()

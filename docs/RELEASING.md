@@ -210,6 +210,12 @@ release identity, then switches `current` atomically under a file lock. Public
 `/release.json`, `/`, `/login` and `/flutter_bootstrap.js` must match the artifact.
 A failed verification restores the previous target. Old directories are retained;
 there is no automatic data or artifact deletion. Caddy revalidates web content.
+If Cloudflare fronts the app, configure an app-host-only cache rule for
+`http.host eq "app.papyrus-reader.com"`: bypass the edge cache and set Browser TTL
+to **Respect origin TTL**. The default browser TTL can otherwise replace Caddy's
+`no-cache` header with a four-hour lifetime for JavaScript. The public deployment
+probe checks revalidation headers and exact bytes for metadata, both entrypoint
+routes, the Flutter bootstrap and `main.dart.js`; failure rolls activation back.
 The deployment user cannot restart or change the API, sync service or database.
 
 Delivery rejects a lower build number than the active web release; an equal
