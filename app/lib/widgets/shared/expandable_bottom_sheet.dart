@@ -7,10 +7,9 @@ import 'package:flutter/material.dart';
 /// Coordinates mobile sheet expansion with its primary content scroll view.
 /// The sheet grows only as far as its content needs, then scrolls normally.
 class ExpandableBottomSheet extends StatefulWidget {
-  const ExpandableBottomSheet({super.key, required this.builder, this.canClose = true});
+  const ExpandableBottomSheet({super.key, required this.builder});
 
   final Widget Function(BuildContext context, ScrollController controller) builder;
-  final bool canClose;
 
   @override
   State<ExpandableBottomSheet> createState() => _ExpandableBottomSheetState();
@@ -93,9 +92,7 @@ class _ExpandableBottomSheetState extends State<ExpandableBottomSheet> {
     final atMinimum = _sheetController.size <= _minSize + precisionErrorTolerance;
     final pulledDown = _dragDistance > 0 && (_dragStartSize > _minSize || _dragDistance >= _dismissDistance);
 
-    if (widget.canClose &&
-        onDismiss != null &&
-        ((atMinimum && pulledDown) || (details.primaryVelocity ?? 0) > _dismissVelocity)) {
+    if (onDismiss != null && ((atMinimum && pulledDown) || (details.primaryVelocity ?? 0) > _dismissVelocity)) {
       onDismiss();
     }
 
