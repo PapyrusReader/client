@@ -75,9 +75,8 @@ def verify_public(url: str, metadata: dict, release: Path) -> None:
                 ("/main.dart.js", "main.dart.js"),
             ):
                 request = urllib.request.Request(
-                    f"{url}{route}?deployment={metadata['revision']}",
+                    f"{url}{route}",
                     headers={
-                        "Cache-Control": "no-cache",
                         "User-Agent": "PapyrusReleaseVerifier/1.0 (+https://github.com/PapyrusReader/client)",
                     },
                 )
