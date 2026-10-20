@@ -1,3 +1,8 @@
+## Issue and requirements
+
+Closes #NUMBER. Include covered requirement IDs and fully qualified links to any
+cross-repository dependencies. Use closing keywords only when the issue is complete.
+
 ## Summary
 
 > Describe the problem, what changed, and why this approach was chosen.
