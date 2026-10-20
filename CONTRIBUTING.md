@@ -6,6 +6,12 @@ Find or create an issue in the repository that owns the change. The shared
 [Papyrus project](https://github.com/orgs/PapyrusReader/projects/1) tracks work
 across the client, server, reader, documentation, website, and workspace.
 
+If GitHub does not allow you to create an issue, start a
+[client discussion](https://github.com/PapyrusReader/client/discussions)
+describing the proposed change. A maintainer will triage it and create the owning
+issue. You do not need an existing issue to start that discussion. Agree on the
+implementation scope with the maintainer before beginning the change.
+
 Product requirements and acceptance criteria live in the
 [documentation repository](https://github.com/PapyrusReader/docs). Requirement
 tracking issues belong there. Client implementation issues belong here and link
