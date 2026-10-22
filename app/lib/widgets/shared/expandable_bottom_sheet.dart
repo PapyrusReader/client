@@ -7,10 +7,9 @@ import 'package:flutter/material.dart';
 /// Coordinates mobile sheet expansion with its primary content scroll view.
 /// The sheet grows only as far as its content needs, then scrolls normally.
 class ExpandableBottomSheet extends StatefulWidget {
-  const ExpandableBottomSheet({super.key, required this.builder, this.canClose = true});
+  const ExpandableBottomSheet({super.key, required this.builder});
 
   final Widget Function(BuildContext context, ScrollController controller) builder;
-  final bool canClose;
 
   @override
   State<ExpandableBottomSheet> createState() => _ExpandableBottomSheetState();
@@ -29,7 +28,6 @@ class _ExpandableBottomSheetState extends State<ExpandableBottomSheet> {
   double _maxSize = 1;
   double _dragStartSize = 0;
   double _dragDistance = 0;
-  bool _resizingFromHeader = false;
   bool _draggingFromHeader = false;
   bool _measurementScheduled = false;
 
@@ -44,11 +42,7 @@ class _ExpandableBottomSheetState extends State<ExpandableBottomSheet> {
       return;
     }
 
-    // Header resizing must not trigger the route's automatic close-on-minimum.
-    // Dismiss on release instead, through the sheet's guarded cleanup callback.
-    _resizingFromHeader = true;
     _sheetController.jumpTo(size.clamp(_minSize, _maxSize));
-    _resizingFromHeader = false;
   }
 
   void _startHeaderDrag(AnimationController? routeController) {
@@ -161,49 +155,48 @@ class _ExpandableBottomSheetState extends State<ExpandableBottomSheet> {
       _maxSize = maxSize;
       _measureContent();
 
-      return NotificationListener<DraggableScrollableNotification>(
-        onNotification: (_) => _resizingFromHeader,
-        child: DraggableScrollableSheet(
-          controller: _sheetController,
-          expand: false,
-          initialChildSize: initialSize,
-          minChildSize: _minSize,
-          maxChildSize: maxSize,
-          shouldCloseOnMinExtent: widget.canClose,
-          builder: (context, controller) {
-            _scrollController = controller;
+      return DraggableScrollableSheet(
+        controller: _sheetController,
+        expand: false,
+        initialChildSize: initialSize,
+        minChildSize: _minSize,
+        maxChildSize: maxSize,
+        // Content flings can reach the minimum too. Dismiss through the
+        // header's deliberate drag gesture instead of scroll momentum.
+        shouldCloseOnMinExtent: false,
+        builder: (context, controller) {
+          _scrollController = controller;
 
-            return NotificationListener<ScrollMetricsNotification>(
-              onNotification: (notification) {
-                if (notification.depth == 0) {
-                  _measureContent();
-                }
+          return NotificationListener<ScrollMetricsNotification>(
+            onNotification: (notification) {
+              if (notification.depth == 0) {
+                _measureContent();
+              }
 
+              return false;
+            },
+            child: NotificationListener<SizeChangedLayoutNotification>(
+              onNotification: (_) {
+                _measureContent();
                 return false;
               },
-              child: NotificationListener<SizeChangedLayoutNotification>(
-                onNotification: (_) {
-                  _measureContent();
-                  return false;
-                },
-                child: PrimaryScrollController(
-                  controller: controller,
-                  automaticallyInheritForPlatforms: TargetPlatform.values.toSet(),
-                  child: Align(
-                    alignment: Alignment.bottomCenter,
-                    heightFactor: 1,
-                    child: SizeChangedLayoutNotifier(
-                      child: _SheetDragScope(
-                        state: this,
-                        child: SizedBox(key: _contentKey, child: widget.builder(context, controller)),
-                      ),
+              child: PrimaryScrollController(
+                controller: controller,
+                automaticallyInheritForPlatforms: TargetPlatform.values.toSet(),
+                child: Align(
+                  alignment: Alignment.bottomCenter,
+                  heightFactor: 1,
+                  child: SizeChangedLayoutNotifier(
+                    child: _SheetDragScope(
+                      state: this,
+                      child: SizedBox(key: _contentKey, child: widget.builder(context, controller)),
                     ),
                   ),
                 ),
               ),
-            );
-          },
-        ),
+            ),
+          );
+        },
       );
     },
   );

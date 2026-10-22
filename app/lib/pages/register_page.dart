@@ -11,6 +11,7 @@ import 'package:papyrus/widgets/buttons/google_sign_in.dart';
 import 'package:papyrus/widgets/input/email_input.dart';
 import 'package:papyrus/widgets/input/name_input.dart';
 import 'package:papyrus/widgets/input/password_input.dart';
+import 'package:papyrus/widgets/input/validated_text_form_field.dart';
 import 'package:papyrus/widgets/titled_divider.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
@@ -53,12 +54,11 @@ class _RegisterPageState extends State<RegisterPage> {
       return;
     }
 
-    FocusScope.of(context).unfocus();
-
-    if (!_formKey.currentState!.validate()) {
+    if (!validateAndFocusForm(_formKey.currentState!)) {
       return;
     }
 
+    FocusScope.of(context).unfocus();
     setState(() => _isLoading = true);
     ScaffoldMessenger.of(context).hideCurrentSnackBar();
 
@@ -119,11 +119,11 @@ class _RegisterPageState extends State<RegisterPage> {
     return null;
   }
 
-  List<Widget> _buildFooter() {
+  List<Widget> _buildFooter({bool isDesktop = false}) {
     return [
-      const TitledDivider(title: 'Or continue with'),
+      TitledDivider(title: 'Or continue with', verticalPadding: isDesktop ? Spacing.lg : Spacing.md),
       const GoogleSignInButton(title: 'Sign up with Google'),
-      const SizedBox(height: Spacing.md),
+      SizedBox(height: isDesktop ? Spacing.md : Spacing.xs),
       AuthSwitchLink(
         promptText: 'Already have an account?',
         actionText: 'Sign in',
@@ -180,7 +180,7 @@ class _RegisterPageState extends State<RegisterPage> {
           validatePasswordStrength: _validatePasswordStrength,
           validateConfirmPassword: _validateConfirmPassword,
         ),
-        footer: _buildFooter(),
+        footer: _buildFooter(isDesktop: true),
       ),
     );
   }
@@ -259,6 +259,7 @@ class _RegisterForm extends StatelessWidget {
             textInputAction: TextInputAction.done,
             onFieldSubmitted: (_) => onRegister(),
             extraValidator: validateConfirmPassword,
+            validationDependency: passwordController,
           ),
           const SizedBox(height: Spacing.lg),
           AuthContinueButton(isLoading: isLoading, onPressed: onRegister, isDesktop: isDesktop),

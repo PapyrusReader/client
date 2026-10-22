@@ -4,6 +4,7 @@ import 'package:papyrus/models/library_filters.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
+import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/providers/enums/library_sort_option.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
@@ -112,6 +113,54 @@ void main() {
         expect(tester.takeException(), isNull);
       });
     }
+
+    testWidgets('shelves filter stays open when scrolling back to the top with momentum', (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(400, 800);
+      addTearDown(tester.view.reset);
+
+      final store = DataStore()
+        ..loadData(
+          shelves: List.generate(30, (index) => buildTestShelf(id: 'shelf-$index', name: 'Shelf $index')),
+        );
+
+      addTearDown(store.dispose);
+
+      await tester.pumpWidget(
+        createTestApp(
+          libraryProvider: libraryProvider,
+          dataStore: store,
+          screenSize: const Size(400, 800),
+          child: const LibraryFilterChips(),
+        ),
+      );
+
+      await tester.scrollUntilVisible(find.text('Shelf'), 150, scrollable: find.byType(Scrollable));
+      await Scrollable.ensureVisible(tester.element(find.text('Shelf')), alignment: .5);
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Shelf'));
+      await tester.pumpAndSettle();
+      await tester.drag(find.byType(BottomSheetHandle), const Offset(0, -500));
+      await tester.pumpAndSettle();
+
+      final scrollable = find
+          .descendant(of: find.byType(ExpandableBottomSheet), matching: find.byType(Scrollable))
+          .first;
+
+      final position = tester.state<ScrollableState>(scrollable).position;
+      expect(position.maxScrollExtent, greaterThan(100));
+      position.jumpTo(100);
+      await tester.pump();
+      await tester.fling(scrollable, const Offset(0, 250), 4000);
+      await tester.pumpAndSettle();
+      expect(find.text('Shelves'), findsOneWidget);
+      expect(find.text('Apply'), findsOneWidget);
+      expect(position.pixels, 0);
+      await tester.drag(find.byType(BottomSheetHandle), const Offset(0, 500));
+      await tester.pumpAndSettle();
+      expect(find.text('Shelves'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
 
     testWidgets('view selection sheet updates the shared view mode', (tester) async {
       await pumpChips(tester);

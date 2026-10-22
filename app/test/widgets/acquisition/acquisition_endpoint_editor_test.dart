@@ -71,7 +71,7 @@ void main() {
     await _expectIdleSheetDismisses(tester, _DismissAttempt.back);
   });
 
-  testWidgets('idle sheet dismisses from a downward drag', (tester) async {
+  testWidgets('idle sheet dismisses from a downward handle drag', (tester) async {
     await _expectIdleSheetDismisses(tester, _DismissAttempt.drag);
   });
 
@@ -384,7 +384,7 @@ void main() {
     expect(bottomSheet.enableDrag, isTrue);
     expect(bottomSheet.showDragHandle, isFalse);
     expect(find.byType(BottomSheetHandle), findsOneWidget);
-    await tester.drag(find.byType(BottomSheet), const Offset(0, 700));
+    await tester.drag(find.byKey(const Key('acquisition-editor-header')), const Offset(0, 700));
     await tester.pumpAndSettle();
     expect(find.byKey(const Key('acquisition-endpoint-sheet')), findsNothing);
   });
@@ -643,7 +643,7 @@ Future<void> _expectIdleSheetDismisses(WidgetTester tester, _DismissAttempt atte
     case _DismissAttempt.back:
       await tester.binding.handlePopRoute();
     case _DismissAttempt.drag:
-      await tester.drag(find.byType(BottomSheet), const Offset(0, 700));
+      await tester.drag(find.byKey(const Key('acquisition-editor-header')), const Offset(0, 700));
   }
 
   await tester.pumpAndSettle();
@@ -686,7 +686,7 @@ Future<void> _expectPendingSaveBlocksDismissal(WidgetTester tester, _DismissAtte
     case _DismissAttempt.back:
       await tester.binding.handlePopRoute();
     case _DismissAttempt.drag:
-      await tester.drag(find.byType(BottomSheet), const Offset(0, 700));
+      await tester.drag(find.byKey(const Key('acquisition-editor-header')), const Offset(0, 700));
   }
 
   await tester.pump(const Duration(milliseconds: 500));

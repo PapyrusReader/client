@@ -46,16 +46,9 @@ class AuthHeroPanel extends StatelessWidget {
         const Positioned(
           top: Spacing.xl,
           left: Spacing.xl,
-          child: AuthBranding(
-            textColor: Colors.white,
-            iconOutlineColor: Color(0x998F89FF),
+          child: AuthBranding.hero(
             iconSize: 48,
             fontSize: 32,
-            iconOutlineWidth: 2.5,
-            shadowColor: Color(0x40000000),
-            textShadowColor: Color(0x59000000),
-            textShadowOffset: Offset(0, 2),
-            textShadowBlurRadius: 6,
           ),
         ),
       ],
@@ -68,7 +61,7 @@ class CompactAuthHeader extends StatelessWidget {
   final bool isDark;
   final double height;
 
-  const CompactAuthHeader({super.key, this.isDark = false, this.height = 180});
+  const CompactAuthHeader({super.key, this.isDark = false, this.height = ComponentSizes.mobileHeroHeight});
 
   @override
   Widget build(BuildContext context) {
@@ -99,24 +92,15 @@ class CompactAuthHeader extends StatelessWidget {
                 alignment: Alignment.topCenter,
               ),
             ),
-            const Positioned(
-              top: Spacing.lg,
+            Positioned(
+              top: MediaQuery.paddingOf(context).top,
+              bottom: 30,
               left: Spacing.lg,
               right: Spacing.lg,
-              child: Center(
+              child: const Center(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: AuthBranding(
-                    textColor: Colors.white,
-                    iconOutlineColor: Color(0x998F89FF),
-                    iconSize: 70,
-                    fontSize: 40,
-                    iconOutlineWidth: 3,
-                    shadowColor: Color(0x40000000),
-                    textShadowColor: Color(0x59000000),
-                    textShadowOffset: Offset(0, 2),
-                    textShadowBlurRadius: 6,
-                  ),
+                  child: AuthBranding.hero(),
                 ),
               ),
             ),

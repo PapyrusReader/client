@@ -16,6 +16,8 @@ class AuthBranding extends StatelessWidget {
   final Color? textShadowColor;
   final Offset textShadowOffset;
   final double textShadowBlurRadius;
+  final Axis direction;
+  final double spacing;
 
   const AuthBranding({
     super.key,
@@ -30,13 +32,38 @@ class AuthBranding extends StatelessWidget {
     this.textShadowColor,
     this.textShadowOffset = const Offset(0, 1),
     this.textShadowBlurRadius = 3,
+    this.direction = Axis.horizontal,
+    this.spacing = 12,
   });
+
+  const AuthBranding.hero({
+    Key? key,
+    Color textColor = Colors.white,
+    double iconSize = 70,
+    double fontSize = 40,
+    Axis direction = Axis.horizontal,
+    double spacing = 12,
+  }) : this(
+         key: key,
+         textColor: textColor,
+         iconSize: iconSize,
+         fontSize: fontSize,
+         direction: direction,
+         spacing: spacing,
+         iconOutlineColor: const Color(0x998F89FF),
+         iconOutlineWidth: 3,
+         shadowColor: const Color(0x40000000),
+         textShadowColor: const Color(0x59000000),
+         textShadowOffset: const Offset(0, 2),
+         textShadowBlurRadius: 6,
+       );
 
   @override
   Widget build(BuildContext context) {
     final foregroundColor = textColor ?? Theme.of(context).colorScheme.onSurface;
 
-    return Row(
+    return Flex(
+      direction: direction,
       mainAxisSize: MainAxisSize.min,
       children: [
         _LogoIcon(
@@ -47,12 +74,13 @@ class AuthBranding extends StatelessWidget {
           shadowOffset: shadowOffset,
           shadowBlurRadius: shadowBlurRadius,
         ),
-        const SizedBox(width: 12),
+        SizedBox(width: direction == Axis.horizontal ? spacing : 0, height: direction == Axis.vertical ? spacing : 0),
         Text(
           'Papyrus',
           style: TextStyle(
             fontFamily: 'MadimiOne',
             fontSize: fontSize,
+            height: direction == Axis.vertical ? 1 : null,
             fontWeight: FontWeight.normal,
             color: foregroundColor,
             letterSpacing: 0,
