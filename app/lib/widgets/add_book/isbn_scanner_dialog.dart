@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:mobile_scanner/mobile_scanner.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 
@@ -52,7 +53,12 @@ class _IsbnScannerDialogState extends State<IsbnScannerDialog> {
 
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(backgroundColor: Colors.black, foregroundColor: Colors.white, title: const Text('Scan ISBN')),
+      appBar: AppPageBar(
+        context: context,
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: const Text('Scan ISBN'),
+      ),
       body: Column(
         children: [
           Expanded(

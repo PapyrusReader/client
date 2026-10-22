@@ -23,7 +23,12 @@ import 'package:papyrus/themes/app_motion.dart';
 /// This helper centralizes the context menu logic used by book cards and list items.
 /// The [position] parameter determines where the menu appears; if null, it will
 /// be positioned at the center of the screen.
-void showBookContextMenu({required BuildContext context, required Book book, Offset? position}) {
+void showBookContextMenu({
+  required BuildContext context,
+  required Book book,
+  Offset? position,
+  VoidCallback? onRemoveFromShelf,
+}) {
   final libraryProvider = context.read<LibraryProvider>();
   final isFavorite = libraryProvider.isBookFavorite(book.id, book.isFavorite);
 
@@ -32,6 +37,7 @@ void showBookContextMenu({required BuildContext context, required Book book, Off
     book: book,
     isFavorite: isFavorite,
     tapPosition: position,
+    onRemoveFromShelf: onRemoveFromShelf,
     onSelect: () {
       libraryProvider.enterSelectionMode(book.id);
     },

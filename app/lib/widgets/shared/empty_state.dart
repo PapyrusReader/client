@@ -27,6 +27,9 @@ class EmptyState extends StatelessWidget {
   /// Position within the available space. Book-detail tabs can align to the top.
   final AlignmentGeometry alignment;
 
+  /// Inherit the page's scroll controller when this state is a nested tab body.
+  final bool primary;
+
   final bool _compact;
 
   const EmptyState({
@@ -38,6 +41,7 @@ class EmptyState extends StatelessWidget {
     this.iconSize = 64,
     this.padding = const EdgeInsets.all(Spacing.xl),
     this.alignment = Alignment.center,
+    this.primary = false,
   }) : _compact = false;
 
   /// The same visual treatment at the smaller scale used by cards and panels.
@@ -50,6 +54,7 @@ class EmptyState extends StatelessWidget {
     this.iconSize = 40,
     this.padding = const EdgeInsets.all(Spacing.md),
     this.alignment = Alignment.center,
+    this.primary = false,
   }) : _compact = true;
 
   @override
@@ -60,7 +65,7 @@ class EmptyState extends StatelessWidget {
     return Align(
       alignment: alignment,
       child: SingleChildScrollView(
-        primary: false,
+        primary: primary,
         child: Padding(
           padding: padding,
           child: ConstrainedBox(

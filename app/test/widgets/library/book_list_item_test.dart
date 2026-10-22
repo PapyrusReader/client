@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/models/book.dart';
+import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/library/book_list_item.dart';
@@ -29,6 +30,7 @@ void main() {
       Book? book,
       bool isFavorite = false,
       VoidCallback? onTap,
+      ValueChanged<bool>? onToggleFavorite,
       VoidCallback? onSelectToggle,
       VoidCallback? onAcquisitionTap,
       VoidCallback? onAcquisitionSelectionToggle,
@@ -45,6 +47,7 @@ void main() {
           book: book ?? testBook,
           isFavorite: isFavorite,
           onTap: onTap,
+          onToggleFavorite: onToggleFavorite,
           onSelectToggle: onSelectToggle,
           onAcquisitionTap: onAcquisitionTap,
           onAcquisitionSelectionToggle: onAcquisitionSelectionToggle,
@@ -69,9 +72,9 @@ void main() {
       expect(find.text('J.R.R. Tolkien'), findsOneWidget);
     });
 
-    testWidgets('displays format badge', (tester) async {
+    testWidgets('omits format badge', (tester) async {
       await tester.pumpWidget(buildListItem());
-      expect(find.text('EPUB'), findsOneWidget);
+      expect(find.text('EPUB'), findsNothing);
     });
 
     testWidgets('shows progress bar and label when progress > 0', (tester) async {
@@ -100,6 +103,61 @@ void main() {
       await tester.pumpWidget(buildListItem(isFavorite: false));
       expect(find.byIcon(Icons.favorite_border), findsOneWidget);
     });
+
+    for (final favorite in [false, true]) {
+      testWidgets('heart toggles favorite $favorite without opening the book', (tester) async {
+        var taps = 0;
+        bool? currentFavorite;
+
+        await tester.pumpWidget(
+          buildListItem(
+            isFavorite: favorite,
+            onTap: () => taps += 1,
+            onToggleFavorite: (current) => currentFavorite = current,
+          ),
+        );
+
+        final heart = find.byTooltip(favorite ? 'Remove from favorites' : 'Add to favorites');
+        expect(tester.getSize(heart).width, greaterThanOrEqualTo(48));
+        expect(tester.getSize(heart).height, greaterThanOrEqualTo(48));
+        await tester.tap(heart);
+        expect(currentFavorite, favorite);
+        expect(taps, 0);
+      });
+    }
+
+    for (final theme in [AppTheme.dark, AppTheme.eink]) {
+      testWidgets('long titles fit narrow list rows in ${theme.brightness}', (tester) async {
+        await tester.binding.setSurfaceSize(const Size(320, 640));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        final book = testBook.copyWith(
+          title: 'SQL Performance Explained Everything Developers Need to Know about SQL Performance',
+          author: 'Winand, Markus',
+        );
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            home: MediaQuery(
+              data: const MediaQueryData(size: Size(320, 640), textScaler: TextScaler.linear(1.5)),
+              child: Scaffold(
+                body: ListView(
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                  children: [BookListItem(book: book, isFavorite: false, onToggleFavorite: (_) {})],
+                ),
+              ),
+            ),
+          ),
+        );
+
+        expect(tester.takeException(), isNull);
+        expect(tester.widget<Text>(find.text(book.title)).maxLines, 2);
+        expect(
+          tester.getRect(find.text(book.title)).right,
+          lessThanOrEqualTo(tester.getRect(find.byTooltip('Add to favorites')).left),
+        );
+      });
+    }
 
     testWidgets('calls onTap when tapped', (tester) async {
       var tapped = false;
@@ -221,10 +279,10 @@ void main() {
       expect(tester.widget<CoverImage>(find.byType(CoverImage)).bookId, testBook.id);
     });
 
-    testWidgets('displays physical format label', (tester) async {
+    testWidgets('omits physical format label', (tester) async {
       final physicalBook = testBook.copyWith(isPhysical: true);
       await tester.pumpWidget(buildListItem(book: physicalBook));
-      expect(find.text('Physical'), findsOneWidget);
+      expect(find.text('Physical'), findsNothing);
     });
 
     testWidgets('displays 100% progress for finished book', (tester) async {

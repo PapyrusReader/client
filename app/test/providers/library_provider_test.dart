@@ -21,6 +21,21 @@ void main() {
       provider.dispose();
     });
 
+    test('selection-only library stays selectable after the last book is deselected', () {
+      final picker = LibraryProvider(selectionOnly: true);
+      addTearDown(picker.dispose);
+      expect(picker.isSelectionMode, isTrue);
+      picker.toggleBookSelection('book');
+      expect(picker.selectedCount, 1);
+      picker.toggleBookSelection('book');
+      expect(picker.selectedCount, 0);
+      expect(picker.isSelectionMode, isTrue);
+      picker.selectAll(['book']);
+      picker.exitSelectionMode();
+      expect(picker.selectedCount, 0);
+      expect(picker.isSelectionMode, isTrue);
+    });
+
     group('initial state', () {
       test('uses the default view, sort, search, and filters', () {
         expect(provider.viewMode, LibraryViewMode.grid);
@@ -28,6 +43,31 @@ void main() {
         expect(provider.searchQuery, isEmpty);
         expect(provider.filters.isEmpty, isTrue);
         expect(provider.activeFilterCount, 0);
+      });
+    });
+
+    group('sorting ties', () {
+      for (final option in LibrarySortOption.values) {
+        test('$option keeps equal values ordered after a favorite refresh', () {
+          provider.setSortOption(option);
+          final first = buildTestBook(id: 'a', title: 'Same title', author: 'Same author');
+          final second = first.copyWith(id: 'b');
+          final original = [first, second];
+          final refreshed = [second.copyWith(isFavorite: true), first];
+          expect(provider.sortBooks(original).map((book) => book.id), ['a', 'b']);
+          expect(provider.sortBooks(refreshed).map((book) => book.id), ['a', 'b']);
+          expect(refreshed.first.id, 'b');
+        });
+      }
+
+      test('date added remains the primary key in both directions', () {
+        final oldest = buildTestBook(id: 'z').copyWith(addedAt: DateTime(2026, 1));
+        final first = oldest.copyWith(id: 'a', addedAt: DateTime(2026, 2));
+        final second = first.copyWith(id: 'b', isFavorite: true);
+        final books = [second, oldest, first];
+        expect(provider.sortBooks(books).map((book) => book.id), ['a', 'b', 'z']);
+        provider.setSortOption(LibrarySortOption.dateAddedOldest);
+        expect(provider.sortBooks(books).map((book) => book.id), ['z', 'a', 'b']);
       });
     });
 

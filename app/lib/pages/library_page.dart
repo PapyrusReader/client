@@ -16,6 +16,7 @@ import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/bulk_book_actions.dart';
+import 'package:papyrus/utils/book_actions.dart';
 import 'package:papyrus/widgets/library/acquisition_confirmation_dialog.dart';
 import 'package:papyrus/widgets/library/book_grid.dart';
 import 'package:papyrus/widgets/library/book_list_item.dart';
@@ -32,6 +33,8 @@ import 'package:papyrus/widgets/library/selection_header.dart';
 import 'package:papyrus/widgets/search/library_search_bar.dart';
 import 'package:papyrus/widgets/add_book/add_book_choice_sheet.dart';
 import 'package:papyrus/widgets/shared/empty_state.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
+import 'package:papyrus/widgets/shelves/shelf_info_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
@@ -43,8 +46,15 @@ class LibraryPage extends StatefulWidget {
   final Shelf? shelf;
   final VoidCallback? onBack;
   final VoidCallback? onEditShelf;
+  final bool selectBooksForShelf;
 
-  const LibraryPage({super.key, this.shelf, this.onBack, this.onEditShelf});
+  const LibraryPage({
+    super.key,
+    this.shelf,
+    this.onBack,
+    this.onEditShelf,
+    this.selectBooksForShelf = false,
+  }) : assert(!selectBooksForShelf || shelf != null);
 
   bool get isShelfView => shelf != null;
 
@@ -65,6 +75,12 @@ class _AcquisitionLibraryView {
 class _LibraryPageState extends State<LibraryPage> {
   int _presentationGeneration = 0;
   bool _showDownloadingOnly = false;
+  bool _isAddingToShelf = false;
+  List<Book>? _shelfBooksBeforeSave;
+  Set<String> _pendingShelfBookIds = const {};
+  bool _shelfAdditionCommitted = false;
+  bool _shelfReturnScheduled = false;
+  bool _isRemovingFromShelf = false;
   AcquisitionDownloadsProvider? _visibleDownloadsProvider;
   late final TextEditingController _onlineSearchController;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
@@ -121,6 +137,7 @@ class _LibraryPageState extends State<LibraryPage> {
     final libraryProvider = context.watch<LibraryProvider>();
     final downloadsProvider = widget.isShelfView ? null : context.watch<AcquisitionDownloadsProvider?>();
     final dataStore = context.watch<DataStore>();
+    _returnToShelfWhenReady(dataStore);
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= Breakpoints.desktopSmall;
     final sourceBooks = _sourceBooks(dataStore);
@@ -128,32 +145,48 @@ class _LibraryPageState extends State<LibraryPage> {
     final books = _getFilteredBooks(libraryProvider, dataStore, sourceBooks);
     final isLoading = !dataStore.isLoaded;
 
-    if (isDesktop) {
-      return _buildDesktopLayout(
-        context,
-        books,
-        sourceBooks,
-        filterOptions,
-        libraryProvider,
-        downloadsProvider,
-        isLoading,
-      );
-    }
+    final layout = isDesktop
+        ? _buildDesktopLayout(
+            context,
+            books,
+            sourceBooks,
+            filterOptions,
+            libraryProvider,
+            downloadsProvider,
+            isLoading,
+          )
+        : _buildMobileLayout(
+            context,
+            books,
+            sourceBooks,
+            filterOptions,
+            libraryProvider,
+            downloadsProvider,
+            isLoading,
+          );
 
-    return _buildMobileLayout(
-      context,
-      books,
-      sourceBooks,
-      filterOptions,
-      libraryProvider,
-      downloadsProvider,
-      isLoading,
-    );
+    return AbsorbPointer(absorbing: _isAddingToShelf || _isRemovingFromShelf, child: layout);
   }
 
   List<Book> _sourceBooks(DataStore dataStore) {
+    if (_shelfBooksBeforeSave case final books?) {
+      return books;
+    }
+
     final shelf = widget.shelf;
-    return shelf == null ? dataStore.books : dataStore.getBooksInShelf(shelf.id);
+
+    if (shelf == null) {
+      return dataStore.books;
+    }
+
+    final shelfBooks = dataStore.getBooksInShelf(shelf.id);
+
+    if (widget.selectBooksForShelf) {
+      final shelfBookIds = shelfBooks.map((book) => book.id).toSet();
+      return dataStore.books.where((book) => !shelfBookIds.contains(book.id)).toList();
+    }
+
+    return shelfBooks;
   }
 
   LibraryFilterOptions _filterOptions(DataStore dataStore, List<Book> sourceBooks) {
@@ -197,7 +230,7 @@ class _LibraryPageState extends State<LibraryPage> {
 
     final selectedJobs = _visibleSelectedJobs(downloadsProvider, acquisitionView.selectableJobs);
     final hasJobSelection = selectedJobs.isNotEmpty;
-    final hideLocalControls = isOnline || hasJobSelection || isBookSelection;
+    final hideLocalControls = isOnline || hasJobSelection || isBookSelection || widget.selectBooksForShelf;
     _pruneHiddenJobSelection(downloadsProvider, acquisitionView.selectableJobs);
     _clearUnavailableDownloadingFilter(localItems);
 
@@ -221,6 +254,7 @@ class _LibraryPageState extends State<LibraryPage> {
                   selectableJobs: acquisitionView.selectableJobs,
                   includeActions: false,
                 ),
+                _ when widget.selectBooksForShelf => _buildShelfSelectionHeader(libraryProvider, books),
                 _ when isBookSelection => SelectionHeader(
                   selectedCount: libraryProvider.selectedCount,
                   totalCount: books.length,
@@ -266,7 +300,7 @@ class _LibraryPageState extends State<LibraryPage> {
       floatingActionButton: hideLocalControls
           ? null
           : FloatingActionButton(
-              onPressed: widget.isShelfView ? () {} : () => _showAddBook(downloadsProvider),
+              onPressed: widget.isShelfView ? _openShelfBookSelection : () => _showAddBook(downloadsProvider),
               tooltip: widget.isShelfView ? 'Add to shelf' : null,
               child: const Icon(Icons.add),
             ),
@@ -275,32 +309,197 @@ class _LibraryPageState extends State<LibraryPage> {
           provider,
         ),
         _ when hasJobSelection => _buildMobileJobActions(downloadsProvider!, selectedJobs),
-        _ when isBookSelection => buildMobileBottomActionBar(context, libraryProvider),
+        _ when widget.selectBooksForShelf => _buildShelfSelectionAction(libraryProvider),
+        _ when isBookSelection => buildMobileBottomActionBar(
+          context,
+          libraryProvider,
+          onRemoveFromShelf: widget.isShelfView ? () => _removeBooksFromShelf(libraryProvider) : null,
+        ),
         _ => null,
       },
     );
+  }
+
+  Future<void> _removeBooksFromShelf(LibraryProvider provider, {Set<String>? selectedBookIds}) async {
+    if (_isRemovingFromShelf) {
+      return;
+    }
+
+    final store = context.read<DataStore>();
+    final bookIds = store
+        .getBooksInShelf(widget.shelf!.id)
+        .where((book) => (selectedBookIds ?? provider.selectedBookIds).contains(book.id))
+        .map((book) => book.id)
+        .toSet();
+
+    if (bookIds.isEmpty) {
+      return;
+    }
+
+    setState(() => _isRemovingFromShelf = true);
+
+    try {
+      await bulkRemoveFromShelf(store, bookIds, widget.shelf!.id, repository: store.libraryRepository?.memberships);
+
+      if (mounted) {
+        provider.exitSelectionMode();
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          snackBarAnimationStyle: AppMotion.animationStyle(context),
+          const SnackBar(content: Text('Could not remove books from the shelf. Please try again.')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() => _isRemovingFromShelf = false);
+      }
+    }
+  }
+
+  void _openShelfBookSelection() {
+    context.push('/library/shelves/${widget.shelf!.id}/add-books');
+  }
+
+  Widget _buildShelfSelectionHeader(LibraryProvider provider, List<Book> books) {
+    final allVisibleSelected = books.isNotEmpty && books.every((book) => provider.isBookSelected(book.id));
+    final compact = MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
+
+    final selectionAction = IconButton(
+      tooltip: allVisibleSelected ? 'Deselect all' : 'Select all',
+      icon: Icon(allVisibleSelected ? Icons.deselect : Icons.select_all),
+      onPressed: books.isEmpty || _isAddingToShelf
+          ? null
+          : () {
+              if (allVisibleSelected) {
+                for (final book in books) {
+                  provider.toggleBookSelection(book.id);
+                }
+              } else {
+                provider.selectAll(books.map((book) => book.id).toList());
+              }
+            },
+    );
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        _buildShelfHeader(
+          title: 'Add to ${widget.shelf!.name}',
+          backTooltip: 'Back to shelf',
+          compact: compact,
+          onBack: _isAddingToShelf ? null : widget.onBack,
+          actions: [compact ? AppPageLeading(child: selectionAction) : selectionAction],
+        ),
+        const SizedBox(height: Spacing.md),
+        _buildSearchBar(provider),
+      ],
+    );
+  }
+
+  Set<String> _selectedShelfBookIds(LibraryProvider provider) {
+    final store = context.read<DataStore>();
+    return _sourceBooks(store).where((book) => provider.isBookSelected(book.id)).map((book) => book.id).toSet();
+  }
+
+  Widget _buildShelfSelectionAction(LibraryProvider provider) {
+    final count = _selectedShelfBookIds(provider).length;
+
+    return SafeArea(
+      top: false,
+      child: Padding(
+        padding: EdgeInsets.symmetric(horizontal: libraryPageHorizontalPadding(context), vertical: Spacing.md),
+        child: FilledButton.icon(
+          onPressed: count == 0 || _isAddingToShelf ? null : () => _addSelectedBooksToShelf(provider),
+          icon: const Icon(Icons.playlist_add),
+          label: Text(_isAddingToShelf ? 'Adding…' : 'Add $count ${count == 1 ? 'book' : 'books'}'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addSelectedBooksToShelf(LibraryProvider provider) async {
+    if (_isAddingToShelf) {
+      return;
+    }
+
+    final store = context.read<DataStore>();
+    final bookIds = _selectedShelfBookIds(provider);
+
+    if (bookIds.isEmpty || store.getShelf(widget.shelf!.id) == null) {
+      return;
+    }
+
+    final booksBeforeSave = _sourceBooks(store);
+
+    setState(() {
+      _shelfBooksBeforeSave = booksBeforeSave;
+      _pendingShelfBookIds = bookIds;
+      _isAddingToShelf = true;
+    });
+
+    try {
+      await bulkAddToShelves(store, bookIds, [widget.shelf!.id], repository: store.libraryRepository?.memberships);
+
+      if (mounted) {
+        setState(() => _shelfAdditionCommitted = true);
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _isAddingToShelf = false;
+          _shelfBooksBeforeSave = null;
+          _pendingShelfBookIds = const {};
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          snackBarAnimationStyle: AppMotion.animationStyle(context),
+          const SnackBar(content: Text('Could not add books to the shelf. Please try again.')),
+        );
+      }
+    }
+  }
+
+  void _returnToShelfWhenReady(DataStore store) {
+    if (!_shelfAdditionCommitted || _shelfReturnScheduled || !store.isLoaded) {
+      return;
+    }
+
+    final shelfBookIds = store.getBooksInShelf(widget.shelf!.id).map((book) => book.id).toSet();
+
+    if (!_pendingShelfBookIds.every(shelfBookIds.contains)) {
+      return;
+    }
+
+    _shelfReturnScheduled = true;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        widget.onBack?.call();
+      }
+    });
   }
 
   Widget _buildMobileLocalHeader(LibraryProvider libraryProvider) {
     if (!widget.isShelfView) {
       return LibraryMobileToolbar(
         onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
-        searchBuilder: (leading) => _buildSearchBar(libraryProvider, leading: leading),
+        search: _buildSearchBar(libraryProvider),
       );
     }
 
     return Column(
       children: [
-        _buildShelfIdentity(context, showBack: true, compact: true),
+        _buildShelfIdentity(context, compact: true),
         const SizedBox(height: Spacing.md),
         SizedBox(width: double.infinity, child: _buildSearchBar(libraryProvider)),
       ],
     );
   }
 
-  Widget _buildSearchBar(LibraryProvider libraryProvider, {Widget? leading}) {
+  Widget _buildSearchBar(LibraryProvider libraryProvider) {
     return LibrarySearchBar(
-      leading: leading,
       initialQuery: libraryProvider.searchQuery,
       activeFilterCount: libraryProvider.activeFilterCount,
       onFilterTap: _showAdvancedFilters,
@@ -624,7 +823,11 @@ class _LibraryPageState extends State<LibraryPage> {
     return CallbackShortcuts(
       bindings: {
         const SingleActivator(LogicalKeyboardKey.escape): () {
-          if (isOnline) {
+          if (widget.selectBooksForShelf) {
+            if (!_isAddingToShelf) {
+              widget.onBack?.call();
+            }
+          } else if (isOnline) {
             if (downloadsProvider.selectedReleaseTokens.isNotEmpty) {
               downloadsProvider.clearReleaseSelection();
             } else {
@@ -640,6 +843,7 @@ class _LibraryPageState extends State<LibraryPage> {
       child: Focus(
         autofocus: true,
         child: Scaffold(
+          bottomNavigationBar: widget.selectBooksForShelf ? _buildShelfSelectionAction(libraryProvider) : null,
           body: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -656,13 +860,18 @@ class _LibraryPageState extends State<LibraryPage> {
                     selectableJobs: acquisitionView.selectableJobs,
                     includeActions: true,
                   ),
+                  _ when widget.selectBooksForShelf => _buildShelfSelectionHeader(libraryProvider, books),
                   _ when isBookSelection => SelectionHeader(
                     selectedCount: libraryProvider.selectedCount,
                     totalCount: books.length,
                     onClose: libraryProvider.exitSelectionMode,
                     onSelectAll: () => libraryProvider.selectAll(books.map((book) => book.id).toList()),
                     onDeselectAll: libraryProvider.deselectAll,
-                    actions: buildBulkActionBar(context, libraryProvider),
+                    actions: buildBulkActionBar(
+                      context,
+                      libraryProvider,
+                      onRemoveFromShelf: widget.isShelfView ? () => _removeBooksFromShelf(libraryProvider) : null,
+                    ),
                   ),
                   _ => _buildDesktopLocalHeader(libraryProvider, downloadsProvider),
                 },
@@ -710,7 +919,7 @@ class _LibraryPageState extends State<LibraryPage> {
       actions: [
         LibraryAddButton(
           label: widget.isShelfView ? 'Add to shelf' : 'Add book',
-          onPressed: widget.isShelfView ? () {} : () => _showAddBook(downloadsProvider),
+          onPressed: widget.isShelfView ? _openShelfBookSelection : () => _showAddBook(downloadsProvider),
         ),
       ],
     );
@@ -721,81 +930,83 @@ class _LibraryPageState extends State<LibraryPage> {
 
     return Column(
       children: [
-        _buildShelfIdentity(context, showBack: true, compact: false),
+        _buildShelfIdentity(context, compact: false),
         const SizedBox(height: Spacing.md),
         toolbar,
       ],
     );
   }
 
-  Widget _buildShelfIdentity(BuildContext context, {required bool showBack, required bool compact}) {
-    final shelf = widget.shelf!;
-    final colorScheme = Theme.of(context).colorScheme;
+  Widget _buildShelfHeader({
+    required String title,
+    required String backTooltip,
+    required bool compact,
+    required VoidCallback? onBack,
+    required List<Widget> actions,
+  }) {
     final textTheme = Theme.of(context).textTheme;
-    final description = shelf.description?.trim();
     final titleStyle = compact ? textTheme.titleLarge : textTheme.headlineSmall;
+    final backButton = IconButton(onPressed: onBack, icon: const Icon(Icons.arrow_back), tooltip: backTooltip);
 
     return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (showBack && widget.onBack != null) ...[
-          IconButton(onPressed: widget.onBack, icon: const Icon(Icons.arrow_back), tooltip: 'Back to shelves'),
-          const SizedBox(width: Spacing.sm),
-        ],
-        Flexible(
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 720),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    Flexible(
-                      child: Text(
-                        shelf.name,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: titleStyle?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                    ),
-                    if (widget.onEditShelf != null) ...[
-                      const SizedBox(width: Spacing.sm),
-                      if (compact)
-                        IconButton(
-                          onPressed: widget.onEditShelf,
-                          icon: const Icon(Icons.edit_outlined),
-                          tooltip: 'Edit shelf',
-                        )
-                      else
-                        Semantics(
-                          label: 'Edit shelf',
-                          button: true,
-                          enabled: true,
-                          onTap: widget.onEditShelf,
-                          excludeSemantics: true,
-                          child: Tooltip(
-                            message: 'Edit shelf',
-                            child: TextButton.icon(
-                              onPressed: widget.onEditShelf,
-                              icon: const Icon(Icons.edit_outlined, size: IconSizes.small),
-                              label: const Text('Edit'),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ],
-                ),
-                const SizedBox(height: Spacing.xs),
-                Text(
-                  description == null || description.isEmpty ? 'Add a description' : description,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                ),
-              ],
+        compact ? AppPageLeading(child: backButton) : backButton,
+        const SizedBox(width: Spacing.sm),
+        Expanded(
+          child: Semantics(
+            header: true,
+            child: Text(
+              title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: titleStyle?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
         ),
+        const SizedBox(width: Spacing.sm),
+        ...actions,
+      ],
+    );
+  }
+
+  Widget _buildShelfIdentity(BuildContext context, {required bool compact}) {
+    return _buildShelfHeader(
+      title: widget.shelf!.name,
+      backTooltip: 'Back to shelves',
+      compact: compact,
+      onBack: widget.onBack,
+      actions: [
+        if (compact)
+          AppPageLeading(
+            child: IconButton(
+              onPressed: () => ShelfInfoSheet.show(context, shelfId: widget.shelf!.id),
+              icon: const Icon(Icons.info_outline),
+              tooltip: 'Details',
+            ),
+          )
+        else
+          TextButton.icon(
+            onPressed: () => ShelfInfoSheet.show(context, shelfId: widget.shelf!.id),
+            icon: const Icon(Icons.info_outline, size: IconSizes.small),
+            label: const Text('Details'),
+          ),
+        if (widget.onEditShelf != null) ...[
+          const SizedBox(width: Spacing.sm),
+          if (compact)
+            AppPageLeading(
+              child: IconButton(
+                onPressed: widget.onEditShelf,
+                icon: const Icon(Icons.edit_outlined),
+                tooltip: 'Edit',
+              ),
+            )
+          else
+            TextButton.icon(
+              onPressed: widget.onEditShelf,
+              icon: const Icon(Icons.edit_outlined, size: IconSizes.small),
+              label: const Text('Edit'),
+            ),
+        ],
       ],
     );
   }
@@ -876,6 +1087,9 @@ class _LibraryPageState extends State<LibraryPage> {
       onAcquisitionTap: showJob,
       onAcquisitionSelectionToggle: toggleJob,
       onBookTap: (book) => _navigateToBookDetails(context, book),
+      onRemoveFromShelf: widget.isShelfView
+          ? (book) => _removeBooksFromShelf(libraryProvider, selectedBookIds: {book.id})
+          : null,
     );
   }
 
@@ -1009,7 +1223,11 @@ class _LibraryPageState extends State<LibraryPage> {
         return BookListItem(
           book: book,
           isFavorite: isFavorite,
+          onToggleFavorite: acquisitionJob == null ? (current) => toggleBookFavorite(context, book.id, current) : null,
           onTap: () => _navigateToBookDetails(context, book),
+          onRemoveFromShelf: widget.isShelfView
+              ? () => _removeBooksFromShelf(libraryProvider, selectedBookIds: {book.id})
+              : null,
           isSelectionMode: isSelectionMode,
           isSelected: libraryProvider.isBookSelected(book.id),
           onSelectToggle: () => libraryProvider.toggleBookSelection(book.id),
@@ -1021,7 +1239,6 @@ class _LibraryPageState extends State<LibraryPage> {
           onAcquisitionSelectionToggle: acquisitionJob == null
               ? null
               : () => onAcquisitionSelectionToggle(acquisitionJob),
-          accountStatus: acquisitionJob == null ? storageStatusController?.accountStatus(book) : null,
           deviceStatus: acquisitionJob == null ? storageStatusController?.deviceStatus(book) : null,
         );
       },
@@ -1039,13 +1256,23 @@ class _LibraryPageState extends State<LibraryPage> {
   ) {
     final query = libraryProvider.searchQuery.trim();
 
+    if (widget.selectBooksForShelf) {
+      return EmptyState(
+        icon: sourceBookCount == 0 ? Icons.library_books_outlined : Icons.search_off,
+        title: sourceBookCount == 0 ? 'No books to add' : 'No books found',
+        subtitle: sourceBookCount == 0
+            ? 'Books in your library that are not already on this shelf will appear here.'
+            : 'Try adjusting your search or filters',
+      );
+    }
+
     if (widget.isShelfView) {
       if (sourceBookCount == 0) {
         return EmptyState(
           icon: Icons.menu_book_outlined,
           title: 'No books in this shelf',
           subtitle: 'Add books from your library to organize them here',
-          action: EmptyStateAction(onPressed: () {}, label: 'Add to shelf'),
+          action: EmptyStateAction(onPressed: _openShelfBookSelection, label: 'Add to shelf'),
         );
       }
 

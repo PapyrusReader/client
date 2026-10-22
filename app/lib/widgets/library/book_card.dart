@@ -18,6 +18,7 @@ import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 class BookCard extends StatefulWidget {
   final Book book;
   final VoidCallback? onTap;
+  final VoidCallback? onRemoveFromShelf;
   final bool showProgress;
   final bool isFavorite;
   final void Function(bool)? onToggleFavorite;
@@ -34,6 +35,7 @@ class BookCard extends StatefulWidget {
     super.key,
     required this.book,
     this.onTap,
+    this.onRemoveFromShelf,
     this.showProgress = true,
     required this.isFavorite,
     this.onToggleFavorite,
@@ -84,7 +86,7 @@ class _BookCardState extends State<BookCard> {
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
-        onLongPressStart: _isDesktop
+        onLongPressStart: _isDesktop || inSelection
             ? null
             : (details) {
                 if (widget.acquisitionJob != null) {
@@ -92,7 +94,12 @@ class _BookCardState extends State<BookCard> {
                   return;
                 }
 
-                showBookContextMenu(context: context, book: widget.book, position: details.globalPosition);
+                showBookContextMenu(
+                  context: context,
+                  book: widget.book,
+                  position: details.globalPosition,
+                  onRemoveFromShelf: widget.onRemoveFromShelf,
+                );
               },
         child: Card(
           // The collection owns page gutters and spacing between cards.
@@ -155,7 +162,11 @@ class _BookCardState extends State<BookCard> {
                                   const SizedBox(width: Spacing.xs),
                                   _CardIconButton(
                                     icon: Icons.more_vert,
-                                    onTap: () => showBookContextMenu(context: context, book: widget.book),
+                                    onTap: () => showBookContextMenu(
+                                      context: context,
+                                      book: widget.book,
+                                      onRemoveFromShelf: widget.onRemoveFromShelf,
+                                    ),
                                   ),
                                 ],
                               ],

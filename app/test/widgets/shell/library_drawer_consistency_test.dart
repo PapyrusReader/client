@@ -95,6 +95,8 @@ void main() {
           );
 
           await tester.pumpAndSettle();
+          final catalogMenuRect = tester.getRect(find.byTooltip('Library sections'));
+
           // Every page opens the shell drawer, covering the bottom navigation.
           // Follow real drawer links through every page and back to Catalogs.
           final journey = [sections[2], ...sections.where((section) => section.label != 'Catalogs'), sections[2]];
@@ -102,6 +104,15 @@ void main() {
           for (var index = 0; index < journey.length; index++) {
             final section = journey[index];
             expect(router.routeInformationProvider.value.uri.path, section.path);
+            final menuRect = tester.getRect(find.byTooltip('Library sections'));
+            expect(menuRect.left, catalogMenuRect.left);
+            expect(menuRect.size, catalogMenuRect.size);
+
+            if (section.label != 'Catalogs') {
+              final searchRect = tester.getRect(find.byType(TextField));
+              expect(searchRect.left, greaterThan(menuRect.right));
+              expect(searchRect.center.dy, menuRect.center.dy);
+            }
 
             if (theme.brightness == Brightness.dark && section.label == 'Books') {
               await tester.dragFrom(Offset(1, layout.height / 2), const Offset(280, 0));

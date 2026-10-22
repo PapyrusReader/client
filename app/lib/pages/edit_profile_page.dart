@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -59,7 +60,8 @@ class _EditProfilePageState extends State<EditProfilePage> {
     final isDesktop = screenWidth >= Breakpoints.desktopSmall;
 
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppPageBar(
+        context: context,
         title: const Text('Edit profile'),
         leading: IconButton(icon: const Icon(Icons.close), onPressed: () => _handleBack(context)),
         actions: [

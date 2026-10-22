@@ -69,7 +69,7 @@ class _AddShelfSheetState extends State<AddShelfSheet> with PersistentSave<AddSh
     final textTheme = Theme.of(context).textTheme;
 
     return AppBottomSheet(
-      title: _isEditing ? 'Edit shelf' : 'Create new shelf',
+      title: _isEditing ? 'Edit' : 'Create new shelf',
       onClose: () => Navigator.of(context).pop(),
       canClose: !isSaving,
       footer: BottomSheetFormActions(

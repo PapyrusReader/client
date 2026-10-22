@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
 
 /// Matches collection content and filter rows to the toolbar's page margins.
 double libraryPageHorizontalPadding(BuildContext context) =>
@@ -26,8 +27,9 @@ class LibraryPageHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     if (compact) {
       return SizedBox(
-        height: Theme.of(context).appBarTheme.toolbarHeight ?? kToolbarHeight,
-        child: AppBar(
+        height: appMobileToolbarHeight(context),
+        child: AppPageBar(
+          context: context,
           primary: false,
           automaticallyImplyLeading: false,
           leading: leading,
@@ -102,23 +104,38 @@ class LibraryPageHeader extends StatelessWidget {
   }
 }
 
-/// Mobile navigation occupies the search prefix instead of adding a page inset.
+/// Mobile navigation, search and actions in one row.
 class LibraryMobileToolbar extends StatelessWidget {
-  const LibraryMobileToolbar({super.key, required this.onMenuPressed, this.searchBuilder, this.actions = const []});
+  const LibraryMobileToolbar({super.key, required this.onMenuPressed, this.search, this.actions = const []});
 
   final VoidCallback onMenuPressed;
-  final Widget Function(Widget leading)? searchBuilder;
+  final Widget? search;
   final List<Widget> actions;
 
   @override
   Widget build(BuildContext context) {
-    final menu = IconButton(icon: const Icon(Icons.menu), onPressed: onMenuPressed, tooltip: 'Library sections');
+    final menu = SizedBox.square(
+      dimension: TouchTargets.mobileRecommended,
+      child: IconButton(
+        icon: const Icon(Icons.menu, size: IconSizes.navigation),
+        onPressed: onMenuPressed,
+        tooltip: 'Library sections',
+      ),
+    );
 
-    return Row(
-      children: [
-        if (searchBuilder != null) Expanded(child: searchBuilder!(menu)) else ...[menu, const Spacer()],
-        for (final action in actions) ...[const SizedBox(width: Spacing.sm), action],
-      ],
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: appMobileToolbarHeight(context) - Spacing.md * 2),
+      child: Row(
+        children: [
+          menu,
+          if (search != null) ...[
+            const SizedBox(width: Spacing.sm),
+            Expanded(child: search!),
+          ] else
+            const Spacer(),
+          for (final action in actions) ...[const SizedBox(width: Spacing.sm), action],
+        ],
+      ),
     );
   }
 }
@@ -148,28 +165,27 @@ class LibraryToolbar extends StatelessWidget {
     }
 
     return LayoutBuilder(
-      builder: (context, constraints) {
-        if (constraints.maxWidth < Breakpoints.tablet || MediaQuery.textScalerOf(context).scale(1) > 1.4) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              search!,
-              const SizedBox(height: Spacing.sm),
-              Align(alignment: Alignment.centerRight, child: actionGroup),
-            ],
-          );
-        }
-
-        return Row(
+      builder: (context, constraints) => _LibraryToolbarScope(
+        compactActions: constraints.maxWidth < Breakpoints.tablet || MediaQuery.textScalerOf(context).scale(1) > 1.4,
+        child: Row(
           children: [
             Expanded(child: search!),
             const SizedBox(width: Spacing.md),
             actionGroup,
           ],
-        );
-      },
+        ),
+      ),
     );
   }
+}
+
+class _LibraryToolbarScope extends InheritedWidget {
+  const _LibraryToolbarScope({required this.compactActions, required super.child});
+
+  final bool compactActions;
+
+  @override
+  bool updateShouldNotify(_LibraryToolbarScope oldWidget) => compactActions != oldWidget.compactActions;
 }
 
 /// The primary creation action shared by Library collection toolbars.
@@ -180,14 +196,31 @@ class LibraryAddButton extends StatelessWidget {
   final VoidCallback? onPressed;
 
   @override
-  Widget build(BuildContext context) => FilledButton.icon(
-    onPressed: onPressed,
-    icon: const Icon(Icons.add, size: IconSizes.medium),
-    label: Text(label),
-    style: FilledButton.styleFrom(
+  Widget build(BuildContext context) {
+    final compact = context.dependOnInheritedWidgetOfExactType<_LibraryToolbarScope>()?.compactActions ?? false;
+
+    final style = FilledButton.styleFrom(
       minimumSize: const Size(0, TouchTargets.desktopRecommended),
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+      padding: EdgeInsets.symmetric(horizontal: compact ? Spacing.sm : Spacing.md, vertical: Spacing.sm),
       visualDensity: VisualDensity.standard,
-    ),
-  );
+    );
+
+    if (compact) {
+      return Tooltip(
+        message: label,
+        child: FilledButton(
+          onPressed: onPressed,
+          style: style,
+          child: Icon(Icons.add, size: IconSizes.medium, semanticLabel: label),
+        ),
+      );
+    }
+
+    return FilledButton.icon(
+      onPressed: onPressed,
+      icon: const Icon(Icons.add, size: IconSizes.medium),
+      label: Text(label),
+      style: style,
+    );
+  }
 }

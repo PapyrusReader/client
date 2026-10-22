@@ -11,8 +11,9 @@ import 'package:provider/provider.dart';
 /// Route adapter for viewing books within a specific shelf.
 class ShelfContentsPage extends StatelessWidget {
   final String? shelfId;
+  final bool selectBooks;
 
-  const ShelfContentsPage({super.key, required this.shelfId});
+  const ShelfContentsPage({super.key, required this.shelfId, this.selectBooks = false});
 
   @override
   Widget build(BuildContext context) {
@@ -26,11 +27,24 @@ class ShelfContentsPage extends StatelessWidget {
     final favoriteState = context.read<LibraryProvider>();
 
     return ChangeNotifierProvider(
-      key: ValueKey('shelf-library-${shelf.id}'),
-      create: (_) => LibraryProvider(favoriteDelegate: favoriteState),
+      key: ValueKey('shelf-library-${shelf.id}-$selectBooks'),
+      create: (_) =>
+          LibraryProvider(favoriteDelegate: favoriteState, selectionOnly: selectBooks)
+            ..setViewMode(favoriteState.viewMode),
       child: LibraryPage(
         shelf: shelf,
-        onBack: () => context.go('/library/shelves'),
+        selectBooksForShelf: selectBooks,
+        onBack: () {
+          if (selectBooks) {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/library/shelves/${shelf.id}');
+            }
+          } else {
+            context.go('/library/shelves');
+          }
+        },
         onEditShelf: () => _editShelf(context, dataStore, shelf),
       ),
     );

@@ -1,6 +1,7 @@
 import 'package:papyrus/services/reading_device_identity.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:papyrus/reader/reading_activity_tracker.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:go_router/go_router.dart';
@@ -211,7 +212,7 @@ class _ReaderPageState extends State<ReaderPage> {
 
     if (error != null) {
       return Scaffold(
-        appBar: AppBar(leading: const BackButton()),
+        appBar: AppPageBar(context: context, leading: const BackButton()),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),

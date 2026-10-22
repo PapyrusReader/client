@@ -21,6 +21,7 @@ class BookContextMenu {
     Function(LibraryReadingStatus)? onStatusChange,
     VoidCallback? onDownload,
     VoidCallback? onDelete,
+    VoidCallback? onRemoveFromShelf,
   }) {
     showModalBottomSheet(
       sheetAnimationStyle: AppMotion.animationStyle(context),
@@ -42,6 +43,7 @@ class BookContextMenu {
         onStatusChange: onStatusChange,
         onDownload: onDownload,
         onDelete: onDelete,
+        onRemoveFromShelf: onRemoveFromShelf,
       ),
     );
   }
@@ -84,6 +86,7 @@ class _BookContextBottomSheet extends StatelessWidget {
   final Function(LibraryReadingStatus)? onStatusChange;
   final VoidCallback? onDownload;
   final VoidCallback? onDelete;
+  final VoidCallback? onRemoveFromShelf;
 
   const _BookContextBottomSheet({
     required this.book,
@@ -96,6 +99,7 @@ class _BookContextBottomSheet extends StatelessWidget {
     this.onStatusChange,
     this.onDownload,
     this.onDelete,
+    this.onRemoveFromShelf,
   });
 
   @override
@@ -228,23 +232,33 @@ class _BookContextBottomSheet extends StatelessWidget {
                 onDownload?.call();
               },
             ),
-          _BottomSheetItem(
-            icon: Icons.delete_outline,
-            label: 'Delete',
-            isDestructive: true,
-            onTap: () {
-              Navigator.pop(context);
-              // Use a post-frame callback to ensure context is valid
+          if (onRemoveFromShelf != null)
+            _BottomSheetItem(
+              icon: Icons.playlist_remove,
+              label: 'Remove from shelf',
+              onTap: () {
+                Navigator.pop(context);
+                onRemoveFromShelf!();
+              },
+            )
+          else
+            _BottomSheetItem(
+              icon: Icons.delete_outline,
+              label: 'Delete',
+              isDestructive: true,
+              onTap: () {
+                Navigator.pop(context);
+                // Use a post-frame callback to ensure context is valid
 
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                if (!context.mounted) {
-                  return;
-                }
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!context.mounted) {
+                    return;
+                  }
 
-                BookContextMenu._confirmDelete(context, book, onDelete);
-              });
-            },
-          ),
+                  BookContextMenu._confirmDelete(context, book, onDelete);
+                });
+              },
+            ),
 
           const SizedBox(height: Spacing.md),
         ],

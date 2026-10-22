@@ -58,8 +58,8 @@ void main() {
 
         await tester.pumpAndSettle();
         final provider = tester.element(find.byType(ShelvesFilterChips)).read<ShelvesProvider>();
-        final search = tester.getRect(find.byType(TextField));
         final gutter = layout.screen.width >= Breakpoints.desktopSmall ? Spacing.lg : Spacing.md;
+        final contentLeft = layout.screen.width - layout.width + gutter;
         final options = bookGridSizeOptions(layout.width - gutter * 2);
 
         if (layout.screen.width < Breakpoints.desktopSmall) {
@@ -73,7 +73,7 @@ void main() {
           expect((grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount).crossAxisCount, option.columns);
           final cards = find.descendant(of: find.byType(ShelfCard), matching: find.byType(Card));
           final first = tester.getRect(cards.first);
-          expect(first.left, closeTo(search.left, .001));
+          expect(first.left, closeTo(contentLeft, .001));
           expect(first.top - tester.getRect(find.byType(ShelvesFilterChips)).bottom, Spacing.sm);
 
           final row = cards
@@ -97,7 +97,7 @@ void main() {
         await tester.pumpAndSettle();
         final firstShelf = find.byType(ShelfCard).first;
         final icon = find.descendant(of: firstShelf, matching: find.byType(Container)).first;
-        expect(tester.getRect(icon).left, search.left);
+        expect(tester.getRect(icon).left, contentLeft);
         expect(tester.takeException(), isNull);
       });
     }

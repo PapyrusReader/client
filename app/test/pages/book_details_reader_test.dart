@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/models/book.dart';
+import 'package:papyrus/models/bookmark.dart';
+import 'package:papyrus/models/note.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/pages/book_details_page.dart';
@@ -14,6 +17,189 @@ import 'package:provider/provider.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
+  for (final (size, textScale) in [
+    (const Size(400, 850), 1.0),
+    (const Size(320, 568), 1.0),
+    (const Size(375, 667), 1.5),
+  ]) {
+    testWidgets('populated book tabs fit below a long header at $size and text scale $textScale', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final book = buildTestBook(
+        title: 'SQL Performance Explained Everything Developers Need to Know about SQL Performance',
+        author: 'Winand, Markus',
+      );
+
+      final createdAt = DateTime(2026, 10, 23);
+
+      final dataStore = DataStore()
+        ..loadData(
+          books: [book],
+          bookmarks: [
+            Bookmark(id: 'bookmark', bookId: book.id, position: 0.5, note: 'Saved passage', createdAt: createdAt),
+          ],
+          annotations: [
+            Annotation(
+              id: 'annotation',
+              bookId: book.id,
+              selectedText: 'Highlighted passage',
+              location: const BookLocation(pageNumber: 2),
+              createdAt: createdAt,
+            ),
+          ],
+          notes: [
+            Note(id: 'note', bookId: book.id, title: 'Reading note', content: 'Useful passage', createdAt: createdAt),
+          ],
+        );
+
+      addTearDown(dataStore.dispose);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: dataStore,
+          child: MaterialApp(
+            theme: textScale == 1 ? AppTheme.dark : AppTheme.eink,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: BookDetailsPage(id: book.id),
+              bottomNavigationBar: NavigationBar(
+                destinations: const [
+                  NavigationDestination(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+                  NavigationDestination(icon: Icon(Icons.book), label: 'Library'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      final rail = find.byType(BookDetailsTabRail, skipOffstage: false);
+      final controller = tester.widget<BookDetailsTabRail>(rail).controller!;
+      final nestedScroll = tester.state<NestedScrollViewState>(find.byType(NestedScrollView));
+      final navigationTop = tester.getTopLeft(find.byType(NavigationBar)).dy;
+
+      for (final (index, label, content) in [
+        (1, 'bookmarks', 'Saved passage'),
+        (2, 'annotations', '"Highlighted passage"'),
+        (3, 'notes', 'Reading note'),
+      ]) {
+        nestedScroll.outerController.jumpTo(0);
+        controller.index = index;
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        final revealOffset = tester.getBottomLeft(rail).dy - navigationTop + 60;
+
+        if (revealOffset > 0) {
+          nestedScroll.outerController.jumpTo(revealOffset);
+          await tester.pumpAndSettle();
+        }
+
+        expect(tester.takeException(), isNull);
+        final railTop = tester.getTopLeft(rail).dy;
+        await tester.dragFrom(Offset(size.width / 2, navigationTop - 10), const Offset(0, -1000));
+        await tester.pumpAndSettle();
+        expect(tester.getTopLeft(rail).dy, lessThan(railTop));
+        expect(find.text(content).hitTestable(), findsOneWidget);
+        expect(find.byTooltip('Sort $label').hitTestable(), findsOneWidget);
+        await tester.enterText(find.byType(TextField), 'no matching passage');
+        await tester.pumpAndSettle();
+        expect(find.text('No $label found'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        tester.view.viewInsets = const FakeViewPadding(bottom: 250);
+        await tester.pumpAndSettle();
+        expect(tester.takeException(), isNull);
+        tester.view.resetViewInsets();
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Clear search'));
+        await tester.pumpAndSettle();
+        expect(find.text(content).hitTestable(), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    });
+  }
+
+  for (final (size, textScale) in [
+    (const Size(400, 850), 1.0),
+    (const Size(320, 568), 1.0),
+    (const Size(375, 667), 1.5),
+  ]) {
+    testWidgets('empty book tabs scroll with the header at $size and text scale $textScale', (tester) async {
+      tester.view.physicalSize = size;
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+
+      final book = buildTestBook(title: "Alice's Adventures in Wonderland", author: 'Lewis Carroll');
+      final dataStore = DataStore()..loadData(books: [book]);
+      addTearDown(dataStore.dispose);
+
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: dataStore,
+          child: MaterialApp(
+            theme: textScale == 1 ? AppTheme.dark : AppTheme.eink,
+            builder: (context, child) => MediaQuery(
+              data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(textScale)),
+              child: child!,
+            ),
+            home: Scaffold(
+              body: BookDetailsPage(id: book.id),
+              bottomNavigationBar: NavigationBar(
+                destinations: const [
+                  NavigationDestination(icon: Icon(Icons.dashboard), label: 'Dashboard'),
+                  NavigationDestination(icon: Icon(Icons.book), label: 'Library'),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      final rail = find.byType(BookDetailsTabRail, skipOffstage: false);
+      final controller = tester.widget<BookDetailsTabRail>(rail).controller!;
+      final nestedScroll = tester.state<NestedScrollViewState>(find.byType(NestedScrollView));
+      final navigationTop = tester.getTopLeft(find.byType(NavigationBar)).dy;
+
+      for (final (index, icon) in [
+        (1, Icons.bookmark_outline),
+        (2, Icons.highlight_outlined),
+        (3, Icons.note_outlined),
+      ]) {
+        nestedScroll.outerController.jumpTo(0);
+        controller.index = index;
+        await tester.pumpAndSettle();
+        final revealOffset = tester.getBottomLeft(rail).dy - navigationTop + 160;
+
+        if (revealOffset > 0) {
+          nestedScroll.outerController.jumpTo(revealOffset);
+          await tester.pumpAndSettle();
+        }
+
+        expect(tester.getTopLeft(find.byIcon(icon)).dy, tester.getBottomLeft(rail).dy + Spacing.xl);
+        final railTop = tester.getTopLeft(rail).dy;
+        await tester.dragFrom(Offset(size.width / 2, navigationTop - 20), const Offset(0, -150));
+        await tester.pumpAndSettle();
+        expect(tester.getTopLeft(rail).dy, lessThan(railTop));
+        expect(tester.getTopLeft(find.byIcon(icon)).dy, tester.getBottomLeft(rail).dy + Spacing.xl);
+        await tester.dragFrom(Offset(size.width / 2, navigationTop - 20), const Offset(0, -1000));
+        await tester.pumpAndSettle();
+        expect(tester.getTopLeft(rail).dy, tester.getBottomLeft(find.byType(AppBar)).dy);
+
+        if (index == 3) {
+          expect(find.text('Add note').hitTestable(), findsOneWidget);
+        }
+
+        expect(tester.takeException(), isNull);
+      }
+    });
+  }
+
   testWidgets('book details scroll when the header leaves less room than the tabs need', (tester) async {
     const railKey = ValueKey('details tabs');
     const bodyKey = ValueKey('details body');
@@ -130,7 +316,7 @@ void main() {
     final rail = find.byType(BookDetailsTabRail);
     final headerBottom = tester.getBottomLeft(find.byType(AppBar)).dy;
     expect(find.text('735 pages'), findsNothing);
-    expect(tester.getTopLeft(find.byType(CoverImagePreview)).dy - headerBottom, 24);
+    expect(tester.getTopLeft(find.byType(CoverImagePreview)).dy - headerBottom, 0);
     expect(tester.getRect(rail).left, 0);
     expect(tester.getRect(rail).width, 424);
     await tester.dragFrom(const Offset(212, 750), const Offset(0, -650));

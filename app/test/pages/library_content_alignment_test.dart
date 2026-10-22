@@ -82,15 +82,18 @@ void main() {
         final mobile = layout.screen.width < 840;
         final toolbar = tester.getRect(find.byType(mobile ? LibraryMobileToolbar : LibraryToolbar));
         final gutter = mobile ? 16.0 : 24.0;
-        expect(search.left, closeTo(layout.screen.width - layout.pageWidth + gutter, .001));
-        expect(toolbar.left, closeTo(search.left, .001));
+        expect(toolbar.left, closeTo(layout.screen.width - layout.pageWidth + gutter, .001));
+
+        if (!mobile) {
+          expect(search.left, closeTo(toolbar.left, .001));
+        }
 
         if (mobile) {
           expect(search.right, closeTo(toolbar.right, .001));
 
           expect(
             find.descendant(of: find.byType(TextField), matching: find.byTooltip('Library sections')),
-            findsOneWidget,
+            findsNothing,
           );
         }
 
@@ -101,7 +104,7 @@ void main() {
           await tester.pumpAndSettle();
           final covers = find.descendant(of: find.byType(BookCard), matching: find.byType(CoverImage));
           final first = tester.getRect(covers.first);
-          expect(first.left, closeTo(search.left, .001), reason: '${option.columns} columns');
+          expect(first.left, closeTo(toolbar.left, .001), reason: '${option.columns} columns');
 
           expect(
             first.top - tester.getRect(find.byType(LibraryFilterChips)).bottom,
@@ -135,13 +138,13 @@ void main() {
           matching: find.byType(InkWell),
         );
 
-        expect(tester.getRect(placeholderSurface.first).left, closeTo(search.left, .001));
+        expect(tester.getRect(placeholderSurface.first).left, closeTo(toolbar.left, .001));
         provider.setViewMode(LibraryViewMode.list);
         await tester.pumpAndSettle();
         final firstRow = find.byType(BookListItem).first;
         final firstCover = find.descendant(of: firstRow, matching: find.byType(CoverImage));
         final rowContent = find.descendant(of: firstRow, matching: find.byType(Row)).first;
-        expect(tester.getRect(firstCover).left, closeTo(search.left, .001));
+        expect(tester.getRect(firstCover).left, closeTo(toolbar.left, .001));
 
         expect(
           tester.getRect(rowContent).top - tester.getRect(find.byType(LibraryFilterChips)).bottom,
@@ -163,7 +166,7 @@ void main() {
           matching: find.byType(ClipRRect),
         );
 
-        expect(tester.getRect(placeholderCover).left, closeTo(search.left, .001));
+        expect(tester.getRect(placeholderCover).left, closeTo(toolbar.left, .001));
         expect(tester.takeException(), isNull);
       });
     }
