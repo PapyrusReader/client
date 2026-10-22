@@ -11,8 +11,9 @@ class AuthApiException implements Exception {
   final int statusCode;
   final String message;
   final String? code;
+  final Duration? retryAfter;
 
-  const AuthApiException({required this.statusCode, required this.message, this.code});
+  const AuthApiException({required this.statusCode, required this.message, this.code, this.retryAfter});
 
   @override
   String toString() => message;
@@ -20,11 +21,16 @@ class AuthApiException implements Exception {
 
 class AuthApiClient {
   static const serverUnavailableMessage = 'Unable to connect. Please try again.';
+  static const rateLimitMessage = 'Too many requests. Please try again later.';
 
   final PapyrusApiConfig config;
   final http.Client _httpClient;
+  final DateTime Function() _now;
+  final Map<(String, String), DateTime> _uploadRetryAt = {};
 
-  AuthApiClient({required this.config, http.Client? httpClient}) : _httpClient = httpClient ?? http.Client();
+  AuthApiClient({required this.config, http.Client? httpClient, DateTime Function()? now})
+    : _httpClient = httpClient ?? http.Client(),
+      _now = now ?? DateTime.now;
 
   Future<void> ensureServerReachable() async {
     try {
@@ -143,7 +149,9 @@ class AuthApiClient {
   }
 
   Future<void> uploadPowerSyncBatch(String accessToken, List<Map<String, dynamic>> batch) async {
-    await _postJson(config.endpoint('/sync/powersync-upload'), accessToken: accessToken, body: {'batch': batch});
+    await _withUploadCooldown('/sync/powersync-upload', accessToken, () async {
+      await _postJson(config.endpoint('/sync/powersync-upload'), accessToken: accessToken, body: {'batch': batch});
+    });
   }
 
   Future<MediaStorageUsage> fetchMediaUsage(String accessToken) async {
@@ -151,7 +159,11 @@ class AuthApiClient {
     return MediaStorageUsage.fromJson(json);
   }
 
-  Future<MediaAsset> uploadMedia(String accessToken, MediaUploadPayload payload) async {
+  Future<MediaAsset> uploadMedia(String accessToken, MediaUploadPayload payload) {
+    return _withUploadCooldown('/media', accessToken, () => _uploadMedia(accessToken, payload));
+  }
+
+  Future<MediaAsset> _uploadMedia(String accessToken, MediaUploadPayload payload) async {
     final request = http.MultipartRequest('POST', config.endpoint('/media'))
       ..headers.addAll(_authHeaders(accessToken))
       ..fields['book_id'] = payload.bookId
@@ -237,6 +249,15 @@ class AuthApiClient {
   }
 
   Map<String, dynamic> _decodeResponse(http.Response response) {
+    if (response.statusCode == 429) {
+      throw AuthApiException(
+        statusCode: 429,
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: rateLimitMessage,
+        retryAfter: _retryAfter(response.headers['retry-after']),
+      );
+    }
+
     final decoded = response.body.isEmpty ? <String, dynamic>{} : jsonDecode(response.body) as Map<String, dynamic>;
 
     if (response.statusCode >= 200 && response.statusCode < 300) {
@@ -254,5 +275,50 @@ class AuthApiClient {
     }
 
     throw AuthApiException(statusCode: response.statusCode, message: 'Authentication request failed');
+  }
+
+  Duration _retryAfter(String? value) {
+    final seconds = int.tryParse(value ?? '');
+
+    if (seconds != null && seconds >= 0) {
+      return Duration(seconds: seconds);
+    }
+
+    if (value != null) {
+      try {
+        final remaining = parseHttpDate(value).difference(_now());
+        return remaining.isNegative ? Duration.zero : remaining;
+      } on FormatException {
+        return const Duration(minutes: 1);
+      }
+    }
+
+    return const Duration(minutes: 1);
+  }
+
+  Future<T> _withUploadCooldown<T>(String path, String accessToken, Future<T> Function() upload) async {
+    final now = _now();
+    _uploadRetryAt.removeWhere((_, retryAt) => !retryAt.isAfter(now));
+    final key = (path, accessToken);
+    final retryAt = _uploadRetryAt[key];
+
+    if (retryAt != null) {
+      throw AuthApiException(
+        statusCode: 429,
+        code: 'RATE_LIMIT_EXCEEDED',
+        message: rateLimitMessage,
+        retryAfter: retryAt.difference(now),
+      );
+    }
+
+    try {
+      return await upload();
+    } on AuthApiException catch (error) {
+      if (error.statusCode == 429) {
+        _uploadRetryAt[key] = _now().add(error.retryAfter ?? const Duration(minutes: 1));
+      }
+
+      rethrow;
+    }
   }
 }
