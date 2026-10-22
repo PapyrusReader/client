@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
 import 'package:papyrus/auth/auth_models.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
+import 'package:papyrus/auth/upload_cooldowns.dart';
 import 'package:papyrus/media/media_models.dart';
 
 class AuthApiException implements Exception {
@@ -26,11 +27,16 @@ class AuthApiClient {
   final PapyrusApiConfig config;
   final http.Client _httpClient;
   final DateTime Function() _now;
-  final Map<(String, String), DateTime> _uploadRetryAt = {};
+  final UploadCooldowns _uploadCooldowns;
 
-  AuthApiClient({required this.config, http.Client? httpClient, DateTime Function()? now})
-    : _httpClient = httpClient ?? http.Client(),
-      _now = now ?? DateTime.now;
+  AuthApiClient({
+    required this.config,
+    http.Client? httpClient,
+    DateTime Function()? now,
+    UploadCooldowns? uploadCooldowns,
+  }) : _httpClient = httpClient ?? http.Client(),
+       _now = now ?? DateTime.now,
+       _uploadCooldowns = uploadCooldowns ?? UploadCooldowns.shared;
 
   Future<void> ensureServerReachable() async {
     try {
@@ -297,17 +303,15 @@ class AuthApiClient {
   }
 
   Future<T> _withUploadCooldown<T>(String path, String accessToken, Future<T> Function() upload) async {
-    final now = _now();
-    _uploadRetryAt.removeWhere((_, retryAt) => !retryAt.isAfter(now));
-    final key = (path, accessToken);
-    final retryAt = _uploadRetryAt[key];
+    final endpoint = config.endpoint(path);
+    final remaining = _uploadCooldowns.remaining(endpoint, accessToken, _now());
 
-    if (retryAt != null) {
+    if (remaining != null) {
       throw AuthApiException(
         statusCode: 429,
         code: 'RATE_LIMIT_EXCEEDED',
         message: rateLimitMessage,
-        retryAfter: retryAt.difference(now),
+        retryAfter: remaining,
       );
     }
 
@@ -315,7 +319,7 @@ class AuthApiClient {
       return await upload();
     } on AuthApiException catch (error) {
       if (error.statusCode == 429) {
-        _uploadRetryAt[key] = _now().add(error.retryAfter ?? const Duration(minutes: 1));
+        _uploadCooldowns.deferUntil(endpoint, accessToken, _now().add(error.retryAfter ?? const Duration(minutes: 1)));
       }
 
       rethrow;
