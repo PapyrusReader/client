@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
+import 'package:papyrus/auth/upload_cooldowns.dart';
 import 'package:papyrus/media/media_models.dart';
 
 void main() {
@@ -17,6 +18,7 @@ void main() {
 
     final client = AuthApiClient(
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://server.test')),
+      uploadCooldowns: UploadCooldowns(),
       now: () => now,
       httpClient: MockClient((request) async {
         requests++;
@@ -52,6 +54,7 @@ void main() {
 
     final client = AuthApiClient(
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://server.test')),
+      uploadCooldowns: UploadCooldowns(),
       httpClient: MockClient((request) async {
         switch (request.url.path) {
           case '/v1/media':
@@ -88,10 +91,53 @@ void main() {
     expect(usageRequests, 1);
   });
 
+  test('cooldown survives profile replacement and token refresh while isolating other accounts and servers', () async {
+    var now = DateTime.utc(2026, 10, 22);
+    var requests = 0;
+
+    String token(String user, String session) {
+      final payload = base64Url.encode(utf8.encode(jsonEncode({'sub': user, 'sid': session})));
+      return 'header.$payload.signature';
+    }
+
+    AuthApiClient client(String host) => AuthApiClient(
+      config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://$host')),
+      now: () => now,
+      httpClient: MockClient((request) async {
+        requests++;
+
+        if (requests == 1) {
+          return http.Response('{}', 429, headers: {'retry-after': '60'});
+        }
+
+        return http.Response('{"applied_count":0}', 200);
+      }),
+    );
+
+    final original = client('profile-cooldown.test');
+    await expectLater(original.uploadPowerSyncBatch(token('user-a', 'session-1'), []), throwsA(rateLimited));
+    await client('other-profile.test').uploadPowerSyncBatch(token('user-a', 'session-1'), []);
+    final reactivated = client('profile-cooldown.test');
+    await reactivated.uploadPowerSyncBatch(token('user-b', 'session-1'), []);
+    expect(requests, 3);
+    now = now.add(const Duration(seconds: 10));
+
+    await expectLater(
+      reactivated.uploadPowerSyncBatch(token('user-a', 'refreshed-session'), []),
+      throwsA(rateLimited.having((error) => error.retryAfter, 'remaining', const Duration(seconds: 50))),
+    );
+
+    expect(requests, 3);
+    now = now.add(const Duration(seconds: 50));
+    await reactivated.uploadPowerSyncBatch(token('user-a', 'refreshed-session'), []);
+    expect(requests, 4);
+  });
+
   for (final header in <String?>[null, 'invalid', '-1', 'Thu, 22 Oct 2026 00:01:00 GMT']) {
     test('Retry-After $header uses the expected retry delay', () async {
       final client = AuthApiClient(
         config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://server.test')),
+        uploadCooldowns: UploadCooldowns(),
         now: () => DateTime.utc(2026, 10, 22),
         httpClient: MockClient((_) async {
           return http.Response('', 429, headers: {'retry-after': ?header});
