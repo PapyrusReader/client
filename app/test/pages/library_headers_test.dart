@@ -115,6 +115,7 @@ void main() {
     for (final layout in [
       (screen: const Size(400, 1000), pageWidth: 400.0, scale: 1.0),
       (screen: const Size(360, 1000), pageWidth: 360.0, scale: 2.0),
+      (screen: const Size(840, 1000), pageWidth: 560.0, scale: 1.0),
       (screen: const Size(840, 1000), pageWidth: 560.0, scale: 2.0),
       (screen: const Size(1200, 1000), pageWidth: 920.0, scale: 1.0),
     ]) {
@@ -151,26 +152,37 @@ void main() {
 
         if (layout.screen.width < 840) {
           expect(tester.getTopLeft(find.byType(LibraryMobileToolbar)).dy, 16);
-          expect(tester.getTopLeft(find.byType(TextField)).dx, tester.getTopLeft(find.byType(LibraryMobileToolbar)).dx);
+          expect(
+            tester.getRect(find.byTooltip('Library sections')).right,
+            lessThan(tester.getRect(find.byType(TextField)).left),
+          );
 
           expect(
             find.descendant(of: find.byType(TextField), matching: find.byTooltip('Library sections')),
-            findsOneWidget,
+            findsNothing,
           );
 
-          expect(tester.getCenter(find.byTooltip('Library sections')).dy, tester.getCenter(find.byType(TextField)).dy);
+          expect(
+            tester.getCenter(find.byTooltip('Library sections')).dy,
+            tester.getCenter(find.byType(TextField)).dy,
+          );
+
+          expect(
+            find.descendant(of: find.byType(TextField), matching: find.byIcon(Icons.search)),
+            findsOneWidget,
+          );
           await tester.tap(find.byTooltip('Library sections'));
           await tester.pumpAndSettle();
           expect(find.byType(Drawer), findsOneWidget);
         } else {
           expect(tester.getTopLeft(find.byType(LibraryToolbar)).dy, 24);
 
-          if (layout.scale == 1 && (entry.key == 'Books' || entry.key == 'Shelves')) {
+          if (entry.key == 'Books' || entry.key == 'Shelves') {
             expect(tester.getCenter(find.byType(TextField)).dy, tester.getCenter(find.byType(LibraryAddButton)).dy);
           }
 
           if (entry.key == 'Shelves') {
-            await tester.tap(find.text('Add shelf'));
+            await tester.tap(find.byType(LibraryAddButton));
             await tester.pumpAndSettle();
             expect(find.text('Shelf name'), findsOneWidget);
             expect(tester.takeException(), isNull);

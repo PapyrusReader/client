@@ -122,7 +122,7 @@ class OpdsPublicationDetails extends StatelessWidget {
             child: BookDetailsScrollView(
               key: PageStorageKey('publication/${catalog.id}/${publication.id}'),
               header: Padding(
-                padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.lg, Spacing.md, Spacing.md),
+                padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
                 child: Column(
                   children: [
                     Center(child: cover),

@@ -115,8 +115,6 @@ class BookHeader extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
       child: Column(
         children: [
-          const SizedBox(height: Spacing.lg),
-
           // Cover image (centered)
           CoverImagePreview(
             bookId: book.id,

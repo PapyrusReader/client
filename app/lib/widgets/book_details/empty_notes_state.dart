@@ -10,6 +10,7 @@ class EmptyNotesState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EmptyState(
+      primary: true,
       alignment: Alignment.topCenter,
       icon: Icons.note_outlined,
       title: 'No notes yet',

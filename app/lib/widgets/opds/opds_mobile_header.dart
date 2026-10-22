@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
 
 /// Standard mobile app bar for every catalog route, inside the page's SafeArea.
 class OpdsMobileHeader extends StatelessWidget {
@@ -10,8 +11,10 @@ class OpdsMobileHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: Theme.of(context).appBarTheme.toolbarHeight ?? kToolbarHeight,
-    child: AppBar(
+    height: appMobileToolbarHeight(context),
+    child: AppPageBar(
+      context: context,
+      automaticallyImplyLeading: false,
       primary: false,
       leading: leading,
       title: Text(title, overflow: TextOverflow.ellipsis),

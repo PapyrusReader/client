@@ -87,7 +87,7 @@ class _NotesPageState extends State<NotesPage> {
               ),
               child: LibraryMobileToolbar(
                 onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
-                searchBuilder: (leading) => _buildSearchField(provider, leading: leading),
+                search: _buildSearchField(provider),
                 actions: [_buildSortButton(provider)],
               ),
             ),
@@ -132,13 +132,13 @@ class _NotesPageState extends State<NotesPage> {
     );
   }
 
-  Widget _buildSearchField(NotesProvider provider, {Widget? leading}) {
+  Widget _buildSearchField(NotesProvider provider) {
     return TextField(
       controller: _searchController,
       onChanged: provider.setSearchQuery,
       decoration: InputDecoration(
         hintText: 'Search notes...',
-        prefixIcon: leading ?? const Icon(Icons.search),
+        prefixIcon: const Icon(Icons.search),
         suffixIcon: _searchController.text.isNotEmpty
             ? IconButton(
                 icon: const Icon(Icons.clear),

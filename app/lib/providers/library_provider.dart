@@ -10,14 +10,19 @@ import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/utils/book_language.dart';
 
 class LibraryProvider extends ChangeNotifier {
+  final bool selectionOnly;
   final LibraryProvider? _favoriteDelegate;
   final DataStore? _dataStore;
   final PreferencesProvider? _preferences;
 
-  LibraryProvider({LibraryProvider? favoriteDelegate, DataStore? dataStore, PreferencesProvider? preferences})
-    : _favoriteDelegate = favoriteDelegate,
-      _dataStore = dataStore,
-      _preferences = preferences {
+  LibraryProvider({
+    LibraryProvider? favoriteDelegate,
+    DataStore? dataStore,
+    PreferencesProvider? preferences,
+    this.selectionOnly = false,
+  }) : _favoriteDelegate = favoriteDelegate,
+       _dataStore = dataStore,
+       _preferences = preferences {
     _favoriteDelegate?.addListener(_onFavoriteDelegateChanged);
     _dataStore?.addListener(_onFavoriteDelegateChanged);
     _preferences?.addListener(_onFavoriteDelegateChanged);
@@ -38,7 +43,7 @@ class LibraryProvider extends ChangeNotifier {
   final Map<String, bool> _favoriteOverrides = {};
 
   /// Whether selection mode is active.
-  bool get isSelectionMode => _isSelectionMode;
+  bool get isSelectionMode => selectionOnly || _isSelectionMode;
 
   /// Currently selected book IDs.
   Set<String> get selectedBookIds => Set.unmodifiable(_selectedBookIds);
@@ -260,60 +265,74 @@ class LibraryProvider extends ChangeNotifier {
     final sorted = List<Book>.of(books);
 
     sorted.sort((left, right) {
-      switch (_sortOption) {
-        case LibrarySortOption.dateAddedNewest:
-          return right.addedAt.compareTo(left.addedAt);
-        case LibrarySortOption.dateAddedOldest:
-          return left.addedAt.compareTo(right.addedAt);
-        case LibrarySortOption.titleAZ:
-          return left.title.toLowerCase().compareTo(right.title.toLowerCase());
-        case LibrarySortOption.titleZA:
-          return right.title.toLowerCase().compareTo(left.title.toLowerCase());
-        case LibrarySortOption.authorAZ:
-          return left.author.toLowerCase().compareTo(right.author.toLowerCase());
-        case LibrarySortOption.authorZA:
-          return right.author.toLowerCase().compareTo(left.author.toLowerCase());
-        case LibrarySortOption.lastRead:
-          if (left.lastReadAt == null && right.lastReadAt == null) {
-            return 0;
-          }
-          if (left.lastReadAt == null) {
-            return 1;
-          }
-          if (right.lastReadAt == null) {
-            return -1;
-          }
-          return right.lastReadAt!.compareTo(left.lastReadAt!);
-        case LibrarySortOption.ratingAsc:
-          if (left.rating == null && right.rating == null) {
-            return 0;
-          }
-          if (left.rating == null) {
-            return 1;
-          }
-          if (right.rating == null) {
-            return -1;
-          }
-          return left.rating!.compareTo(right.rating!);
-        case LibrarySortOption.ratingDesc:
-          if (left.rating == null && right.rating == null) {
-            return 0;
-          }
-          if (left.rating == null) {
-            return 1;
-          }
-          if (right.rating == null) {
-            return -1;
-          }
-          return right.rating!.compareTo(left.rating!);
-        case LibrarySortOption.progressAsc:
-          return left.currentPosition.compareTo(right.currentPosition);
-        case LibrarySortOption.progressDesc:
-          return right.currentPosition.compareTo(left.currentPosition);
-      }
+      final comparison = _compareBooks(left, right);
+      return comparison != 0 ? comparison : left.id.compareTo(right.id);
     });
 
     return sorted;
+  }
+
+  int _compareBooks(Book left, Book right) {
+    switch (_sortOption) {
+      case LibrarySortOption.dateAddedNewest:
+        return right.addedAt.compareTo(left.addedAt);
+      case LibrarySortOption.dateAddedOldest:
+        return left.addedAt.compareTo(right.addedAt);
+      case LibrarySortOption.titleAZ:
+        return left.title.toLowerCase().compareTo(right.title.toLowerCase());
+      case LibrarySortOption.titleZA:
+        return right.title.toLowerCase().compareTo(left.title.toLowerCase());
+      case LibrarySortOption.authorAZ:
+        return left.author.toLowerCase().compareTo(right.author.toLowerCase());
+      case LibrarySortOption.authorZA:
+        return right.author.toLowerCase().compareTo(left.author.toLowerCase());
+      case LibrarySortOption.lastRead:
+        if (left.lastReadAt == null && right.lastReadAt == null) {
+          return 0;
+        }
+
+        if (left.lastReadAt == null) {
+          return 1;
+        }
+
+        if (right.lastReadAt == null) {
+          return -1;
+        }
+
+        return right.lastReadAt!.compareTo(left.lastReadAt!);
+      case LibrarySortOption.ratingAsc:
+        if (left.rating == null && right.rating == null) {
+          return 0;
+        }
+
+        if (left.rating == null) {
+          return 1;
+        }
+
+        if (right.rating == null) {
+          return -1;
+        }
+
+        return left.rating!.compareTo(right.rating!);
+      case LibrarySortOption.ratingDesc:
+        if (left.rating == null && right.rating == null) {
+          return 0;
+        }
+
+        if (left.rating == null) {
+          return 1;
+        }
+
+        if (right.rating == null) {
+          return -1;
+        }
+
+        return right.rating!.compareTo(left.rating!);
+      case LibrarySortOption.progressAsc:
+        return left.currentPosition.compareTo(right.currentPosition);
+      case LibrarySortOption.progressDesc:
+        return right.currentPosition.compareTo(left.currentPosition);
+    }
   }
 
   /// Set the search query.

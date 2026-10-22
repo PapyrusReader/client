@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/utils/bulk_book_actions.dart';
 import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/models/book_shelf_relation.dart';
@@ -44,6 +46,60 @@ void main() {
     expect(await db.bookShelves.getById('book:b'), isNotNull);
     expect(await db.bookShelves.getById('book:c'), isNotNull);
     await db.close();
+  });
+
+  test('adding selected books to a shelf persists offline and preserves other shelves', () async {
+    final first = service();
+    await first.activateGuest();
+
+    for (final id in ['one', 'two']) {
+      await first.upsert(Book(id: id, title: id, author: 'Author', addedAt: now));
+    }
+
+    for (final id in ['existing', 'target']) {
+      await first.shelves.upsert(Shelf(id: id, name: id, createdAt: now, updatedAt: now));
+    }
+
+    await first.memberships.updateMemberships(bookIds: {'one'}, shelfIds: ['existing']);
+    final store = DataStore(bookRepository: first);
+    await bulkAddToShelves(store, {'one', 'two'}, ['target'], repository: first.memberships);
+    await bulkAddToShelves(store, {'one', 'two'}, ['target'], repository: first.memberships);
+    store.dispose();
+    await first.close();
+    final restored = service();
+    await restored.activateGuest();
+    expect(await restored.bookShelves.getById('one:existing'), isNotNull);
+    expect(await restored.bookShelves.getById('one:target'), isNotNull);
+    expect(await restored.bookShelves.getById('two:target'), isNotNull);
+    final snapshot = await restored.watchLibrary().firstWhere((snapshot) => snapshot.isLoaded);
+    expect(snapshot.bookShelves.length, 3);
+    await restored.close();
+  });
+
+  test('removing selected books from a shelf persists offline without deleting books', () async {
+    final first = service();
+    await first.activateGuest();
+
+    for (final id in ['one', 'two', 'unselected']) {
+      await first.upsert(Book(id: id, title: id, author: 'Author', addedAt: now));
+    }
+
+    for (final id in ['other', 'target']) {
+      await first.shelves.upsert(Shelf(id: id, name: id, createdAt: now, updatedAt: now));
+    }
+
+    await first.memberships.updateMemberships(bookIds: {'one', 'two', 'unselected'}, shelfIds: ['other', 'target']);
+    final store = DataStore(bookRepository: first);
+    await bulkRemoveFromShelf(store, {'one', 'two'}, 'target', repository: first.memberships);
+    store.dispose();
+    await first.close();
+    final restored = service();
+    await restored.activateGuest();
+    final snapshot = await restored.watchLibrary().firstWhere((snapshot) => snapshot.isLoaded);
+    expect(snapshot.books.map((book) => book.id).toSet(), {'one', 'two', 'unselected'});
+    expect(snapshot.bookShelves.where((relation) => relation.shelfId == 'target').single.bookId, 'unselected');
+    expect(snapshot.bookShelves.where((relation) => relation.shelfId == 'other').length, 3);
+    await restored.close();
   });
 
   test('shelf deletion reparents children and hierarchy cycles are rejected', () async {

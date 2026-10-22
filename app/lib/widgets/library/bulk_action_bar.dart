@@ -9,6 +9,7 @@ class BulkActionBar extends StatelessWidget {
   final VoidCallback? onChangeStatus;
   final VoidCallback? onToggleFavorite;
   final VoidCallback? onDelete;
+  final VoidCallback? onRemoveFromShelf;
 
   const BulkActionBar({
     super.key,
@@ -17,6 +18,7 @@ class BulkActionBar extends StatelessWidget {
     this.onChangeStatus,
     this.onToggleFavorite,
     this.onDelete,
+    this.onRemoveFromShelf,
   });
 
   @override
@@ -33,9 +35,11 @@ class BulkActionBar extends StatelessWidget {
         IconButton(icon: const Icon(Icons.favorite_border), tooltip: 'Toggle favorite', onPressed: onToggleFavorite),
         const SizedBox(width: Spacing.xs),
         IconButton(
-          icon: Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error),
-          tooltip: 'Delete',
-          onPressed: onDelete,
+          icon: onRemoveFromShelf == null
+              ? Icon(Icons.delete_outline, color: Theme.of(context).colorScheme.error)
+              : const Icon(Icons.playlist_remove),
+          tooltip: onRemoveFromShelf == null ? 'Delete' : 'Remove from shelf',
+          onPressed: onRemoveFromShelf ?? onDelete,
         ),
       ],
     );

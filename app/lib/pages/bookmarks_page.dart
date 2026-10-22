@@ -98,7 +98,7 @@ class _BookmarksPageState extends State<BookmarksPage> {
               ),
               child: LibraryMobileToolbar(
                 onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
-                searchBuilder: (leading) => _buildSearchField(provider, leading: leading),
+                search: _buildSearchField(provider),
                 actions: [_buildSortButton(provider)],
               ),
             ),
@@ -143,13 +143,13 @@ class _BookmarksPageState extends State<BookmarksPage> {
     );
   }
 
-  Widget _buildSearchField(BookmarksProvider provider, {Widget? leading}) {
+  Widget _buildSearchField(BookmarksProvider provider) {
     return TextField(
       controller: _searchController,
       onChanged: provider.setSearchQuery,
       decoration: InputDecoration(
         hintText: 'Search bookmarks...',
-        prefixIcon: leading ?? const Icon(Icons.search),
+        prefixIcon: const Icon(Icons.search),
         suffixIcon: _searchController.text.isNotEmpty
             ? IconButton(
                 icon: const Icon(Icons.clear),

@@ -19,6 +19,7 @@ class BookGrid extends StatelessWidget {
   final LibraryViewMode libraryViewMode;
   final void Function(Book book)? onBookTap;
   final EdgeInsets? padding;
+  final ValueChanged<Book>? onRemoveFromShelf;
   final Map<String, AcquisitionJob> acquisitionJobsByBookId;
   final List<AcquisitionJob> placeholderJobs;
   final Set<String> selectedAcquisitionJobIds;
@@ -31,6 +32,7 @@ class BookGrid extends StatelessWidget {
     required this.libraryViewMode,
     this.onBookTap,
     this.padding,
+    this.onRemoveFromShelf,
     this.acquisitionJobsByBookId = const {},
     this.placeholderJobs = const [],
     this.selectedAcquisitionJobIds = const {},
@@ -182,6 +184,7 @@ class BookGrid extends StatelessWidget {
               return BookCard(
                 compact: compact,
                 book: book,
+                onRemoveFromShelf: onRemoveFromShelf == null ? null : () => onRemoveFromShelf!(book),
                 isFavorite: isFavorite,
                 onToggleFavorite: job == null ? (current) => toggleBookFavorite(context, book.id, current) : null,
                 onTap: switch (job) {

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/book_details/book_collection_scroll_view.dart';
 import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -156,20 +157,11 @@ class _BookAnnotationsState extends State<BookAnnotations> {
   Widget _buildMobileLayout(BuildContext context) {
     final filtered = _filteredAndSortedAnnotations;
 
-    return Column(
-      children: [
-        _buildHeader(),
-        Expanded(
-          child: filtered.isEmpty
-              ? _buildNoResultsState()
-              : _buildAnnotationsList(
-                  filtered,
-                  padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
-                  separatorHeight: Spacing.sm,
-                  showActionMenu: false,
-                ),
-        ),
-      ],
+    return BookCollectionScrollView(
+      header: _buildHeader(),
+      itemCount: filtered.length,
+      itemBuilder: (context, index) => _buildAnnotationItem(filtered[index], showActionMenu: false),
+      emptyState: _buildNoResultsState(),
     );
   }
 
@@ -243,22 +235,23 @@ class _BookAnnotationsState extends State<BookAnnotations> {
       padding: padding,
       itemCount: annotations.length,
       separatorBuilder: (_, _) => SizedBox(height: separatorHeight),
-      itemBuilder: (context, index) {
-        final annotation = annotations[index];
+      itemBuilder: (context, index) => _buildAnnotationItem(annotations[index], showActionMenu: showActionMenu),
+    );
+  }
 
-        return AnnotationCard(
-          annotation: annotation,
-          showActionMenu: showActionMenu,
-          onTap: () => widget.onAnnotationTap?.call(annotation),
-          onLongPress: () => widget.onAnnotationActions?.call(annotation),
-        );
-      },
+  Widget _buildAnnotationItem(Annotation annotation, {required bool showActionMenu}) {
+    return AnnotationCard(
+      annotation: annotation,
+      showActionMenu: showActionMenu,
+      onTap: () => widget.onAnnotationTap?.call(annotation),
+      onLongPress: () => widget.onAnnotationActions?.call(annotation),
     );
   }
 
   /// Empty state shown when search yields no results.
   Widget _buildNoResultsState() {
     return const EmptyState(
+      primary: true,
       icon: Icons.search_off,
       title: 'No annotations found',
       subtitle: 'Try a different search term',

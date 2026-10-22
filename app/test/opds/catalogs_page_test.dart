@@ -805,7 +805,7 @@ void main() {
     final header = tester.getRect(find.byKey(const Key('catalog-mobile-header')));
     expect(header.left, 0);
     expect(header.width, 424);
-    expect(header.height, kToolbarHeight);
+    expect(header.height, 80);
     expect(heading.left, 72);
     expect(find.byKey(const Key('catalog-header-divider')), findsNothing);
     final field = tester.getRect(find.byType(TextField));

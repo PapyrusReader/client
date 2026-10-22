@@ -11,6 +11,7 @@ class EmptyAnnotationsState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EmptyState(
+      primary: true,
       alignment: Alignment.topCenter,
       icon: Icons.highlight_outlined,
       title: 'No annotations yet',

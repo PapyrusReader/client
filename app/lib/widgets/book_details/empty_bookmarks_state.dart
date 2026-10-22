@@ -11,6 +11,7 @@ class EmptyBookmarksState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return EmptyState(
+      primary: true,
       alignment: Alignment.topCenter,
       icon: Icons.bookmark_outline,
       title: 'No bookmarks yet',

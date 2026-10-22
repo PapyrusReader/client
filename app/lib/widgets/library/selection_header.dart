@@ -28,21 +28,33 @@ class SelectionHeader extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Row(
+    final selectionControls = Row(
       children: [
         IconButton(icon: const Icon(Icons.close), tooltip: 'Exit selection', onPressed: onClose),
         const SizedBox(width: Spacing.sm),
-        Text(
-          '$selectedCount selected',
-          style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface, fontWeight: FontWeight.w600),
+        Flexible(
+          child: Text(
+            '$selectedCount selected',
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: textTheme.titleMedium?.copyWith(color: colorScheme.onSurface, fontWeight: FontWeight.w600),
+          ),
         ),
         const SizedBox(width: Spacing.md),
         TextButton(
           onPressed: _allSelected ? onDeselectAll : onSelectAll,
           child: Text(_allSelected ? 'Deselect all' : 'Select all'),
         ),
-        const Spacer(),
-        ?actions,
+      ],
+    );
+
+    return Row(
+      children: [
+        Expanded(child: selectionControls),
+        if (actions != null) ...[
+          const SizedBox(width: Spacing.md),
+          actions!,
+        ],
       ],
     );
   }

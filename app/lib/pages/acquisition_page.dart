@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/acquisition/acquisition_api_client.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
@@ -287,7 +288,7 @@ class _AcquisitionPageState extends State<AcquisitionPage> {
     final indexers = _endpoints.where((endpoint) => endpoint.kind.isIndexer).toList();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Acquisition')),
+      appBar: AppPageBar(context: context, title: const Text('Acquisition')),
       body: RefreshIndicator(
         onRefresh: _load,
         child: ListView(

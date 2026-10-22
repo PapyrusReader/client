@@ -89,7 +89,7 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
               ),
               child: LibraryMobileToolbar(
                 onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
-                searchBuilder: (leading) => _buildSearchField(provider, leading: leading),
+                search: _buildSearchField(provider),
                 actions: [_buildSortButton(provider)],
               ),
             ),
@@ -134,13 +134,13 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
     );
   }
 
-  Widget _buildSearchField(AnnotationsProvider provider, {Widget? leading}) {
+  Widget _buildSearchField(AnnotationsProvider provider) {
     return TextField(
       controller: _searchController,
       onChanged: provider.setSearchQuery,
       decoration: InputDecoration(
         hintText: 'Search annotations...',
-        prefixIcon: leading ?? const Icon(Icons.search),
+        prefixIcon: const Icon(Icons.search),
         suffixIcon: _searchController.text.isNotEmpty
             ? IconButton(
                 icon: const Icon(Icons.clear),

@@ -165,6 +165,16 @@ class AppRouter {
                   GoRoute(
                     name: 'SHELF_CONTENTS',
                     path: ':shelfId',
+                    routes: [
+                      GoRoute(
+                        name: 'SHELF_ADD_BOOKS',
+                        path: 'add-books',
+                        pageBuilder: (context, state) => NoTransitionPage(
+                          key: state.pageKey,
+                          child: ShelfContentsPage(shelfId: state.pathParameters['shelfId'], selectBooks: true),
+                        ),
+                      ),
+                    ],
                     pageBuilder: (context, state) {
                       final shelfId = state.pathParameters['shelfId'];
 

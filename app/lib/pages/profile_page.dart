@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
@@ -61,7 +62,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildMobileLayout(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile')),
+      appBar: AppPageBar(context: context, title: const Text('Profile')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(Spacing.md),
