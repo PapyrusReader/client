@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/book_details/book_collection_scroll_view.dart';
 import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/models/bookmark.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -152,20 +153,11 @@ class _BookBookmarksState extends State<BookBookmarks> {
   Widget _buildMobileLayout(BuildContext context) {
     final filtered = _filteredAndSortedBookmarks;
 
-    return Column(
-      children: [
-        _buildMobileHeader(),
-        Expanded(
-          child: filtered.isEmpty
-              ? _buildNoResultsState()
-              : _buildBookmarksList(
-                  filtered,
-                  padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
-                  separatorHeight: Spacing.sm,
-                  showActionMenu: false,
-                ),
-        ),
-      ],
+    return BookCollectionScrollView(
+      header: _buildMobileHeader(),
+      itemCount: filtered.length,
+      itemBuilder: (context, index) => _buildBookmarkItem(filtered[index], showActionMenu: false),
+      emptyState: _buildNoResultsState(),
     );
   }
 
@@ -229,21 +221,22 @@ class _BookBookmarksState extends State<BookBookmarks> {
       padding: padding,
       itemCount: bookmarks.length,
       separatorBuilder: (_, _) => SizedBox(height: separatorHeight),
-      itemBuilder: (context, index) {
-        final bookmark = bookmarks[index];
+      itemBuilder: (context, index) => _buildBookmarkItem(bookmarks[index], showActionMenu: showActionMenu),
+    );
+  }
 
-        return BookmarkListItem(
-          bookmark: bookmark,
-          bookTitle: widget.bookTitle,
-          showActionMenu: showActionMenu,
-          onLongPress: () => widget.onBookmarkActions?.call(bookmark),
-        );
-      },
+  Widget _buildBookmarkItem(Bookmark bookmark, {required bool showActionMenu}) {
+    return BookmarkListItem(
+      bookmark: bookmark,
+      bookTitle: widget.bookTitle,
+      showActionMenu: showActionMenu,
+      onLongPress: () => widget.onBookmarkActions?.call(bookmark),
     );
   }
 
   Widget _buildNoResultsState() {
     return const EmptyState(
+      primary: true,
       icon: Icons.search_off,
       title: 'No bookmarks found',
       subtitle: 'Try a different search term',

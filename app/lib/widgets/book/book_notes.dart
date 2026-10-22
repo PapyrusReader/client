@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/book_details/book_collection_scroll_view.dart';
 import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/models/note.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -167,20 +168,11 @@ class _BookNotesState extends State<BookNotes> {
   Widget _buildMobileLayout(BuildContext context) {
     final filtered = _filteredAndSortedNotes;
 
-    return Column(
-      children: [
-        _buildMobileHeader(),
-        Expanded(
-          child: filtered.isEmpty
-              ? _buildNoResultsState()
-              : _buildNotesList(
-                  filtered,
-                  padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
-                  separatorHeight: Spacing.sm,
-                  showActionMenu: false,
-                ),
-        ),
-      ],
+    return BookCollectionScrollView(
+      header: _buildMobileHeader(),
+      itemCount: filtered.length,
+      itemBuilder: (context, index) => _buildNoteItem(filtered[index], showActionMenu: false),
+      emptyState: _buildNoResultsState(),
     );
   }
 
@@ -245,21 +237,26 @@ class _BookNotesState extends State<BookNotes> {
       padding: padding,
       itemCount: notes.length,
       separatorBuilder: (_, _) => SizedBox(height: separatorHeight),
-      itemBuilder: (context, index) {
-        final note = notes[index];
+      itemBuilder: (context, index) => _buildNoteItem(notes[index], showActionMenu: showActionMenu),
+    );
+  }
 
-        return NoteCard(
-          note: note,
-          showActionMenu: showActionMenu,
-          onTap: () => widget.onNoteTap?.call(note),
-          onLongPress: () => widget.onNoteActions?.call(note),
-        );
-      },
+  Widget _buildNoteItem(Note note, {required bool showActionMenu}) {
+    return NoteCard(
+      note: note,
+      showActionMenu: showActionMenu,
+      onTap: () => widget.onNoteTap?.call(note),
+      onLongPress: () => widget.onNoteActions?.call(note),
     );
   }
 
   /// Empty state shown when search yields no results.
   Widget _buildNoResultsState() {
-    return const EmptyState(icon: Icons.search_off, title: 'No notes found', subtitle: 'Try a different search term');
+    return const EmptyState(
+      primary: true,
+      icon: Icons.search_off,
+      title: 'No notes found',
+      subtitle: 'Try a different search term',
+    );
   }
 }

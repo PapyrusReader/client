@@ -101,7 +101,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
               ),
               child: LibraryMobileToolbar(
                 onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
-                searchBuilder: (leading) => _buildSearchField(provider, leading: leading),
+                search: _buildSearchField(provider),
               ),
             ),
             const SizedBox(height: Spacing.sm),
@@ -146,12 +146,12 @@ class _ShelvesPageState extends State<ShelvesPage> {
     );
   }
 
-  Widget _buildSearchField(ShelvesProvider provider, {Widget? leading}) {
+  Widget _buildSearchField(ShelvesProvider provider) {
     return TextField(
       controller: _searchController,
       decoration: InputDecoration(
         hintText: 'Search shelves...',
-        prefixIcon: leading ?? const Icon(Icons.search),
+        prefixIcon: const Icon(Icons.search),
         suffixIcon: provider.searchQuery.isNotEmpty
             ? IconButton(
                 icon: const Icon(Icons.clear),
@@ -320,7 +320,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
             // Options
             ListTile(
               leading: const Icon(Icons.edit_outlined),
-              title: const Text('Edit shelf'),
+              title: const Text('Edit'),
               onTap: () {
                 Navigator.of(context).pop();
                 _showEditShelfSheet(context, shelf);

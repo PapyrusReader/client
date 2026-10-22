@@ -27,6 +27,7 @@ import 'package:papyrus/widgets/book/book_notes.dart';
 import 'package:papyrus/widgets/book_details/annotation_dialog.dart';
 import 'package:papyrus/widgets/book_details/book_action_buttons.dart';
 import 'package:papyrus/widgets/book_details/book_header.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:papyrus/widgets/book_details/book_details_tab_rail.dart';
 import 'package:papyrus/widgets/book_details/book_details_scroll_view.dart';
 import 'package:papyrus/widgets/book_details/bookmark_dialog.dart';
@@ -138,14 +139,14 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
   Widget _buildLoadingState(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(leading: const BackButton(), title: const Text('Loading...')),
+      appBar: AppPageBar(context: context, leading: const BackButton(), title: const Text('Loading...')),
       body: const Center(child: AppCircularProgressIndicator()),
     );
   }
 
   Widget _buildErrorState(BuildContext context, String error) {
     return Scaffold(
-      appBar: AppBar(leading: const BackButton(), title: const Text('Error')),
+      appBar: AppPageBar(context: context, leading: const BackButton(), title: const Text('Error')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -172,7 +173,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
   Widget _buildNotFoundState(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(leading: const BackButton(), title: const Text('Not found')),
+      appBar: AppPageBar(context: context, leading: const BackButton(), title: const Text('Not found')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -278,7 +279,8 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
     BookReadingActionState readingActionState,
   ) {
     return Scaffold(
-      appBar: AppBar(
+      appBar: AppPageBar(
+        context: context,
         leading: const BackButton(),
         title: Text(provider.book!.title, overflow: TextOverflow.ellipsis),
         actions: [

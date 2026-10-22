@@ -479,7 +479,7 @@ void main() {
 
         if (width < 840) {
           final header = find.byKey(const Key('catalog-book-mobile-header'));
-          expect(tester.getSize(header).height, kToolbarHeight);
+          expect(tester.getSize(header).height, scale == 1 ? 80 : 96);
           expect(find.byKey(const Key('catalog-book-header-divider')), findsNothing);
           final rail = find.byType(BookDetailsTabRail);
           await tester.dragFrom(Offset(width / 2, 700), const Offset(0, -1600));

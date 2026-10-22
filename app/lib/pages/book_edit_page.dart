@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:papyrus/data/data_store.dart';
@@ -153,14 +154,14 @@ class _BookEditPageState extends State<BookEditPage> {
         builder: (context, provider, _) {
           if (provider.isLoading) {
             return Scaffold(
-              appBar: AppBar(title: const Text('Edit book')),
+              appBar: AppPageBar(context: context, title: const Text('Edit book')),
               body: const Center(child: AppCircularProgressIndicator()),
             );
           }
 
           if (provider.error != null || !provider.hasBook) {
             return Scaffold(
-              appBar: AppBar(title: const Text('Edit book')),
+              appBar: AppPageBar(context: context, title: const Text('Edit book')),
               body: Center(
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -199,7 +200,8 @@ class _BookEditPageState extends State<BookEditPage> {
             child: _isDesktop
                 ? _buildDesktopScaffold(context, provider)
                 : Scaffold(
-                    appBar: AppBar(
+                    appBar: AppPageBar(
+                      context: context,
                       title: const Text('Edit book'),
                       leading: IconButton(
                         tooltip: 'Back to book details',

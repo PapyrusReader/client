@@ -23,6 +23,18 @@ Future<void> bulkAddToShelves(
   LibraryMembershipWriter? repository,
 }) => dataStore.updateBookMemberships(bookIds: bookIds, shelfIds: shelfIds, additive: true, repository: repository);
 
+Future<void> bulkRemoveFromShelf(
+  DataStore dataStore,
+  Set<String> bookIds,
+  String shelfId, {
+  LibraryMembershipWriter? repository,
+}) => dataStore.updateBookMemberships(
+  bookIds: bookIds,
+  shelfIds: const [],
+  previousShelfIds: {shelfId},
+  repository: repository,
+);
+
 /// Set topics for all selected books (additive — does not remove existing).
 Future<void> bulkAddTopics(
   DataStore dataStore,
@@ -197,18 +209,27 @@ void handleBulkDelete(BuildContext context, LibraryProvider libraryProvider) {
 }
 
 /// Build a [BulkActionBar] wired to all bulk action handlers.
-BulkActionBar buildBulkActionBar(BuildContext context, LibraryProvider libraryProvider) {
+BulkActionBar buildBulkActionBar(
+  BuildContext context,
+  LibraryProvider libraryProvider, {
+  VoidCallback? onRemoveFromShelf,
+}) {
   return BulkActionBar(
     onAddToShelf: () => handleBulkAddToShelf(context, libraryProvider),
     onManageTopics: () => handleBulkManageTopics(context, libraryProvider),
     onChangeStatus: () => handleBulkChangeStatus(context, libraryProvider),
     onToggleFavorite: () => handleBulkToggleFavorite(context, libraryProvider),
-    onDelete: () => handleBulkDelete(context, libraryProvider),
+    onDelete: onRemoveFromShelf == null ? () => handleBulkDelete(context, libraryProvider) : null,
+    onRemoveFromShelf: onRemoveFromShelf,
   );
 }
 
 /// Build the mobile bottom action bar container with bulk actions.
-Widget buildMobileBottomActionBar(BuildContext context, LibraryProvider libraryProvider) {
+Widget buildMobileBottomActionBar(
+  BuildContext context,
+  LibraryProvider libraryProvider, {
+  VoidCallback? onRemoveFromShelf,
+}) {
   final colorScheme = Theme.of(context).colorScheme;
 
   return Container(
@@ -219,7 +240,7 @@ Widget buildMobileBottomActionBar(BuildContext context, LibraryProvider libraryP
     child: SafeArea(
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-        child: buildBulkActionBar(context, libraryProvider),
+        child: buildBulkActionBar(context, libraryProvider, onRemoveFromShelf: onRemoveFromShelf),
       ),
     ),
   );

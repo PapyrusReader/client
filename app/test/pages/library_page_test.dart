@@ -1633,6 +1633,30 @@ void main() {
         expect(find.byType(ListView), findsAtLeastNWidgets(1));
       });
 
+      testWidgets('list heart saves and removes favorites through the repository', (tester) async {
+        final repository = _ControlledBookRepository();
+        final store = DataStore(bookRepository: repository);
+        final provider = LibraryProvider(dataStore: store)..setViewMode(LibraryViewMode.list);
+        addTearDown(provider.dispose);
+        addTearDown(store.dispose);
+        addTearDown(store.disposeBookRepository);
+        addTearDown(repository.controller.close);
+        await tester.pumpWidget(buildPage(provider: provider, store: store));
+        repository.controller.add([
+          Book(id: 'favorite-test', title: 'Favorite test', author: 'Author', addedAt: DateTime(2026)),
+        ]);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Add to favorites'));
+        await tester.pumpAndSettle();
+        expect(repository.writes.last.isFavorite, isTrue);
+        expect(find.byTooltip('Remove from favorites'), findsOneWidget);
+        await tester.tap(find.byTooltip('Remove from favorites'));
+        await tester.pumpAndSettle();
+        expect(repository.writes.last.isFavorite, isFalse);
+        expect(find.byTooltip('Add to favorites'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
+
       testWidgets('list view respects favorite override', (tester) async {
         libraryProvider.setViewMode(LibraryViewMode.list);
         // Toggle favorite for book-3 (originally not favorite)
@@ -1716,6 +1740,7 @@ void main() {
 }
 
 class _ControlledBookRepository implements BookRepository {
+  final List<Book> writes = [];
   final StreamController<List<Book>> controller = StreamController<List<Book>>.broadcast();
 
   @override
@@ -1725,7 +1750,9 @@ class _ControlledBookRepository implements BookRepository {
   Future<Book?> getById(String id) async => null;
 
   @override
-  Future<void> upsert(Book book) async {}
+  Future<void> upsert(Book book) async {
+    writes.add(book);
+  }
 
   @override
   Future<void> delete(String id) async {}

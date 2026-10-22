@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -170,7 +171,7 @@ class _BookDetailsState extends State<BookDetails> {
               label: Text(shelf.name),
               visualDensity: VisualDensity.compact,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              onPressed: () {},
+              onPressed: () => context.goNamed('SHELF_CONTENTS', pathParameters: {'shelfId': shelf.id}),
             ),
           );
         }),

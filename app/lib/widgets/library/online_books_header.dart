@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
 
 /// Header for the online book search experience.
 class OnlineBooksHeader extends StatelessWidget {
@@ -55,7 +56,7 @@ class OnlineBooksHeader extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  backButton,
+                  AppPageLeading(child: backButton),
                   const SizedBox(width: Spacing.sm),
                   Expanded(child: title),
                 ],

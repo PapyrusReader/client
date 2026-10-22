@@ -183,12 +183,12 @@ class _NoteCardState extends State<NoteCard> {
         if (widget.note.hasLocation) ...[
           Icon(Icons.location_on_outlined, size: IconSizes.small, color: colorScheme.onSurfaceVariant),
           const SizedBox(width: 4),
-          Text(widget.note.location!.shortLocation, style: metaStyle),
+          Flexible(child: Text(widget.note.location!.shortLocation, style: metaStyle)),
           const SizedBox(width: Spacing.md),
         ],
         Icon(Icons.access_time, size: IconSizes.small, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: 4),
-        Text(widget.note.dateLabel, style: metaStyle),
+        Flexible(child: Text(widget.note.dateLabel, style: metaStyle)),
       ],
     );
   }
