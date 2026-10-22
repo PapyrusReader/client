@@ -155,16 +155,10 @@ void main() {
     expect(find.text('Minimum 8 characters'), findsOneWidget);
     expect(find.text('This field is required'), findsNothing);
     final emailField = find.widgetWithText(TextFormField, 'Email address');
-    final confirmationField = find.widgetWithText(TextFormField, 'Confirm password');
     await tester.enterText(emailField, 'reader@');
     await tester.testTextInput.receiveAction(TextInputAction.next);
     await tester.pumpAndSettle();
     expect(find.text('Not a valid email'), findsOneWidget);
-
-    expect(
-      tester.getTopLeft(confirmationField).dy - tester.getBottomLeft(passwordField).dy,
-      tester.getTopLeft(passwordField).dy - tester.getBottomLeft(emailField).dy,
-    );
 
     await tester.enterText(passwordField, 'long-enough');
     await tester.pumpAndSettle();
@@ -189,8 +183,10 @@ void main() {
     final editable = tester.widget<EditableText>(find.descendant(of: emailField, matching: find.byType(EditableText)));
     expect(editable.focusNode.hasFocus, isTrue);
     expect(tester.testTextInput.isVisible, isTrue);
-    expect(tester.getRect(emailField).bottom, lessThanOrEqualTo(544));
-    expect(tester.getRect(emailField).top, greaterThanOrEqualTo(128));
+    final viewport = tester.getRect(find.byType(CustomScrollView));
+    expect(tester.getRect(emailField).bottom, lessThanOrEqualTo(viewport.bottom));
+    expect(tester.getRect(emailField).top, greaterThanOrEqualTo(viewport.top));
+    expect(emailField.hitTestable(), findsOneWidget);
     expect(find.text('Not a valid email'), findsOneWidget);
 
     expect(

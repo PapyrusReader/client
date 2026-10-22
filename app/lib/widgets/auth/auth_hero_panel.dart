@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/auth/auth_branding.dart';
 import 'package:papyrus/widgets/auth/curved_bottom_clipper.dart';
@@ -56,27 +57,114 @@ class AuthHeroPanel extends StatelessWidget {
   }
 }
 
-/// Compact hero header for mobile auth pages with branding overlay.
+class SliverAuthHeader extends StatelessWidget {
+  final bool isDark;
+  final bool collapsed;
+
+  const SliverAuthHeader({super.key, this.isDark = false, this.collapsed = false});
+
+  @override
+  Widget build(BuildContext context) {
+    final minimumHeight = MediaQuery.paddingOf(context).top + CompactAuthHeader.collapsedHeight;
+    final expandedHeight = ComponentSizes.mobileHeroHeight < minimumHeight
+        ? minimumHeight
+        : ComponentSizes.mobileHeroHeight;
+    final target = collapsed ? 1.0 : 0.0;
+
+    if (AppMotion.disabled(context)) {
+      return SliverToBoxAdapter(
+        child: CompactAuthHeader(
+          isDark: isDark,
+          height: collapsed ? minimumHeight : expandedHeight,
+          collapseProgress: target,
+        ),
+      );
+    }
+
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: target, end: target),
+      duration: AnimationDurations.standard,
+      curve: Curves.easeInOut,
+      builder: (context, keyboardProgress, child) => SliverPersistentHeader(
+        delegate: _AuthHeaderDelegate(
+          isDark: isDark,
+          expandedHeight: expandedHeight,
+          minimumHeight: minimumHeight,
+          keyboardProgress: keyboardProgress,
+        ),
+      ),
+    );
+  }
+}
+
+class _AuthHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final bool isDark;
+  final double expandedHeight;
+  final double minimumHeight;
+  final double keyboardProgress;
+
+  const _AuthHeaderDelegate({
+    required this.isDark,
+    required this.expandedHeight,
+    required this.minimumHeight,
+    required this.keyboardProgress,
+  });
+
+  @override
+  double get minExtent => minimumHeight;
+
+  @override
+  double get maxExtent => expandedHeight * (1 - keyboardProgress) + minimumHeight * keyboardProgress;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    final collapseDistance = expandedHeight - minimumHeight;
+    final scrollProgress = shrinkOffset / (collapseDistance > 0 ? collapseDistance : CompactAuthHeader.collapsedHeight);
+
+    return CompactAuthHeader(
+      isDark: isDark,
+      height: (maxExtent - shrinkOffset).clamp(minExtent, maxExtent),
+      collapseProgress: (keyboardProgress + scrollProgress).clamp(0.0, 1.0),
+    );
+  }
+
+  @override
+  bool shouldRebuild(covariant _AuthHeaderDelegate oldDelegate) =>
+      isDark != oldDelegate.isDark ||
+      expandedHeight != oldDelegate.expandedHeight ||
+      minimumHeight != oldDelegate.minimumHeight ||
+      keyboardProgress != oldDelegate.keyboardProgress;
+}
+
+/// Branding and illustration shared by the expanded and collapsed auth header.
 class CompactAuthHeader extends StatelessWidget {
   final bool isDark;
   final double height;
+  final double collapseProgress;
 
-  const CompactAuthHeader({super.key, this.isDark = false, this.height = ComponentSizes.mobileHeroHeight});
+  const CompactAuthHeader({
+    super.key,
+    this.isDark = false,
+    this.height = ComponentSizes.mobileHeroHeight,
+    this.collapseProgress = 0,
+  }) : assert(collapseProgress >= 0 && collapseProgress <= 1);
+
+  static const collapsedHeight = 64.0;
 
   @override
   Widget build(BuildContext context) {
     final gradientStart = isDark ? AuthColors.gradientStartDark : AuthColors.gradientStartLight;
     final gradientEnd = isDark ? AuthColors.gradientEndDark : AuthColors.gradientEndLight;
+    final expanded = 1 - collapseProgress;
 
     return ClipPath(
-      clipper: CurvedBottomClipper(curveHeight: 30),
+      clipper: CurvedBottomClipper(curveHeight: 30 * expanded),
       child: SizedBox(
         height: height,
         child: Stack(
           fit: StackFit.expand,
           children: [
-            // Gradient background
-            Container(
+            DecoratedBox(
               decoration: BoxDecoration(
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
@@ -86,21 +174,27 @@ class CompactAuthHeader extends StatelessWidget {
               ),
             ),
             Positioned.fill(
-              child: Image.asset(
-                'assets/images/auth-illustration.png',
-                fit: BoxFit.cover,
-                alignment: Alignment.topCenter,
+              child: Opacity(
+                opacity: expanded,
+                child: Image.asset(
+                  'assets/images/auth-illustration.png',
+                  fit: BoxFit.cover,
+                  alignment: Alignment.topCenter,
+                ),
               ),
             ),
             Positioned(
               top: MediaQuery.paddingOf(context).top,
-              bottom: 30,
+              bottom: Spacing.sm * expanded,
               left: Spacing.lg,
               right: Spacing.lg,
-              child: const Center(
+              child: Center(
                 child: FittedBox(
                   fit: BoxFit.scaleDown,
-                  child: AuthBranding.hero(),
+                  child: AuthBranding.hero(
+                    iconSize: 70 * expanded + 32 * collapseProgress,
+                    fontSize: 40 * expanded + 24 * collapseProgress,
+                  ),
                 ),
               ),
             ),

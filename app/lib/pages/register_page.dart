@@ -124,6 +124,12 @@ class _RegisterPageState extends State<RegisterPage> {
       TitledDivider(title: 'Or continue with', verticalPadding: isDesktop ? Spacing.lg : Spacing.md),
       const GoogleSignInButton(title: 'Sign up with Google'),
       SizedBox(height: isDesktop ? Spacing.md : Spacing.xs),
+      if (isDesktop) ..._buildBottomActions(),
+    ];
+  }
+
+  List<Widget> _buildBottomActions() {
+    return [
       AuthSwitchLink(
         promptText: 'Already have an account?',
         actionText: 'Sign in',
@@ -160,6 +166,7 @@ class _RegisterPageState extends State<RegisterPage> {
           validateConfirmPassword: _validateConfirmPassword,
         ),
         footer: _buildFooter(),
+        bottomActions: _buildBottomActions(),
       ),
       desktop: (context) => DesktopAuthLayout(
         heading: 'Create an account',
