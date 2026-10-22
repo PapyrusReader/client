@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/auth/auth_hero_panel.dart';
 
-/// Mobile auth layout: compact hero header + scrollable form panel.
+/// Mobile auth layout with a scrolling hero and a form that fills available space.
 class MobileAuthLayout extends StatelessWidget {
   final String heading;
   final String subtitle;
@@ -13,6 +13,9 @@ class MobileAuthLayout extends StatelessWidget {
   /// Widgets placed below the form (divider, social button, switch link).
   final List<Widget> footer;
 
+  /// Secondary navigation kept near the bottom when the form has spare space.
+  final List<Widget> bottomActions;
+
   /// Whether to show branding, heading, and subtitle above the form.
   final bool showHeader;
 
@@ -22,6 +25,7 @@ class MobileAuthLayout extends StatelessWidget {
     required this.subtitle,
     required this.form,
     required this.footer,
+    this.bottomActions = const [],
     this.showHeader = true,
   });
 
@@ -29,25 +33,27 @@ class MobileAuthLayout extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final isDark = theme.brightness == Brightness.dark;
+    final keyboardVisible = MediaQuery.viewInsetsOf(context).bottom > 0;
 
     return Scaffold(
       backgroundColor: theme.colorScheme.surface,
       body: SafeArea(
         top: false,
-        child: Column(
-          children: [
-            CompactAuthHeader(isDark: isDark, height: ComponentSizes.mobileHeroHeight),
-            Expanded(
-              child: CustomScrollView(
-                slivers: [
-                  SliverFillRemaining(
-                    hasScrollBody: false,
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
+        child: CustomScrollView(
+          slivers: [
+            SliverAuthHeader(isDark: isDark, collapsed: keyboardVisible),
+            SliverFillRemaining(
+              hasScrollBody: false,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Expanded(
                       child: Column(
+                        mainAxisAlignment: keyboardVisible ? MainAxisAlignment.start : MainAxisAlignment.center,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          const SizedBox(height: Spacing.md),
                           if (showHeader) ...[
                             Text(
                               heading,
@@ -64,12 +70,12 @@ class MobileAuthLayout extends StatelessWidget {
                           ],
                           form,
                           ...footer,
-                          const SizedBox(height: Spacing.md),
                         ],
                       ),
                     ),
-                  ),
-                ],
+                    ...bottomActions,
+                  ],
+                ),
               ),
             ),
           ],

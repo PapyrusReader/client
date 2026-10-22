@@ -242,7 +242,8 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
         subtitle: subtitle,
         showHeader: showHeader,
         form: _buildForm(isDesktop: false),
-        footer: _buildFooter(),
+        footer: const [],
+        bottomActions: _buildFooter(),
       ),
       desktop: (context) => DesktopAuthLayout(
         heading: heading,

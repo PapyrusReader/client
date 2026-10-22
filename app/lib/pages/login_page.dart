@@ -98,6 +98,12 @@ class _LoginPageState extends State<LoginPage> {
       TitledDivider(title: 'Or continue with', verticalPadding: isDesktop ? Spacing.lg : Spacing.md),
       const GoogleSignInButton(title: 'Sign in with Google'),
       SizedBox(height: isDesktop ? Spacing.md : Spacing.xs),
+      if (isDesktop) ..._buildBottomActions(),
+    ];
+  }
+
+  List<Widget> _buildBottomActions() {
+    return [
       AuthSwitchLink(
         promptText: "Don't have an account?",
         actionText: 'Sign up',
@@ -128,6 +134,7 @@ class _LoginPageState extends State<LoginPage> {
           isDesktop: false,
         ),
         footer: _buildFooter(),
+        bottomActions: _buildBottomActions(),
       ),
       desktop: (context) => DesktopAuthLayout(
         heading: 'Welcome back',
