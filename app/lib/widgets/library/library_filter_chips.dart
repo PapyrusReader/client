@@ -530,6 +530,12 @@ class LibraryFilterChips extends StatelessWidget {
         chips.any((chip) => chip.isActive) || provider.activeFilterCount > 0 || isDownloadingSelected;
 
     chips.sort((left, right) {
+      final viewComparison = (right.id == 'view-mode' ? 1 : 0).compareTo(left.id == 'view-mode' ? 1 : 0);
+
+      if (viewComparison != 0) {
+        return viewComparison;
+      }
+
       final activeComparison = (right.isActive ? 1 : 0).compareTo(left.isActive ? 1 : 0);
       return activeComparison != 0 ? activeComparison : left.defaultOrder.compareTo(right.defaultOrder);
     });

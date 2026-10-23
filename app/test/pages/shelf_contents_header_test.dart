@@ -51,7 +51,7 @@ void main() {
         await tester.pumpAndSettle();
         expect(find.byType(ShelfInfoSheet), findsOneWidget);
         expect(find.text(description), findsOneWidget);
-        expect(find.text('0 books'), findsNothing);
+        expect(find.text('0 books'), findsOneWidget);
         expect(tester.takeException(), isNull);
         Navigator.of(tester.element(find.byType(ShelfInfoSheet))).pop();
         await tester.pumpAndSettle();

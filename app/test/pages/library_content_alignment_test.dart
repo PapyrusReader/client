@@ -139,6 +139,14 @@ void main() {
         );
 
         expect(tester.getRect(placeholderSurface.first).left, closeTo(toolbar.left, .001));
+
+        if (mobile) {
+          expect(
+            tester.getRect(placeholderSurface.first).bottom,
+            lessThan(tester.getRect(find.byType(FloatingActionButton)).top),
+          );
+        }
+
         provider.setViewMode(LibraryViewMode.list);
         await tester.pumpAndSettle();
         final firstRow = find.byType(BookListItem).first;
@@ -167,6 +175,14 @@ void main() {
         );
 
         expect(tester.getRect(placeholderCover).left, closeTo(toolbar.left, .001));
+
+        if (mobile) {
+          expect(
+            tester.getRect(find.byType(AcquisitionPlaceholderListItem)).bottom,
+            lessThan(tester.getRect(find.byType(FloatingActionButton)).top),
+          );
+        }
+
         expect(tester.takeException(), isNull);
       });
     }

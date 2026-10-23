@@ -292,6 +292,7 @@ class _LibraryPageState extends State<LibraryPage> {
                 isLoading,
                 acquisitionView,
                 sourceBooks.length,
+                bottomClearance: hideLocalControls ? 0 : Spacing.fabClearance,
               ),
             ),
           ],
@@ -1017,8 +1018,9 @@ class _LibraryPageState extends State<LibraryPage> {
     AcquisitionDownloadsProvider? downloadsProvider,
     bool isLoading,
     _AcquisitionLibraryView acquisitionView,
-    int sourceBookCount,
-  ) {
+    int sourceBookCount, {
+    double bottomClearance = 0,
+  }) {
     if (!widget.isShelfView && _presentationMode == _BooksPresentationMode.online && downloadsProvider != null) {
       return OnlineResultsView(
         hasSearched: downloadsProvider.remoteQuery != null,
@@ -1066,6 +1068,7 @@ class _LibraryPageState extends State<LibraryPage> {
       return _buildBookList(
         context,
         visibleBooks,
+        bottomClearance: bottomClearance,
         linkedJobsByBookId: _linkedJobsByBookId(acquisitionView.selectableJobs),
         placeholderJobs: visiblePlaceholderJobs,
         downloadsProvider: downloadsProvider,
@@ -1077,8 +1080,7 @@ class _LibraryPageState extends State<LibraryPage> {
     final horizontalPadding = libraryPageHorizontalPadding(context);
 
     return BookGrid(
-      // Match the list row's vertical inset without adding padding to list mode.
-      padding: EdgeInsets.only(top: Spacing.sm, left: horizontalPadding, right: horizontalPadding, bottom: Spacing.md),
+      padding: EdgeInsets.fromLTRB(horizontalPadding, Spacing.sm, horizontalPadding, Spacing.md + bottomClearance),
       books: visibleBooks,
       libraryViewMode: libraryProvider.viewMode,
       acquisitionJobsByBookId: _linkedJobsByBookId(acquisitionView.selectableJobs),
@@ -1184,6 +1186,7 @@ class _LibraryPageState extends State<LibraryPage> {
   Widget _buildBookList(
     BuildContext context,
     List<Book> books, {
+    required double bottomClearance,
     required Map<String, AcquisitionJob> linkedJobsByBookId,
     required List<AcquisitionJob> placeholderJobs,
     required AcquisitionDownloadsProvider? downloadsProvider,
@@ -1195,7 +1198,11 @@ class _LibraryPageState extends State<LibraryPage> {
     final isSelectionMode = libraryProvider.isSelectionMode;
 
     return ListView.builder(
-      padding: EdgeInsets.symmetric(horizontal: libraryPageHorizontalPadding(context)),
+      padding: EdgeInsets.only(
+        left: libraryPageHorizontalPadding(context),
+        right: libraryPageHorizontalPadding(context),
+        bottom: bottomClearance,
+      ),
       itemCount: books.length + placeholderJobs.length,
       itemBuilder: (context, index) {
         if (index >= books.length) {

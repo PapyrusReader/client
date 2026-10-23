@@ -186,6 +186,9 @@ class _ShelvesPageState extends State<ShelvesPage> {
     return _buildShelfGrid(context, shelves, provider.gridItemWidth);
   }
 
+  double _bottomClearance(BuildContext context) =>
+      MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall ? Spacing.fabClearance : 0;
+
   Widget _buildShelfGrid(BuildContext context, List<Shelf> shelves, double itemWidth) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -197,7 +200,12 @@ class _ShelvesPageState extends State<ShelvesPage> {
         final metadataHeight = lineHeight(textTheme.titleSmall) + lineHeight(textTheme.bodySmall) + Spacing.sm * 2 + 2;
 
         return GridView.builder(
-          padding: EdgeInsets.fromLTRB(horizontalPadding, Spacing.sm, horizontalPadding, Spacing.md),
+          padding: EdgeInsets.fromLTRB(
+            horizontalPadding,
+            Spacing.sm,
+            horizontalPadding,
+            Spacing.md + _bottomClearance(context),
+          ),
           gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
             crossAxisCount: layout.crossAxisCount,
             mainAxisSpacing: layout.spacing,
@@ -222,7 +230,11 @@ class _ShelvesPageState extends State<ShelvesPage> {
 
   Widget _buildShelfList(BuildContext context, List<Shelf> shelves) {
     return ListView.builder(
-      padding: EdgeInsets.symmetric(horizontal: libraryPageHorizontalPadding(context)),
+      padding: EdgeInsets.only(
+        left: libraryPageHorizontalPadding(context),
+        right: libraryPageHorizontalPadding(context),
+        bottom: _bottomClearance(context),
+      ),
       itemCount: shelves.length,
       itemBuilder: (context, index) {
         final shelf = shelves[index];

@@ -274,6 +274,12 @@ class ShelvesFilterChips extends StatelessWidget {
     ];
 
     chips.sort((left, right) {
+      final viewComparison = (right.id == 'view' ? 1 : 0).compareTo(left.id == 'view' ? 1 : 0);
+
+      if (viewComparison != 0) {
+        return viewComparison;
+      }
+
       final activeComparison = (right.isActive ? 1 : 0).compareTo(left.isActive ? 1 : 0);
       return activeComparison != 0 ? activeComparison : left.defaultOrder.compareTo(right.defaultOrder);
     });
