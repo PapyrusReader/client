@@ -1,0 +1,1 @@
+String? get appInfoBaseUrl => null;

@@ -1,49 +1,69 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:package_info_plus/package_info_plus.dart';
+import 'package:papyrus/services/about_links.dart';
+import 'package:papyrus/services/app_info.dart';
+import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
 import 'package:papyrus/widgets/settings/settings_section.dart';
 
-/// About settings section for ProfilePage.
-class AboutSettingsSection extends StatelessWidget {
+class AboutSettingsSection extends StatefulWidget {
   final bool isDesktop;
 
   const AboutSettingsSection({super.key, this.isDesktop = false});
 
-  static void showLicenses(BuildContext context) {
-    showLicensePage(context: context, applicationName: 'Papyrus', applicationVersion: '1.0.0');
-  }
+  @override
+  State<AboutSettingsSection> createState() => _AboutSettingsSectionState();
+}
+
+class _AboutSettingsSectionState extends State<AboutSettingsSection> {
+  late final Future<PackageInfo> _packageInfo = loadAppInfo();
 
   @override
   Widget build(BuildContext context) {
-    if (isDesktop) {
-      return _buildDesktop(context);
-    }
+    return FutureBuilder<PackageInfo>(
+      future: _packageInfo,
+      builder: (context, snapshot) {
+        final info = snapshot.data;
+        final version = info == null ? (snapshot.hasError ? 'Unavailable' : 'Loading…') : AboutLinks.versionLabel(info);
 
-    return _buildMobile(context);
-  }
+        final externalLinkIndicator = Tooltip(
+          message: 'Opens in a new browser tab',
+          child: Icon(
+            Icons.open_in_new,
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+            size: IconSizes.medium,
+          ),
+        );
 
-  Widget _buildMobile(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SettingsSectionHeader(title: 'About'),
-        const SettingsRow(label: 'Version', value: '1.0.0', showChevron: false),
-        SettingsRow(label: 'Licenses', onTap: () => showLicenses(context)),
-        SettingsRow(label: 'Support', onTap: () {}),
-        SettingsRow(label: "What's new", onTap: () {}),
-        SettingsRow(label: 'GitHub repository', onTap: () {}),
-      ],
-    );
-  }
+        final rows = [
+          SettingsRow(label: 'Version', value: version, showChevron: false),
+          SettingsRow(label: 'Licenses', onTap: () => context.push('/profile/licenses')),
+          SettingsRow(label: 'Support', onTap: () => context.push('/profile/support')),
+          SettingsRow(
+            label: "What's new",
+            trailing: externalLinkIndicator,
+            onTap: () => AboutLinks.open(context, info == null ? AboutLinks.releases : AboutLinks.release(info)),
+          ),
+          SettingsRow(
+            label: 'GitHub repository',
+            trailing: externalLinkIndicator,
+            onTap: () => AboutLinks.open(context, AboutLinks.repository),
+          ),
+        ];
 
-  Widget _buildDesktop(BuildContext context) {
-    return SettingsCard(
-      children: [
-        const SettingsRow(label: 'Version', value: '1.0.0', showChevron: false),
-        SettingsRow(label: "What's new", onTap: () {}),
-        SettingsRow(label: 'Licenses', onTap: () => showLicenses(context)),
-        SettingsRow(label: 'Support', onTap: () {}),
-        SettingsRow(label: 'GitHub repository', onTap: () {}),
-      ],
+        if (widget.isDesktop) {
+          return SettingsCard(children: rows);
+        }
+
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const SettingsSectionHeader(title: 'About'),
+            ...rows,
+          ],
+        );
+      },
     );
   }
 }

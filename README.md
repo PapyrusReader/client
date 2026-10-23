@@ -189,6 +189,8 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 | [docs](https://github.com/PapyrusReader/docs) | Documentation |
 | [papyrus](https://github.com/PapyrusReader/papyrus) | Development workspace |
 
+See [About and support](docs/about-and-support.md) for release notes, licenses, and feedback.
+
 ## Google Play testing builds
 
 See [the release guide](docs/RELEASING.md) for signed Android App Bundles,
