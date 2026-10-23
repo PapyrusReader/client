@@ -13,8 +13,15 @@ class AuthApiException implements Exception {
   final String message;
   final String? code;
   final Duration? retryAfter;
+  final AccountDeletionAuthorization? recoveryAuthorization;
 
-  const AuthApiException({required this.statusCode, required this.message, this.code, this.retryAfter});
+  const AuthApiException({
+    required this.statusCode,
+    required this.message,
+    this.code,
+    this.retryAfter,
+    this.recoveryAuthorization,
+  });
 
   @override
   String toString() => message;
@@ -127,6 +134,28 @@ class AuthApiClient {
 
     final json = await _patchJson(config.endpoint('/users/me'), accessToken: accessToken, body: body);
     return PapyrusUser.fromJson(json);
+  }
+
+  Future<DateTime> deleteAccount(String accessToken) async {
+    final json = await _postJson(config.endpoint('/account-deletion/current'), accessToken: accessToken);
+    return DateTime.parse(json['deletion_due_at'] as String);
+  }
+
+  Future<AuthTokens> recoverAccount(
+    AccountDeletionAuthorization authorization, {
+    required String clientType,
+    String? deviceLabel,
+  }) async {
+    final json = await _postJson(
+      config.endpoint('/account-deletion/cancel'),
+      body: {
+        'authorization_token': authorization.token,
+        'client_type': clientType,
+        'device_label': deviceLabel,
+      },
+    );
+
+    return AuthTokens.fromJson(json);
   }
 
   Future<String> forgotPassword(String email) async {
@@ -276,6 +305,9 @@ class AuthApiClient {
       throw AuthApiException(
         statusCode: response.statusCode,
         code: error['code'] as String?,
+        recoveryAuthorization: error['code'] == 'ACCOUNT_DELETION_PENDING'
+            ? AccountDeletionAuthorization.fromJson(error['details']['authorization'] as Map<String, dynamic>)
+            : null,
         message: error['message'] as String? ?? 'Authentication request failed',
       );
     }

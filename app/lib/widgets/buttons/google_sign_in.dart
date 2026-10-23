@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/providers/auth_provider.dart';
-import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/buttons/google_auth_button.dart';
+import 'package:papyrus/widgets/profile/account_deletion_dialog.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
-import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
 /// A Google Sign-in button with loading state and error handling.
 class GoogleSignInButton extends StatefulWidget {
@@ -44,7 +44,19 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
       if (result) {
         widget.onSuccess?.call();
         context.goNamed('LIBRARY');
-      } else if (provider.error != null) {
+      } else {
+        final recovery = provider.takePendingRecovery();
+
+        if (recovery != null) {
+          setState(() => _isSigningIn = false);
+          await showAccountDeletionDialog(context, authorization: recovery);
+          return;
+        }
+
+        if (provider.error == null) {
+          return;
+        }
+
         widget.onError?.call();
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -80,41 +92,10 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return OutlinedButton(
-      style: OutlinedButton.styleFrom(
-        minimumSize: const Size.fromHeight(ComponentSizes.buttonHeightMobile),
-        side: BorderSide(width: BorderWidths.thin, color: theme.colorScheme.outline),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppRadius.googleButton)),
-        padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.buttonPaddingVertical),
-      ),
+    return GoogleAuthButton(
+      title: widget.title,
+      isLoading: _isSigningIn,
       onPressed: _isSigningIn ? null : _handleSignIn,
-      child: Row(
-        mainAxisSize: MainAxisSize.max,
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          SizedBox.square(
-            dimension: 24,
-            child: _isSigningIn
-                ? AppCircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: theme.colorScheme.primary,
-                    semanticsLabel: 'Signing in with Google',
-                  )
-                : const Image(image: AssetImage('assets/images/google_logo.png'), fit: BoxFit.contain),
-          ),
-          const SizedBox(width: Spacing.sm),
-          Flexible(
-            child: Text(
-              widget.title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w500),
-            ),
-          ),
-        ],
-      ),
     );
   }
 }

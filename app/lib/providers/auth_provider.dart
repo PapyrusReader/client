@@ -31,6 +31,14 @@ class AuthProvider extends ChangeNotifier {
         _status == AuthStatus.refreshing;
   }
 
+  AccountDeletionAuthorization? _pendingRecovery;
+
+  AccountDeletionAuthorization? takePendingRecovery() {
+    final authorization = _pendingRecovery;
+    _pendingRecovery = null;
+    return authorization;
+  }
+
   String? _error;
   String? get error => _error;
 
@@ -45,6 +53,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> replaceRepository(AuthRepository repository, {bool bootstrapNewRepository = true}) async {
     _repository = repository;
+    _pendingRecovery = null;
     _user = null;
     _error = null;
 
@@ -90,6 +99,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> signInWithGoogle() async {
+    _pendingRecovery = null;
     _setStatus(AuthStatus.authenticating);
     _error = null;
 
@@ -107,6 +117,7 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } catch (error) {
       _user = null;
+      _pendingRecovery = error is AuthApiException ? error.recoveryAuthorization : null;
       _error = _messageFor(error);
       _setStatus(AuthStatus.authError);
       return false;
@@ -161,6 +172,56 @@ class AuthProvider extends ChangeNotifier {
       notifyListeners();
       return false;
     }
+  }
+
+  Future<DateTime?> deleteAccount() async {
+    final repository = _repository;
+    final userId = _user?.userId;
+    final deadline = await repository.deleteAccount();
+
+    try {
+      await repository.clearTokens();
+    } finally {
+      if (identical(_repository, repository) && _user?.userId == userId) {
+        _user = null;
+        _error = null;
+        _pendingRecovery = null;
+        _setStatus(AuthStatus.signedOut);
+      }
+    }
+
+    return identical(_repository, repository) ? deadline : null;
+  }
+
+  Future<bool> recoverAccount(AccountDeletionAuthorization authorization) async {
+    final repository = _repository;
+
+    if (_user != null && _user!.userId != authorization.userId) {
+      throw const AuthApiException(statusCode: 403, message: 'The active account has changed.');
+    }
+
+    final tokens = await repository.recoverAccount(
+      authorization,
+      clientType: _clientType,
+      deviceLabel: _deviceLabel,
+    );
+
+    if (!identical(_repository, repository)) {
+      return false;
+    }
+
+    await _prefs.setBool(_keyOfflineMode, false);
+
+    if (!identical(_repository, repository)) {
+      return false;
+    }
+
+    _user = tokens.user;
+    _isOfflineMode = false;
+    _error = null;
+    _pendingRecovery = null;
+    _setStatus(AuthStatus.signedIn);
+    return true;
   }
 
   Future<String?> forgotPassword(String email) {
@@ -218,6 +279,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> _runTokenAction(Future<AuthTokens> Function() action) async {
+    _pendingRecovery = null;
     _setStatus(AuthStatus.authenticating);
     _error = null;
 
@@ -229,6 +291,7 @@ class AuthProvider extends ChangeNotifier {
       _setStatus(AuthStatus.signedIn);
       return true;
     } catch (error) {
+      _pendingRecovery = error is AuthApiException ? error.recoveryAuthorization : null;
       _error = _messageFor(error);
       _setStatus(AuthStatus.authError);
       return false;
@@ -236,6 +299,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<String?> _runMessageAction(Future<String> Function() action) async {
+    _pendingRecovery = null;
     _setStatus(AuthStatus.authenticating);
     _error = null;
 

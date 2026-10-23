@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
+import 'package:papyrus/widgets/profile/account_deletion_dialog.dart';
 import 'package:papyrus/widgets/settings/settings_section.dart';
 import 'package:provider/provider.dart';
 
@@ -26,11 +27,15 @@ class AccountSettingsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const SettingsSectionHeader(title: 'Account'),
-        SettingsRow(label: 'Change password', onTap: () {}),
-        SettingsRow(label: 'Linked accounts', onTap: () {}),
-        SettingsRow(label: 'Two-factor authentication', onTap: () {}),
-        SettingsRow(label: 'Active sessions', onTap: () {}),
-        SettingsRow(label: 'Delete account', onTap: () {}),
+        const SettingsRow(label: 'Change password', enabled: false, showChevron: false),
+        _buildGoogleConnection(context),
+        const SettingsRow(label: 'Two-factor authentication', enabled: false, showChevron: false),
+        const SettingsRow(label: 'Active sessions', enabled: false, showChevron: false),
+        SettingsRow(
+          label: 'Delete account',
+          enabled: context.watch<AuthProvider>().isSignedIn,
+          onTap: () => showAccountDeletionDialog(context),
+        ),
       ],
     );
   }
@@ -79,22 +84,38 @@ class AccountSettingsSection extends StatelessWidget {
         SettingsCard(
           title: 'Security',
           children: [
-            SettingsRow(label: 'Change password', onTap: () {}),
-            SettingsRow(label: 'Two-factor authentication', onTap: () {}),
-            SettingsRow(label: 'Active sessions', onTap: () {}),
+            const SettingsRow(label: 'Change password', enabled: false, showChevron: false),
+            const SettingsRow(label: 'Two-factor authentication', enabled: false, showChevron: false),
+            const SettingsRow(label: 'Active sessions', enabled: false, showChevron: false),
           ],
         ),
         const SizedBox(height: Spacing.lg),
         SettingsCard(
           title: 'Connected accounts',
-          children: [SettingsRow(label: 'Google', value: 'Not connected', onTap: () {})],
+          children: [_buildGoogleConnection(context)],
         ),
         const SizedBox(height: Spacing.lg),
         SettingsCard(
           title: 'Danger zone',
-          children: [SettingsRow(label: 'Delete account', onTap: () {})],
+          children: [
+            SettingsRow(
+              label: 'Delete account',
+              enabled: context.watch<AuthProvider>().isSignedIn,
+              onTap: () => showAccountDeletionDialog(context),
+            ),
+          ],
         ),
       ],
+    );
+  }
+
+  Widget _buildGoogleConnection(BuildContext context) {
+    final providers = context.watch<AuthProvider>().user?.connectedProviders ?? const <String>[];
+
+    return SettingsRow(
+      label: 'Google',
+      value: providers.contains('google') ? 'Connected' : 'Not connected',
+      showChevron: false,
     );
   }
 
