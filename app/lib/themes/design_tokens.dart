@@ -11,6 +11,9 @@ class Spacing {
   static const double xl = 32.0;
   static const double xxl = 48.0;
 
+  /// Standard 56-pixel FAB plus its bottom margin and a small content gap.
+  static const double fabClearance = 56.0 + lg;
+
   // Common combinations
   static const double buttonPaddingHorizontal = 24.0;
   static const double buttonPaddingVertical = 12.0;

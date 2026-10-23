@@ -58,6 +58,9 @@ void main() {
 
         await tester.pumpAndSettle();
         final provider = tester.element(find.byType(ShelvesFilterChips)).read<ShelvesProvider>();
+        provider.setContentsFilter(ShelfContentsFilter.empty);
+        await tester.pumpAndSettle();
+        expect(tester.getRect(find.text('Grid')).left, lessThan(tester.getRect(find.text('Empty')).left));
         final gutter = layout.screen.width >= Breakpoints.desktopSmall ? Spacing.lg : Spacing.md;
         final contentLeft = layout.screen.width - layout.width + gutter;
         final options = bookGridSizeOptions(layout.width - gutter * 2);
@@ -93,11 +96,34 @@ void main() {
           expect(tester.takeException(), isNull);
         }
 
+        await tester.drag(find.byType(GridView), const Offset(0, -10000));
+        await tester.pumpAndSettle();
+
+        if (layout.screen.width < Breakpoints.desktopSmall) {
+          expect(
+            tester.getRect(find.byType(ShelfCard).last).bottom,
+            lessThan(tester.getRect(find.byType(FloatingActionButton)).top),
+          );
+        }
+
         provider.setViewMode(LibraryViewMode.list);
         await tester.pumpAndSettle();
+        expect(tester.getRect(find.text('List')).left, lessThan(tester.getRect(find.text('Empty')).left));
         final firstShelf = find.byType(ShelfCard).first;
         final icon = find.descendant(of: firstShelf, matching: find.byType(Container)).first;
         expect(tester.getRect(icon).left, contentLeft);
+
+        final list = find.descendant(of: find.byType(ShelvesPage), matching: find.byType(ListView)).last;
+        await tester.drag(list, const Offset(0, -10000));
+        await tester.pumpAndSettle();
+
+        if (layout.screen.width < Breakpoints.desktopSmall) {
+          expect(
+            tester.getRect(find.byType(ShelfCard).last).bottom,
+            lessThan(tester.getRect(find.byType(FloatingActionButton)).top),
+          );
+        }
+
         expect(tester.takeException(), isNull);
       });
     }

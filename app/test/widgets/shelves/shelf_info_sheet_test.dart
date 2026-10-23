@@ -49,7 +49,7 @@ void main() {
     await tester.tap(find.text('Info'));
     await tester.pumpAndSettle();
     expect(find.text('No description yet.'), findsOneWidget);
-    expect(find.text('3 books'), findsNothing);
+    expect(find.text('3 books'), findsOneWidget);
     expect(find.text('1 completed'), findsOneWidget);
     expect(find.text('1 reading'), findsOneWidget);
     expect(find.text('1 not started'), findsOneWidget);
@@ -66,7 +66,19 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('2 completed'), findsOneWidget);
     expect(find.text('1 reading'), findsNothing);
+    expect(find.text('3 books'), findsOneWidget);
+
+    store.loadData(
+      bookShelfRelations: [BookShelfRelation(bookId: completed.id, shelfId: shelf.id, addedAt: DateTime(2026))],
+    );
+
+    await tester.pumpAndSettle();
+    expect(find.text('1 book'), findsOneWidget);
     expect(find.text('3 books'), findsNothing);
+    store.loadData(bookShelfRelations: []);
+    await tester.pumpAndSettle();
+    expect(find.text('0 books'), findsOneWidget);
+    expect(find.byType(Chip), findsNothing);
     expect(tester.takeException(), isNull);
   });
 }

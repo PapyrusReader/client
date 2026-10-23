@@ -65,11 +65,15 @@ void main() {
       expect(container.height, 48);
     });
 
-    testWidgets('shows active multi-select categories first with a count label', (tester) async {
+    testWidgets('keeps view mode before active multi-select categories', (tester) async {
       libraryProvider.setStatusFilters({LibraryReadingStatus.inProgress, LibraryReadingStatus.completed});
       await pumpChips(tester);
       expect(find.text('Status · 2'), findsOneWidget);
       expect(libraryProvider.activeFilterCount, 1);
+      expect(tester.getRect(find.text('Grid')).left, lessThan(tester.getRect(find.text('Status · 2')).left));
+      libraryProvider.setViewMode(LibraryViewMode.list);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(find.text('List')).left, lessThan(tester.getRect(find.text('Status · 2')).left));
     });
 
     testWidgets('favorite selection sheet updates the shared filter model', (tester) async {
