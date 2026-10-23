@@ -172,7 +172,7 @@ class _SupportPageState extends State<SupportPage> {
                                 Text('How can we help?', style: textTheme.titleLarge),
                                 const SizedBox(height: Spacing.md),
                                 const Text(
-                                  'Report a problem or suggest an improvement. Feedback and attachments are public. '
+                                  'Report a problem or suggest an improvement. '
                                   'Do not include passwords, private book content, or other personal information.',
                                 ),
                                 const SizedBox(height: Spacing.lg),

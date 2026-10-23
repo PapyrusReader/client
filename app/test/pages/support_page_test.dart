@@ -104,7 +104,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('GitHub'), findsNothing);
     expect(find.textContaining('repository'), findsNothing);
-    expect(find.textContaining('Feedback and attachments are public.'), findsOneWidget);
     await tester.tap(find.byType(DropdownButtonFormField<String>));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Feature request').last);
