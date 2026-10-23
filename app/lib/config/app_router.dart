@@ -275,8 +275,12 @@ class AppRouter {
                 path: 'licenses',
                 pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const LicensesPage()),
               ),
-              supportRoute(
-                createClient: () => SupportApiClient(config: syncSettingsProvider.activeApiConfig),
+              GoRoute(
+                path: 'support',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: SupportPage(client: SupportApiClient(config: syncSettingsProvider.activeApiConfig)),
+                ),
               ),
               GoRoute(
                 name: 'EDIT_PROFILE',
