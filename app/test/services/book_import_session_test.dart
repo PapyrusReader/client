@@ -30,7 +30,7 @@ class _Auth extends Fake implements AuthProvider {
   bool get isOfflineMode => false;
 
   @override
-  PapyrusUser get user => PapyrusUser.fromJson({'user_id': 'bob'});
+  PapyrusUser get user => PapyrusUser.fromJson({'user_id': 'bob', 'connected_providers': <String>[]});
 }
 
 class _Queue extends Fake implements MediaUploadQueue {

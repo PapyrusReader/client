@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/auth/auth_models.dart';
@@ -25,9 +27,9 @@ class MemoryRefreshTokenStorage implements RefreshTokenStorage {
 }
 
 class FakeAuthRepository extends AuthRepository {
-  FakeAuthRepository()
+  FakeAuthRepository({AuthApiClient? apiClient})
     : super(
-        apiClient: AuthApiClient(config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test'))),
+        apiClient: apiClient ?? AuthApiClient(config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test'))),
         tokenStore: TokenStore(MemoryRefreshTokenStorage()),
       );
 
@@ -36,6 +38,18 @@ class FakeAuthRepository extends AuthRepository {
   AuthTokens? refreshResult;
   Object? refreshError;
   bool clearCalled = false;
+  Completer<void>? clearStarted;
+  Completer<void>? clearPause;
+  Completer<AuthTokens>? recoveryResult;
+
+  @override
+  Future<AuthTokens> recoverAccount(
+    AccountDeletionAuthorization authorization, {
+    required String clientType,
+    String? deviceLabel,
+  }) {
+    return recoveryResult!.future;
+  }
 
   @override
   Future<AuthTokens?> bootstrap() async {
@@ -58,12 +72,70 @@ class FakeAuthRepository extends AuthRepository {
   @override
   Future<void> clearTokens() async {
     clearCalled = true;
+    clearStarted?.complete();
+    await clearPause?.future;
   }
+}
+
+class _DeletionApi extends AuthApiClient {
+  _DeletionApi() : super(config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test')));
+
+  @override
+  Future<DateTime> deleteAccount(String accessToken) async => DateTime.now().add(const Duration(days: 30));
 }
 
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  test('deletion finishing after a server switch preserves the newly selected account', () async {
+    final prefs = await SharedPreferences.getInstance();
+
+    final oldRepository = FakeAuthRepository(apiClient: _DeletionApi())
+      ..bootstrapResult = _tokens('Old server')
+      ..clearStarted = Completer<void>()
+      ..clearPause = Completer<void>();
+
+    final newRepository = FakeAuthRepository()..bootstrapResult = _tokens('New server');
+    final provider = AuthProvider(prefs, repository: oldRepository, bootstrapOnCreate: false);
+    await provider.bootstrap();
+
+    final deletion = provider.deleteAccount();
+
+    await oldRepository.clearStarted!.future;
+    await provider.replaceRepository(newRepository);
+    oldRepository.clearPause!.complete();
+    await deletion;
+    expect(provider.isSignedIn, isTrue);
+    expect(provider.user?.displayName, 'New server');
+    expect(newRepository.clearCalled, isFalse);
+    provider.dispose();
+  });
+
+  test('recovery finishing after a server switch preserves the newly selected account', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final oldRepository = FakeAuthRepository()..recoveryResult = Completer<AuthTokens>();
+    final newRepository = FakeAuthRepository()..bootstrapResult = _tokens('New server');
+    final provider = AuthProvider(prefs, repository: oldRepository, bootstrapOnCreate: false);
+
+    final recovery = provider.recoverAccount(
+      AccountDeletionAuthorization(
+        token: 'restricted',
+        userId: _tokens('Old server').user.userId,
+        email: 'reader@example.com',
+        deletionPending: true,
+        deletionDueAt: DateTime.now().add(const Duration(days: 30)),
+        expiresAt: DateTime.now().add(const Duration(minutes: 5)),
+      ),
+    );
+
+    await provider.replaceRepository(newRepository);
+    oldRepository.recoveryResult!.complete(_tokens('Old server'));
+    expect(await recovery, isFalse);
+    expect(provider.isSignedIn, isTrue);
+    expect(provider.user?.displayName, 'New server');
+    provider.dispose();
   });
 
   test('bootstraps signed in state from stored refresh token', () async {

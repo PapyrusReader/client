@@ -16,6 +16,7 @@ class AuthRepository {
   final TokenStore tokenStore;
 
   Future<AuthTokens>? _refreshOperation;
+  int _tokenGeneration = 0;
 
   AuthRepository({required this.apiClient, required this.tokenStore});
 
@@ -79,6 +80,8 @@ class AuthRepository {
   }
 
   Future<AuthTokens> _refresh() async {
+    final generation = _tokenGeneration;
+
     try {
       final refreshToken = await tokenStore.readRefreshToken();
 
@@ -87,10 +90,18 @@ class AuthRepository {
       }
 
       final tokens = await apiClient.refresh(refreshToken);
+
+      if (generation != _tokenGeneration) {
+        throw const AuthApiException(statusCode: 401, message: 'Session has ended');
+      }
+
       await _save(tokens);
       return tokens;
     } catch (_) {
-      await tokenStore.clear();
+      if (generation == _tokenGeneration) {
+        await tokenStore.clear();
+      }
+
       rethrow;
     } finally {
       _refreshOperation = null;
@@ -137,6 +148,29 @@ class AuthRepository {
     }
 
     final tokens = await apiClient.exchangeCode(code: code, clientType: clientType, deviceLabel: deviceLabel);
+    await _save(tokens);
+    return tokens;
+  }
+
+  Future<DateTime> deleteAccount() => _withFreshAccessToken(apiClient.deleteAccount);
+
+  Future<AuthTokens> recoverAccount(
+    AccountDeletionAuthorization authorization, {
+    required String clientType,
+    String? deviceLabel,
+  }) async {
+    final generation = _tokenGeneration;
+
+    final tokens = await apiClient.recoverAccount(
+      authorization,
+      clientType: clientType,
+      deviceLabel: deviceLabel,
+    );
+
+    if (generation != _tokenGeneration) {
+      throw const AuthApiException(statusCode: 401, message: 'Session changed. Please sign in again.');
+    }
+
     await _save(tokens);
     return tokens;
   }
@@ -216,6 +250,7 @@ class AuthRepository {
   }
 
   Future<void> clearTokens() {
+    _tokenGeneration += 1;
     return tokenStore.clear();
   }
 

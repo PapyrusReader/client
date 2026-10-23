@@ -5,6 +5,7 @@ import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/responsive.dart';
 import 'package:papyrus/widgets/auth/auth_continue_button.dart';
+import 'package:papyrus/widgets/profile/account_deletion_dialog.dart';
 import 'package:papyrus/widgets/auth/auth_page_layouts.dart';
 import 'package:papyrus/widgets/auth/auth_switch_link.dart';
 import 'package:papyrus/widgets/buttons/google_sign_in.dart';
@@ -64,6 +65,15 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (!success) {
+        final recovery = context.read<AuthProvider>().takePendingRecovery();
+
+        if (recovery != null) {
+          _passwordController.clear();
+          setState(() => _isLoading = false);
+          await showAccountDeletionDialog(context, authorization: recovery);
+          return;
+        }
+
         _showErrorSnackBar(context.read<AuthProvider>().error ?? 'Incorrect email or password.');
         return;
       }

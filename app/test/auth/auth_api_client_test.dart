@@ -18,6 +18,7 @@ const _authResponse = {
     'email': 'reader@example.com',
     'display_name': 'Reader',
     'avatar_url': null,
+    'connected_providers': ['google'],
     'email_verified': false,
     'created_at': '2026-05-09T12:00:00Z',
     'last_login_at': null,
@@ -52,6 +53,7 @@ void main() {
     expect(tokens.accessToken, 'access-token');
     expect(tokens.refreshToken, 'refresh-token');
     expect(tokens.user.displayName, 'Reader');
+    expect(tokens.user.connectedProviders, ['google']);
   });
 
   test('throws AuthApiException for server errors', () async {

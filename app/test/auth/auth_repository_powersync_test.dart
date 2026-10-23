@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -26,6 +27,33 @@ class MemoryRefreshTokenStorage implements RefreshTokenStorage {
 }
 
 void main() {
+  test('clearing credentials prevents an in-flight refresh from restoring the deleted session', () async {
+    final response = Completer<http.Response>();
+    final requested = Completer<void>();
+    final store = TokenStore(MemoryRefreshTokenStorage());
+    await store.saveTokens(accessToken: 'old-access', refreshToken: 'old-refresh');
+
+    final repository = AuthRepository(
+      apiClient: AuthApiClient(
+        config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test')),
+        httpClient: MockClient((request) {
+          requested.complete();
+          return response.future;
+        }),
+      ),
+      tokenStore: store,
+    );
+
+    final refresh = repository.refresh();
+    final rejected = expectLater(refresh, throwsA(isA<AuthApiException>()));
+    await requested.future;
+    await repository.clearTokens();
+    response.complete(http.Response(jsonEncode(_authResponse), 200));
+    await rejected;
+    expect(store.accessToken, isNull);
+    expect(await store.readRefreshToken(), isNull);
+  });
+
   test('createPowerSyncToken refreshes Papyrus auth once after 401', () async {
     var powerSyncTokenCalls = 0;
     final store = TokenStore(MemoryRefreshTokenStorage());
@@ -79,6 +107,7 @@ const _authResponse = {
     'email': 'reader@example.com',
     'display_name': 'Reader',
     'avatar_url': null,
+    'connected_providers': <String>[],
     'email_verified': true,
     'created_at': null,
     'last_login_at': null,
