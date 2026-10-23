@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:papyrus/services/about_links.dart';
 import 'package:papyrus/services/app_info.dart';
 import 'package:papyrus/services/support_api_client.dart';
@@ -7,6 +8,20 @@ import 'package:papyrus/services/support_attachment.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/profile/support_confirmation.dart';
+
+GoRoute supportRoute({required SupportApiClient Function() createClient}) {
+  final pageKey = GlobalKey<_SupportPageState>();
+
+  return GoRoute(
+    path: 'support',
+    // PopScope only covers Back. Shell navigation replaces routes with go().
+    onExit: (_, _) => pageKey.currentState?._sending != true,
+    pageBuilder: (_, state) => NoTransitionPage(
+      key: state.pageKey,
+      child: SupportPage(key: pageKey, client: createClient()),
+    ),
+  );
+}
 
 class SupportPage extends StatefulWidget {
   const SupportPage({super.key, required this.client});
