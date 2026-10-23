@@ -68,13 +68,6 @@ class _AccountDeletionDialogState extends State<AccountDeletionDialog> {
     String? message;
 
     if (authorization != null) {
-      if (!authorization.expiresAt.isAfter(DateTime.now())) {
-        throw const AuthApiException(
-          statusCode: 401,
-          message: 'Verification expired. Close this dialog and try again.',
-        );
-      }
-
       if (await widget.auth.recoverAccount(authorization)) {
         message = 'Account kept.';
       }

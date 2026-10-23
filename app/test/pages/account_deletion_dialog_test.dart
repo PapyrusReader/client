@@ -62,7 +62,8 @@ void main() {
   late List<http.Request> requests;
   var pending = false;
   var failSchedule = false;
-  var expired = false;
+  var clockAhead = false;
+  var rejectRecovery = false;
 
   Future<void> setup({bool signedIn = true, bool connected = false}) async {
     SharedPreferences.setMockInitialValues({});
@@ -81,7 +82,7 @@ void main() {
           'email': 'reader@example.com',
           'deletion_pending': pending,
           'deletion_due_at': '2026-11-22T12:00:00Z',
-          'expires_at': DateTime.now().add(Duration(minutes: expired ? -1 : 5)).toIso8601String(),
+          'expires_at': DateTime.now().add(Duration(minutes: clockAhead ? -10 : 5)).toIso8601String(),
         };
 
         if ((request.url.path.endsWith('/login') || request.url.path.endsWith('/exchange-code')) && pending) {
@@ -94,6 +95,15 @@ void main() {
               },
             }),
             403,
+          );
+        }
+
+        if (request.url.path.endsWith('/cancel') && rejectRecovery) {
+          return http.Response(
+            jsonEncode({
+              'error': {'message': 'Authorization is invalid or expired. Authenticate again.'},
+            }),
+            401,
           );
         }
 
@@ -196,7 +206,8 @@ void main() {
   setUp(() {
     pending = false;
     failSchedule = false;
-    expired = false;
+    clockAhead = false;
+    rejectRecovery = false;
   });
 
   for (final desktop in [false, true]) {
@@ -332,15 +343,32 @@ void main() {
     expect(find.byType(AlertDialog), findsNothing);
   });
 
-  testWidgets('expired recovery proof does not restore the account', (tester) async {
-    expired = true;
+  testWidgets('recovery succeeds when the proof appears expired on the device clock', (tester) async {
+    clockAhead = true;
     pending = true;
     await setup(signedIn: false);
     await showPage(tester, callback: '/auth/callback?code=login-code');
     await tester.tap(find.text('Keep account'));
     await tester.pumpAndSettle();
-    expect(find.text('Verification expired. Close this dialog and try again.'), findsOneWidget);
-    expect(requests.where((request) => request.url.path.endsWith('/cancel')), isEmpty);
+    expect(requests.where((request) => request.url.path.endsWith('/cancel')), hasLength(1));
+    expect(auth.isSignedIn, isTrue);
+    expect(storage.value, 'restored-refresh');
+    expect(find.text('Your library'), findsOneWidget);
+    expect(find.byType(AlertDialog), findsNothing);
+  });
+
+  testWidgets('server rejection of an expired proof leaves recovery pending', (tester) async {
+    rejectRecovery = true;
+    pending = true;
+    await setup(signedIn: false);
+    await showPage(tester, callback: '/auth/callback?code=login-code');
+    await tester.tap(find.text('Keep account'));
+    await tester.pumpAndSettle();
+    expect(find.text('Authorization is invalid or expired. Authenticate again.'), findsOneWidget);
+    expect(requests.where((request) => request.url.path.endsWith('/cancel')), hasLength(1));
     expect(auth.isSignedIn, isFalse);
+    expect(storage.value, 'refresh');
+    expect(find.byType(AlertDialog), findsOneWidget);
+    expect(find.text('Your library'), findsNothing);
   });
 }
