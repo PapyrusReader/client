@@ -6,6 +6,7 @@ on:
     paths:
       - 'app/**'
       - 'packages/**'
+      - 'tools/generate_icons.py'
       - '.github/workflows/**'
       - '.github/scripts/**'
       - 'codecov.yml'
@@ -21,6 +22,22 @@ env:
   FLUTTER_VERSION: '3.41.2'
 
 jobs:
+  icons:
+    name: Platform icon assets
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install icon tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y librsvg2-bin
+          python -m pip install pillow==12.0.0
+      - name: Check platform dimensions, artwork and safe zones
+        run: python tools/generate_icons.py --check
+
   quality:
     name: Code quality checks
     runs-on: ubuntu-latest

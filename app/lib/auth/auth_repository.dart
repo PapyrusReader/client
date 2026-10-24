@@ -16,6 +16,7 @@ class AuthRepository {
   final TokenStore tokenStore;
 
   Future<AuthTokens>? _refreshOperation;
+  int _tokenGeneration = 0;
 
   AuthRepository({required this.apiClient, required this.tokenStore});
 
@@ -79,6 +80,8 @@ class AuthRepository {
   }
 
   Future<AuthTokens> _refresh() async {
+    final generation = _tokenGeneration;
+
     try {
       final refreshToken = await tokenStore.readRefreshToken();
 
@@ -87,10 +90,18 @@ class AuthRepository {
       }
 
       final tokens = await apiClient.refresh(refreshToken);
+
+      if (generation != _tokenGeneration) {
+        throw const AuthApiException(statusCode: 401, message: 'Session has ended');
+      }
+
       await _save(tokens);
       return tokens;
     } catch (_) {
-      await tokenStore.clear();
+      if (generation == _tokenGeneration) {
+        await tokenStore.clear();
+      }
+
       rethrow;
     } finally {
       _refreshOperation = null;
@@ -141,6 +152,29 @@ class AuthRepository {
     return tokens;
   }
 
+  Future<DateTime> deleteAccount() => _withFreshAccessToken(apiClient.deleteAccount);
+
+  Future<AuthTokens> recoverAccount(
+    AccountDeletionAuthorization authorization, {
+    required String clientType,
+    String? deviceLabel,
+  }) async {
+    final generation = _tokenGeneration;
+
+    final tokens = await apiClient.recoverAccount(
+      authorization,
+      clientType: clientType,
+      deviceLabel: deviceLabel,
+    );
+
+    if (generation != _tokenGeneration) {
+      throw const AuthApiException(statusCode: 401, message: 'Session changed. Please sign in again.');
+    }
+
+    await _save(tokens);
+    return tokens;
+  }
+
   Future<void> logout() async {
     final accessToken = tokenStore.accessToken;
 
@@ -161,6 +195,16 @@ class AuthRepository {
   Future<PapyrusUser> updateCurrentUser({String? displayName, String? avatarUrl}) async {
     final accessToken = await _requireAccessToken();
     return apiClient.updateCurrentUser(accessToken: accessToken, displayName: displayName, avatarUrl: avatarUrl);
+  }
+
+  Future<PapyrusUser> uploadProfilePhoto(Uint8List bytes, {required String displayName}) {
+    return _withFreshAccessToken((accessToken) {
+      return apiClient.uploadProfilePhoto(accessToken, bytes, displayName: displayName);
+    });
+  }
+
+  Future<Uint8List> downloadProfilePhoto(String avatarUrl) {
+    return _withFreshAccessToken((accessToken) => apiClient.downloadProfilePhoto(accessToken, avatarUrl));
   }
 
   Future<String> forgotPassword(String email) {
@@ -216,6 +260,7 @@ class AuthRepository {
   }
 
   Future<void> clearTokens() {
+    _tokenGeneration += 1;
     return tokenStore.clear();
   }
 

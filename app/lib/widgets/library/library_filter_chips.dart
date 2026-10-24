@@ -54,13 +54,22 @@ class _DropdownFilterChip extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
     final foregroundColor = isSelected ? colorScheme.onSecondaryContainer : colorScheme.onSurfaceVariant;
 
-    return Semantics(
-      button: true,
-      selected: isSelected,
-      label: '$semanticLabel: $label',
-      child: AppMotionControl(
-        value: null,
-        builder: (focusNode) => ActionChip(
+    return AppMotionControl(
+      value: null,
+      builder: (focusNode) => ListenableBuilder(
+        listenable: focusNode,
+        builder: (context, child) => Semantics(
+          button: true,
+          selected: isSelected,
+          label: '$semanticLabel: $label',
+          focusable: true,
+          focused: focusNode.hasFocus,
+          onFocus: focusNode.requestFocus,
+          onTap: onPressed,
+          excludeSemantics: true,
+          child: child,
+        ),
+        child: ActionChip(
           focusNode: focusNode,
           chipAnimationStyle: appChipAnimationStyle(context),
           tooltip: tooltip,
@@ -530,14 +539,29 @@ class LibraryFilterChips extends StatelessWidget {
         chips.any((chip) => chip.isActive) || provider.activeFilterCount > 0 || isDownloadingSelected;
 
     chips.sort((left, right) {
+      final viewComparison = (right.id == 'view-mode' ? 1 : 0).compareTo(left.id == 'view-mode' ? 1 : 0);
+
+      if (viewComparison != 0) {
+        return viewComparison;
+      }
+
       final activeComparison = (right.isActive ? 1 : 0).compareTo(left.isActive ? 1 : 0);
       return activeComparison != 0 ? activeComparison : left.defaultOrder.compareTo(right.defaultOrder);
     });
 
     final orderKey = [...chips.map((chip) => chip.id), if (hasActiveSelections) 'clear-all'].join('-');
 
+    final labelPainter = TextPainter(
+      text: TextSpan(text: 'Filter', style: Theme.of(context).textTheme.labelLarge),
+      textScaler: MediaQuery.textScalerOf(context),
+      textDirection: Directionality.of(context),
+    )..layout();
+
+    final chipHeight = (labelPainter.height + 24).clamp(48.0, double.infinity);
+    labelPainter.dispose();
+
     return SizedBox(
-      height: 48,
+      height: chipHeight,
       child: AnimatedSwitcher(
         key: ValueKey(AppMotion.disabled(context)),
         duration: AppMotion.duration(context, const Duration(milliseconds: 200)),

@@ -152,7 +152,7 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
         Spacing.lg,
         padding,
         // Let the final row scroll clear of the creation FAB.
-        padding + (_usesFab(context) ? kToolbarHeight + Spacing.lg : 0),
+        padding + (_usesFab(context) ? Spacing.fabClearance : 0),
       ),
       children: [
         if (_provider.isLoading)

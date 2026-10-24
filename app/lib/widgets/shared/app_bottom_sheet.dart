@@ -64,29 +64,36 @@ class AppBottomSheet extends StatelessWidget {
       return Padding(padding: contentPadding, child: body);
     }
 
-    Widget buildFrame(ScrollController? controller, {required bool compact}) => SafeArea(
-      top: false,
-      bottom: footer == null,
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          BottomSheetHeader(
-            key: headerKey ?? const Key('bottom-sheet-header'),
-            title: header == null ? title : null,
-            onDismiss: dismiss,
-            compact: compact,
-            child: header,
-          ),
-          const Divider(height: 1),
-          Flexible(
-            fit: expandBody ? FlexFit.tight : FlexFit.loose,
-            child: buildBody(controller),
-          ),
-          if (footer != null) BottomSheetFooter(key: footerKey, child: footer!),
-        ],
-      ),
-    );
+    Widget buildFrame(ScrollController? controller, {required bool compact}) {
+      final sheetHeader = BottomSheetHeader(
+        key: headerKey ?? const Key('bottom-sheet-header'),
+        title: header == null ? title : null,
+        onDismiss: dismiss,
+        compact: compact,
+        child: header,
+      );
+
+      return SafeArea(
+        top: false,
+        bottom: footer == null,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            if (MediaQuery.textScalerOf(context).scale(16) > 32)
+              Flexible(child: SingleChildScrollView(primary: false, child: sheetHeader))
+            else
+              sheetHeader,
+            const Divider(height: 1),
+            Flexible(
+              fit: expandBody ? FlexFit.tight : FlexFit.loose,
+              child: buildBody(controller),
+            ),
+            if (footer != null) BottomSheetFooter(key: footerKey, child: footer!),
+          ],
+        ),
+      );
+    }
 
     return Padding(
       padding: EdgeInsets.only(bottom: avoidKeyboard ? MediaQuery.viewInsetsOf(context).bottom : 0),

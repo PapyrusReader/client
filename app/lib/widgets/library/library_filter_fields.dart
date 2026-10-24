@@ -206,6 +206,7 @@ class LibraryProgressFilterFieldState extends State<LibraryProgressFilterField> 
             child: Material(
               type: MaterialType.transparency,
               child: InkWell(
+                hoverColor: Colors.transparent,
                 excludeFromSemantics: true,
                 onTap: toggleEnabled,
                 child: ConstrainedBox(

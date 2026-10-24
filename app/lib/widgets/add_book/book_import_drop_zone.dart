@@ -2,7 +2,6 @@ import 'dart:math' as math;
 
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
-import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 import 'package:flutter/services.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/add_book/book_import_batch_item.dart';
@@ -89,7 +88,7 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
               borderRadius: BorderRadius.circular(AppRadius.xl),
               child: LayoutBuilder(
                 builder: (context, constraints) {
-                  final minimumHeight = constraints.hasBoundedHeight ? constraints.maxHeight : 0.0;
+                  final minimumHeight = constraints.minHeight;
 
                   return SingleChildScrollView(
                     child: ConstrainedBox(
@@ -158,10 +157,7 @@ class _BookImportDropZoneState extends State<BookImportDropZone> {
         return SingleChildScrollView(
           child: ConstrainedBox(
             constraints: BoxConstraints(
-              minHeight:
-                  context.findAncestorWidgetOfExactType<ExpandableBottomSheet>() == null && constraints.hasBoundedHeight
-                  ? constraints.maxHeight
-                  : 0,
+              minHeight: constraints.minHeight,
             ),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,

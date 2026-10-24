@@ -1,6 +1,7 @@
 import 'dart:ui' show PointerDeviceKind, SemanticsAction, Tristate;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/models/book.dart';
@@ -386,13 +387,40 @@ void main() {
       }
     });
 
-    testWidgets('shows a nonfavorite heart only while the mouse hovers over the book', (tester) async {
+    testWidgets('keyboard focus reveals the original hover controls and activates favorite', (tester) async {
+      final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await pointer.addPointer(location: const Offset(790, 590));
+      addTearDown(pointer.removePointer);
+      var favoriteTaps = 0;
+      await tester.pumpWidget(
+        buildCard(
+          screenSize: const Size(1200, 800),
+          onTap: () {},
+          onToggleFavorite: (_) => favoriteTaps++,
+          onEnterSelectionMode: () {},
+        ),
+      );
+      final favorite = find.byIcon(Icons.favorite_border);
+      final visibility = find.ancestor(of: favorite, matching: find.byType(AnimatedOpacity));
+      expect(tester.widget<AnimatedOpacity>(visibility).opacity, 0);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(tester.widget<AnimatedOpacity>(visibility).opacity, 1);
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      expect(favoriteTaps, 1);
+    });
+
+    testWidgets('keeps the favorite action accessible while visually hidden without mouse hover', (tester) async {
+      final semantics = tester.ensureSemantics();
       var favoriteTaps = 0;
       final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
       await pointer.addPointer(location: const Offset(790, 590));
       addTearDown(pointer.removePointer);
       await tester.pumpWidget(buildCard(onToggleFavorite: (_) => favoriteTaps++));
-      expect(find.byIcon(Icons.favorite_border), findsNothing);
+      expect(find.semantics.byLabel('Add to favorites'), findsOne);
+      expect(find.byIcon(Icons.favorite_border), findsOneWidget);
       await pointer.moveTo(tester.getCenter(find.byType(BookCard)));
       await tester.pumpAndSettle();
       expect(find.byIcon(Icons.favorite_border), findsOneWidget);
@@ -400,7 +428,8 @@ void main() {
       expect(favoriteTaps, 1);
       await pointer.moveTo(const Offset(790, 590));
       await tester.pumpAndSettle();
-      expect(find.byIcon(Icons.favorite_border), findsNothing);
+      expect(find.byIcon(Icons.favorite_border), findsOneWidget);
+      semantics.dispose();
     });
 
     testWidgets('keeps a favorited heart visible after the mouse leaves', (tester) async {

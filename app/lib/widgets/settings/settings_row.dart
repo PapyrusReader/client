@@ -51,6 +51,7 @@ class SettingsRow extends StatelessWidget {
 
   /// Whether to show the trailing chevron.
   final bool showChevron;
+  final bool enabled;
 
   /// Creates a settings row widget.
   const SettingsRow({
@@ -61,6 +62,7 @@ class SettingsRow extends StatelessWidget {
     this.trailing,
     this.onTap,
     this.showChevron = true,
+    this.enabled = true,
   });
 
   @override
@@ -69,45 +71,52 @@ class SettingsRow extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
     final showsValueAsTrailing = value != null && !showChevron && trailing == null;
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(AppRadius.sm),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(minHeight: TouchTargets.mobileRecommended),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.sm),
-            child: Row(
-              children: [
-                if (leading != null) ...[leading!, const SizedBox(width: Spacing.md)],
-                Expanded(
-                  child: switch (showsValueAsTrailing) {
-                    true => Text(label, style: textTheme.bodyLarge),
-                    false when value != null => Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(label, style: textTheme.bodyLarge),
-                        const SizedBox(height: 2),
-                        Text(value!, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
-                      ],
+    return Semantics(
+      enabled: enabled,
+      child: Opacity(
+        opacity: enabled ? 1 : 0.38,
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: enabled ? onTap : null,
+            canRequestFocus: enabled,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: TouchTargets.mobileRecommended),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.sm),
+                child: Row(
+                  children: [
+                    if (leading != null) ...[leading!, const SizedBox(width: Spacing.md)],
+                    Expanded(
+                      child: switch (showsValueAsTrailing) {
+                        true => Text(label, style: textTheme.bodyLarge),
+                        false when value != null => Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(label, style: textTheme.bodyLarge),
+                            const SizedBox(height: 2),
+                            Text(value!, style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant)),
+                          ],
+                        ),
+                        false => Text(label, style: textTheme.bodyLarge),
+                      },
                     ),
-                    false => Text(label, style: textTheme.bodyLarge),
-                  },
+                    if (trailing != null)
+                      trailing!
+                    else if (showChevron && onTap != null)
+                      Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: IconSizes.medium)
+                    else if (showsValueAsTrailing)
+                      Expanded(
+                        child: Text(
+                          value!,
+                          textAlign: TextAlign.end,
+                          style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                        ),
+                      ),
+                  ],
                 ),
-                if (trailing != null)
-                  trailing!
-                else if (showChevron && onTap != null)
-                  Icon(Icons.chevron_right, color: colorScheme.onSurfaceVariant, size: IconSizes.medium)
-                else if (showsValueAsTrailing)
-                  Expanded(
-                    child: Text(
-                      value!,
-                      textAlign: TextAlign.end,
-                      style: textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
-                    ),
-                  ),
-              ],
+              ),
             ),
           ),
         ),
@@ -134,17 +143,51 @@ class SettingsToggleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: textTheme.bodyLarge)),
-          AppMotionControl(
-            value: value,
-            enabled: onChanged != null,
-            builder: (focusNode) => Switch(focusNode: focusNode, value: value, onChanged: onChanged),
+    final enabled = onChanged != null;
+    final toggle = enabled ? () => onChanged!(!value) : null;
+
+    return MergeSemantics(
+      child: Semantics(
+        toggled: value,
+        enabled: enabled,
+        onTap: toggle,
+        child: AppMotionControl(
+          value: value,
+          enabled: enabled,
+          builder: (focusNode) => InkWell(
+            hoverColor: Colors.transparent,
+            focusNode: focusNode,
+            canRequestFocus: enabled,
+            onTap: toggle,
+            excludeFromSemantics: true,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: TouchTargets.mobileRecommended),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: textTheme.bodyLarge?.copyWith(
+                          color: enabled ? null : Theme.of(context).disabledColor,
+                        ),
+                      ),
+                    ),
+                    ExcludeSemantics(
+                      child: ExcludeFocus(
+                        child: IgnorePointer(
+                          child: Switch(value: value, onChanged: onChanged),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

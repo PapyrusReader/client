@@ -20,6 +20,7 @@ import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_library.dart';
 import 'package:papyrus/opds/opds_resource_cache.dart';
 import 'package:papyrus/widgets/opds/opds_publication_details.dart';
+import 'package:papyrus/widgets/shell/mobile_bottom_nav.dart';
 import 'package:papyrus/widgets/book_details/book_details_tab_rail.dart';
 import 'package:papyrus/opds/opds_models.dart';
 import 'package:papyrus/pages/catalog_book_page.dart';
@@ -406,7 +407,7 @@ void main() {
 
           expect(
             tester.getBottomRight(find.byType(FloatingActionButton)).dy,
-            lessThan(tester.getTopLeft(find.byType(NavigationBar)).dy),
+            lessThan(tester.getTopLeft(find.byType(MobileBottomNav)).dy),
           );
 
           expect(

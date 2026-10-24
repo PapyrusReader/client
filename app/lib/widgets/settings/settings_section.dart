@@ -7,9 +7,14 @@ import 'package:papyrus/themes/design_tokens.dart';
 class SettingsSectionHeader extends StatelessWidget {
   /// Section title text.
   final String title;
+  final EdgeInsetsGeometry padding;
 
   /// Creates a settings section header.
-  const SettingsSectionHeader({super.key, required this.title});
+  const SettingsSectionHeader({
+    super.key,
+    required this.title,
+    this.padding = const EdgeInsets.only(top: Spacing.lg, bottom: Spacing.md),
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -17,13 +22,12 @@ class SettingsSectionHeader extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Padding(
-      padding: const EdgeInsets.only(top: Spacing.lg, bottom: Spacing.sm),
-      child: Text(
-        title,
-        style: textTheme.labelMedium?.copyWith(
-          color: colorScheme.onSurfaceVariant,
-          fontWeight: FontWeight.w500,
-          letterSpacing: 0.5,
+      padding: padding,
+      child: Semantics(
+        header: true,
+        child: Text(
+          title,
+          style: textTheme.titleLarge?.copyWith(color: colorScheme.onSurface, fontWeight: FontWeight.w600),
         ),
       ),
     );

@@ -50,12 +50,14 @@ class BookImportSession {
       throw StateError('Cannot import account media without an active media storage scope');
     }
 
-    if ((authProvider.isSignedIn && (!authenticated || scope?.userId != userId)) ||
+    if (authProvider.isDeletingGuestAccount ||
+        (authProvider.isSignedIn && (!authenticated || scope?.userId != userId)) ||
         (authProvider.isOfflineMode && powerSyncService.mode != LibraryDatabaseMode.guest)) {
       throw StateError('Wait for the selected library to finish loading before importing.');
     }
 
     bool isCurrent() =>
+        !authProvider.isDeletingGuestAccount &&
         dataStore.isBookRepositoryCurrent(repository) &&
         authProvider.user?.userId == userId &&
         (authProvider.isSignedIn && powerSyncService.mode == LibraryDatabaseMode.authenticated) == authenticated &&

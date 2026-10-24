@@ -146,6 +146,5 @@ class StorageSyncController {
   }
 
   Future<void> reconnect() => powerSyncService.reconnect();
-  Future<void> clearGuestLibrary() => powerSyncService.clearGuestLibrary();
   Future<void> clearAuthenticatedCache() => powerSyncService.clearAuthenticatedCache();
 }

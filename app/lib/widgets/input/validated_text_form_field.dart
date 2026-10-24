@@ -11,6 +11,7 @@ class ValidatedTextFormField extends StatefulWidget {
   final TextCapitalization textCapitalization;
   final VoidCallback? onEditingComplete;
   final ValueChanged<String>? onFieldSubmitted;
+  final Iterable<String>? autofillHints;
   final bool obscureText;
   final bool autocorrect;
   final bool enableSuggestions;
@@ -27,6 +28,7 @@ class ValidatedTextFormField extends StatefulWidget {
     this.textCapitalization = TextCapitalization.none,
     this.onEditingComplete,
     this.onFieldSubmitted,
+    this.autofillHints,
     this.obscureText = false,
     this.autocorrect = true,
     this.enableSuggestions = true,
@@ -142,6 +144,7 @@ class _ValidatedTextFormFieldState extends State<ValidatedTextFormField> {
         textCapitalization: widget.textCapitalization,
         onEditingComplete: widget.onEditingComplete,
         onFieldSubmitted: widget.onFieldSubmitted,
+        autofillHints: widget.autofillHints,
         obscureText: widget.obscureText,
         autocorrect: widget.autocorrect,
         enableSuggestions: widget.enableSuggestions,

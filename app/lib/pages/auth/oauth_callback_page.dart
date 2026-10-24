@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/providers/auth_provider.dart';
+import 'package:papyrus/platform/web_redirect.dart';
+import 'package:papyrus/widgets/profile/account_deletion_dialog.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
@@ -16,6 +18,7 @@ class OAuthCallbackPage extends StatefulWidget {
 
 class _OAuthCallbackPageState extends State<OAuthCallbackPage> {
   String? _errorMessage;
+  bool _showingConfirmation = false;
 
   @override
   void initState() {
@@ -25,6 +28,8 @@ class _OAuthCallbackPageState extends State<OAuthCallbackPage> {
 
   Future<void> _completeSignIn() async {
     final authProvider = context.read<AuthProvider>();
+    clearBrowserQuery();
+
     final success = await authProvider.completeGoogleSignIn(widget.callbackUri);
 
     if (!mounted) {
@@ -36,6 +41,19 @@ class _OAuthCallbackPageState extends State<OAuthCallbackPage> {
       return;
     }
 
+    final recovery = authProvider.takePendingRecovery();
+
+    if (recovery != null) {
+      setState(() => _showingConfirmation = true);
+      await showAccountDeletionDialog(context, authorization: recovery);
+
+      if (mounted && !authProvider.isSignedIn) {
+        context.go('/login');
+      }
+
+      return;
+    }
+
     setState(() {
       _errorMessage = authProvider.error ?? 'Google sign-in failed.';
     });
@@ -44,6 +62,18 @@ class _OAuthCallbackPageState extends State<OAuthCallbackPage> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    if (_showingConfirmation) {
+      return Scaffold(
+        body: SizedBox.expand(
+          child: Image.asset(
+            'assets/images/welcome-illustration.png',
+            fit: BoxFit.cover,
+            excludeFromSemantics: true,
+          ),
+        ),
+      );
+    }
 
     return Scaffold(
       body: Center(

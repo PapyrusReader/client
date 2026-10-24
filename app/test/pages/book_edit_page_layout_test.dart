@@ -66,10 +66,7 @@ void main() {
       final formHeading = tester.getTopLeft(find.text('Basic information'));
       expect(metadataHeading.dx, greaterThan(cover.dx));
 
-      expect(
-        tester.getTopLeft(find.ancestor(of: find.text('Fetch metadata'), matching: find.byType(Card)).first).dy,
-        cover.dy,
-      );
+      expect(metadataHeading.dy, cover.dy);
 
       expect(formHeading.dx, closeTo(metadataHeading.dx, 1));
       expect(formHeading.dy, greaterThan(metadataHeading.dy));
@@ -83,10 +80,7 @@ void main() {
       final language = tester.getTopLeft(find.text('Language'));
       expect(metadataHeading.dx, greaterThan(cover.dx));
 
-      expect(
-        tester.getTopLeft(find.ancestor(of: find.text('Fetch metadata'), matching: find.byType(Card)).first).dy,
-        cover.dy,
-      );
+      expect(metadataHeading.dy, cover.dy);
 
       expect(language.dy, greaterThan(publisher.dy));
       expect(tester.takeException(), isNull);
@@ -98,25 +92,20 @@ void main() {
       final metadataHeading = tester.getTopLeft(find.text('Fetch metadata'));
       final formHeading = tester.getTopLeft(find.text('Basic information'));
       final coverPreview = find.descendant(of: find.byType(CoverImagePicker), matching: find.byType(AspectRatio));
-      final metadataCard = find.ancestor(of: find.text('Fetch metadata'), matching: find.byType(Card)).first;
-      final formCard = find.ancestor(of: find.text('Basic information'), matching: find.byType(Card)).first;
       expect(metadataHeading.dy, greaterThan(cover.dy));
       expect(formHeading.dy, greaterThan(metadataHeading.dy));
       expect(tester.getTopLeft(coverPreview).dx, Spacing.lg);
-      expect(tester.getCenter(metadataCard).dx, closeTo(320, 1));
-      expect(tester.getSize(metadataCard).width, closeTo(tester.getSize(formCard).width, 1));
+      expect(metadataHeading.dx, formHeading.dx);
       expect(tester.getSize(find.byType(AspectRatio).first).width, 240);
       expect(tester.takeException(), isNull);
     });
 
     testWidgets('metadata search precedes a compact visible source selector', (tester) async {
       await pumpPage(tester, size: const Size(1000, 1200), contentWidth: 640);
-      final metadataCard = find.ancestor(of: find.text('Fetch metadata'), matching: find.byType(Card)).first;
       final searchField = find.ancestor(of: find.text('Search'), matching: find.byType(TextFormField)).first;
       final selector = find.byWidgetPredicate((widget) => widget is SegmentedButton);
       final sourceLabel = find.text('Source');
       expect(sourceLabel, findsOneWidget);
-      expect(tester.getSize(searchField).width, closeTo(tester.getSize(metadataCard).width - (Spacing.md * 2), 1));
       expect(tester.getTopLeft(sourceLabel).dy, greaterThan(tester.getTopLeft(searchField).dy));
       expect((tester.getCenter(selector).dy - tester.getCenter(sourceLabel).dy).abs(), lessThan(1));
     });

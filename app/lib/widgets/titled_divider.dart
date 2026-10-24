@@ -16,16 +16,31 @@ class TitledDivider extends StatelessWidget {
     final theme = Theme.of(context);
     final padding = verticalPadding ?? Spacing.lg;
 
+    Widget line(EdgeInsets padding) => ConstrainedBox(
+      constraints: const BoxConstraints(minWidth: Spacing.xl),
+      child: Padding(
+        padding: padding,
+        child: Divider(thickness: 1.5, color: theme.colorScheme.outlineVariant),
+      ),
+    );
+
     return Padding(
       padding: EdgeInsets.symmetric(vertical: padding),
-      child: Row(
+      child: Table(
+        defaultVerticalAlignment: TableCellVerticalAlignment.middle,
+        columnWidths: const {0: FlexColumnWidth(), 1: IntrinsicColumnWidth(), 2: FlexColumnWidth()},
         children: [
-          Expanded(child: Divider(thickness: 1.5, color: theme.colorScheme.outlineVariant)),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-            child: Text(title, style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.outline)),
+          TableRow(
+            children: [
+              line(const EdgeInsets.only(right: Spacing.md)),
+              Text(
+                title,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleSmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
+              line(const EdgeInsets.only(left: Spacing.md)),
+            ],
           ),
-          Expanded(child: Divider(thickness: 1.5, color: theme.colorScheme.outlineVariant)),
         ],
       ),
     );

@@ -55,6 +55,7 @@ class BookCard extends StatefulWidget {
 
 class _BookCardState extends State<BookCard> {
   bool _isHovered = false;
+  bool _hasFocus = false;
 
   @override
   void initState() {
@@ -76,13 +77,14 @@ class _BookCardState extends State<BookCard> {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final inSelection = widget.isSelectionMode;
+    final hoverDuration = AppMotion.duration(context, const Duration(milliseconds: 150));
     final effectiveTap = inSelection ? widget.onSelectToggle : widget.onTap;
     final effectiveLongPress = inSelection ? null : widget.onEnterSelectionMode;
 
     final isUnavailable =
         widget.acquisitionJob == null && !widget.book.isPhysical && widget.deviceStatus == BookDeviceStatus.missing;
 
-    final card = MouseRegion(
+    final visualCard = MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
       child: GestureDetector(
@@ -116,22 +118,33 @@ class _BookCardState extends State<BookCard> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      _buildCover(context),
+                      ExcludeSemantics(child: _buildCover(context)),
                       // Selection tint overlay
                       if (inSelection && widget.isSelected)
                         Container(color: colorScheme.primary.withValues(alpha: 0.15)),
-                      if (!inSelection &&
-                          widget.acquisitionJob == null &&
-                          (widget.isFavorite || _isHovered || !WidgetsBinding.instance.mouseTracker.mouseIsConnected))
+                      if (!inSelection && widget.acquisitionJob == null)
                         Positioned(
                           top: Spacing.xs,
                           left: Spacing.xs,
-                          child: _CardIconButton(
-                            icon: widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                            color: widget.isFavorite ? colorScheme.error : Colors.white,
-                            onTap: widget.onToggleFavorite != null
-                                ? () => widget.onToggleFavorite!(widget.isFavorite)
-                                : null,
+                          child: AnimatedOpacity(
+                            key: ValueKey(AppMotion.disabled(context)),
+                            duration: hoverDuration,
+                            opacity:
+                                widget.isFavorite ||
+                                    _isHovered ||
+                                    _hasFocus ||
+                                    !WidgetsBinding.instance.mouseTracker.mouseIsConnected
+                                ? 1
+                                : 0,
+                            alwaysIncludeSemantics: true,
+                            child: _CardIconButton(
+                              tooltip: widget.isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                              icon: widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                              color: widget.isFavorite ? colorScheme.error : Colors.white,
+                              onTap: widget.onToggleFavorite != null
+                                  ? () => widget.onToggleFavorite!(widget.isFavorite)
+                                  : null,
+                            ),
                           ),
                         ),
                       // Selection mode: checkbox overlay (top-right)
@@ -140,6 +153,9 @@ class _BookCardState extends State<BookCard> {
                           top: Spacing.xs,
                           right: Spacing.xs,
                           child: _CardIconButton(
+                            tooltip: widget.isSelected
+                                ? 'Deselect ${widget.book.title}'
+                                : 'Select ${widget.book.title}',
                             icon: widget.isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
                             color: widget.isSelected ? colorScheme.primary : Colors.white,
                             onTap: widget.onSelectToggle,
@@ -152,15 +168,21 @@ class _BookCardState extends State<BookCard> {
                           right: Spacing.xs,
                           child: AnimatedOpacity(
                             key: ValueKey(AppMotion.disabled(context)),
-                            opacity: _isHovered ? 1.0 : 0.0,
-                            duration: AppMotion.duration(context, const Duration(milliseconds: 150)),
+                            opacity: _isHovered || _hasFocus ? 1.0 : 0.0,
+                            alwaysIncludeSemantics: true,
+                            duration: hoverDuration,
                             child: Row(
                               mainAxisSize: MainAxisSize.min,
                               children: [
-                                _CardIconButton(icon: Icons.radio_button_unchecked, onTap: widget.onEnterSelectionMode),
+                                _CardIconButton(
+                                  tooltip: 'Select ${widget.book.title}',
+                                  icon: Icons.radio_button_unchecked,
+                                  onTap: widget.onEnterSelectionMode,
+                                ),
                                 if (widget.acquisitionJob == null) ...[
                                   const SizedBox(width: Spacing.xs),
                                   _CardIconButton(
+                                    tooltip: 'More options for ${widget.book.title}',
                                     icon: Icons.more_vert,
                                     onTap: () => showBookContextMenu(
                                       context: context,
@@ -299,6 +321,12 @@ class _BookCardState extends State<BookCard> {
       ),
     );
 
+    final card = Focus(
+      canRequestFocus: false,
+      onFocusChange: (focused) => setState(() => _hasFocus = focused),
+      child: visualCard,
+    );
+
     final job = widget.acquisitionJob;
 
     if (job == null) {
@@ -422,22 +450,32 @@ class _BookCardState extends State<BookCard> {
 /// Icon button overlay for book card.
 class _CardIconButton extends StatelessWidget {
   final IconData icon;
+  final String tooltip;
   final Color? color;
   final VoidCallback? onTap;
 
-  const _CardIconButton({required this.icon, this.color, this.onTap});
+  const _CardIconButton({required this.icon, required this.tooltip, this.color, this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.black45,
-      borderRadius: BorderRadius.circular(AppRadius.full),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(AppRadius.full),
-        onTap: onTap,
-        child: Padding(
-          padding: const EdgeInsets.all(6),
-          child: Icon(icon, size: IconSizes.small, color: color ?? Colors.white),
+    return Tooltip(
+      message: tooltip,
+      excludeFromSemantics: true,
+      child: Semantics(
+        label: tooltip,
+        container: true,
+        button: true,
+        child: Material(
+          color: Colors.black45,
+          borderRadius: BorderRadius.circular(AppRadius.full),
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.full),
+            onTap: onTap,
+            child: Padding(
+              padding: const EdgeInsets.all(6),
+              child: Icon(icon, size: IconSizes.small, color: color ?? Colors.white),
+            ),
+          ),
         ),
       ),
     );

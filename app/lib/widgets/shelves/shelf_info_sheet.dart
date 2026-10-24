@@ -49,16 +49,29 @@ class ShelfInfoSheet extends StatelessWidget {
 
     return AppBottomSheet(
       title: 'Details',
+      contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(shelf.name, style: textTheme.headlineSmall),
-          const SizedBox(height: Spacing.lg),
+          Wrap(
+            spacing: Spacing.sm,
+            runSpacing: Spacing.xs,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(shelf.name, style: textTheme.headlineSmall),
+              Text(
+                '${books.length} ${books.length == 1 ? 'book' : 'books'}',
+                style: textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: Spacing.md),
           Text('Description', style: textTheme.titleMedium),
-          const SizedBox(height: Spacing.sm),
+          const SizedBox(height: Spacing.xs),
           Text(description == null || description.isEmpty ? 'No description yet.' : description),
           if (books.isNotEmpty) ...[
-            const SizedBox(height: Spacing.lg),
+            const SizedBox(height: Spacing.md),
             Wrap(
               spacing: Spacing.sm,
               runSpacing: Spacing.xs,
@@ -68,9 +81,9 @@ class ShelfInfoSheet extends StatelessWidget {
               ],
             ),
           ],
-          const SizedBox(height: Spacing.lg),
+          const SizedBox(height: Spacing.md),
           Text('Created', style: textTheme.titleMedium),
-          const SizedBox(height: Spacing.sm),
+          const SizedBox(height: Spacing.xs),
           Text(DateFormat.yMMMd().format(shelf.createdAt.toLocal())),
         ],
       ),

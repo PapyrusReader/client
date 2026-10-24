@@ -23,19 +23,28 @@ class _DataStore extends Fake implements DataStore {
 }
 
 class _Auth extends Fake implements AuthProvider {
-  @override
-  bool get isSignedIn => true;
+  _Auth({this.guest = false});
+  final bool guest;
 
   @override
-  bool get isOfflineMode => false;
+  bool isDeletingGuestAccount = false;
 
   @override
-  PapyrusUser get user => PapyrusUser.fromJson({'user_id': 'bob'});
+  bool get isSignedIn => !guest;
+
+  @override
+  bool get isOfflineMode => guest;
+
+  @override
+  PapyrusUser? get user => guest ? null : PapyrusUser.fromJson({'user_id': 'bob', 'connected_providers': <String>[]});
 }
 
 class _Queue extends Fake implements MediaUploadQueue {
+  _Queue({this.guest = false});
+  final bool guest;
+
   @override
-  MediaStorageScope get activeScope => MediaStorageScope(profileKey: 'official', userId: 'alice');
+  MediaStorageScope? get activeScope => guest ? null : MediaStorageScope(profileKey: 'official', userId: 'alice');
 }
 
 class _Database extends Fake implements PapyrusPowerSyncService {
@@ -48,6 +57,24 @@ class _Database extends Fake implements PapyrusPowerSyncService {
 class _Importer extends Fake implements BookImportService {}
 
 void main() {
+  test('guest deletion invalidates imports and prevents new sessions', () {
+    final auth = _Auth(guest: true);
+
+    BookImportSession capture() => BookImportSession.capture(
+      dataStore: _DataStore(),
+      queue: _Queue(guest: true),
+      importService: _Importer(),
+      authProvider: auth,
+      powerSyncService: _Database(LibraryDatabaseMode.guest),
+    );
+
+    final session = capture();
+    expect(session.isCurrent(), isTrue);
+    auth.isDeletingGuestAccount = true;
+    expect(session.isCurrent(), isFalse);
+    expect(capture, throwsStateError);
+  });
+
   test('cannot capture the previous account media scope during account activation', () {
     expect(
       () => BookImportSession.capture(

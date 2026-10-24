@@ -18,6 +18,7 @@ const _authResponse = {
     'email': 'reader@example.com',
     'display_name': 'Reader',
     'avatar_url': null,
+    'connected_providers': ['google'],
     'email_verified': false,
     'created_at': '2026-05-09T12:00:00Z',
     'last_login_at': null,
@@ -25,6 +26,44 @@ const _authResponse = {
 };
 
 void main() {
+  test('profile photos upload with the name and download only from the configured server', () async {
+    const avatarUrl = '/users/me/avatar/11111111-1111-1111-1111-111111111111';
+    var calls = 0;
+    final client = AuthApiClient(
+      config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://server.test'), apiPrefix: '/api/v2'),
+      httpClient: MockClient((request) async {
+        calls++;
+        expect(request.headers['Authorization'], 'Bearer access');
+        expect(request.url.host, 'server.test');
+
+        if (request.method == 'POST') {
+          expect(request.url.path, '/api/v2/users/me/avatar');
+          expect(request.headers['content-type'], startsWith('multipart/form-data'));
+          expect(request.body, contains('name="display_name"'));
+          expect(request.body, contains('Updated Reader'));
+          expect(request.body, contains('filename="avatar.jpg"'));
+          return http.Response(jsonEncode({..._authResponse['user']! as Map, 'avatar_url': avatarUrl}), 200);
+        }
+
+        expect(request.url.path, '/api/v2$avatarUrl');
+        return http.Response.bytes([1, 2, 3], 200);
+      }),
+    );
+
+    final user = await client.uploadProfilePhoto(
+      'access',
+      Uint8List.fromList([1, 2, 3]),
+      displayName: 'Updated Reader',
+    );
+    expect(user.avatarUrl, avatarUrl);
+    expect(await client.downloadProfilePhoto('access', avatarUrl), [1, 2, 3]);
+    await expectLater(
+      client.downloadProfilePhoto('access', 'https://other.test/photo.jpg'),
+      throwsA(isA<AuthApiException>()),
+    );
+    expect(calls, 2);
+  });
+
   test('login maps Papyrus token response', () async {
     final client = AuthApiClient(
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test')),
@@ -52,6 +91,7 @@ void main() {
     expect(tokens.accessToken, 'access-token');
     expect(tokens.refreshToken, 'refresh-token');
     expect(tokens.user.displayName, 'Reader');
+    expect(tokens.user.connectedProviders, ['google']);
   });
 
   test('throws AuthApiException for server errors', () async {

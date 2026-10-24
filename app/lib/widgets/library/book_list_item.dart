@@ -7,7 +7,6 @@ import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/book_actions.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/library/acquisition_status_text.dart';
-import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 import 'package:papyrus/widgets/shared/app_motion_control.dart';
 
@@ -55,8 +54,6 @@ class BookListItem extends StatefulWidget {
 }
 
 class _BookListItemState extends State<BookListItem> {
-  bool _isHovered = false;
-
   bool get _isDesktop => MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
 
   @override
@@ -78,179 +75,169 @@ class _BookListItemState extends State<BookListItem> {
 
     final isUnavailable = !isAcquisition && !widget.book.isPhysical && widget.deviceStatus == BookDeviceStatus.missing;
 
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: GestureDetector(
-        onLongPressStart: switch (isAcquisition) {
-          true => switch (widget.onAcquisitionSelectionToggle == null) {
-            true => null,
-            false => (_) => widget.onAcquisitionSelectionToggle!(),
-          },
-          false when _isDesktop || inSelection => null,
-          false => (details) {
-            showBookContextMenu(
-              context: context,
-              book: widget.book,
-              position: details.globalPosition,
-              onRemoveFromShelf: widget.onRemoveFromShelf,
-            );
-          },
+    return GestureDetector(
+      onLongPressStart: switch (isAcquisition) {
+        true => switch (widget.onAcquisitionSelectionToggle == null) {
+          true => null,
+          false => (_) => widget.onAcquisitionSelectionToggle!(),
         },
-        child: Material(
-          color: switch (inSelection && isSelected) {
-            true => colorScheme.primary.withValues(alpha: 0.08),
-            false when isUnavailable => colorScheme.surfaceContainerLow,
-            false => Colors.transparent,
-          },
-          child: InkWell(
-            onTap: onTap,
-            child: Container(
-              // The list owns the horizontal page gutter.
-              padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
-              decoration: BoxDecoration(
-                border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
-              ),
-              child: Row(
-                children: [
-                  // Selection checkbox (leading)
-                  if (inSelection) ...[
-                    AppMotionControl(
+        false when _isDesktop || inSelection => null,
+        false => (details) {
+          showBookContextMenu(
+            context: context,
+            book: widget.book,
+            position: details.globalPosition,
+            onRemoveFromShelf: widget.onRemoveFromShelf,
+          );
+        },
+      },
+      child: Material(
+        color: switch (inSelection && isSelected) {
+          true => colorScheme.primary.withValues(alpha: 0.08),
+          false when isUnavailable => colorScheme.surfaceContainerLow,
+          false => Colors.transparent,
+        },
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            // The list owns the horizontal page gutter.
+            padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
+            decoration: BoxDecoration(
+              border: Border(bottom: BorderSide(color: colorScheme.outlineVariant)),
+            ),
+            child: Row(
+              children: [
+                // Selection checkbox (leading)
+                if (inSelection) ...[
+                  AppMotionControl(
+                    value: isSelected,
+                    builder: (focusNode) => Checkbox(
+                      focusNode: focusNode,
+                      semanticLabel: 'Select ${widget.book.title}',
                       value: isSelected,
-                      builder: (focusNode) => Checkbox(
-                        focusNode: focusNode,
-                        value: isSelected,
-                        onChanged: (_) => onSelectionToggle?.call(),
-                      ),
+                      onChanged: (_) => onSelectionToggle?.call(),
                     ),
-                    const SizedBox(width: Spacing.sm),
-                  ],
-                  // Cover thumbnail
-                  SizedBox(
-                    width: ComponentSizes.bookCoverWidthList,
-                    height: ComponentSizes.bookCoverHeightList,
-                    child: ClipRRect(borderRadius: BorderRadius.circular(AppRadius.sm), child: _buildCover(context)),
                   ),
-                  const SizedBox(width: Spacing.md),
+                  const SizedBox(width: Spacing.sm),
+                ],
+                // Cover thumbnail
+                SizedBox(
+                  width: ComponentSizes.bookCoverWidthList,
+                  height: ComponentSizes.bookCoverHeightList,
+                  child: ClipRRect(borderRadius: BorderRadius.circular(AppRadius.sm), child: _buildCover(context)),
+                ),
+                const SizedBox(width: Spacing.md),
 
-                  // Book info
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          widget.book.title,
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                        ),
+                // Book info
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        widget.book.title,
+                        style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: Spacing.xs),
+                      Text(
+                        widget.book.author,
+                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      if (widget.acquisitionJob case final job?) ...[
                         const SizedBox(height: Spacing.xs),
                         Text(
-                          widget.book.author,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: colorScheme.onSurfaceVariant),
+                          acquisitionStatusLabel(job),
+                          style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                            color: job.requiresAttention ? colorScheme.error : colorScheme.onSurfaceVariant,
+                            fontWeight: job.requiresAttention ? FontWeight.w600 : null,
+                          ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (widget.acquisitionJob case final job?) ...[
-                          const SizedBox(height: Spacing.xs),
+                        if (acquisitionTransferDetails(job) case final details?) ...[
+                          const SizedBox(height: 2),
                           Text(
-                            acquisitionStatusLabel(job),
-                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                              color: job.requiresAttention ? colorScheme.error : colorScheme.onSurfaceVariant,
-                              fontWeight: job.requiresAttention ? FontWeight.w600 : null,
-                            ),
+                            details,
+                            style: Theme.of(
+                              context,
+                            ).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                          if (acquisitionTransferDetails(job) case final details?) ...[
-                            const SizedBox(height: 2),
+                        ],
+                        if (job.progress case final progress?) ...[
+                          const SizedBox(height: Spacing.xs),
+                          AppLinearProgressIndicator(
+                            value: progress,
+                            backgroundColor: colorScheme.surfaceContainerHighest,
+                            color: job.requiresAttention ? colorScheme.error : colorScheme.primary,
+                            minHeight: 3,
+                          ),
+                        ],
+                      ] else if (widget.showProgress && widget.book.currentPosition > 0) ...[
+                        const SizedBox(height: Spacing.xs),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: AppLinearProgressIndicator(
+                                value: widget.book.currentPosition,
+                                backgroundColor: colorScheme.surfaceContainerHighest,
+                                color: widget.book.readingStatus == LibraryReadingStatus.completed
+                                    ? colorScheme.tertiary
+                                    : colorScheme.primary,
+                                minHeight: 3,
+                              ),
+                            ),
+                            const SizedBox(width: Spacing.sm),
                             Text(
-                              details,
+                              widget.book.progressLabel,
                               style: Theme.of(
                                 context,
                               ).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
                             ),
                           ],
-                          if (job.progress case final progress?) ...[
-                            const SizedBox(height: Spacing.xs),
-                            AppLinearProgressIndicator(
-                              value: progress,
-                              backgroundColor: colorScheme.surfaceContainerHighest,
-                              color: job.requiresAttention ? colorScheme.error : colorScheme.primary,
-                              minHeight: 3,
-                            ),
-                          ],
-                        ] else if (widget.showProgress && widget.book.currentPosition > 0) ...[
-                          const SizedBox(height: Spacing.xs),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: AppLinearProgressIndicator(
-                                  value: widget.book.currentPosition,
-                                  backgroundColor: colorScheme.surfaceContainerHighest,
-                                  color: widget.book.readingStatus == LibraryReadingStatus.completed
-                                      ? colorScheme.tertiary
-                                      : colorScheme.primary,
-                                  minHeight: 3,
-                                ),
-                              ),
-                              const SizedBox(width: Spacing.sm),
-                              Text(
-                                widget.book.progressLabel,
-                                style: Theme.of(
-                                  context,
-                                ).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ],
-                    ),
-                  ),
-
-                  if (!inSelection && !isAcquisition)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const SizedBox(width: Spacing.xs),
-                        IconButton(
-                          style: IconButton.styleFrom(
-                            minimumSize: const Size.square(TouchTargets.mobileRecommended),
-                          ),
-                          onPressed: widget.onToggleFavorite == null
-                              ? null
-                              : () => widget.onToggleFavorite!(widget.isFavorite),
-                          tooltip: widget.isFavorite ? 'Remove from favorites' : 'Add to favorites',
-                          isSelected: widget.isFavorite,
-                          icon: const Icon(Icons.favorite_border),
-                          selectedIcon: const Icon(Icons.favorite),
-                          color: widget.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant,
                         ),
-                        // Overflow menu - show on hover (desktop only)
-                        if (_isDesktop)
-                          AnimatedOpacity(
-                            key: ValueKey(AppMotion.disabled(context)),
-                            opacity: _isHovered ? 1.0 : 0.0,
-                            duration: AppMotion.duration(context, const Duration(milliseconds: 150)),
-                            child: IconButton(
-                              icon: const Icon(Icons.more_vert),
-                              iconSize: IconSizes.action,
-                              onPressed: () => showBookContextMenu(
-                                context: context,
-                                book: widget.book,
-                                onRemoveFromShelf: widget.onRemoveFromShelf,
-                              ),
-                              tooltip: 'More options',
-                              visualDensity: VisualDensity.compact,
-                            ),
-                          ),
                       ],
-                    ),
-                ],
-              ),
+                    ],
+                  ),
+                ),
+
+                if (!inSelection && !isAcquisition)
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(width: Spacing.xs),
+                      IconButton(
+                        style: IconButton.styleFrom(
+                          minimumSize: const Size.square(TouchTargets.mobileRecommended),
+                        ),
+                        onPressed: widget.onToggleFavorite == null
+                            ? null
+                            : () => widget.onToggleFavorite!(widget.isFavorite),
+                        tooltip: widget.isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                        isSelected: widget.isFavorite,
+                        icon: const Icon(Icons.favorite_border),
+                        selectedIcon: const Icon(Icons.favorite),
+                        color: widget.isFavorite ? colorScheme.error : colorScheme.onSurfaceVariant,
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.more_vert),
+                        iconSize: IconSizes.action,
+                        onPressed: () => showBookContextMenu(
+                          context: context,
+                          book: widget.book,
+                          onRemoveFromShelf: widget.onRemoveFromShelf,
+                        ),
+                        tooltip: 'More options',
+                        style: IconButton.styleFrom(minimumSize: const Size.square(TouchTargets.mobileRecommended)),
+                      ),
+                    ],
+                  ),
+              ],
             ),
           ),
         ),

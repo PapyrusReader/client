@@ -8,6 +8,7 @@ class PapyrusUser {
   final bool emailVerified;
   final DateTime? createdAt;
   final DateTime? lastLoginAt;
+  final List<String> connectedProviders;
 
   const PapyrusUser({
     required this.userId,
@@ -17,6 +18,7 @@ class PapyrusUser {
     required this.emailVerified,
     required this.createdAt,
     required this.lastLoginAt,
+    this.connectedProviders = const [],
   });
 
   factory PapyrusUser.fromJson(Map<String, dynamic> json) {
@@ -28,6 +30,7 @@ class PapyrusUser {
       emailVerified: json['email_verified'] as bool? ?? false,
       createdAt: _parseDateTime(json['created_at']),
       lastLoginAt: _parseDateTime(json['last_login_at']),
+      connectedProviders: List<String>.unmodifiable(json['connected_providers'] as List),
     );
   }
 }
@@ -75,4 +78,33 @@ DateTime? _parseDateTime(Object? value) {
   }
 
   return DateTime.tryParse(value);
+}
+
+class AccountDeletionAuthorization {
+  final String token;
+  final String userId;
+  final String? email;
+  final bool deletionPending;
+  final DateTime deletionDueAt;
+  final DateTime expiresAt;
+
+  const AccountDeletionAuthorization({
+    required this.token,
+    required this.userId,
+    required this.email,
+    required this.deletionPending,
+    required this.deletionDueAt,
+    required this.expiresAt,
+  });
+
+  factory AccountDeletionAuthorization.fromJson(Map<String, dynamic> json) {
+    return AccountDeletionAuthorization(
+      token: json['authorization_token'] as String,
+      userId: json['user_id'] as String,
+      email: json['email'] as String?,
+      deletionPending: json['deletion_pending'] as bool,
+      deletionDueAt: DateTime.parse(json['deletion_due_at'] as String),
+      expiresAt: DateTime.parse(json['expires_at'] as String),
+    );
+  }
 }

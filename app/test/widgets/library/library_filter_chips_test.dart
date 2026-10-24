@@ -40,6 +40,44 @@ void main() {
       await tester.pumpWidget(buildChips());
     }
 
+    testWidgets('filter launcher has one button role and scales its label', (tester) async {
+      final semantics = tester.ensureSemantics();
+      try {
+        await tester.binding.setSurfaceSize(const Size(320, 720));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(
+          createTestApp(
+            libraryProvider: libraryProvider,
+            child: const MediaQuery(
+              data: MediaQueryData(size: Size(320, 720), textScaler: TextScaler.linear(4)),
+              child: LibraryFilterChips(),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final launcher = find.bySemanticsLabel('View mode: Grid');
+        expect(launcher, findsOneWidget);
+        expect(
+          tester.getSemantics(launcher),
+          isSemantics(
+            isButton: true,
+            hasCheckedState: false,
+            hasTapAction: true,
+            isFocusable: true,
+          ),
+        );
+        final label = find.text('Grid');
+        expect(MediaQuery.textScalerOf(tester.element(label)).scale(14), 56);
+        expect(tester.getSize(find.byType(LibraryFilterChips)).height, greaterThan(48));
+        await tester.tap(label);
+        await tester.pumpAndSettle();
+        expect(find.text('View mode'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      } finally {
+        semantics.dispose();
+      }
+    });
+
     testWidgets('renders the current filter, sort, and view categories', (tester) async {
       await pumpChips(tester);
       expect(find.text('Status'), findsOneWidget);
@@ -65,11 +103,15 @@ void main() {
       expect(container.height, 48);
     });
 
-    testWidgets('shows active multi-select categories first with a count label', (tester) async {
+    testWidgets('keeps view mode before active multi-select categories', (tester) async {
       libraryProvider.setStatusFilters({LibraryReadingStatus.inProgress, LibraryReadingStatus.completed});
       await pumpChips(tester);
       expect(find.text('Status · 2'), findsOneWidget);
       expect(libraryProvider.activeFilterCount, 1);
+      expect(tester.getRect(find.text('Grid')).left, lessThan(tester.getRect(find.text('Status · 2')).left));
+      libraryProvider.setViewMode(LibraryViewMode.list);
+      await tester.pumpAndSettle();
+      expect(tester.getRect(find.text('List')).left, lessThan(tester.getRect(find.text('Status · 2')).left));
     });
 
     testWidgets('favorite selection sheet updates the shared filter model', (tester) async {

@@ -11,6 +11,9 @@ class Spacing {
   static const double xl = 32.0;
   static const double xxl = 48.0;
 
+  /// Standard 56-pixel FAB plus its bottom margin and a small content gap.
+  static const double fabClearance = 56.0 + lg;
+
   // Common combinations
   static const double buttonPaddingHorizontal = 24.0;
   static const double buttonPaddingVertical = 12.0;
@@ -128,6 +131,7 @@ class ComponentSizes {
   // Card widths
   static const double authCardWidth = 480.0;
   static const double authCardPadding = 48.0;
+  static const double dialogMaxWidth = 560.0;
 
   // Auth layout (split-screen)
   static const double authHeroMinWidth = 400.0;

@@ -4,11 +4,14 @@ import 'package:flutter/foundation.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/auth/auth_models.dart';
 import 'package:papyrus/auth/auth_repository.dart';
+import 'package:papyrus/services/guest_profile_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthProvider extends ChangeNotifier {
   AuthRepository _repository;
   final SharedPreferences _prefs;
+  final GuestProfileStore _guestProfile;
+  Future<bool>? _guestProfileWrite;
 
   static const _keyOfflineMode = 'offline_mode';
 
@@ -21,9 +24,19 @@ class AuthProvider extends ChangeNotifier {
   bool _isOfflineMode = false;
   bool get isOfflineMode => _isOfflineMode;
 
+  bool _isDeletingGuestAccount = false;
+  bool get isDeletingGuestAccount => _isDeletingGuestAccount;
+
   bool get isBootstrapping => _status == AuthStatus.bootstrapping;
 
   bool get isSignedIn => _user != null && _status == AuthStatus.signedIn;
+
+  bool get canEditProfile => !_isDeletingGuestAccount && (isSignedIn || (_isOfflineMode && _user == null));
+
+  String get profileDisplayName =>
+      _isOfflineMode ? _guestProfile.displayName : _user?.displayName ?? GuestProfileStore.defaultDisplayName;
+
+  Uint8List? get profilePhotoBytes => _isOfflineMode ? _guestProfile.photoBytes : null;
 
   bool get isLoading {
     return _status == AuthStatus.bootstrapping ||
@@ -31,11 +44,24 @@ class AuthProvider extends ChangeNotifier {
         _status == AuthStatus.refreshing;
   }
 
+  AccountDeletionAuthorization? _pendingRecovery;
+
+  AccountDeletionAuthorization? takePendingRecovery() {
+    final authorization = _pendingRecovery;
+    _pendingRecovery = null;
+    return authorization;
+  }
+
   String? _error;
   String? get error => _error;
 
-  AuthProvider(this._prefs, {required AuthRepository repository, bool bootstrapOnCreate = true})
-    : _repository = repository {
+  AuthProvider(
+    this._prefs, {
+    required AuthRepository repository,
+    bool bootstrapOnCreate = true,
+    GuestProfileStore? guestProfileStore,
+  }) : _repository = repository,
+       _guestProfile = guestProfileStore ?? GuestProfileStore(_prefs) {
     _isOfflineMode = _prefs.getBool(_keyOfflineMode) ?? false;
 
     if (bootstrapOnCreate) {
@@ -45,6 +71,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<void> replaceRepository(AuthRepository repository, {bool bootstrapNewRepository = true}) async {
     _repository = repository;
+    _pendingRecovery = null;
     _user = null;
     _error = null;
 
@@ -57,6 +84,12 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> bootstrap() async {
+    if (_isOfflineMode) {
+      _user = null;
+      _setStatus(AuthStatus.signedOut);
+      return;
+    }
+
     _setStatus(AuthStatus.bootstrapping);
 
     try {
@@ -90,6 +123,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> signInWithGoogle() async {
+    _pendingRecovery = null;
     _setStatus(AuthStatus.authenticating);
     _error = null;
 
@@ -107,6 +141,7 @@ class AuthProvider extends ChangeNotifier {
       return true;
     } catch (error) {
       _user = null;
+      _pendingRecovery = error is AuthApiException ? error.recoveryAuthorization : null;
       _error = _messageFor(error);
       _setStatus(AuthStatus.authError);
       return false;
@@ -150,17 +185,161 @@ class AuthProvider extends ChangeNotifier {
     _setStatus(AuthStatus.signedOut);
   }
 
-  Future<bool> updateProfile({required String displayName, String? avatarUrl}) async {
+  Future<bool> updateProfile({required String displayName, String? avatarUrl, Uint8List? photoBytes}) async {
+    if (_isOfflineMode && _user == null) {
+      if (!canEditProfile || _guestProfileWrite != null) {
+        return false;
+      }
+
+      final operation = _saveGuestProfile(displayName, photoBytes);
+      _guestProfileWrite = operation;
+
+      try {
+        return await operation;
+      } finally {
+        _guestProfileWrite = null;
+      }
+    }
+
+    final repository = _repository;
+    final userId = _user?.userId;
+
+    if (!isSignedIn) {
+      return false;
+    }
+
     try {
-      _user = await _repository.updateCurrentUser(displayName: displayName, avatarUrl: avatarUrl);
+      final updatedUser = photoBytes == null
+          ? await repository.updateCurrentUser(displayName: displayName, avatarUrl: avatarUrl)
+          : await repository.uploadProfilePhoto(photoBytes, displayName: displayName);
+
+      if (!identical(_repository, repository) || _user?.userId != userId || !isSignedIn) {
+        return false;
+      }
+
+      _user = updatedUser;
       _error = null;
       notifyListeners();
       return true;
     } catch (error) {
+      if (!identical(_repository, repository) || _user?.userId != userId || !isSignedIn) {
+        return false;
+      }
+
       _error = _messageFor(error);
       notifyListeners();
       return false;
     }
+  }
+
+  Future<Uint8List> downloadProfilePhoto(String avatarUrl) => _repository.downloadProfilePhoto(avatarUrl);
+
+  Future<bool> _saveGuestProfile(String displayName, Uint8List? photoBytes) async {
+    try {
+      await _guestProfile.save(displayName: displayName, photoBytes: photoBytes);
+
+      if (!_isOfflineMode || _user != null) {
+        return false;
+      }
+
+      _error = null;
+      notifyListeners();
+      return true;
+    } catch (_) {
+      if (_isOfflineMode && _user == null) {
+        _error = 'Could not save your profile on this device. Please try again.';
+        notifyListeners();
+      }
+
+      return false;
+    }
+  }
+
+  Future<DateTime?> deleteAccount() async {
+    final repository = _repository;
+    final userId = _user?.userId;
+    final deadline = await repository.deleteAccount();
+
+    try {
+      await repository.clearTokens();
+    } finally {
+      if (identical(_repository, repository) && _user?.userId == userId) {
+        _user = null;
+        _error = null;
+        _pendingRecovery = null;
+        _setStatus(AuthStatus.signedOut);
+      }
+    }
+
+    return identical(_repository, repository) ? deadline : null;
+  }
+
+  Future<void> deleteGuestAccount(Future<void> Function() clearLocalData) async {
+    if (!_isOfflineMode || _user != null || _isDeletingGuestAccount) {
+      throw StateError('Only the active anonymous account can be deleted.');
+    }
+
+    _isDeletingGuestAccount = true;
+    final repository = _repository;
+    notifyListeners();
+
+    try {
+      await _guestProfileWrite;
+      await clearLocalData();
+
+      if (!identical(_repository, repository) || _user != null || !_isOfflineMode) {
+        throw StateError('The active account changed during deletion.');
+      }
+
+      await _guestProfile.clear();
+
+      if (!identical(_repository, repository) || _user != null || !_isOfflineMode) {
+        throw StateError('The active account changed during deletion.');
+      }
+
+      if (!await _prefs.setBool(_keyOfflineMode, false)) {
+        throw StateError('Could not leave anonymous mode.');
+      }
+
+      _isOfflineMode = false;
+      _error = null;
+      _pendingRecovery = null;
+      _setStatus(AuthStatus.signedOut);
+    } finally {
+      _isDeletingGuestAccount = false;
+      notifyListeners();
+    }
+  }
+
+  Future<bool> recoverAccount(AccountDeletionAuthorization authorization) async {
+    final repository = _repository;
+
+    if (_user != null && _user!.userId != authorization.userId) {
+      throw const AuthApiException(statusCode: 403, message: 'The active account has changed.');
+    }
+
+    final tokens = await repository.recoverAccount(
+      authorization,
+      clientType: _clientType,
+      deviceLabel: _deviceLabel,
+    );
+
+    if (!identical(_repository, repository)) {
+      return false;
+    }
+
+    await _prefs.setBool(_keyOfflineMode, false);
+
+    if (!identical(_repository, repository)) {
+      return false;
+    }
+
+    _user = tokens.user;
+    _isOfflineMode = false;
+    _error = null;
+    _pendingRecovery = null;
+    _setStatus(AuthStatus.signedIn);
+    return true;
   }
 
   Future<String?> forgotPassword(String email) {
@@ -218,6 +397,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> _runTokenAction(Future<AuthTokens> Function() action) async {
+    _pendingRecovery = null;
     _setStatus(AuthStatus.authenticating);
     _error = null;
 
@@ -229,6 +409,7 @@ class AuthProvider extends ChangeNotifier {
       _setStatus(AuthStatus.signedIn);
       return true;
     } catch (error) {
+      _pendingRecovery = error is AuthApiException ? error.recoveryAuthorization : null;
       _error = _messageFor(error);
       _setStatus(AuthStatus.authError);
       return false;
@@ -236,6 +417,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<String?> _runMessageAction(Future<String> Function() action) async {
+    _pendingRecovery = null;
     _setStatus(AuthStatus.authenticating);
     _error = null;
 

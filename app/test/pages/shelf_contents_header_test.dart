@@ -36,25 +36,36 @@ void main() {
         );
 
         await tester.pumpAndSettle();
-        final edit = width < 840 ? find.byTooltip('Edit') : find.widgetWithText(TextButton, 'Edit');
+        final options = width < 840 ? find.byTooltip('Shelf options') : find.widgetWithText(TextButton, 'Edit');
         final back = find.byTooltip('Back to shelves');
         final search = find.byType(LibrarySearchBar);
         expect(find.text(description), findsNothing);
         expect(find.text('Add a description'), findsNothing);
-        expect(tester.getCenter(edit).dy, tester.getCenter(back).dy);
-        expect(tester.getRect(edit).right, width - (width < 840 ? 16 : 24));
-        expect(tester.getRect(search).top - tester.getRect(edit).bottom, scale == 2 ? 24 : 16);
+        expect(tester.getCenter(options).dy, tester.getCenter(back).dy);
+        expect(find.byTooltip('Select all').hitTestable(), findsNothing);
+        expect(find.byTooltip('Deselect all').hitTestable(), findsNothing);
+        expect(tester.getRect(search).top - tester.getRect(options).bottom, scale == 2 ? 24 : 16);
         expect(tester.takeException(), isNull);
-        final info = width < 840 ? find.byTooltip('Details') : find.widgetWithText(TextButton, 'Details');
-        expect(tester.getCenter(info).dy, tester.getCenter(back).dy);
+        if (width < 840) {
+          await tester.tap(options);
+          await tester.pumpAndSettle();
+        }
+
+        final info = width < 840 ? find.text('Details') : find.widgetWithText(TextButton, 'Details');
         await tester.tap(info);
         await tester.pumpAndSettle();
         expect(find.byType(ShelfInfoSheet), findsOneWidget);
         expect(find.text(description), findsOneWidget);
-        expect(find.text('0 books'), findsNothing);
+        expect(find.text('0 books'), findsOneWidget);
         expect(tester.takeException(), isNull);
         Navigator.of(tester.element(find.byType(ShelfInfoSheet))).pop();
         await tester.pumpAndSettle();
+        if (width < 840) {
+          await tester.tap(options);
+          await tester.pumpAndSettle();
+        }
+
+        final edit = width < 840 ? find.text('Edit') : find.widgetWithText(TextButton, 'Edit');
         await tester.tap(edit);
         await tester.pumpAndSettle();
 

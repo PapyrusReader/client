@@ -31,7 +31,7 @@ class BookCollectionScrollView extends StatelessWidget {
         )
       else
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
+          padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md + Spacing.fabClearance),
           sliver: SliverList.separated(
             itemCount: itemCount,
             itemBuilder: itemBuilder,

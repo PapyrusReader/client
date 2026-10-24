@@ -165,6 +165,16 @@ class OpdsResourceCache extends ChangeNotifier {
 
   String _serialize() => jsonEncode({'version': 1, 'entries': _entries.values.toList()});
 
+  Future<void> clearScope(String scope) {
+    if (_scope == scope) {
+      _epoch++;
+    }
+
+    _entries.removeWhere((key, _) => (jsonDecode(key) as List).first == scope);
+    notifyListeners();
+    return _persist();
+  }
+
   void _trim() {
     while (_entries.isNotEmpty && (_entries.length > maxEntries || utf8.encode(_serialize()).length > maxBytes)) {
       _entries.remove(_entries.keys.first);

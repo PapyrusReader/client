@@ -1,13 +1,81 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/themes/app_theme.dart';
+import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
 import 'package:papyrus/widgets/shared/app_motion_control.dart';
 
 void main() {
   final themes = {'light': AppTheme.light, 'dark': AppTheme.dark, 'eink': AppTheme.eink};
   ToggleableStateMixin toggleState(WidgetTester tester) => tester.allStates.whereType<ToggleableStateMixin>().single;
+
+  testWidgets('changing reduced motion keeps settings focus visible and keyboard activation working', (tester) async {
+    final reducedMotion = ValueNotifier(false);
+    final key = GlobalKey();
+    addTearDown(reducedMotion.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: ValueListenableBuilder<bool>(
+          valueListenable: reducedMotion,
+          builder: (context, reduced, _) => AppMotionScope(
+            reduceAnimations: reduced,
+            child: Scaffold(
+              body: RepaintBoundary(
+                key: key,
+                child: Material(
+                  child: SettingsToggleRow(
+                    label: 'Reduce animations',
+                    value: reduced,
+                    onChanged: (value) => reducedMotion.value = value,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    Future<Uint8List> pixels() async {
+      final boundary = key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+
+      return (await tester.runAsync(() async {
+        final image = await boundary.toImage();
+        final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+        image.dispose();
+        return bytes!.buffer.asUint8List();
+      }))!;
+    }
+
+    await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+    await tester.pumpAndSettle();
+    final focus = Focus.of(tester.element(find.text('Reduce animations')));
+    expect(focus.hasPrimaryFocus, isTrue);
+
+    for (final expected in [true, false, true]) {
+      await tester.sendKeyEvent(LogicalKeyboardKey.space);
+      await tester.pumpAndSettle();
+      expect(reducedMotion.value, expected);
+      expect(focus.hasPrimaryFocus, isTrue);
+      final focused = await pixels();
+      focus.unfocus();
+      await tester.pumpAndSettle();
+      expect(
+        listEquals(focused, await pixels()),
+        isFalse,
+        reason: 'Focus must remain visible with reduced motion $expected',
+      );
+      focus.requestFocus();
+      await tester.pumpAndSettle();
+    }
+  });
 
   testWidgets('chip motion refreshes across theme switches and retains keyboard focus', (tester) async {
     final theme = ValueNotifier(AppTheme.light);

@@ -32,12 +32,18 @@ class AuthContinueButton extends StatelessWidget {
           ? SizedBox(
               width: 24,
               height: 24,
-              child: AppCircularProgressIndicator(strokeWidth: 2, color: theme.colorScheme.onPrimary),
+              child: AppCircularProgressIndicator(
+                semanticsLabel: 'Please wait',
+                strokeWidth: 2,
+                color: theme.colorScheme.onPrimary,
+              ),
             )
           : Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Text('Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                const Flexible(
+                  child: Text('Continue', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
+                ),
                 const SizedBox(width: Spacing.sm),
                 Icon(Icons.arrow_forward, size: IconSizes.medium, color: theme.colorScheme.onPrimary),
               ],

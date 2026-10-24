@@ -6,6 +6,7 @@ class PasswordInput extends StatefulWidget {
   /// Label text displayed for the input field
   final String labelText;
   final Listenable? validationDependency;
+  final Iterable<String> autofillHints;
 
   /// Optional text controller for the input
   final TextEditingController? controller;
@@ -31,6 +32,7 @@ class PasswordInput extends StatefulWidget {
     this.extraValidator,
     required this.labelText,
     this.validationDependency,
+    this.autofillHints = const [AutofillHints.password],
     this.focusNode,
     this.onEditingComplete,
     this.textInputAction,
@@ -57,6 +59,7 @@ class _PasswordInputState extends State<PasswordInput> {
         border: const OutlineInputBorder(),
         labelText: widget.labelText,
         suffixIcon: IconButton(
+          tooltip: _isTextHidden ? 'Show password' : 'Hide password',
           onPressed: _toggleVisibility,
           icon: Icon(
             _isTextHidden ? Icons.visibility_outlined : Icons.visibility_off_outlined,
@@ -64,6 +67,7 @@ class _PasswordInputState extends State<PasswordInput> {
           ),
         ),
       ),
+      autofillHints: widget.autofillHints,
       obscureText: _isTextHidden,
       enableSuggestions: false,
       autocorrect: false,

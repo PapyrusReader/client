@@ -1,7 +1,7 @@
 name: papyrus
 description: "Digital library management application."
 publish_to: 'none'
-version: 0.0.4+4
+version: 0.1.0+5
 
 environment:
   sdk: ^3.9.2
@@ -48,6 +48,8 @@ dependencies:
   uuid: ^4.5.1
   timezone: ^0.11.1
   flutter_timezone: ^5.1.1
+  package_info_plus: ^8.3.1
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:
@@ -74,8 +76,19 @@ flutter:
     - assets/images/book_placeholder.jpg
     - assets/images/auth-illustration.png
     - assets/images/welcome-illustration.png
+    - fonts/OpenDyslexic/OFL.txt
 
   fonts:
     - family: MadimiOne
       fonts:
         - asset: fonts/MadimiOne-Regular.ttf
+    - family: OpenDyslexic
+      fonts:
+        - asset: fonts/OpenDyslexic/OpenDyslexic-Regular.otf
+        - asset: fonts/OpenDyslexic/OpenDyslexic-Bold.otf
+          weight: 700
+        - asset: fonts/OpenDyslexic/OpenDyslexic-Italic.otf
+          style: italic
+        - asset: fonts/OpenDyslexic/OpenDyslexic-BoldItalic.otf
+          weight: 700
+          style: italic

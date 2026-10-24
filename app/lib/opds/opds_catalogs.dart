@@ -118,6 +118,16 @@ class OpdsCatalogs extends ChangeNotifier {
     }
   }
 
+  Future<void> clearScope(String scope) async {
+    await cache?.clearScope(scope);
+    await library?.clearScope(scope);
+    await store.clearScope(scope);
+
+    if (_scope == scope && !_disposed) {
+      reload();
+    }
+  }
+
   @override
   void dispose() {
     _disposed = true;
