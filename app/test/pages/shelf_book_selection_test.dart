@@ -14,6 +14,7 @@ import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/library/book_card.dart';
 import 'package:papyrus/widgets/library/book_list_item.dart';
+import 'package:papyrus/widgets/library/library_filter_chips.dart';
 import 'package:provider/provider.dart';
 
 import '../helpers/test_helpers.dart';
@@ -299,6 +300,71 @@ void main() {
     expect(store.getBooksInShelf('shelf').length, 3);
   });
 
+  for (final viewMode in LibraryViewMode.values) {
+    for (final (width, scale, eink) in [(400.0, 1.0, false), (320.0, 2.0, true), (1200.0, 2.0, true)]) {
+      testWidgets('$viewMode shelf selection keeps header and search stable at $width/$scale', (tester) async {
+        library.setViewMode(viewMode);
+
+        for (final id in ['one', 'two', 'three']) {
+          repository.relations.add(BookShelfRelation(bookId: id, shelfId: 'shelf', addedAt: DateTime.now()));
+        }
+
+        await mount(tester, width: width, scale: scale, eink: eink);
+        final selection = tester.element(find.byType(LibraryPage)).read<LibraryProvider>();
+        final titleRect = tester.getRect(find.text('Weekend reading'));
+        final searchRect = tester.getRect(find.byType(TextField));
+        final filterRect = tester.getRect(find.byType(LibraryFilterChips));
+        await tester.enterText(find.byType(TextField), 'First');
+        await tester.pumpAndSettle();
+        final searchState = tester.state(find.byType(TextField));
+        expect(find.byTooltip('Select all').hitTestable(), findsNothing);
+        selection.enterSelectionMode('one');
+        await tester.pumpAndSettle();
+        expect(selection.isSelectionMode, isTrue);
+        expect(selection.selectedBookIds, {'one'});
+        expect(find.textContaining(' selected'), findsNothing);
+        expect(find.byTooltip('Deselect all').hitTestable(), findsOneWidget);
+
+        if (width < 840) {
+          expect(
+            tester.getRect(find.byTooltip('Deselect all')).right,
+            lessThanOrEqualTo(tester.getRect(find.byTooltip('Shelf options')).left),
+          );
+        }
+
+        expect(tester.getRect(find.text('Weekend reading')), titleRect);
+        expect(tester.getRect(find.byType(TextField)), searchRect);
+        expect(tester.getRect(find.byType(LibraryFilterChips)), filterRect);
+        expect(tester.state(find.byType(TextField)), same(searchState));
+        expect(tester.widget<TextField>(find.byType(TextField)).controller!.text, 'First');
+        expect(find.byTooltip('Remove from shelf'), findsOneWidget);
+
+        await tester.enterText(find.byType(TextField), 'Second');
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Select all'));
+        await tester.pumpAndSettle();
+        expect(selection.selectedBookIds, {'one', 'two'});
+        await tester.tap(find.byTooltip('Deselect all'));
+        await tester.pumpAndSettle();
+        expect(selection.selectedBookIds, {'one'});
+        expect(selection.isSelectionMode, isTrue);
+        await tester.tap(find.byTooltip('Exit selection'));
+        await tester.pumpAndSettle();
+        expect(selection.isSelectionMode, isFalse);
+        expect(selection.selectedBookIds, isEmpty);
+        expect(find.byTooltip('Select all').hitTestable(), findsNothing);
+        expect(find.byTooltip('Deselect all').hitTestable(), findsNothing);
+        expect(find.byTooltip('Back to shelves'), findsOneWidget);
+        expect(find.byTooltip('Remove from shelf'), findsNothing);
+        expect(tester.getRect(find.text('Weekend reading')), titleRect);
+        expect(tester.getRect(find.byType(TextField)), searchRect);
+        expect(tester.getRect(find.byType(LibraryFilterChips)), filterRect);
+        expect(repository.writes, isEmpty);
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
   for (final width in [400.0, 1200.0]) {
     testWidgets('shelf selection removes membership without deleting books at $width', (tester) async {
       for (final id in ['one', 'two']) {
@@ -309,7 +375,8 @@ void main() {
       await mount(tester, width: width);
       final selection = tester.element(find.byType(LibraryPage)).read<LibraryProvider>();
       selection.enterSelectionMode('one');
-      selection.selectAll(['two']);
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Select all'));
       await tester.pumpAndSettle();
       expect(find.byTooltip('Delete'), findsNothing);
       expect(find.byTooltip('Remove from shelf'), findsOneWidget);
