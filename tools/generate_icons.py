@@ -96,7 +96,8 @@ def installer_sidebar(source):
     canvas = Image.new("RGB", (656, 1256), "#f4f3fa")
     emblem = icon(source, 440, 0.9)
     canvas.paste(emblem, ((canvas.width - emblem.width) // 2, 300), emblem)
-    font = ImageFont.truetype(str(APP / "fonts/MadimiOne-Regular.ttf"), 88)
+    # Pillow wheels differ in optional RAQM support, so choose one layout engine.
+    font = ImageFont.truetype(str(APP / "fonts/MadimiOne-Regular.ttf"), 88, layout_engine=ImageFont.Layout.BASIC)
     ImageDraw.Draw(canvas).text((canvas.width // 2, 790), "Papyrus", font=font, fill="#3e3c8f", anchor="mt")
     return canvas
 
