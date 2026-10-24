@@ -31,6 +31,7 @@ storage, offline libraries and accounts are not cleared by deployment.
 Download `papyrus-vVERSION+BUILD-windows-x64-setup.exe` and run it as your normal
 user. It installs under your user profile, adds a Start menu shortcut and can
 upgrade an existing installation. Close Papyrus before upgrading.
+Setup offers an optional desktop shortcut, unchecked on a fresh installation.
 
 The installer is unsigned: Windows may show an unknown-publisher/SmartScreen
 warning. Verify the GitHub source and checksum before choosing to continue.

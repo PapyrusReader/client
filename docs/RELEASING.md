@@ -162,6 +162,18 @@ only when needed. Test a clean Windows x64 machine both with and without WebView
 then upgrade and uninstall while retaining a real library. No trusted signing
 service, Microsoft Store submission or automatic desktop updater is configured.
 
+The Windows packaging workflow also runs on app changes and supports manual
+dispatch. It saves a `windows-preview-RUN_ID` artifact of the production entrypoint
+with public production endpoints before compiling the instrumented test entrypoint.
+Both installer and ZIP are checked against the build bundle and launched, including
+the visible window title. The instrumented packages exercise reader and persistence
+behavior separately. Follow [Windows release acceptance](WINDOWS_TESTING.md) for
+real-machine checks, including upgrading from the currently published release.
+
+Keep the executable's `CompanyName=com.papyrus` and `ProductName=papyrus` stable:
+Windows path and credential plugins use them to locate existing user data.
+The window title and `FileDescription` provide the capitalized display name.
+
 Packaging PR checks need no production credentials. The release packaging jobs
 use the production endpoints, preserve the signed Android bundle alignment
 checks, and only publish after every required build/package job succeeds.

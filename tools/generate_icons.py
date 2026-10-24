@@ -13,13 +13,15 @@ Run from the client repository:
 The canonical emblem is app/assets/images/logo-icon-light.svg (128.41 by
 143.18). Square canvases add padding to preserve its proportions. The check
 runs in CI and validates artwork, dimensions, Apple catalog slots, web manifest
-sizes, opaque iOS backgrounds, Windows ICO frames and mask safe zones.
+sizes, opaque iOS backgrounds, Windows ICO frames, installer artwork and mask safe zones.
 
 Android uses 48 dp legacy icons and 108 dp adaptive foregrounds with artwork
 inside the central 66 dp safe circle. Web maskable icons use opaque backgrounds
 and an 80% diameter safe circle. macOS uses a padded plate. Windows and ordinary
 web icons retain transparency. Linux packaging fits the generated
 assets/images/logo.png into a 256-pixel square without changing its proportions.
+Windows setup uses opaque BMP artwork at four times the classic wizard size:
+a 164:314 sidebar and a square header, both generated from the same emblem.
 
 Platform specifications:
     https://developer.android.com/develop/ui/compose/system/icon_design_adaptive
@@ -35,7 +37,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageStat
+from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageStat
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
@@ -90,6 +92,15 @@ def catalog_icons(platform):
         yield directory / entry["filename"], int(width * scale)
 
 
+def installer_sidebar(source):
+    canvas = Image.new("RGB", (656, 1256), "#f4f3fa")
+    emblem = icon(source, 440, 0.9)
+    canvas.paste(emblem, ((canvas.width - emblem.width) // 2, 300), emblem)
+    font = ImageFont.truetype(str(APP / "fonts/MadimiOne-Regular.ttf"), 88)
+    ImageDraw.Draw(canvas).text((canvas.width // 2, 790), "Papyrus", font=font, fill="#3e3c8f", anchor="mt")
+    return canvas
+
+
 def outputs(source):
     images = {}
 
@@ -116,6 +127,9 @@ def outputs(source):
         (round(source.width * 1581 / source.height), 1581),
         Image.Resampling.LANCZOS,
     )
+
+    images[ROOT / "packaging/windows/assets/wizard.bmp"] = installer_sidebar(source)
+    images[ROOT / "packaging/windows/assets/wizard-small.bmp"] = icon(source, 232, 0.8, "white")
 
     return images
 
@@ -196,7 +210,7 @@ def main():
     else:
         frames[-1].save(path, sizes=[frame.size for frame in frames], append_images=frames[:-1])
 
-    print(f"{'Validated' if args.check else 'Generated'} {len(images)} PNGs and {len(frames)} Windows ICO frames")
+    print(f"{'Validated' if args.check else 'Generated'} {len(images)} platform images and {len(frames)} Windows ICO frames")
 
 
 if __name__ == "__main__":
