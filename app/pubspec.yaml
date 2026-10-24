@@ -1,7 +1,7 @@
 name: papyrus
 description: "Digital library management application."
 publish_to: 'none'
-version: 0.0.4+4
+version: 0.1.0+5
 
 environment:
   sdk: ^3.9.2
