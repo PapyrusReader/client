@@ -24,7 +24,7 @@ books before testing an upgrade with your usual account.
 ## Setup and appearance
 
 - Install as a normal user. Confirm the destination is under your user profile.
-- Check the Papyrus welcome/completion artwork and header logo at 100%, 150%,
+- Check the Papyrus welcome/completion artwork and header image at 100%, 150%,
   and 200% display scaling. Text and images should remain readable and proportional.
 - Leave **Create a desktop shortcut** unchecked and confirm no desktop shortcut
   appears. Re-run setup with it checked and launch Papyrus from the new shortcut.

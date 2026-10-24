@@ -3,7 +3,7 @@
 # requires-python = ">=3.10"
 # dependencies = ["pillow==12.0.0"]
 # ///
-"""Generate platform icons from the canonical SVG, or validate them with --check.
+"""Generate platform icons and setup artwork, or validate them with --check.
 
 Requires rsvg-convert (Homebrew librsvg / Debian librsvg2-bin).
 Run from the client repository:
@@ -21,7 +21,9 @@ and an 80% diameter safe circle. macOS uses a padded plate. Windows and ordinary
 web icons retain transparency. Linux packaging fits the generated
 assets/images/logo.png into a 256-pixel square without changing its proportions.
 Windows setup uses opaque BMP artwork at four times the classic wizard size:
-a 164:314 sidebar and a square header, both generated from the same emblem.
+a 164:314 sidebar and a square header cropped from the client's welcome-page
+illustration. The portrait crop favors the lamp and books on the left, while
+the header uses a closer view of that same scene. Neither crop stretches it.
 
 Platform specifications:
     https://developer.android.com/develop/ui/compose/system/icon_design_adaptive
@@ -37,7 +39,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageFont, ImageStat
+from PIL import Image, ImageChops, ImageDraw, ImageOps, ImageStat
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
@@ -92,14 +94,17 @@ def catalog_icons(platform):
         yield directory / entry["filename"], int(width * scale)
 
 
-def installer_sidebar(source):
-    canvas = Image.new("RGB", (656, 1256), "#f4f3fa")
-    emblem = icon(source, 440, 0.9)
-    canvas.paste(emblem, ((canvas.width - emblem.width) // 2, 300), emblem)
-    # Pillow wheels differ in optional RAQM support, so choose one layout engine.
-    font = ImageFont.truetype(str(APP / "fonts/MadimiOne-Regular.ttf"), 88, layout_engine=ImageFont.Layout.BASIC)
-    ImageDraw.Draw(canvas).text((canvas.width // 2, 790), "Papyrus", font=font, fill="#3e3c8f", anchor="mt")
-    return canvas
+def installer_artwork():
+    with Image.open(APP / "assets/images/welcome-illustration.png") as image:
+        scene = image.convert("RGB")
+
+    sidebar = ImageOps.fit(scene, (656, 1256), Image.Resampling.LANCZOS, centering=(0.2, 0.5))
+    lamp_and_books = scene.crop(
+        (round(scene.width * 0.1), round(scene.height * 0.15), round(scene.width * 0.55), round(scene.height * 0.75)),
+    )
+
+    header = ImageOps.fit(lamp_and_books, (232, 232), Image.Resampling.LANCZOS)
+    return sidebar, header
 
 
 def outputs(source):
@@ -129,8 +134,9 @@ def outputs(source):
         Image.Resampling.LANCZOS,
     )
 
-    images[ROOT / "packaging/windows/assets/wizard.bmp"] = installer_sidebar(source)
-    images[ROOT / "packaging/windows/assets/wizard-small.bmp"] = icon(source, 232, 0.8, "white")
+    sidebar, header = installer_artwork()
+    images[ROOT / "packaging/windows/assets/wizard.bmp"] = sidebar
+    images[ROOT / "packaging/windows/assets/wizard-small.bmp"] = header
 
     return images
 
@@ -144,7 +150,7 @@ def check_image(path, actual, expected):
     difference = ImageStat.Stat(ImageChops.difference(actual, expected))
 
     if max(difference.mean) > 0.5:
-        raise ValueError(f"{path}: artwork differs from the proportional SVG export")
+        raise ValueError(f"{path}: artwork differs from the expected source export")
 
 
 def check_safe_circle(image, radius):
