@@ -166,7 +166,7 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> with PersistentSave
               shrinkWrap: mobile,
               slivers: [
                 SliverPadding(
-                  padding: const EdgeInsets.all(Spacing.lg),
+                  padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg, Spacing.sm),
                   sliver: SliverToBoxAdapter(
                     child: SearchField(
                       controller: _searchController,
@@ -186,7 +186,7 @@ class _MoveToShelfSheetState extends State<MoveToShelfSheet> with PersistentSave
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
+                    padding: const EdgeInsets.fromLTRB(Spacing.lg, 0, Spacing.lg, Spacing.lg - Spacing.xs),
                     sliver: SliverList.builder(
                       itemCount: filtered.length,
                       itemBuilder: (context, index) => _buildShelfTile(context, filtered[index]),
