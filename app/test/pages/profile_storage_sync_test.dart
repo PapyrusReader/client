@@ -133,6 +133,7 @@ void main() {
     DataStore? dataStore,
     MediaUploadQueue? mediaUploadQueue,
     AcquisitionAvailabilityProvider? acquisitionAvailabilityProvider,
+    Widget Function(Widget page)? pageBuilder,
   }) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -170,7 +171,7 @@ void main() {
       child: MaterialApp(
         home: MediaQuery(
           data: MediaQueryData(size: screenSize),
-          child: const ProfilePage(),
+          child: pageBuilder?.call(const ProfilePage()) ?? const ProfilePage(),
         ),
       ),
     );
@@ -181,7 +182,7 @@ void main() {
     final service = _FakePowerSyncService(currentMode: LibraryDatabaseMode.guest, currentSyncState: const SyncState());
     await tester.pumpWidget(await buildPage(authProvider: auth, powerSyncService: service));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage'), 400);
+    await tester.scrollUntilVisible(find.text('Storage'), 400, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     expect(find.text('Stored on this device'), findsOneWidget);
     expect(find.text('Export or import a backup'), findsOneWidget);
@@ -224,7 +225,11 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.byKey(const Key('profile-acquisition-section')), 400);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('profile-acquisition-section')),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     final acquisitionSection = find.byKey(const Key('profile-acquisition-section'));
     expect(find.descendant(of: acquisitionSection, matching: find.text('Data sync')), findsNothing);
@@ -268,7 +273,11 @@ void main() {
     );
 
     await tester.pump();
-    await tester.scrollUntilVisible(find.byKey(const Key('profile-acquisition-section')), 400);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('profile-acquisition-section')),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pump();
     expect(find.text('Checking server support…'), findsOneWidget);
     completer.complete(_capabilities(enabled: true));
@@ -293,7 +302,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage'), 400);
+    await tester.scrollUntilVisible(find.text('Storage'), 400, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     final acquisitionSection = find.byKey(const Key('profile-acquisition-section'));
     expect(acquisitionSection, findsOneWidget);
@@ -456,7 +465,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage'), 400);
+    await tester.scrollUntilVisible(find.text('Storage'), 400, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Manage servers'));
     await tester.pumpAndSettle();
@@ -464,6 +473,60 @@ void main() {
     expect(find.text('Official server'), findsWidgets);
     expect(find.text('reader.example'), findsOneWidget);
     expect(find.text('Add custom server'), findsOneWidget);
+  });
+
+  testWidgets('manage servers blocks the sidebar outside the settings navigator', (tester) async {
+    const size = Size(1440, 900);
+    await tester.binding.setSurfaceSize(size);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final auth = await buildAuthProvider(signedIn: true);
+    final service = _FakePowerSyncService(
+      currentMode: LibraryDatabaseMode.authenticated,
+      currentSyncState: const SyncState(connected: true),
+    );
+    var sidebarActivations = 0;
+
+    await tester.pumpWidget(
+      await buildPage(
+        authProvider: auth,
+        powerSyncService: service,
+        screenSize: size,
+        pageBuilder: (page) => Scaffold(
+          body: Row(
+            children: [
+              SizedBox(
+                width: 240,
+                child: TextButton(
+                  onPressed: () => sidebarActivations++,
+                  child: const Text('Main sidebar'),
+                ),
+              ),
+              Expanded(
+                child: Navigator(onGenerateRoute: (_) => MaterialPageRoute<void>(builder: (_) => page)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(InkWell, 'Storage'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Manage servers'));
+    await tester.pumpAndSettle();
+    final barrier = find.byType(ModalBarrier).last;
+    expect(tester.getRect(barrier), Offset.zero & size);
+    await tester.tapAt(tester.getCenter(find.text('Main sidebar')));
+    await tester.pumpAndSettle();
+    expect(sidebarActivations, 0);
+    expect(find.text('Sync servers'), findsNothing);
+    await tester.tap(find.text('Manage servers'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Official server'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sync servers'), findsNothing);
+    expect(find.text('Manage servers'), findsOneWidget);
   });
 
   testWidgets('storage sync UI shows pending writes and sync errors', (tester) async {

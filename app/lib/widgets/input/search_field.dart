@@ -32,7 +32,7 @@ class SearchField extends StatelessWidget {
   /// [onChanged] with an empty string.
   final VoidCallback? onClear;
 
-  /// Height of the search field. Defaults to 40.
+  /// Minimum height of the search field, never below a 48-pixel touch target.
   final double? height;
 
   /// An optional action inside the field, after the clear button.
@@ -65,15 +65,16 @@ class SearchField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: height ?? 40,
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: (height ?? 48).clamp(48, double.infinity)),
       child: TextField(
         controller: controller,
         onChanged: onChanged,
         onSubmitted: onSubmitted,
         textInputAction: onSubmitted == null ? null : TextInputAction.search,
         decoration: InputDecoration(
-          hintText: hintText,
+          labelText: hintText,
+          floatingLabelBehavior: FloatingLabelBehavior.never,
           prefixIcon: const Icon(Icons.search, size: 20),
           suffixIcon: trailing == null && !_hasContent
               ? null
@@ -90,7 +91,7 @@ class SearchField extends StatelessWidget {
                   ],
                 ),
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
-          contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+          contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
           isDense: true,
         ),
       ),

@@ -234,6 +234,12 @@ class OpdsDownloads extends ChangeNotifier {
     _notify();
   }
 
+  Future<void> cancelAndWait() async {
+    final operations = _operations.values.toList();
+    reset();
+    await Future.wait(operations);
+  }
+
   void _notify() {
     if (!_disposed) {
       notifyListeners();

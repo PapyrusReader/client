@@ -4,7 +4,9 @@ import 'dart:convert';
 import 'package:http/http.dart' as http;
 
 import 'package:flutter/material.dart';
-import 'package:papyrus/themes/app_motion.dart';
+import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
+import 'package:papyrus/themes/app_accessibility.dart';
 import 'package:flutter_web_plugins/url_strategy.dart';
 import 'package:papyrus/acquisition/acquisition_api_client.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
@@ -24,6 +26,7 @@ import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_library.dart';
 import 'package:papyrus/opds/opds_resource_cache.dart';
 import 'package:papyrus/services/book_import_session.dart';
+import 'package:papyrus/services/guest_account_deletion_service.dart';
 import 'package:papyrus/platform/book_import_drop_registration.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/papyrus_powersync_connector.dart';
@@ -51,6 +54,11 @@ Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ensureBookImportDropPluginRegistered();
   usePathUrlStrategy();
+
+  LicenseRegistry.addLicense(() async* {
+    final license = await rootBundle.loadString('fonts/OpenDyslexic/OFL.txt');
+    yield LicenseEntryWithLineBreaks(['OpenDyslexic'], license);
+  });
 
   try {
     await GoalCalendar.deviceTimezone();
@@ -540,6 +548,15 @@ class _PapyrusState extends State<Papyrus> {
         ChangeNotifierProvider.value(value: _bookStorageStatusController),
         Provider.value(value: _powerSyncService),
         Provider.value(value: _bookImportService),
+        Provider(
+          create: (_) => GuestAccountDeletionService(
+            auth: _authProvider,
+            library: _powerSyncService,
+            files: _bookImportService,
+            catalogs: _opdsCatalogs,
+            downloads: _opdsDownloads,
+          ),
+        ),
         ChangeNotifierProvider.value(value: _opdsCatalogs),
         ChangeNotifierProvider.value(value: _opdsDownloads),
         Provider.value(value: _opdsHttpClient),
@@ -559,18 +576,34 @@ class _PapyrusState extends State<Papyrus> {
       child: Consumer<PreferencesProvider>(
         builder: (context, preferencesProvider, child) {
           final isEink = preferencesProvider.isEinkMode;
+          final lightTheme = preferencesProvider.increaseContrast ? AppTheme.highContrastLight : AppTheme.light;
+          final darkTheme = preferencesProvider.increaseContrast ? AppTheme.highContrastDark : AppTheme.dark;
 
           return MaterialApp.router(
             title: 'Papyrus',
             debugShowCheckedModeBanner: false,
-            theme: isEink ? AppTheme.eink : AppTheme.light,
-            darkTheme: isEink ? AppTheme.eink : AppTheme.dark,
+            theme: AppTheme.withTypography(
+              isEink ? AppTheme.eink : lightTheme,
+              dyslexiaFont: preferencesProvider.dyslexiaFont,
+            ),
+            darkTheme: AppTheme.withTypography(
+              isEink ? AppTheme.eink : darkTheme,
+              dyslexiaFont: preferencesProvider.dyslexiaFont,
+            ),
+            highContrastTheme: AppTheme.withTypography(
+              isEink ? AppTheme.eink : AppTheme.highContrastLight,
+              dyslexiaFont: preferencesProvider.dyslexiaFont,
+            ),
+            highContrastDarkTheme: AppTheme.withTypography(
+              isEink ? AppTheme.eink : AppTheme.highContrastDark,
+              dyslexiaFont: preferencesProvider.dyslexiaFont,
+            ),
             themeMode: isEink ? ThemeMode.light : preferencesProvider.themeMode,
-            themeAnimationDuration: isEink || preferencesProvider.reduceAnimations
+            themeAnimationDuration:
+                isEink || preferencesProvider.reduceAnimations || MediaQuery.disableAnimationsOf(context)
                 ? Duration.zero
                 : kThemeAnimationDuration,
-            builder: (context, child) =>
-                AppMotionScope(reduceAnimations: isEink || preferencesProvider.reduceAnimations, child: child!),
+            builder: (context, child) => AppAccessibilityScope(preferences: preferencesProvider, child: child!),
             routerConfig: _appRouter.router,
           );
         },

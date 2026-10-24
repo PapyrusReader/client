@@ -97,7 +97,7 @@ class _LoginPageState extends State<LoginPage> {
       snackBarAnimationStyle: AppMotion.animationStyle(context),
       SnackBar(
         duration: const Duration(seconds: 5),
-        content: Text(message),
+        content: Text(message, style: TextStyle(color: Theme.of(context).colorScheme.onError)),
         backgroundColor: Theme.of(context).colorScheme.error,
       ),
     );
@@ -188,41 +188,43 @@ class _LoginForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          EmailInput(
-            labelText: 'Email address',
-            controller: emailController,
-            focusNode: emailFocusNode,
-            textInputAction: TextInputAction.next,
-            onEditingComplete: () => passwordFocusNode.requestFocus(),
-          ),
-          const SizedBox(height: Spacing.md),
-          PasswordInput(
-            labelText: 'Password',
-            controller: passwordController,
-            focusNode: passwordFocusNode,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => onLogin(),
-          ),
-          const SizedBox(height: Spacing.sm),
-          Align(
-            alignment: Alignment.centerRight,
-            child: TextButton(
-              onPressed: () {
-                context.push('/forgot-password');
-              },
-              style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
-              child: const Text('Forgot password?', style: TextStyle(fontWeight: FontWeight.w500)),
+    return AutofillGroup(
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            EmailInput(
+              labelText: 'Email address',
+              controller: emailController,
+              focusNode: emailFocusNode,
+              textInputAction: TextInputAction.next,
+              onEditingComplete: () => passwordFocusNode.requestFocus(),
             ),
-          ),
-          const SizedBox(height: Spacing.sm),
-          AuthContinueButton(isLoading: isLoading, onPressed: onLogin, isDesktop: isDesktop),
-        ],
+            const SizedBox(height: Spacing.md),
+            PasswordInput(
+              labelText: 'Password',
+              controller: passwordController,
+              focusNode: passwordFocusNode,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => onLogin(),
+            ),
+            const SizedBox(height: Spacing.sm),
+            Align(
+              alignment: Alignment.centerRight,
+              child: TextButton(
+                onPressed: () {
+                  context.push('/forgot-password');
+                },
+                style: TextButton.styleFrom(foregroundColor: Theme.of(context).colorScheme.primary),
+                child: const Text('Forgot password?', style: TextStyle(fontWeight: FontWeight.w500)),
+              ),
+            ),
+            const SizedBox(height: Spacing.sm),
+            AuthContinueButton(isLoading: isLoading, onPressed: onLogin, isDesktop: isDesktop),
+          ],
+        ),
       ),
     );
   }

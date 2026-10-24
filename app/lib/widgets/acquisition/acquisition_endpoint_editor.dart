@@ -289,6 +289,7 @@ class _AcquisitionEndpointEditorState extends State<AcquisitionEndpointEditor> {
                     value: _enabled,
                     enabled: !_busy,
                     builder: (focusNode) => SwitchListTile(
+                      hoverColor: Colors.transparent,
                       focusNode: focusNode,
                       contentPadding: EdgeInsets.zero,
                       title: const Text('Enabled'),

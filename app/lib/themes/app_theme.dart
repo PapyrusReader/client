@@ -9,40 +9,114 @@ import 'design_tokens.dart';
 class AppTheme {
   AppTheme._();
 
-  static ThemeData get light => ThemeData(
-    useMaterial3: true,
-    colorScheme: lightColorScheme,
-    // Typography
-    textTheme: _textTheme,
-    // Component themes
-    elevatedButtonTheme: _elevatedButtonTheme(lightColorScheme),
-    outlinedButtonTheme: _outlinedButtonTheme(lightColorScheme),
-    textButtonTheme: _textButtonTheme(lightColorScheme),
-    inputDecorationTheme: _inputDecorationTheme(lightColorScheme),
-    cardTheme: _cardTheme(lightColorScheme),
-    appBarTheme: _appBarTheme(lightColorScheme),
-    bottomNavigationBarTheme: _bottomNavTheme(lightColorScheme),
-    dividerTheme: _dividerTheme(lightColorScheme),
-    snackBarTheme: _snackBarTheme(lightColorScheme),
-    popupMenuTheme: _popupMenuTheme(lightColorScheme),
+  static const dyslexiaFontFamily = 'OpenDyslexic';
+
+  static ThemeData withTypography(ThemeData theme, {bool dyslexiaFont = false, bool boldText = false}) {
+    if (!dyslexiaFont && !boldText) {
+      return theme;
+    }
+
+    TextStyle? fontStyle(TextStyle? style) => style?.copyWith(
+      fontFamily: dyslexiaFont ? dyslexiaFontFamily : null,
+      fontWeight: boldText && (style.fontWeight ?? FontWeight.normal).value < FontWeight.bold.value
+          ? FontWeight.bold
+          : null,
+    );
+
+    TextTheme textTheme(TextTheme source) => TextTheme(
+      displayLarge: fontStyle(source.displayLarge),
+      displayMedium: fontStyle(source.displayMedium),
+      displaySmall: fontStyle(source.displaySmall),
+      headlineLarge: fontStyle(source.headlineLarge),
+      headlineMedium: fontStyle(source.headlineMedium),
+      headlineSmall: fontStyle(source.headlineSmall),
+      titleLarge: fontStyle(source.titleLarge),
+      titleMedium: fontStyle(source.titleMedium),
+      titleSmall: fontStyle(source.titleSmall),
+      bodyLarge: fontStyle(source.bodyLarge),
+      bodyMedium: fontStyle(source.bodyMedium),
+      bodySmall: fontStyle(source.bodySmall),
+      labelLarge: fontStyle(source.labelLarge),
+      labelMedium: fontStyle(source.labelMedium),
+      labelSmall: fontStyle(source.labelSmall),
+    );
+
+    ButtonStyle? buttonStyle(ButtonStyle? style) {
+      final textStyle = style?.textStyle;
+
+      if (textStyle == null) {
+        return style;
+      }
+
+      return style!.copyWith(
+        textStyle: WidgetStateProperty.resolveWith((states) => fontStyle(textStyle.resolve(states))),
+      );
+    }
+
+    final navigationLabelStyle = theme.navigationBarTheme.labelTextStyle;
+
+    return theme.copyWith(
+      textTheme: textTheme(theme.textTheme),
+      primaryTextTheme: textTheme(theme.primaryTextTheme),
+      appBarTheme: theme.appBarTheme.copyWith(
+        titleTextStyle: fontStyle(theme.appBarTheme.titleTextStyle),
+        toolbarTextStyle: fontStyle(theme.appBarTheme.toolbarTextStyle),
+      ),
+      elevatedButtonTheme: ElevatedButtonThemeData(style: buttonStyle(theme.elevatedButtonTheme.style)),
+      outlinedButtonTheme: OutlinedButtonThemeData(style: buttonStyle(theme.outlinedButtonTheme.style)),
+      textButtonTheme: TextButtonThemeData(style: buttonStyle(theme.textButtonTheme.style)),
+      inputDecorationTheme: theme.inputDecorationTheme.copyWith(
+        labelStyle: fontStyle(theme.inputDecorationTheme.labelStyle),
+        floatingLabelStyle: fontStyle(theme.inputDecorationTheme.floatingLabelStyle),
+        hintStyle: fontStyle(theme.inputDecorationTheme.hintStyle),
+      ),
+      navigationBarTheme: theme.navigationBarTheme.copyWith(
+        labelTextStyle: navigationLabelStyle == null
+            ? null
+            : WidgetStateProperty.resolveWith((states) => fontStyle(navigationLabelStyle.resolve(states))),
+      ),
+      bottomNavigationBarTheme: theme.bottomNavigationBarTheme.copyWith(
+        selectedLabelStyle: fontStyle(theme.bottomNavigationBarTheme.selectedLabelStyle),
+        unselectedLabelStyle: fontStyle(theme.bottomNavigationBarTheme.unselectedLabelStyle),
+      ),
+      chipTheme: theme.chipTheme.copyWith(
+        labelStyle: fontStyle(theme.chipTheme.labelStyle),
+        secondaryLabelStyle: fontStyle(theme.chipTheme.secondaryLabelStyle),
+      ),
+      snackBarTheme: theme.snackBarTheme.copyWith(contentTextStyle: fontStyle(theme.snackBarTheme.contentTextStyle)),
+      popupMenuTheme: theme.popupMenuTheme.copyWith(textStyle: fontStyle(theme.popupMenuTheme.textStyle)),
+    );
+  }
+
+  static ThemeData get light => _standard(lightColorScheme);
+  static ThemeData get dark => _standard(darkColorScheme);
+
+  static ThemeData get highContrastLight => _highContrast(Brightness.light);
+  static ThemeData get highContrastDark => _highContrast(Brightness.dark);
+
+  static ThemeData _highContrast(Brightness brightness) => _standard(
+    ColorScheme.fromSeed(seedColor: lightColorScheme.primary, brightness: brightness, contrastLevel: 1),
   );
 
-  static ThemeData get dark => ThemeData(
+  static ThemeData _standard(ColorScheme colors) => ThemeData(
     useMaterial3: true,
-    colorScheme: darkColorScheme,
-    // Typography
+    colorScheme: colors,
     textTheme: _textTheme,
-    // Component themes
-    elevatedButtonTheme: _elevatedButtonTheme(darkColorScheme),
-    outlinedButtonTheme: _outlinedButtonTheme(darkColorScheme),
-    textButtonTheme: _textButtonTheme(darkColorScheme),
-    inputDecorationTheme: _inputDecorationTheme(darkColorScheme),
-    cardTheme: _cardTheme(darkColorScheme),
-    appBarTheme: _appBarTheme(darkColorScheme),
-    bottomNavigationBarTheme: _bottomNavTheme(darkColorScheme),
-    dividerTheme: _dividerTheme(darkColorScheme),
-    snackBarTheme: _snackBarTheme(darkColorScheme),
-    popupMenuTheme: _popupMenuTheme(darkColorScheme),
+    elevatedButtonTheme: _elevatedButtonTheme(colors),
+    outlinedButtonTheme: _outlinedButtonTheme(colors),
+    textButtonTheme: _textButtonTheme(colors),
+    switchTheme: _switchTheme,
+    inputDecorationTheme: _inputDecorationTheme(colors),
+    cardTheme: _cardTheme(colors),
+    appBarTheme: _appBarTheme(colors),
+    bottomSheetTheme: BottomSheetThemeData(backgroundColor: colors.surface),
+    dialogTheme: const DialogThemeData(
+      constraints: BoxConstraints(minWidth: 280, maxWidth: ComponentSizes.dialogMaxWidth),
+    ),
+    bottomNavigationBarTheme: _bottomNavTheme(colors),
+    dividerTheme: _dividerTheme(colors),
+    snackBarTheme: _snackBarTheme(colors),
+    popupMenuTheme: _popupMenuTheme(colors),
   );
 
   static ThemeData get eink => ThemeData(
@@ -64,6 +138,7 @@ class AppTheme {
     elevatedButtonTheme: _einkElevatedButtonTheme(),
     outlinedButtonTheme: _einkOutlinedButtonTheme(),
     textButtonTheme: _einkTextButtonTheme(),
+    switchTheme: _switchTheme,
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
         backgroundColor: EinkColors.black,
@@ -121,6 +196,7 @@ class AppTheme {
       ),
     ),
     dialogTheme: const DialogThemeData(
+      constraints: BoxConstraints(minWidth: 280, maxWidth: ComponentSizes.dialogMaxWidth),
       backgroundColor: EinkColors.white,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
@@ -262,6 +338,18 @@ class AppTheme {
       elevation: AppElevation.level2,
     );
   }
+
+  static final _switchTheme = SwitchThemeData(
+    overlayColor: WidgetStateProperty.resolveWith((states) {
+      if (states.contains(WidgetState.hovered) &&
+          !states.contains(WidgetState.focused) &&
+          !states.contains(WidgetState.pressed)) {
+        return Colors.transparent;
+      }
+
+      return null;
+    }),
+  );
 
   static DividerThemeData _dividerTheme(ColorScheme colors) {
     return DividerThemeData(color: colors.outlineVariant, thickness: 1, space: Spacing.md);

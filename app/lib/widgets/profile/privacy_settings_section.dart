@@ -30,12 +30,11 @@ class PrivacySettingsSection extends StatelessWidget {
         SettingsToggleRow(
           label: 'Analytics',
           value: prefs.analyticsOptIn,
-          onChanged: (value) => prefs.analyticsOptIn = value,
         ),
-        SettingsRow(label: 'Privacy policy', onTap: () {}),
-        SettingsRow(label: 'Export all data', onTap: () {}),
-        SettingsRow(label: 'Import data', onTap: () {}),
-        SettingsRow(label: 'Clear local data', onTap: () {}),
+        const SettingsRow(label: 'Privacy policy', enabled: false),
+        const SettingsRow(label: 'Export all data', enabled: false),
+        const SettingsRow(label: 'Import data', enabled: false),
+        const SettingsRow(label: 'Clear local data', enabled: false),
       ],
     );
   }
@@ -52,7 +51,6 @@ class PrivacySettingsSection extends StatelessWidget {
             SettingsToggleRow(
               label: 'Send anonymous usage data',
               value: prefs.analyticsOptIn,
-              onChanged: (value) => prefs.analyticsOptIn = value,
             ),
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
@@ -70,15 +68,15 @@ class PrivacySettingsSection extends StatelessWidget {
         SettingsCard(
           title: 'Data management',
           children: [
-            SettingsRow(label: 'Export all data', onTap: () {}),
-            SettingsRow(label: 'Import data', onTap: () {}),
-            SettingsRow(label: 'Clear local data', onTap: () {}),
+            const SettingsRow(label: 'Export all data', enabled: false),
+            const SettingsRow(label: 'Import data', enabled: false),
+            const SettingsRow(label: 'Clear local data', enabled: false),
           ],
         ),
         const SizedBox(height: Spacing.lg),
         SettingsCard(
           title: 'Legal',
-          children: [SettingsRow(label: 'Privacy policy', onTap: () {})],
+          children: [const SettingsRow(label: 'Privacy policy', enabled: false)],
         ),
       ],
     );

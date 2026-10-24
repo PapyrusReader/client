@@ -36,7 +36,7 @@ class DesktopSidebar extends StatelessWidget {
             width: sidebarWidth,
             child: DecoratedBox(
               decoration: BoxDecoration(
-                color: colorScheme.surfaceContainerLow,
+                color: colorScheme.surface,
                 border: Border(right: BorderSide(color: colorScheme.outlineVariant, width: 1)),
               ),
               child: Column(
@@ -78,11 +78,15 @@ class DesktopSidebar extends StatelessWidget {
         child: Row(
           mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
           children: [
-            // Logo icon from SVG
-            SvgPicture.asset(
-              isDark ? 'assets/images/logo-icon-dark.svg' : 'assets/images/logo-icon-light.svg',
-              width: 40,
-              height: 40,
+            SizedBox.square(
+              dimension: 40,
+              child: Center(
+                child: SvgPicture.asset(
+                  isDark ? 'assets/images/logo-icon-dark.svg' : 'assets/images/logo-icon-light.svg',
+                  width: 40,
+                  height: 40,
+                ),
+              ),
             ),
             if (!isCollapsed) ...[
               const SizedBox(width: Spacing.sm),
@@ -114,54 +118,59 @@ class DesktopSidebar extends StatelessWidget {
       return _buildExpandableNavItem(context, item, isCollapsed);
     }
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: InkWell(
+    return Semantics(
+      label: isCollapsed ? item.label : null,
+      selected: isSelected,
+      button: true,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
+        child: Material(
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          onTap: () {
-            if (hasChildren && isCollapsed) {
-              // When collapsed with children, expand sidebar and navigate
-              sidebarProvider.setCollapsed(false);
-              sidebarProvider.setLibraryExpanded(true);
-            }
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            onTap: () {
+              if (hasChildren && isCollapsed) {
+                // When collapsed with children, expand sidebar and navigate
+                sidebarProvider.setCollapsed(false);
+                sidebarProvider.setLibraryExpanded(true);
+              }
 
-            onNavigate(item.path);
-          },
-          child: Container(
-            height: 48,
-            padding: EdgeInsets.symmetric(horizontal: isCollapsed ? Spacing.md : Spacing.md),
-            decoration: BoxDecoration(
-              color: isSelected ? Theme.of(context).colorScheme.primaryContainer : Colors.transparent,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Row(
-              mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
-              children: [
-                Icon(
-                  isSelected ? item.selectedIcon ?? item.icon : item.icon,
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.onPrimaryContainer
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                  size: IconSizes.navigation,
-                ),
-                if (!isCollapsed) ...[
-                  const SizedBox(width: Spacing.md),
-                  Expanded(
-                    child: Text(
-                      item.label,
-                      style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                        color: isSelected
-                            ? Theme.of(context).colorScheme.onPrimaryContainer
-                            : Theme.of(context).colorScheme.onSurfaceVariant,
-                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              onNavigate(item.path);
+            },
+            child: Container(
+              constraints: const BoxConstraints(minHeight: TouchTargets.mobileRecommended),
+              padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+              decoration: BoxDecoration(
+                color: isSelected ? Theme.of(context).colorScheme.primaryContainer : Colors.transparent,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Row(
+                mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+                children: [
+                  Icon(
+                    isSelected ? item.selectedIcon ?? item.icon : item.icon,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.onPrimaryContainer
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                    size: IconSizes.navigation,
+                  ),
+                  if (!isCollapsed) ...[
+                    const SizedBox(width: Spacing.md),
+                    Expanded(
+                      child: Text(
+                        item.label,
+                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                          color: isSelected
+                              ? Theme.of(context).colorScheme.onPrimaryContainer
+                              : Theme.of(context).colorScheme.onSurfaceVariant,
+                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                        ),
                       ),
                     ),
-                  ),
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
@@ -192,8 +201,8 @@ class DesktopSidebar extends StatelessWidget {
                 }
               },
               child: Container(
-                height: 48,
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+                constraints: const BoxConstraints(minHeight: TouchTargets.mobileRecommended),
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
                 decoration: BoxDecoration(
                   color: hasSelectedBackground ? Theme.of(context).colorScheme.primaryContainer : Colors.transparent,
                   borderRadius: BorderRadius.circular(AppRadius.md),
@@ -248,55 +257,57 @@ class DesktopSidebar extends StatelessWidget {
   Widget _buildChildNavItem(BuildContext context, AppShellNavItem item) {
     final isSelected = currentPath.startsWith(item.path);
 
-    return Padding(
-      padding: const EdgeInsets.only(left: Spacing.xl + Spacing.sm, right: Spacing.sm, top: 2, bottom: 2),
-      child: Material(
-        color: Colors.transparent,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: InkWell(
+    return Semantics(
+      selected: isSelected,
+      button: true,
+      child: Padding(
+        padding: const EdgeInsets.only(left: Spacing.xl + Spacing.sm, right: Spacing.sm, top: 2, bottom: 2),
+        child: Material(
+          color: Colors.transparent,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          onTap: () => onNavigate(item.path),
-          child: Container(
-            height: 40,
-            padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-            decoration: BoxDecoration(
-              color: isSelected ? Theme.of(context).colorScheme.primaryContainer : Colors.transparent,
-              borderRadius: BorderRadius.circular(AppRadius.md),
-            ),
-            child: Row(
-              children: [
-                Icon(
-                  isSelected ? item.selectedIcon ?? item.icon : item.icon,
-                  color: isSelected
-                      ? Theme.of(context).colorScheme.onPrimaryContainer
-                      : Theme.of(context).colorScheme.onSurfaceVariant,
-                  size: IconSizes.small,
-                ),
-                const SizedBox(width: Spacing.sm),
-                Expanded(
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          item.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                            color: isSelected
-                                ? Theme.of(context).colorScheme.onPrimaryContainer
-                                : Theme.of(context).colorScheme.onSurfaceVariant,
-                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          child: InkWell(
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            onTap: () => onNavigate(item.path),
+            child: Container(
+              constraints: const BoxConstraints(minHeight: TouchTargets.mobileRecommended),
+              padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+              decoration: BoxDecoration(
+                color: isSelected ? Theme.of(context).colorScheme.primaryContainer : Colors.transparent,
+                borderRadius: BorderRadius.circular(AppRadius.md),
+              ),
+              child: Row(
+                children: [
+                  Icon(
+                    isSelected ? item.selectedIcon ?? item.icon : item.icon,
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.onPrimaryContainer
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                    size: IconSizes.small,
+                  ),
+                  const SizedBox(width: Spacing.sm),
+                  Expanded(
+                    child: Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            item.label,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: isSelected
+                                  ? Theme.of(context).colorScheme.onPrimaryContainer
+                                  : Theme.of(context).colorScheme.onSurfaceVariant,
+                              fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                            ),
                           ),
                         ),
-                      ),
-                      if ((item.count ?? 0) > 0) ...[
-                        const SizedBox(width: Spacing.xs),
-                        NavItemCount(count: item.count!, selected: isSelected),
+                        if ((item.count ?? 0) > 0) ...[
+                          const SizedBox(width: Spacing.xs),
+                          NavItemCount(count: item.count!, selected: isSelected),
+                        ],
                       ],
-                    ],
+                    ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -307,30 +318,34 @@ class DesktopSidebar extends StatelessWidget {
   Widget _buildCollapseToggle(BuildContext context, bool isCollapsed) {
     final sidebarProvider = context.read<SidebarProvider>();
 
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: () => sidebarProvider.toggleCollapsed(),
-        child: Container(
-          height: 56,
-          padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
-          child: Row(
-            mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
-            children: [
-              Icon(
-                isCollapsed ? Icons.chevron_right : Icons.chevron_left,
-                color: Theme.of(context).colorScheme.onSurfaceVariant,
-              ),
-              if (!isCollapsed) ...[
-                const SizedBox(width: Spacing.md),
-                Text(
-                  '',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+    return Semantics(
+      label: isCollapsed ? 'Expand sidebar' : 'Collapse sidebar',
+      button: true,
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: () => sidebarProvider.toggleCollapsed(),
+          child: Container(
+            height: 56,
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.md),
+            child: Row(
+              mainAxisAlignment: isCollapsed ? MainAxisAlignment.center : MainAxisAlignment.start,
+              children: [
+                Icon(
+                  isCollapsed ? Icons.chevron_right : Icons.chevron_left,
+                  color: Theme.of(context).colorScheme.onSurfaceVariant,
                 ),
+                if (!isCollapsed) ...[
+                  const SizedBox(width: Spacing.md),
+                  Text(
+                    '',
+                    style: Theme.of(
+                      context,
+                    ).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
+                  ),
+                ],
               ],
-            ],
+            ),
           ),
         ),
       ),

@@ -84,18 +84,27 @@ class BookActionButtons extends StatelessWidget {
             icon: digitalIcon,
             label: Text(digitalLabel),
           ),
-        OutlinedButton(
-          onPressed: onToggleFavorite,
-          style: iconStyle,
-          child: Icon(
-            book.isFavorite ? Icons.favorite : Icons.favorite_border,
-            color: book.isFavorite ? colorScheme.error : colorScheme.primary,
+        Tooltip(
+          message: book.isFavorite ? 'Remove from favorites' : 'Add to favorites',
+          excludeFromSemantics: true,
+          child: OutlinedButton(
+            onPressed: onToggleFavorite,
+            style: iconStyle,
+            child: Icon(
+              book.isFavorite ? Icons.favorite : Icons.favorite_border,
+              semanticLabel: book.isFavorite ? 'Remove from favorites' : 'Add to favorites',
+              color: book.isFavorite ? colorScheme.error : colorScheme.primary,
+            ),
           ),
         ),
-        OutlinedButton(
-          onPressed: onEdit,
-          style: iconStyle,
-          child: Icon(Icons.edit_outlined, color: colorScheme.primary),
+        Tooltip(
+          message: 'Edit book',
+          excludeFromSemantics: true,
+          child: OutlinedButton(
+            onPressed: onEdit,
+            style: iconStyle,
+            child: Icon(Icons.edit_outlined, semanticLabel: 'Edit book', color: colorScheme.primary),
+          ),
         ),
       ],
     );

@@ -194,15 +194,29 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
     );
 
     if (widget.coverWidth != null) {
-      return GestureDetector(
-        onTap: _pickImage,
-        child: Center(
-          child: SizedBox(width: widget.coverWidth, child: cover),
+      return Semantics(
+        button: true,
+        label: 'Choose cover image',
+        child: Material(
+          type: MaterialType.transparency,
+          child: InkWell(
+            onTap: _pickImage,
+            child: Center(
+              child: SizedBox(width: widget.coverWidth, child: cover),
+            ),
+          ),
         ),
       );
     }
 
-    return GestureDetector(onTap: _pickImage, child: cover);
+    return Semantics(
+      button: true,
+      label: 'Choose cover image',
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(onTap: _pickImage, child: cover),
+      ),
+    );
   }
 
   Widget _buildCoverImage(BuildContext context) {
@@ -254,17 +268,17 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
   }
 
   Widget _buildRemoveButton(BuildContext context) {
-    return Material(
-      color: Colors.black54,
-      borderRadius: BorderRadius.circular(16),
-      child: InkWell(
-        borderRadius: BorderRadius.circular(16),
-        onTap: _clearImage,
-        child: const Padding(
-          padding: EdgeInsets.all(4),
-          child: Icon(Icons.close, size: 16, color: Colors.white),
-        ),
+    final colorScheme = Theme.of(context).colorScheme;
+
+    return IconButton.filled(
+      tooltip: 'Remove cover image',
+      onPressed: _clearImage,
+      style: IconButton.styleFrom(
+        backgroundColor: colorScheme.surface,
+        foregroundColor: colorScheme.onSurface,
+        minimumSize: const Size(48, 48),
       ),
+      icon: const Icon(Icons.close, size: 20),
     );
   }
 
@@ -272,20 +286,23 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(
-            Icons.add_photo_alternate_outlined,
-            size: widget.isDesktop ? 56 : 40,
-            color: colorScheme.onSurfaceVariant,
-          ),
-          const SizedBox(height: Spacing.sm),
-          Text(
-            'Tap to add cover',
-            style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: widget.isDesktop ? 14 : 12),
-          ),
-        ],
+      child: SingleChildScrollView(
+        primary: false,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.add_photo_alternate_outlined,
+              size: widget.isDesktop ? 56 : 40,
+              color: colorScheme.onSurfaceVariant,
+            ),
+            const SizedBox(height: Spacing.sm),
+            Text(
+              'No cover image',
+              style: TextStyle(color: colorScheme.onSurfaceVariant, fontSize: widget.isDesktop ? 14 : 12),
+            ),
+          ],
+        ),
       ),
     );
   }

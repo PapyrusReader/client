@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/auth/auth_models.dart';
 import 'package:papyrus/providers/auth_provider.dart';
+import 'package:papyrus/services/guest_account_deletion_service.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
@@ -17,6 +18,9 @@ Future<void> showAccountDeletionDialog(
   final router = GoRouter.of(context);
   final messenger = ScaffoldMessenger.of(context);
   final animationStyle = AppMotion.animationStyle(context);
+  final deleteGuest = authorization == null && auth.isOfflineMode && !auth.isSignedIn
+      ? context.read<GuestAccountDeletionService>().delete
+      : null;
 
   final message = await showDialog<String>(
     context: context,
@@ -25,6 +29,7 @@ Future<void> showAccountDeletionDialog(
     builder: (_) => AccountDeletionDialog(
       auth: auth,
       authorization: authorization,
+      deleteGuest: deleteGuest,
     ),
   );
 
@@ -48,11 +53,13 @@ Future<void> showAccountDeletionDialog(
 class AccountDeletionDialog extends StatefulWidget {
   final AuthProvider auth;
   final AccountDeletionAuthorization? authorization;
+  final Future<void> Function()? deleteGuest;
 
   const AccountDeletionDialog({
     super.key,
     required this.auth,
     this.authorization,
+    this.deleteGuest,
   });
 
   @override
@@ -71,6 +78,9 @@ class _AccountDeletionDialogState extends State<AccountDeletionDialog> {
       if (await widget.auth.recoverAccount(authorization)) {
         message = 'Account kept.';
       }
+    } else if (widget.deleteGuest != null) {
+      await widget.deleteGuest!();
+      message = 'Anonymous account and local data deleted.';
     } else {
       final deadline = await widget.auth.deleteAccount();
 
@@ -100,7 +110,13 @@ class _AccountDeletionDialogState extends State<AccountDeletionDialog> {
       await action();
     } catch (error) {
       if (mounted) {
-        _error = error is AuthApiException ? error.message : 'Unable to connect. Please try again.';
+        if (error is AuthApiException) {
+          _error = error.message;
+        } else if (widget.deleteGuest != null) {
+          _error = 'Could not delete all local data. Please try again.';
+        } else {
+          _error = 'Unable to connect. Please try again.';
+        }
       }
     } finally {
       if (mounted) {
@@ -143,6 +159,12 @@ class _AccountDeletionDialogState extends State<AccountDeletionDialog> {
                       const TextSpan(text: '. Keep your account to cancel deletion.'),
                     ],
                   ),
+                )
+              else if (widget.deleteGuest != null)
+                const Text(
+                  'This permanently deletes your anonymous account’s local library, imported files, '
+                  'covers, reading data and saved catalogs from this device. '
+                  'You’ll return to the login page. This cannot be undone.',
                 )
               else
                 const Text(

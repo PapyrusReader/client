@@ -207,6 +207,42 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
     _setBookMetadataSyncState(const BookMetadataSyncState());
   }
 
+  /// Retains book records until their files are removed so failures can be retried.
+  Future<void> deleteGuestLibrary({required Future<void> Function(List<Book>) deleteFiles}) {
+    final previousOperation = _modeOperation;
+
+    final operation = (() async {
+      await previousOperation;
+
+      if (_mode != LibraryDatabaseMode.guest) {
+        throw StateError('Only the active guest library can be deleted.');
+      }
+
+      final database = _requireDatabase();
+      final snapshot = await _activeLibrary.snapshot();
+      await deleteFiles(snapshot.books);
+
+      await database.writeTransaction((tx) async {
+        for (final table in libraryTableNames.reversed) {
+          await tx.execute('DELETE FROM $table');
+        }
+      });
+
+      _databaseSnapshot = const LibrarySnapshot();
+      _publishLibrarySnapshot(_databaseSnapshot!, database);
+      _setSyncState(const SyncState());
+      _setBookMetadataSyncState(const BookMetadataSyncState());
+    })();
+
+    _modeOperation = operation;
+
+    return operation.whenComplete(() {
+      if (identical(_modeOperation, operation)) {
+        _modeOperation = null;
+      }
+    });
+  }
+
   Future<void> clearAuthenticatedCache() async {
     await _modeOperation;
 

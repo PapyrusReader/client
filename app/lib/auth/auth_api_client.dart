@@ -141,6 +141,35 @@ class AuthApiClient {
     return DateTime.parse(json['deletion_due_at'] as String);
   }
 
+  Future<PapyrusUser> uploadProfilePhoto(String accessToken, Uint8List bytes, {required String displayName}) {
+    return _withUploadCooldown('/users/me/avatar', accessToken, () async {
+      final request = http.MultipartRequest('POST', config.endpoint('/users/me/avatar'))
+        ..headers.addAll(_authHeaders(accessToken))
+        ..fields['display_name'] = displayName
+        ..files.add(
+          http.MultipartFile.fromBytes('file', bytes, filename: 'avatar.jpg', contentType: MediaType('image', 'jpeg')),
+        );
+
+      final response = await http.Response.fromStream(await _httpClient.send(request));
+      return PapyrusUser.fromJson(_decodeResponse(response));
+    });
+  }
+
+  Future<Uint8List> downloadProfilePhoto(String accessToken, String avatarUrl) async {
+    if (!RegExp(r'^/users/me/avatar/[0-9a-fA-F-]{36}$').hasMatch(avatarUrl)) {
+      throw const AuthApiException(statusCode: 0, message: 'Invalid profile photo');
+    }
+
+    final response = await _httpClient.get(config.endpoint(avatarUrl), headers: _authHeaders(accessToken));
+
+    if (response.statusCode >= 200 && response.statusCode < 300) {
+      return response.bodyBytes;
+    }
+
+    _decodeResponse(response);
+    throw const AuthApiException(statusCode: 0, message: 'Photo download failed');
+  }
+
   Future<AuthTokens> recoverAccount(
     AccountDeletionAuthorization authorization, {
     required String clientType,

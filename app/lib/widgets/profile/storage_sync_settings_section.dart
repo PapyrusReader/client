@@ -324,6 +324,7 @@ class StorageSyncSettingsSection extends StatelessWidget {
     showModalBottomSheet(
       sheetAnimationStyle: AppMotion.animationStyle(context),
       context: context,
+      useRootNavigator: true,
       isScrollControlled: true,
       useSafeArea: true,
       builder: (sheetContext) => AppBottomSheet(

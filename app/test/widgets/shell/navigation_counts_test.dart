@@ -8,6 +8,7 @@ import 'package:papyrus/opds/opds_models.dart';
 import 'package:papyrus/providers/sidebar_provider.dart';
 import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
 import 'package:papyrus/widgets/shell/nav_item_count.dart';
+import 'package:papyrus/widgets/profile/profile_picker_sheet.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -32,12 +33,30 @@ void main() {
         routes: [
           ShellRoute(
             builder: (_, _, child) => AdaptiveAppShell(child: child),
-            routes: [GoRoute(path: '/library/catalogs', builder: (_, _) => const Text('Page content'))],
+            routes: [
+              GoRoute(
+                path: '/library/catalogs',
+                builder: (context, _) => Center(
+                  child: TextButton(
+                    onPressed: () => showProfilePickerSheet(
+                      context,
+                      title: 'Interface font',
+                      items: const [('System default', 'system'), ('OpenDyslexic', 'dyslexia')],
+                      selected: 'system',
+                      onSelected: (_) {},
+                    ),
+                    child: const Text('Choose font'),
+                  ),
+                ),
+              ),
+            ],
           ),
         ],
       );
 
       addTearDown(router.dispose);
+
+      final semantics = tester.ensureSemantics();
 
       await tester.pumpWidget(
         MultiProvider(
@@ -51,6 +70,27 @@ void main() {
       );
 
       await tester.pumpAndSettle();
+
+      expect(find.semantics.byLabel(RegExp('Settings')), findsOneWidget);
+      final launcher = find.text('Choose font');
+      final launcherFocus = Focus.of(tester.element(launcher));
+      launcherFocus.requestFocus();
+      await tester.pump();
+      await tester.tap(launcher);
+      await tester.pumpAndSettle();
+      expect(find.semantics.byLabel(RegExp('Settings')), findsNothing);
+      expect(
+        tester.getSemantics(find.bySemanticsLabel('System default')),
+        isSemantics(
+          hasCheckedState: true,
+          isChecked: true,
+          isInMutuallyExclusiveGroup: true,
+        ),
+      );
+      await tester.tap(find.text('OpenDyslexic'));
+      await tester.pumpAndSettle();
+      expect(find.semantics.byLabel(RegExp('Settings')), findsOneWidget);
+      expect(launcherFocus.hasFocus, isTrue);
 
       if (width < 840) {
         tester.state<ScaffoldState>(find.byType(Scaffold).first).openDrawer();
@@ -81,6 +121,7 @@ void main() {
       expect(find.byType(NavItemCount), findsNothing);
       expect(find.text('0'), findsNothing);
       expect(tester.takeException(), isNull);
+      semantics.dispose();
     });
   }
 }

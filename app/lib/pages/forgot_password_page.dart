@@ -171,7 +171,7 @@ class _ForgotPasswordPageState extends State<ForgotPasswordPage> {
       snackBarAnimationStyle: AppMotion.animationStyle(context),
       SnackBar(
         duration: const Duration(seconds: 5),
-        content: Text(message),
+        content: Text(message, style: TextStyle(color: Theme.of(context).colorScheme.onError)),
         backgroundColor: Theme.of(context).colorScheme.error,
       ),
     );
@@ -276,22 +276,24 @@ class _ForgotPasswordForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          EmailInput(
-            labelText: 'Email address',
-            controller: emailController,
-            focusNode: emailFocusNode,
-            textInputAction: TextInputAction.done,
-            onEditingComplete: onSubmit,
-          ),
-          const SizedBox(height: Spacing.lg),
-          AuthContinueButton(isLoading: isLoading, onPressed: onSubmit, isDesktop: isDesktop),
-        ],
+    return AutofillGroup(
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            EmailInput(
+              labelText: 'Email address',
+              controller: emailController,
+              focusNode: emailFocusNode,
+              textInputAction: TextInputAction.done,
+              onEditingComplete: onSubmit,
+            ),
+            const SizedBox(height: Spacing.lg),
+            AuthContinueButton(isLoading: isLoading, onPressed: onSubmit, isDesktop: isDesktop),
+          ],
+        ),
       ),
     );
   }
@@ -362,33 +364,37 @@ class _SetNewPasswordForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          PasswordInput(
-            labelText: 'New password',
-            controller: passwordController,
-            focusNode: passwordFocusNode,
-            textInputAction: TextInputAction.next,
-            extraValidator: validatePasswordStrength,
-            onEditingComplete: () => confirmPasswordFocusNode.requestFocus(),
-          ),
-          const SizedBox(height: Spacing.md),
-          PasswordInput(
-            labelText: 'Confirm new password',
-            controller: confirmPasswordController,
-            focusNode: confirmPasswordFocusNode,
-            textInputAction: TextInputAction.done,
-            extraValidator: validateConfirmPassword,
-            validationDependency: passwordController,
-            onFieldSubmitted: (_) => onSubmit(),
-          ),
-          const SizedBox(height: Spacing.lg),
-          AuthContinueButton(isLoading: isLoading, onPressed: onSubmit, isDesktop: isDesktop),
-        ],
+    return AutofillGroup(
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            PasswordInput(
+              autofillHints: const [AutofillHints.newPassword],
+              labelText: 'New password',
+              controller: passwordController,
+              focusNode: passwordFocusNode,
+              textInputAction: TextInputAction.next,
+              extraValidator: validatePasswordStrength,
+              onEditingComplete: () => confirmPasswordFocusNode.requestFocus(),
+            ),
+            const SizedBox(height: Spacing.md),
+            PasswordInput(
+              autofillHints: const [AutofillHints.newPassword],
+              labelText: 'Confirm new password',
+              controller: confirmPasswordController,
+              focusNode: confirmPasswordFocusNode,
+              textInputAction: TextInputAction.done,
+              extraValidator: validateConfirmPassword,
+              validationDependency: passwordController,
+              onFieldSubmitted: (_) => onSubmit(),
+            ),
+            const SizedBox(height: Spacing.lg),
+            AuthContinueButton(isLoading: isLoading, onPressed: onSubmit, isDesktop: isDesktop),
+          ],
+        ),
       ),
     );
   }

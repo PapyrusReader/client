@@ -1,6 +1,7 @@
 import 'package:papyrus/services/reading_device_identity.dart';
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:papyrus/themes/app_accessibility.dart';
 import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:papyrus/reader/reading_activity_tracker.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
@@ -233,20 +234,22 @@ class _ReaderPageState extends State<ReaderPage> {
       );
     }
 
-    return PapyrusReader(
-      document: document,
-      initialLocator: _initialLocator,
-      initialPreferences: preferences,
-      builders: ReaderUiBuilders(
-        loading: (context, state) => const _ReaderLoading(),
-        compactPanelRoute: (_, panel) => buildReaderPanelSheet(context, panel),
+    return ReaderSystemTextScope(
+      child: PapyrusReader(
+        document: document,
+        initialLocator: _initialLocator,
+        initialPreferences: preferences,
+        builders: ReaderUiBuilders(
+          loading: (context, state) => const _ReaderLoading(),
+          compactPanelRoute: (_, panel) => buildReaderPanelSheet(context, panel),
+        ),
+        onLocatorChanged: _session!.updateLocator,
+        onActivity: _onActivity,
+        onPreferencesChanged: (updated) {
+          ReaderBookAdapter.persistPreferences(context.read<PreferencesProvider>(), updated);
+        },
+        onBack: _close,
       ),
-      onLocatorChanged: _session!.updateLocator,
-      onActivity: _onActivity,
-      onPreferencesChanged: (updated) {
-        ReaderBookAdapter.persistPreferences(context.read<PreferencesProvider>(), updated);
-      },
-      onBack: _close,
     );
   }
 

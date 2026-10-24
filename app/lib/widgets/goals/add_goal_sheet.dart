@@ -315,6 +315,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                 ),
               if (_period != GoalPeriod.custom)
                 SwitchListTile(
+                  hoverColor: Colors.transparent,
                   contentPadding: EdgeInsets.zero,
                   title: const Text('Repeat each period'),
                   value: _recurring,

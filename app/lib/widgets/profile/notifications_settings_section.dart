@@ -29,17 +29,14 @@ class NotificationsSettingsSection extends StatelessWidget {
         SettingsToggleRow(
           label: 'Goal reminders',
           value: prefs.goalReminders,
-          onChanged: (value) => prefs.goalReminders = value,
         ),
         SettingsToggleRow(
           label: 'Streak alerts',
           value: prefs.streakAlerts,
-          onChanged: (value) => prefs.streakAlerts = value,
         ),
         SettingsToggleRow(
           label: 'Sync status',
           value: prefs.syncStatusNotifications,
-          onChanged: (value) => prefs.syncStatusNotifications = value,
         ),
       ],
     );
@@ -53,17 +50,14 @@ class NotificationsSettingsSection extends StatelessWidget {
         SettingsToggleRow(
           label: 'Goal reminders',
           value: prefs.goalReminders,
-          onChanged: (value) => prefs.goalReminders = value,
         ),
         SettingsToggleRow(
           label: 'Streak alerts',
           value: prefs.streakAlerts,
-          onChanged: (value) => prefs.streakAlerts = value,
         ),
         SettingsToggleRow(
           label: 'Sync status',
           value: prefs.syncStatusNotifications,
-          onChanged: (value) => prefs.syncStatusNotifications = value,
         ),
       ],
     );

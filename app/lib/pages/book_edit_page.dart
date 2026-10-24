@@ -40,7 +40,7 @@ class _BookEditPageState extends State<BookEditPage> {
   static const double _desktopContentMaxWidth = 1120;
   static const double _desktopCoverPaneWidth = ComponentSizes.bookCoverWidthDesktop;
   static const double _minimumDesktopFormPaneWidth = 420;
-  // Section cards already inset their contents by Spacing.md.
+  // Form sections already inset their contents by Spacing.md.
   static const double _desktopPaneGap = Spacing.xl - Spacing.md;
 
   static const double _desktopPaneBreakpoint =
@@ -227,15 +227,18 @@ class _BookEditPageState extends State<BookEditPage> {
   }
 
   Widget _buildDesktopScaffold(BuildContext context, BookEditProvider provider) {
-    return Form(
-      key: _formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildDesktopPageHeader(context, provider),
-          const Divider(height: 1),
-          Expanded(child: _buildDesktopLayout(context, provider)),
-        ],
+    return Material(
+      color: Theme.of(context).colorScheme.surface,
+      child: Form(
+        key: _formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            _buildDesktopPageHeader(context, provider),
+            const Divider(height: 1),
+            Expanded(child: _buildDesktopLayout(context, provider)),
+          ],
+        ),
       ),
     );
   }
@@ -271,12 +274,9 @@ class _BookEditPageState extends State<BookEditPage> {
     return ListView(
       padding: const EdgeInsets.all(Spacing.md),
       children: [
-        Card(
-          margin: const EdgeInsets.only(bottom: Spacing.xs),
-          child: Padding(
-            padding: const EdgeInsets.all(Spacing.md),
-            child: _buildCoverSection(context, provider, isDesktop: false),
-          ),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, Spacing.md + Spacing.xs),
+          child: _buildCoverSection(context, provider, isDesktop: false),
         ),
         ..._buildFormSections(context, provider),
       ],
@@ -326,7 +326,7 @@ class _BookEditPageState extends State<BookEditPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        _buildSectionCard(
+        _buildFormSection(
           title: 'Fetch metadata',
           padding: const EdgeInsets.fromLTRB(Spacing.md, 0, Spacing.md, Spacing.md),
           children: [_buildMetadataSection(context, provider)],
@@ -342,20 +342,17 @@ class _BookEditPageState extends State<BookEditPage> {
       _buildPublicationSection(),
       _buildIdentifiersSection(),
       _buildSeriesSection(),
-      Card(
-        margin: EdgeInsets.zero,
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.xs),
-          child: _buildPhysicalBookSection(context, provider),
-        ),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.xs),
+        child: _buildPhysicalBookSection(context, provider),
       ),
       if (!skipMetadata)
-        _buildSectionCard(title: 'Fetch metadata', children: [_buildMetadataSection(context, provider)]),
+        _buildFormSection(title: 'Fetch metadata', children: [_buildMetadataSection(context, provider)]),
     ];
   }
 
   Widget _buildBasicInfoSection(BuildContext context, BookEditProvider provider) {
-    return _buildSectionCard(
+    return _buildFormSection(
       title: 'Basic information',
       children: [
         BookTextField(controller: _titleController, label: 'Title', required: true, onChanged: _provider.updateTitle),
@@ -395,7 +392,7 @@ class _BookEditPageState extends State<BookEditPage> {
   }
 
   Widget _buildPublicationSection() {
-    return _buildSectionCard(
+    return _buildFormSection(
       title: 'Publication details',
       children: [
         ResponsiveFormRow(
@@ -431,7 +428,7 @@ class _BookEditPageState extends State<BookEditPage> {
   }
 
   Widget _buildIdentifiersSection() {
-    return _buildSectionCard(
+    return _buildFormSection(
       title: 'Identifiers',
       children: [
         ResponsiveFormRow(
@@ -446,7 +443,7 @@ class _BookEditPageState extends State<BookEditPage> {
   }
 
   Widget _buildSeriesSection() {
-    return _buildSectionCard(
+    return _buildFormSection(
       title: 'Series',
       children: [
         ResponsiveFormRow(
@@ -472,23 +469,20 @@ class _BookEditPageState extends State<BookEditPage> {
     );
   }
 
-  Widget _buildSectionCard({
+  Widget _buildFormSection({
     required String title,
     required List<Widget> children,
     EdgeInsetsGeometry padding = const EdgeInsets.all(Spacing.md),
   }) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: Spacing.xs),
-      child: Padding(
-        padding: padding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-            const SizedBox(height: Spacing.md),
-            ...children,
-          ],
-        ),
+    return Padding(
+      padding: padding.add(const EdgeInsets.only(bottom: Spacing.xs)),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+          const SizedBox(height: Spacing.md),
+          ...children,
+        ],
       ),
     );
   }
@@ -497,28 +491,31 @@ class _BookEditPageState extends State<BookEditPage> {
     final rating = provider.editedBook?.rating ?? 0;
     final colorScheme = Theme.of(context).colorScheme;
 
-    return Row(
+    return Wrap(
+      spacing: Spacing.sm,
+      crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         Text('Rating', style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
-        const SizedBox(width: Spacing.sm),
-        ...List.generate(5, (index) {
-          final starValue = index + 1;
-          final isSelected = starValue <= rating;
+        Wrap(
+          children: List.generate(5, (index) {
+            final starValue = index + 1;
+            final isSelected = starValue <= rating;
 
-          return GestureDetector(
-            onTap: () {
-              _provider.updateRating(starValue == rating ? null : starValue);
-            },
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2),
-              child: Icon(
-                isSelected ? Icons.star_rounded : Icons.star_outline_rounded,
-                color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
-                size: 28,
+            return Semantics(
+              selected: starValue == rating,
+              child: IconButton(
+                tooltip: starValue == rating ? 'Clear $starValue star rating' : 'Rate $starValue out of 5 stars',
+                onPressed: () => _provider.updateRating(starValue == rating ? null : starValue),
+                constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
+                icon: Icon(
+                  isSelected ? Icons.star_rounded : Icons.star_outline_rounded,
+                  color: isSelected ? colorScheme.primary : colorScheme.onSurfaceVariant,
+                  size: 28,
+                ),
               ),
-            ),
-          );
-        }),
+            );
+          }),
+        ),
       ],
     );
   }
@@ -532,6 +529,7 @@ class _BookEditPageState extends State<BookEditPage> {
         AppMotionControl(
           value: isPhysical,
           builder: (focusNode) => SwitchListTile(
+            hoverColor: Colors.transparent,
             focusNode: focusNode,
             title: const Text('Physical book'),
             value: isPhysical,
@@ -590,7 +588,8 @@ class _BookEditPageState extends State<BookEditPage> {
       onSelectionChanged: (selection) {
         provider.setMetadataSource(selection.first);
       },
-      style: const ButtonStyle(visualDensity: VisualDensity.compact, tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+      direction: MediaQuery.textScalerOf(context).scale(14) > 20 ? Axis.vertical : Axis.horizontal,
+      style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
     );
 
     final searchField = TextFormField(
@@ -601,6 +600,7 @@ class _BookEditPageState extends State<BookEditPage> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(AppRadius.md)),
         prefixIcon: const Icon(Icons.search),
         suffixIcon: IconButton(
+          tooltip: 'Search book metadata',
           icon: provider.isFetching
               ? const SizedBox(width: 20, height: 20, child: AppCircularProgressIndicator(strokeWidth: 2))
               : const Icon(Icons.arrow_forward),

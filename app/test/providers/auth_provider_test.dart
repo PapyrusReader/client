@@ -89,6 +89,40 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
+  test('guest deletion rejects duplicate submissions and preserves guest mode on failure', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final provider = AuthProvider(prefs, repository: FakeAuthRepository(), bootstrapOnCreate: false);
+    addTearDown(provider.dispose);
+    provider.setOfflineMode(true);
+    final cleanup = Completer<void>();
+    final deletion = provider.deleteGuestAccount(() => cleanup.future);
+    expect(provider.isDeletingGuestAccount, isTrue);
+    await expectLater(provider.deleteGuestAccount(() async => fail('Duplicate cleanup')), throwsStateError);
+    final failure = expectLater(deletion, throwsStateError);
+    cleanup.completeError(StateError('Storage failure'));
+    await failure;
+    expect(provider.isOfflineMode, isTrue);
+    expect(provider.isDeletingGuestAccount, isFalse);
+  });
+
+  test('guest deletion does not sign out an account selected during cleanup', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final provider = AuthProvider(prefs, repository: FakeAuthRepository(), bootstrapOnCreate: false);
+    addTearDown(provider.dispose);
+    provider.setOfflineMode(true);
+    final cleanup = Completer<void>();
+    final deletion = provider.deleteGuestAccount(() => cleanup.future);
+    provider.setOfflineMode(false);
+    final repository = FakeAuthRepository()..bootstrapResult = _tokens('new-user');
+    await provider.replaceRepository(repository);
+    final failure = expectLater(deletion, throwsStateError);
+    cleanup.complete();
+    await failure;
+    expect(provider.isSignedIn, isTrue);
+    expect(provider.user?.displayName, 'new-user');
+    expect(repository.clearCalled, isFalse);
+  });
+
   test('deletion finishing after a server switch preserves the newly selected account', () async {
     final prefs = await SharedPreferences.getInstance();
 

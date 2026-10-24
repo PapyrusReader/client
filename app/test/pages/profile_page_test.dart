@@ -1,4 +1,8 @@
+import 'dart:ui' show SemanticsAction, Tristate;
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/auth/auth_models.dart';
@@ -16,6 +20,7 @@ import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
 import 'package:papyrus/widgets/profile/profile_menu_item.dart';
 import 'package:papyrus/widgets/settings/settings_section.dart';
+import 'package:papyrus/widgets/settings/settings_row.dart';
 import 'package:powersync/powersync.dart' hide Column;
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -111,7 +116,7 @@ void main() {
       availabilityProvider = AcquisitionAvailabilityProvider(authProvider: authProvider);
     });
 
-    Widget buildApp({required Size screenSize}) {
+    Widget buildApp({required Size screenSize, TextScaler textScaler = TextScaler.noScaling}) {
       return MultiProvider(
         providers: [
           ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
@@ -125,7 +130,7 @@ void main() {
         ],
         child: MaterialApp(
           home: MediaQuery(
-            data: MediaQueryData(size: screenSize),
+            data: MediaQueryData(size: screenSize, textScaler: textScaler),
             child: const ProfilePage(),
           ),
         ),
@@ -137,28 +142,75 @@ void main() {
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(buildApp(screenSize: const Size(400, 900)));
       await tester.pumpAndSettle();
-      expect(find.text('Profile'), findsOneWidget);
+      expect(find.text('Settings'), findsOneWidget);
       expect(find.text('Reader Profile'), findsOneWidget);
       expect(find.text('reader@example.com'), findsOneWidget);
-      await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Account'), 300);
+      await tester.scrollUntilVisible(
+        find.widgetWithText(SettingsSectionHeader, 'Account'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Change password'), findsOneWidget);
-      await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Appearance'), 300);
+      await tester.scrollUntilVisible(
+        find.widgetWithText(SettingsSectionHeader, 'Appearance'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Theme'), findsOneWidget);
-      await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Reading'), 300);
-      expect(find.text('Default font'), findsOneWidget);
-      await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Library'), 300);
-      expect(find.text('Default view'), findsOneWidget);
-      await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Notifications'), 300);
+      expect(find.text('Default font'), findsNothing);
+      expect(find.text('Default view'), findsNothing);
+      expect(find.text('Developer options'), findsNothing);
+      await tester.scrollUntilVisible(
+        find.widgetWithText(SettingsSectionHeader, 'Notifications'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Goal reminders'), findsOneWidget);
-      await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Storage'), 300);
+      final reminders = find.widgetWithText(SettingsToggleRow, 'Goal reminders');
+      final remindersValue = prefsProvider.goalReminders;
+      expect(tester.widget<SettingsToggleRow>(reminders).onChanged, isNull);
+      await tester.tap(reminders);
+      expect(prefsProvider.goalReminders, remindersValue);
+      await tester.scrollUntilVisible(
+        find.widgetWithText(SettingsSectionHeader, 'Storage'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Clear local library'), findsOneWidget);
-      await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Privacy & data'), 300);
+      await tester.scrollUntilVisible(
+        find.widgetWithText(SettingsSectionHeader, 'Privacy & data'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Analytics'), findsOneWidget);
-      await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'Accessibility'), 300);
+      final analytics = find.widgetWithText(SettingsToggleRow, 'Analytics');
+      final analyticsValue = prefsProvider.analyticsOptIn;
+      expect(tester.widget<SettingsToggleRow>(analytics).onChanged, isNull);
+      await tester.tap(analytics);
+      expect(prefsProvider.analyticsOptIn, analyticsValue);
+
+      for (final label in ['Privacy policy', 'Export all data', 'Import data', 'Clear local data']) {
+        final row = tester.widget<SettingsRow>(find.widgetWithText(SettingsRow, label));
+        expect(row.enabled, isFalse);
+        expect(row.onTap, isNull);
+      }
+      await tester.scrollUntilVisible(
+        find.widgetWithText(SettingsSectionHeader, 'Accessibility'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Reduce animations'), findsOneWidget);
-      await tester.scrollUntilVisible(find.widgetWithText(SettingsSectionHeader, 'About'), 300);
+      await tester.scrollUntilVisible(
+        find.widgetWithText(SettingsSectionHeader, 'About'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       expect(find.text('Version'), findsOneWidget);
-      await tester.scrollUntilVisible(find.widgetWithText(ProfileMenuItem, 'Log out'), 300);
+      await tester.scrollUntilVisible(
+        find.widgetWithText(ProfileMenuItem, 'Log out'),
+        300,
+        scrollable: find.byType(Scrollable).first,
+      );
       await tester.tap(find.widgetWithText(ProfileMenuItem, 'Log out'));
       await tester.pumpAndSettle();
       expect(find.text('Are you sure you want to log out?'), findsOneWidget);
@@ -166,6 +218,89 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Are you sure you want to log out?'), findsNothing);
     });
+
+    testWidgets('desktop settings scrolls when the pointer is over empty space beside the form', (tester) async {
+      const screenSize = Size(1280, 600);
+      await tester.binding.setSurfaceSize(screenSize);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(buildApp(screenSize: screenSize));
+      await tester.pumpAndSettle();
+      final name = find.widgetWithText(TextFormField, 'Display name');
+      final initialTop = tester.getTopLeft(name).dy;
+      const pointerPosition = Offset(1240, 300);
+      expect(pointerPosition.dx, greaterThan(tester.getTopRight(name).dx));
+      await tester.sendEventToBinding(
+        const PointerScrollEvent(position: pointerPosition, scrollDelta: Offset(0, 200)),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(name).dy, lessThan(initialTop));
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('short desktop settings sections stay at the top of the content pane', (tester) async {
+      const screenSize = Size(1280, 900);
+      await tester.binding.setSurfaceSize(screenSize);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(buildApp(screenSize: screenSize));
+      await tester.pumpAndSettle();
+      final initialHeadingTop = tester.getTopLeft(find.text('Account').last).dy;
+      await tester.tap(find.widgetWithText(InkWell, 'About'));
+      await tester.pumpAndSettle();
+      expect(tester.getTopLeft(find.text('About').last).dy, initialHeadingTop);
+      expect(tester.takeException(), isNull);
+    });
+
+    for (final textScale in [1.0, 2.0]) {
+      testWidgets('desktop settings keeps keyboard traversal within each column at ${textScale}x text', (tester) async {
+        const screenSize = Size(1280, 900);
+        await tester.binding.setSurfaceSize(screenSize);
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(buildApp(screenSize: screenSize, textScaler: TextScaler.linear(textScale)));
+        await tester.pumpAndSettle();
+        final accessibility = find.widgetWithText(InkWell, 'Accessibility');
+        await tester.ensureVisible(accessibility);
+        await tester.tap(accessibility);
+        await tester.pumpAndSettle();
+
+        final labels = [
+          'Account',
+          'Appearance',
+          'Storage',
+          'Accessibility',
+          'About',
+          'Log out',
+          'Interface text enlargement',
+          'Interface font',
+          'Increase contrast',
+          'Bold interface text',
+          'Reduce animations',
+        ];
+
+        FocusNode focusFor(String label) => Focus.of(tester.element(find.text(label).first));
+
+        focusFor(labels.first).requestFocus();
+        await tester.pumpAndSettle();
+
+        for (final label in labels) {
+          expect(focusFor(label).hasPrimaryFocus, isTrue, reason: 'Forward traversal should focus $label');
+
+          if (label != labels.last) {
+            await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+            await tester.pumpAndSettle();
+          }
+        }
+
+        await tester.sendKeyDownEvent(LogicalKeyboardKey.shiftLeft);
+
+        for (final label in labels.reversed.skip(1)) {
+          await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+          await tester.pumpAndSettle();
+          expect(focusFor(label).hasPrimaryFocus, isTrue, reason: 'Reverse traversal should focus $label');
+        }
+
+        await tester.sendKeyUpEvent(LogicalKeyboardKey.shiftLeft);
+      });
+    }
 
     testWidgets('desktop layout navigates across all sections correctly', (tester) async {
       await tester.binding.setSurfaceSize(const Size(1200, 900));
@@ -176,39 +311,41 @@ void main() {
       // Account section default
       expect(find.text('Account'), findsWidgets);
       expect(find.text('Reader Profile'), findsOneWidget);
-      expect(find.text('Edit profile'), findsOneWidget);
+      expect(find.text('Edit profile'), findsNothing);
+      expect(find.widgetWithText(TextFormField, 'Display name'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
 
       // Navigate to Appearance
       await tester.tap(find.widgetWithText(InkWell, 'Appearance'));
       await tester.pumpAndSettle();
       expect(find.text('System default'), findsOneWidget);
 
-      // Navigate to Reading
-      await tester.tap(find.widgetWithText(InkWell, 'Reading'));
-      await tester.pumpAndSettle();
-      expect(find.text('Typography'), findsOneWidget);
-      expect(find.text('Behavior'), findsOneWidget);
+      for (final label in ['Reading', 'Library', 'Developer options']) {
+        expect(find.text(label), findsNothing);
+      }
 
-      // Navigate to Library
-      await tester.tap(find.widgetWithText(InkWell, 'Library'));
-      await tester.pumpAndSettle();
-      expect(find.text('Display'), findsOneWidget);
-      expect(find.text('Default view mode'), findsOneWidget);
+      final semantics = tester.ensureSemantics();
 
-      // Navigate to Notifications
-      await tester.tap(find.widgetWithText(InkWell, 'Notifications'));
-      await tester.pumpAndSettle();
-      expect(find.text('Goal reminders'), findsOneWidget);
+      try {
+        await tester.pumpAndSettle();
+
+        for (final label in ['Notifications', 'Privacy']) {
+          final item = find.widgetWithText(InkWell, label);
+          final node = tester.getSemantics(find.bySemanticsLabel(label));
+          expect(node.flagsCollection.isEnabled, Tristate.isFalse);
+          expect(node.getSemanticsData().hasAction(SemanticsAction.tap), isFalse);
+          await tester.tap(item);
+          await tester.pumpAndSettle();
+          expect(find.text('System default'), findsOneWidget);
+        }
+      } finally {
+        semantics.dispose();
+      }
 
       // Navigate to Storage
       await tester.tap(find.widgetWithText(InkWell, 'Storage'));
       await tester.pumpAndSettle();
       expect(find.text('Library storage'), findsOneWidget);
-
-      // Navigate to Privacy
-      await tester.tap(find.widgetWithText(InkWell, 'Privacy'));
-      await tester.pumpAndSettle();
-      expect(find.text('Send anonymous usage data'), findsOneWidget);
 
       // Navigate to Accessibility
       await tester.tap(find.widgetWithText(InkWell, 'Accessibility'));

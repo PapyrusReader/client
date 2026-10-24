@@ -54,6 +54,11 @@ class PreferencesProvider extends ChangeNotifier {
   // Accessibility
   static const _keyReduceAnimations = 'reduce_animations';
   static const _keyDyslexiaFont = 'dyslexia_font';
+  static const _keyInterfaceTextEnlargement = 'interface_text_enlargement';
+  static const _keyIncreaseContrast = 'increase_contrast';
+  static const _keyBoldInterfaceText = 'bold_interface_text';
+
+  static const interfaceTextEnlargements = [1.0, 1.15, 1.3, 1.5, 2.0];
 
   // -- Theme ----------------------------------------------------------------
 
@@ -278,6 +283,30 @@ class PreferencesProvider extends ChangeNotifier {
   }
 
   // -- Accessibility --------------------------------------------------------
+
+  double get interfaceTextEnlargement {
+    final value = _prefs.get(_keyInterfaceTextEnlargement);
+    return value is double && interfaceTextEnlargements.contains(value) ? value : 1.0;
+  }
+
+  set interfaceTextEnlargement(double value) {
+    _prefs.setDouble(_keyInterfaceTextEnlargement, interfaceTextEnlargements.contains(value) ? value : 1.0);
+    notifyListeners();
+  }
+
+  bool get increaseContrast => _prefs.getBool(_keyIncreaseContrast) ?? false;
+
+  set increaseContrast(bool value) {
+    _prefs.setBool(_keyIncreaseContrast, value);
+    notifyListeners();
+  }
+
+  bool get boldInterfaceText => _prefs.getBool(_keyBoldInterfaceText) ?? false;
+
+  set boldInterfaceText(bool value) {
+    _prefs.setBool(_keyBoldInterfaceText, value);
+    notifyListeners();
+  }
 
   bool get reduceAnimations => _prefs.getBool(_keyReduceAnimations) ?? false;
 

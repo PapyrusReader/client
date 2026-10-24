@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/pages/book_details_page.dart';
@@ -14,7 +12,7 @@ import 'package:papyrus/widgets/book_edit/cover_image_picker.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
-  for (final theme in [AppTheme.dark, AppTheme.eink]) {
+  for (final theme in [AppTheme.dark, AppTheme.highContrastDark, AppTheme.highContrastLight, AppTheme.eink]) {
     for (final layout in [
       (screen: const Size(3840, 2160), width: 3560.0, scale: 1.0),
       (screen: const Size(1800, 1200), width: 1520.0, scale: 1.0),
@@ -95,13 +93,6 @@ void main() {
           expect(tester.getRect(search).left, detailsTitle.left);
         }
 
-        final formCard = find.ancestor(of: find.text('Basic information'), matching: find.byType(Card)).first;
-
-        expect(
-          tester.getRect(formCard).right,
-          layout.screen.width - layout.width + math.min(layout.width, 1120) - Spacing.lg,
-        );
-
         final searchField = find.ancestor(of: find.text('Search'), matching: find.byType(TextFormField)).first;
         final saveButton = find.widgetWithText(FilledButton, 'Save');
         expect(tester.getRect(saveButton).right, tester.getRect(searchField).right);
@@ -112,7 +103,7 @@ void main() {
     }
   }
 
-  testWidgets('mobile edit retains its padded card and full-width bordered cover', (tester) async {
+  testWidgets('mobile edit retains its padding and full-width bordered cover', (tester) async {
     const screen = Size(400, 1100);
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = screen;
@@ -146,7 +137,6 @@ void main() {
     expect(preview.width, screen.width - Spacing.md * 4);
     expect(preview.height, preview.width / CoverImagePicker.coverAspectRatio);
     expect(image, preview.deflate(1));
-    expect(find.ancestor(of: picker, matching: find.byType(Card)), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
