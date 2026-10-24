@@ -69,7 +69,7 @@ jobs:
             sync = $env:POWERSYNC_SERVICE_URL
           } | ConvertTo-Json | Set-Content dist/BUILD-INFO.json
           Copy-Item ../docs/WINDOWS_TESTING.md dist/WINDOWS_TESTING.md
-          Get-ChildItem dist -File | Sort-Object Name | ForEach-Object {
+          Get-ChildItem dist -File | Where-Object Name -ne 'SHA256SUMS' | Sort-Object Name | ForEach-Object {
             "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($_.Name)"
           } | Set-Content dist/SHA256SUMS
       - name: Save production preview before building test entrypoint
