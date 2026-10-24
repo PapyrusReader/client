@@ -79,7 +79,7 @@ class BookImportSheet extends StatefulWidget {
       builder: (sheetContext) {
         final effectivePickFiles = pickFiles ?? defaultPickFiles;
 
-        Widget buildSheet(ScrollController scrollController) => BookImportSheet(
+        Widget buildSheet(ScrollController? scrollController) => BookImportSheet(
           pickFiles: effectivePickFiles,
           processor: effectiveProcessor,
           deleteBookFile: effectiveDeleter,
@@ -101,13 +101,7 @@ class BookImportSheet extends StatefulWidget {
           return ExpandableBottomSheet(builder: (_, controller) => buildSheet(controller));
         }
 
-        return DraggableScrollableSheet(
-          initialChildSize: 0.6,
-          minChildSize: 0.4,
-          maxChildSize: 0.95,
-          expand: false,
-          builder: (_, controller) => buildSheet(controller),
-        );
+        return buildSheet(null);
       },
     );
   }

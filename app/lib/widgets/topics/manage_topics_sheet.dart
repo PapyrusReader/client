@@ -164,7 +164,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
               shrinkWrap: mobile,
               slivers: [
                 SliverPadding(
-                  padding: const EdgeInsets.all(Spacing.lg),
+                  padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.lg, Spacing.lg, Spacing.sm),
                   sliver: SliverToBoxAdapter(
                     child: SearchField(
                       controller: _searchController,
@@ -184,7 +184,7 @@ class _ManageTopicsSheetState extends State<ManageTopicsSheet> with PersistentSa
                   )
                 else
                   SliverPadding(
-                    padding: const EdgeInsets.symmetric(horizontal: Spacing.lg),
+                    padding: const EdgeInsets.fromLTRB(Spacing.lg, 0, Spacing.lg, Spacing.lg - Spacing.xs),
                     sliver: SliverList.builder(
                       itemCount: filtered.length,
                       itemBuilder: (context, index) => _buildTagTile(context, filtered[index]),
