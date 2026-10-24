@@ -24,7 +24,7 @@ class GuestAccountDeletionService {
   Future<void> delete() => auth.deleteGuestAccount(() async {
     await downloads.cancelAndWait();
 
-    await library.deleteGuestLibrary(
+    await library.clearGuestLibrary(
       deleteFiles: (books) async {
         for (final book in books) {
           await files.deleteBookFile(book.id);

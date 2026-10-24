@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
+import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/storage_sync_controller.dart';
 import 'package:papyrus/powersync/sync_state.dart';
@@ -530,7 +531,17 @@ class StorageSyncSettingsSection extends StatelessWidget {
     final snackBarAnimationStyle = AppMotion.animationStyle(context);
 
     try {
-      await context.read<PapyrusPowerSyncService>().clearGuestLibrary();
+      final files = context.read<BookImportService>();
+
+      await context.read<PapyrusPowerSyncService>().clearGuestLibrary(
+        deleteFiles: (books) async {
+          for (final book in books) {
+            await files.deleteBookFile(book.id);
+          }
+
+          await files.clearCoverFiles(MediaStorageScope.localGuest);
+        },
+      );
 
       messenger.showSnackBar(
         snackBarAnimationStyle: snackBarAnimationStyle,

@@ -187,28 +187,8 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
     await database.connect(connector: connectorFactory());
   }
 
-  Future<void> clearGuestLibrary() async {
-    await _modeOperation;
-
-    if (_mode != LibraryDatabaseMode.guest) {
-      throw StateError('Only guest libraries can be cleared with clearGuestLibrary');
-    }
-
-    final database = _requireDatabase();
-
-    await database.writeTransaction((tx) async {
-      for (final table in libraryTableNames.reversed) {
-        await tx.execute('DELETE FROM $table');
-      }
-    });
-
-    _booksController.add(const []);
-    _setSyncState(const SyncState());
-    _setBookMetadataSyncState(const BookMetadataSyncState());
-  }
-
   /// Retains book records until their files are removed so failures can be retried.
-  Future<void> deleteGuestLibrary({required Future<void> Function(List<Book>) deleteFiles}) {
+  Future<void> clearGuestLibrary({required Future<void> Function(List<Book>) deleteFiles}) {
     final previousOperation = _modeOperation;
 
     final operation = (() async {
