@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/add_book/add_book_sheet_scaffold.dart';
+import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:papyrus/widgets/add_book/book_import_batch_item.dart';
 import 'package:papyrus/widgets/add_book/book_import_drop_zone.dart';
 import 'package:papyrus/widgets/add_book/book_import_item_card.dart';
@@ -39,9 +38,13 @@ class BookImportSelectingSection extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasFiles = files.isNotEmpty;
 
-    return AddBookSheetScaffold(
+    return AppBottomSheet(
+      headerKey: const Key('add-book-sheet-header'),
+      footerKey: const Key('add-book-sheet-footer'),
+      expandOnScroll: false,
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
       title: 'Import books',
-      footerPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
       canClose: true,
       onClose: onClose,
       body: hasFiles ? _buildFileList(context) : _buildBrowseOnly(context),
@@ -83,7 +86,7 @@ class BookImportSelectingSection extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return ListView(
-      shrinkWrap: context.findAncestorWidgetOfExactType<ExpandableBottomSheet>() != null,
+      shrinkWrap: true,
       controller: scrollController,
       padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
       children: [
@@ -141,13 +144,17 @@ class BookImportProcessingSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AddBookSheetScaffold(
+    return AppBottomSheet(
+      headerKey: const Key('add-book-sheet-header'),
+      footerKey: const Key('add-book-sheet-footer'),
+      expandOnScroll: false,
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
       title: 'Importing books',
-      footerPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
       canClose: !isClosing,
       onClose: onClose,
       body: ListView.separated(
-        shrinkWrap: context.findAncestorWidgetOfExactType<ExpandableBottomSheet>() != null,
+        shrinkWrap: true,
         controller: scrollController,
         padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
         itemCount: items.length,
@@ -195,13 +202,17 @@ class BookImportSummarySection extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasFailures = failureCount > 0;
 
-    return AddBookSheetScaffold(
+    return AppBottomSheet(
+      headerKey: const Key('add-book-sheet-header'),
+      footerKey: const Key('add-book-sheet-footer'),
+      expandOnScroll: false,
+      scrollable: false,
+      contentPadding: EdgeInsets.zero,
       title: 'Import complete',
-      footerPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
       canClose: !isClosing,
       onClose: onDone,
       body: ListView(
-        shrinkWrap: context.findAncestorWidgetOfExactType<ExpandableBottomSheet>() != null,
+        shrinkWrap: true,
         controller: scrollController,
         padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
         children: items

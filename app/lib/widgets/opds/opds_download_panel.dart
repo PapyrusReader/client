@@ -63,7 +63,10 @@ class _DownloadsList extends StatelessWidget {
       final jobs = downloads.jobs;
 
       if (jobs.isEmpty) {
-        return const EmptyState.compact(icon: Icons.downloading_outlined, title: 'No downloads yet');
+        return const SingleChildScrollView(
+          primary: true,
+          child: EmptyState.compact(icon: Icons.downloading_outlined, title: 'No downloads yet'),
+        );
       }
 
       return ListView.separated(
