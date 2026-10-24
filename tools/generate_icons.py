@@ -3,7 +3,7 @@
 # requires-python = ">=3.10"
 # dependencies = ["pillow==12.0.0"]
 # ///
-"""Generate platform icons from the canonical SVG, or validate them with --check.
+"""Generate platform icons and setup artwork, or validate them with --check.
 
 Requires rsvg-convert (Homebrew librsvg / Debian librsvg2-bin).
 Run from the client repository:
@@ -13,13 +13,17 @@ Run from the client repository:
 The canonical emblem is app/assets/images/logo-icon-light.svg (128.41 by
 143.18). Square canvases add padding to preserve its proportions. The check
 runs in CI and validates artwork, dimensions, Apple catalog slots, web manifest
-sizes, opaque iOS backgrounds, Windows ICO frames and mask safe zones.
+sizes, opaque iOS backgrounds, Windows ICO frames, installer artwork and mask safe zones.
 
 Android uses 48 dp legacy icons and 108 dp adaptive foregrounds with artwork
 inside the central 66 dp safe circle. Web maskable icons use opaque backgrounds
 and an 80% diameter safe circle. macOS uses a padded plate. Windows and ordinary
 web icons retain transparency. Linux packaging fits the generated
 assets/images/logo.png into a 256-pixel square without changing its proportions.
+Windows setup uses opaque BMP artwork at four times the classic wizard size:
+a 164:314 sidebar and a square header cropped from the client's welcome-page
+illustration. The portrait crop favors the lamp and books on the left, while
+the header uses a closer view of that same scene. Neither crop stretches it.
 
 Platform specifications:
     https://developer.android.com/develop/ui/compose/system/icon_design_adaptive
@@ -35,7 +39,7 @@ import subprocess
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
-from PIL import Image, ImageChops, ImageDraw, ImageStat
+from PIL import Image, ImageChops, ImageDraw, ImageOps, ImageStat
 
 ROOT = Path(__file__).resolve().parents[1]
 APP = ROOT / "app"
@@ -90,6 +94,19 @@ def catalog_icons(platform):
         yield directory / entry["filename"], int(width * scale)
 
 
+def installer_artwork():
+    with Image.open(APP / "assets/images/welcome-illustration.png") as image:
+        scene = image.convert("RGB")
+
+    sidebar = ImageOps.fit(scene, (656, 1256), Image.Resampling.LANCZOS, centering=(0.2, 0.5))
+    lamp_and_books = scene.crop(
+        (round(scene.width * 0.1), round(scene.height * 0.15), round(scene.width * 0.55), round(scene.height * 0.75)),
+    )
+
+    header = ImageOps.fit(lamp_and_books, (232, 232), Image.Resampling.LANCZOS)
+    return sidebar, header
+
+
 def outputs(source):
     images = {}
 
@@ -117,6 +134,10 @@ def outputs(source):
         Image.Resampling.LANCZOS,
     )
 
+    sidebar, header = installer_artwork()
+    images[ROOT / "packaging/windows/assets/wizard.bmp"] = sidebar
+    images[ROOT / "packaging/windows/assets/wizard-small.bmp"] = header
+
     return images
 
 
@@ -129,7 +150,7 @@ def check_image(path, actual, expected):
     difference = ImageStat.Stat(ImageChops.difference(actual, expected))
 
     if max(difference.mean) > 0.5:
-        raise ValueError(f"{path}: artwork differs from the proportional SVG export")
+        raise ValueError(f"{path}: artwork differs from the expected source export")
 
 
 def check_safe_circle(image, radius):
@@ -196,7 +217,7 @@ def main():
     else:
         frames[-1].save(path, sizes=[frame.size for frame in frames], append_images=frames[:-1])
 
-    print(f"{'Validated' if args.check else 'Generated'} {len(images)} PNGs and {len(frames)} Windows ICO frames")
+    print(f"{'Validated' if args.check else 'Generated'} {len(images)} platform images and {len(frames)} Windows ICO frames")
 
 
 if __name__ == "__main__":

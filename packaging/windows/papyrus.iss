@@ -2,7 +2,7 @@
 AppId={{EE12464D-190B-4F05-B5D7-C333AE7DFA91}
 AppName=Papyrus
 AppVersion={#AppVersion}+{#BuildNumber}
-VersionInfoVersion={#AppVersion}
+VersionInfoVersion={#AppVersion}.{#BuildNumber}
 AppVerName=Papyrus {#ReleaseTag}
 AppPublisher=PapyrusReader
 AppPublisherURL=https://papyrus-reader.com
@@ -19,8 +19,14 @@ UninstallDisplayIcon={app}\papyrus.exe
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern
+WizardImageFile=assets\wizard.bmp
+WizardSmallImageFile=assets\wizard-small.bmp
+DisableWelcomePage=no
 CloseApplications=yes
 RestartApplications=no
+
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
 Source: "{#BundleDirectory}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -28,6 +34,7 @@ Source: "{#WebViewInstaller}"; Flags: dontcopy
 
 [Icons]
 Name: "{group}\Papyrus"; Filename: "{app}\papyrus.exe"
+Name: "{autodesktop}\Papyrus"; Filename: "{app}\papyrus.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\papyrus.exe"; Description: "Open Papyrus"; Flags: nowait postinstall skipifsilent

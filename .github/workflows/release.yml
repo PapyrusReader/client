@@ -263,6 +263,9 @@ jobs:
       - name: Verify Windows installer
         run: ../tools/check_windows_package.ps1 -Tag $env:RELEASE_TAG
 
+      - name: Verify Windows ZIP
+        run: ../tools/check_windows_zip.ps1 -Tag $env:RELEASE_TAG
+
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

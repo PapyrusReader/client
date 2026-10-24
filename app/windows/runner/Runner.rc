@@ -89,8 +89,9 @@ BEGIN
     BEGIN
         BLOCK "040904e4"
         BEGIN
+            // CompanyName and ProductName also identify existing user-data directories.
             VALUE "CompanyName", "com.papyrus" "\0"
-            VALUE "FileDescription", "papyrus" "\0"
+            VALUE "FileDescription", "Papyrus" "\0"
             VALUE "FileVersion", VERSION_AS_STRING "\0"
             VALUE "InternalName", "papyrus" "\0"
             VALUE "LegalCopyright", "Copyright (C) 2025 com.papyrus. All rights reserved." "\0"
