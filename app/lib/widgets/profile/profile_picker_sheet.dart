@@ -14,6 +14,7 @@ void showProfilePickerSheet(
     sheetAnimationStyle: AppMotion.animationStyle(context),
     context: context,
     isScrollControlled: true,
+    useRootNavigator: true,
     useSafeArea: true,
     builder: (sheetContext) => AppBottomSheet(
       header: Text(title, style: Theme.of(sheetContext).textTheme.titleMedium),
@@ -24,16 +25,20 @@ void showProfilePickerSheet(
           final colorScheme = Theme.of(sheetContext).colorScheme;
           final isSelected = selected == item.$2;
 
-          return ListTile(
-            title: Text(item.$1),
-            leading: Icon(
-              isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-              color: isSelected ? colorScheme.primary : colorScheme.outline,
+          return Semantics(
+            checked: isSelected,
+            inMutuallyExclusiveGroup: true,
+            child: ListTile(
+              title: Text(item.$1),
+              leading: Icon(
+                isSelected ? Icons.radio_button_checked : Icons.radio_button_unchecked,
+                color: isSelected ? colorScheme.primary : colorScheme.outline,
+              ),
+              onTap: () {
+                onSelected(item.$2);
+                Navigator.pop(sheetContext);
+              },
             ),
-            onTap: () {
-              onSelected(item.$2);
-              Navigator.pop(sheetContext);
-            },
           );
         }).toList(),
       ),

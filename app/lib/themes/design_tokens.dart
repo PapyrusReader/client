@@ -131,6 +131,7 @@ class ComponentSizes {
   // Card widths
   static const double authCardWidth = 480.0;
   static const double authCardPadding = 48.0;
+  static const double dialogMaxWidth = 560.0;
 
   // Auth layout (split-screen)
   static const double authHeroMinWidth = 400.0;

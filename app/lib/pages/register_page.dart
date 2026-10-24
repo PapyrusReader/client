@@ -97,7 +97,7 @@ class _RegisterPageState extends State<RegisterPage> {
       snackBarAnimationStyle: AppMotion.animationStyle(context),
       SnackBar(
         duration: const Duration(seconds: 5),
-        content: Text(message),
+        content: Text(message, style: TextStyle(color: Theme.of(context).colorScheme.onError)),
         backgroundColor: Theme.of(context).colorScheme.error,
       ),
     );
@@ -228,49 +228,53 @@ class _RegisterForm extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: formKey,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          NameInput(
-            labelText: 'Display name',
-            controller: displayNameController,
-            focusNode: displayNameFocusNode,
-            textInputAction: TextInputAction.next,
-            onEditingComplete: () => emailFocusNode.requestFocus(),
-          ),
-          const SizedBox(height: Spacing.md),
-          EmailInput(
-            labelText: 'Email address',
-            controller: emailController,
-            focusNode: emailFocusNode,
-            textInputAction: TextInputAction.next,
-            onEditingComplete: () => passwordFocusNode.requestFocus(),
-          ),
-          const SizedBox(height: Spacing.md),
-          PasswordInput(
-            labelText: 'Password',
-            controller: passwordController,
-            focusNode: passwordFocusNode,
-            textInputAction: TextInputAction.next,
-            onEditingComplete: () => confirmPasswordFocusNode.requestFocus(),
-            extraValidator: validatePasswordStrength,
-          ),
-          const SizedBox(height: Spacing.md),
-          PasswordInput(
-            labelText: 'Confirm password',
-            controller: confirmPasswordController,
-            focusNode: confirmPasswordFocusNode,
-            textInputAction: TextInputAction.done,
-            onFieldSubmitted: (_) => onRegister(),
-            extraValidator: validateConfirmPassword,
-            validationDependency: passwordController,
-          ),
-          const SizedBox(height: Spacing.lg),
-          AuthContinueButton(isLoading: isLoading, onPressed: onRegister, isDesktop: isDesktop),
-        ],
+    return AutofillGroup(
+      child: Form(
+        key: formKey,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            NameInput(
+              labelText: 'Display name',
+              controller: displayNameController,
+              focusNode: displayNameFocusNode,
+              textInputAction: TextInputAction.next,
+              onEditingComplete: () => emailFocusNode.requestFocus(),
+            ),
+            const SizedBox(height: Spacing.md),
+            EmailInput(
+              labelText: 'Email address',
+              controller: emailController,
+              focusNode: emailFocusNode,
+              textInputAction: TextInputAction.next,
+              onEditingComplete: () => passwordFocusNode.requestFocus(),
+            ),
+            const SizedBox(height: Spacing.md),
+            PasswordInput(
+              autofillHints: const [AutofillHints.newPassword],
+              labelText: 'Password',
+              controller: passwordController,
+              focusNode: passwordFocusNode,
+              textInputAction: TextInputAction.next,
+              onEditingComplete: () => confirmPasswordFocusNode.requestFocus(),
+              extraValidator: validatePasswordStrength,
+            ),
+            const SizedBox(height: Spacing.md),
+            PasswordInput(
+              autofillHints: const [AutofillHints.newPassword],
+              labelText: 'Confirm password',
+              controller: confirmPasswordController,
+              focusNode: confirmPasswordFocusNode,
+              textInputAction: TextInputAction.done,
+              onFieldSubmitted: (_) => onRegister(),
+              extraValidator: validateConfirmPassword,
+              validationDependency: passwordController,
+            ),
+            const SizedBox(height: Spacing.lg),
+            AuthContinueButton(isLoading: isLoading, onPressed: onRegister, isDesktop: isDesktop),
+          ],
+        ),
       ),
     );
   }

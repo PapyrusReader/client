@@ -314,23 +314,20 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
             Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                Card(
-                  margin: const EdgeInsets.only(bottom: Spacing.xs),
-                  child: Padding(
-                    padding: const EdgeInsets.all(Spacing.md),
-                    child: CoverImagePicker(
-                      initialUrl: _coverUrl,
-                      initialBytes: _coverImageBytes,
-                      onUrlChanged: (url) => setState(() => _coverUrl = url),
-                      onFileChanged: (bytes) => setState(() {
-                        _coverImageBytes = bytes;
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, Spacing.md + Spacing.xs),
+                  child: CoverImagePicker(
+                    initialUrl: _coverUrl,
+                    initialBytes: _coverImageBytes,
+                    onUrlChanged: (url) => setState(() => _coverUrl = url),
+                    onFileChanged: (bytes) => setState(() {
+                      _coverImageBytes = bytes;
 
-                        if (bytes != null) {
-                          _coverUrl = null;
-                        }
-                      }),
-                      coverWidth: 240,
-                    ),
+                      if (bytes != null) {
+                        _coverUrl = null;
+                      }
+                    }),
+                    coverWidth: 240,
                   ),
                 ),
 
@@ -354,27 +351,24 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
     );
   }
 
-  Widget _buildSectionCard({required String? title, required List<Widget> children}) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: Spacing.xs),
-      child: Padding(
-        padding: const EdgeInsets.all(Spacing.md),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (title != null) ...[
-              Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-              const SizedBox(height: Spacing.md),
-            ],
-            ...children,
+  Widget _buildFormSection({required String? title, required List<Widget> children}) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.md, Spacing.md, Spacing.md + Spacing.xs),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (title != null) ...[
+            Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+            const SizedBox(height: Spacing.md),
           ],
-        ),
+          ...children,
+        ],
       ),
     );
   }
 
   Widget _buildBasicInfoSection() {
-    return _buildSectionCard(
+    return _buildFormSection(
       title: 'Basic information',
       children: [
         BookTextField(controller: _titleController, label: 'Title', required: true, onChanged: (_) => setState(() {})),
@@ -396,7 +390,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
   }
 
   Widget _buildPublicationSection() {
-    return _buildSectionCard(
+    return _buildFormSection(
       title: 'Publication details',
       children: [
         BookTextField(controller: _publisherController, label: 'Publisher'),
@@ -416,7 +410,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
   }
 
   Widget _buildIdentifiersSection() {
-    return _buildSectionCard(
+    return _buildFormSection(
       title: 'Identifiers',
       children: [
         BookTextField(controller: _isbnController, label: 'ISBN'),
@@ -427,7 +421,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
   }
 
   Widget _buildSeriesSection() {
-    return _buildSectionCard(
+    return _buildFormSection(
       title: 'Series',
       children: [
         BookTextField(controller: _seriesNameController, label: 'Series name'),
@@ -442,7 +436,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
   }
 
   Widget _buildPhysicalBookSection() {
-    return _buildSectionCard(
+    return _buildFormSection(
       title: 'Other details',
       children: [
         BookTextField(controller: _locationController, label: 'Location'),
@@ -464,7 +458,7 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
     final textTheme = Theme.of(context).textTheme;
     final isFetching = _lookupState == _IsbnLookupState.fetching;
 
-    return _buildSectionCard(
+    return _buildFormSection(
       title: 'ISBN lookup',
       children: [
         // ISBN field with inline look-up button

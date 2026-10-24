@@ -14,6 +14,7 @@ import 'package:papyrus/pages/login_page.dart';
 import 'package:papyrus/pages/auth/oauth_callback_page.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/providers/auth_provider.dart';
+import 'package:papyrus/services/guest_account_deletion_service.dart';
 import 'package:papyrus/widgets/profile/account_settings_section.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
 import 'package:provider/provider.dart';
@@ -30,6 +31,24 @@ class _Storage implements RefreshTokenStorage {
 
   @override
   Future<void> delete() async => value = null;
+}
+
+class _GuestDeletion extends Fake implements GuestAccountDeletionService {
+  _GuestDeletion(this.auth);
+
+  @override
+  final AuthProvider auth;
+  int calls = 0;
+  bool fail = false;
+
+  @override
+  Future<void> delete() => auth.deleteGuestAccount(() async {
+    calls++;
+
+    if (fail) {
+      throw StateError('Storage unavailable');
+    }
+  });
 }
 
 class _Repository extends AuthRepository {
@@ -155,11 +174,17 @@ void main() {
     addTearDown(auth.dispose);
   }
 
-  Future<void> showPage(WidgetTester tester, {bool desktop = false, bool login = false, String? callback}) async {
+  Future<void> showPage(
+    WidgetTester tester, {
+    bool desktop = false,
+    bool login = false,
+    String? callback,
+    GuestAccountDeletionService? guestDeletion,
+  }) async {
     final router = GoRouter(
       initialLocation: callback ?? (login ? '/login' : '/profile'),
       refreshListenable: auth,
-      redirect: (_, state) => state.uri.path == '/profile' && !auth.isSignedIn ? '/login' : null,
+      redirect: (_, state) => state.uri.path == '/profile' && !auth.isSignedIn && !auth.isOfflineMode ? '/login' : null,
       routes: [
         GoRoute(
           path: '/auth/callback',
@@ -183,8 +208,11 @@ void main() {
     addTearDown(router.dispose);
 
     await tester.pumpWidget(
-      ChangeNotifierProvider<AuthProvider>.value(
-        value: auth,
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<AuthProvider>.value(value: auth),
+          if (guestDeletion != null) Provider<GuestAccountDeletionService>.value(value: guestDeletion),
+        ],
         child: MaterialApp.router(theme: AppTheme.light, routerConfig: router),
       ),
     );
@@ -211,6 +239,30 @@ void main() {
   });
 
   for (final desktop in [false, true]) {
+    testWidgets('guest deletion can cancel, retry, then return to login, desktop=$desktop', (tester) async {
+      await setup(signedIn: false);
+      auth.setOfflineMode(true);
+      final deletion = _GuestDeletion(auth);
+      await showPage(tester, desktop: desktop, guestDeletion: deletion);
+      await openDialog(tester);
+      expect(find.textContaining('This cannot be undone.'), findsOneWidget);
+      expect(find.textContaining('30 days'), findsNothing);
+      await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
+      await tester.pumpAndSettle();
+      expect(deletion.calls, 0);
+      expect(auth.isOfflineMode, isTrue);
+      await openDialog(tester);
+      deletion.fail = true;
+      await confirm(tester);
+      expect(find.text('Could not delete all local data. Please try again.'), findsOneWidget);
+      expect(auth.isOfflineMode, isTrue);
+      deletion.fail = false;
+      await confirm(tester);
+      expect(auth.isOfflineMode, isFalse);
+      expect(find.byType(LoginPage), findsOneWidget);
+      expect(requests, isEmpty);
+    });
+
     testWidgets('Google deletion completes in the existing session, desktop=$desktop', (tester) async {
       await setup(connected: true);
       final size = Size(desktop ? 1200 : 360, 800);
@@ -232,7 +284,7 @@ void main() {
       expect(find.text('Delete account?'), findsOneWidget);
       expect(find.text('Confirm it’s you'), findsNothing);
       expect(find.text('Continue with Google'), findsNothing);
-      expect(find.byType(TextFormField), findsNothing);
+      expect(find.descendant(of: find.byType(AlertDialog), matching: find.byType(TextFormField)), findsNothing);
       expect(requests, isEmpty);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();

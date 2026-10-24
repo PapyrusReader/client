@@ -107,7 +107,12 @@ class AdaptiveAppShell extends StatelessWidget {
         icon: Icons.bar_chart_outlined,
         selectedIcon: Icons.bar_chart,
       ),
-      const AppShellNavItem(path: '/profile', label: 'Profile', icon: Icons.person_outline, selectedIcon: Icons.person),
+      const AppShellNavItem(
+        path: '/profile',
+        label: 'Settings',
+        icon: Icons.settings_outlined,
+        selectedIcon: Icons.settings,
+      ),
     ];
   }
 
@@ -136,7 +141,7 @@ class AdaptiveAppShell extends StatelessWidget {
             currentPath: GoRouterState.of(context).uri.toString(),
             onNavigate: (path) => context.go(path),
           ),
-          Expanded(child: child),
+          Expanded(child: Semantics(container: true, child: child)),
         ],
       ),
     );
@@ -147,11 +152,14 @@ class AdaptiveAppShell extends StatelessWidget {
     final isInLibrary = currentPath.startsWith('/library');
 
     return Scaffold(
-      body: isInLibrary
-          ? Builder(
-              builder: (context) => AppDrawerScope(scaffold: Scaffold.of(context), child: child),
-            )
-          : child,
+      body: Semantics(
+        container: true,
+        child: isInLibrary
+            ? Builder(
+                builder: (context) => AppDrawerScope(scaffold: Scaffold.of(context), child: child),
+              )
+            : child,
+      ),
       bottomNavigationBar: MobileBottomNav(
         items: navItems,
         currentPath: currentPath,

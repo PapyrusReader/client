@@ -17,19 +17,54 @@ class MobileBottomNav extends StatelessWidget {
     final mainItems = items.where((item) => !isChildPath(item.path)).toList();
     final currentIndex = _getCurrentIndex(mainItems);
 
+    void navigate(int index) {
+      final item = mainItems[index];
+      onNavigate(item.path == '/library' ? '/library/books' : item.path);
+    }
+
+    // Material's NavigationBar caps label scaling. Keep enlarged labels fully
+    // readable and keyboard reachable in a horizontally scrollable alternative.
+    if (MediaQuery.textScalerOf(context).scale(14) > 14 * 1.3) {
+      final colors = Theme.of(context).colorScheme;
+
+      return Material(
+        color: colors.surface,
+        child: SafeArea(
+          top: false,
+          child: SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: Row(
+              children: List.generate(mainItems.length, (index) {
+                final item = mainItems[index];
+                final selected = currentIndex == index;
+
+                return Semantics(
+                  selected: selected,
+                  child: Padding(
+                    padding: const EdgeInsets.all(4),
+                    child: TextButton.icon(
+                      style: TextButton.styleFrom(
+                        minimumSize: const Size(48, 48),
+                        backgroundColor: selected ? colors.primaryContainer : null,
+                        foregroundColor: selected ? colors.onPrimaryContainer : colors.onSurface,
+                      ),
+                      onPressed: () => navigate(index),
+                      icon: Icon(selected ? item.selectedIcon ?? item.icon : item.icon),
+                      label: Text(item.label),
+                    ),
+                  ),
+                );
+              }),
+            ),
+          ),
+        ),
+      );
+    }
+
     return NavigationBar(
       animationDuration: AppMotion.duration(context, const Duration(milliseconds: 500)),
       selectedIndex: currentIndex,
-      onDestinationSelected: (index) {
-        final item = mainItems[index];
-        // For library, navigate to books subpage
-
-        if (item.path == '/library') {
-          onNavigate('/library/books');
-        } else {
-          onNavigate(item.path);
-        }
-      },
+      onDestinationSelected: navigate,
       destinations: mainItems.map((item) {
         return NavigationDestination(
           icon: Icon(item.icon),

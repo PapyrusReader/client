@@ -187,24 +187,40 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
     await database.connect(connector: connectorFactory());
   }
 
-  Future<void> clearGuestLibrary() async {
-    await _modeOperation;
+  /// Retains book records until their files are removed so failures can be retried.
+  Future<void> clearGuestLibrary({required Future<void> Function(List<Book>) deleteFiles}) {
+    final previousOperation = _modeOperation;
 
-    if (_mode != LibraryDatabaseMode.guest) {
-      throw StateError('Only guest libraries can be cleared with clearGuestLibrary');
-    }
+    final operation = (() async {
+      await previousOperation;
 
-    final database = _requireDatabase();
+      if (_mode != LibraryDatabaseMode.guest) {
+        throw StateError('Only the active guest library can be deleted.');
+      }
 
-    await database.writeTransaction((tx) async {
-      for (final table in libraryTableNames.reversed) {
-        await tx.execute('DELETE FROM $table');
+      final database = _requireDatabase();
+      final snapshot = await _activeLibrary.snapshot();
+      await deleteFiles(snapshot.books);
+
+      await database.writeTransaction((tx) async {
+        for (final table in libraryTableNames.reversed) {
+          await tx.execute('DELETE FROM $table');
+        }
+      });
+
+      _databaseSnapshot = const LibrarySnapshot();
+      _publishLibrarySnapshot(_databaseSnapshot!, database);
+      _setSyncState(const SyncState());
+      _setBookMetadataSyncState(const BookMetadataSyncState());
+    })();
+
+    _modeOperation = operation;
+
+    return operation.whenComplete(() {
+      if (identical(_modeOperation, operation)) {
+        _modeOperation = null;
       }
     });
-
-    _booksController.add(const []);
-    _setSyncState(const SyncState());
-    _setBookMetadataSyncState(const BookMetadataSyncState());
   }
 
   Future<void> clearAuthenticatedCache() async {

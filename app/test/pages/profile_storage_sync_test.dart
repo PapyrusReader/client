@@ -12,6 +12,10 @@ import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
+import 'package:papyrus/media/media_storage_scope.dart';
+import 'package:papyrus/services/book_import_service_stub.dart'
+    if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
+import 'package:papyrus/widgets/profile/storage_sync_settings_section.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/pages/profile_page.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
@@ -76,6 +80,7 @@ class _FakePowerSyncService extends PapyrusPowerSyncService {
   int reconnectCalls = 0;
   int clearGuestLibraryCalls = 0;
   int clearAuthenticatedCacheCalls = 0;
+  List<Book> guestBooks = [];
 
   @override
   LibraryDatabaseMode? get mode => currentMode;
@@ -92,13 +97,35 @@ class _FakePowerSyncService extends PapyrusPowerSyncService {
   }
 
   @override
-  Future<void> clearGuestLibrary() async {
+  Future<void> clearGuestLibrary({required Future<void> Function(List<Book>) deleteFiles}) async {
+    await deleteFiles(guestBooks);
+    guestBooks = [];
     clearGuestLibraryCalls += 1;
   }
 
   @override
   Future<void> clearAuthenticatedCache() async {
     clearAuthenticatedCacheCalls += 1;
+  }
+}
+
+class _Files extends BookImportService {
+  final deletedBooks = <String>[];
+  final clearedScopes = <MediaStorageScope>[];
+  bool failDeletion = false;
+
+  @override
+  Future<void> deleteBookFile(String bookId) async {
+    if (failDeletion) {
+      throw StateError('Storage unavailable');
+    }
+
+    deletedBooks.add(bookId);
+  }
+
+  @override
+  Future<void> clearCoverFiles(MediaStorageScope scope) async {
+    clearedScopes.add(scope);
   }
 }
 
@@ -133,6 +160,8 @@ void main() {
     DataStore? dataStore,
     MediaUploadQueue? mediaUploadQueue,
     AcquisitionAvailabilityProvider? acquisitionAvailabilityProvider,
+    Widget Function(Widget page)? pageBuilder,
+    BookImportService? files,
   }) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -149,6 +178,7 @@ void main() {
           value: syncSettingsProvider ?? SyncSettingsProvider(prefs, officialConfig: config),
         ),
         Provider<PapyrusPowerSyncService>.value(value: powerSyncService),
+        if (files != null) Provider<BookImportService>.value(value: files),
         StreamProvider<SyncState>.value(value: powerSyncService.syncStates, initialData: powerSyncService.syncState),
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
         ChangeNotifierProvider<AcquisitionAvailabilityProvider>.value(
@@ -170,18 +200,53 @@ void main() {
       child: MaterialApp(
         home: MediaQuery(
           data: MediaQueryData(size: screenSize),
-          child: const ProfilePage(),
+          child: pageBuilder?.call(const ProfilePage()) ?? const ProfilePage(),
         ),
       ),
     );
   }
+
+  testWidgets('clearing the guest library removes its files and covers before discarding records', (tester) async {
+    final auth = await buildAuthProvider(guest: true);
+    final service = _FakePowerSyncService(currentMode: LibraryDatabaseMode.guest, currentSyncState: const SyncState());
+    final files = _Files()..failDeletion = true;
+    service.guestBooks = [Book(id: 'guest-book', title: 'Guest book', author: 'Reader', addedAt: DateTime.now())];
+
+    await tester.pumpWidget(
+      await buildPage(
+        authProvider: auth,
+        powerSyncService: service,
+        files: files,
+        pageBuilder: (_) => const Scaffold(body: StorageSyncSettingsSection()),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear local library'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear library'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Could not clear local library'), findsOneWidget);
+    expect(service.guestBooks.single.id, 'guest-book');
+    expect(service.clearGuestLibraryCalls, 0);
+    files.failDeletion = false;
+    await tester.tap(find.text('Clear local library'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Clear library'));
+    await tester.pumpAndSettle();
+    expect(files.deletedBooks, ['guest-book']);
+    expect(files.clearedScopes, [MediaStorageScope.localGuest]);
+    expect(service.guestBooks, isEmpty);
+    expect(service.clearGuestLibraryCalls, 1);
+    expect(auth.isOfflineMode, isTrue);
+  });
 
   testWidgets('offline storage sync UI is local-first and hides sync internals', (tester) async {
     final auth = await buildAuthProvider(guest: true);
     final service = _FakePowerSyncService(currentMode: LibraryDatabaseMode.guest, currentSyncState: const SyncState());
     await tester.pumpWidget(await buildPage(authProvider: auth, powerSyncService: service));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage'), 400);
+    await tester.scrollUntilVisible(find.text('Storage'), 400, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     expect(find.text('Stored on this device'), findsOneWidget);
     expect(find.text('Export or import a backup'), findsOneWidget);
@@ -224,7 +289,11 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.byKey(const Key('profile-acquisition-section')), 400);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('profile-acquisition-section')),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pumpAndSettle();
     final acquisitionSection = find.byKey(const Key('profile-acquisition-section'));
     expect(find.descendant(of: acquisitionSection, matching: find.text('Data sync')), findsNothing);
@@ -268,7 +337,11 @@ void main() {
     );
 
     await tester.pump();
-    await tester.scrollUntilVisible(find.byKey(const Key('profile-acquisition-section')), 400);
+    await tester.scrollUntilVisible(
+      find.byKey(const Key('profile-acquisition-section')),
+      400,
+      scrollable: find.byType(Scrollable).first,
+    );
     await tester.pump();
     expect(find.text('Checking server support…'), findsOneWidget);
     completer.complete(_capabilities(enabled: true));
@@ -293,7 +366,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage'), 400);
+    await tester.scrollUntilVisible(find.text('Storage'), 400, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     final acquisitionSection = find.byKey(const Key('profile-acquisition-section'));
     expect(acquisitionSection, findsOneWidget);
@@ -456,7 +529,7 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage'), 400);
+    await tester.scrollUntilVisible(find.text('Storage'), 400, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Manage servers'));
     await tester.pumpAndSettle();
@@ -464,6 +537,60 @@ void main() {
     expect(find.text('Official server'), findsWidgets);
     expect(find.text('reader.example'), findsOneWidget);
     expect(find.text('Add custom server'), findsOneWidget);
+  });
+
+  testWidgets('manage servers blocks the sidebar outside the settings navigator', (tester) async {
+    const size = Size(1440, 900);
+    await tester.binding.setSurfaceSize(size);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final auth = await buildAuthProvider(signedIn: true);
+    final service = _FakePowerSyncService(
+      currentMode: LibraryDatabaseMode.authenticated,
+      currentSyncState: const SyncState(connected: true),
+    );
+    var sidebarActivations = 0;
+
+    await tester.pumpWidget(
+      await buildPage(
+        authProvider: auth,
+        powerSyncService: service,
+        screenSize: size,
+        pageBuilder: (page) => Scaffold(
+          body: Row(
+            children: [
+              SizedBox(
+                width: 240,
+                child: TextButton(
+                  onPressed: () => sidebarActivations++,
+                  child: const Text('Main sidebar'),
+                ),
+              ),
+              Expanded(
+                child: Navigator(onGenerateRoute: (_) => MaterialPageRoute<void>(builder: (_) => page)),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(InkWell, 'Storage'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Manage servers'));
+    await tester.pumpAndSettle();
+    final barrier = find.byType(ModalBarrier).last;
+    expect(tester.getRect(barrier), Offset.zero & size);
+    await tester.tapAt(tester.getCenter(find.text('Main sidebar')));
+    await tester.pumpAndSettle();
+    expect(sidebarActivations, 0);
+    expect(find.text('Sync servers'), findsNothing);
+    await tester.tap(find.text('Manage servers'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Official server'));
+    await tester.pumpAndSettle();
+    expect(find.text('Sync servers'), findsNothing);
+    expect(find.text('Manage servers'), findsOneWidget);
   });
 
   testWidgets('storage sync UI shows pending writes and sync errors', (tester) async {

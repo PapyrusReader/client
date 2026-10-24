@@ -39,6 +39,7 @@ class EmailInput extends StatelessWidget {
       ),
       controller: controller,
       focusNode: focusNode,
+      autofillHints: const [AutofillHints.email],
       keyboardType: TextInputType.emailAddress,
       textInputAction: textInputAction ?? TextInputAction.next,
       onEditingComplete: onEditingComplete,

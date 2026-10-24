@@ -75,6 +75,16 @@ class OpdsCatalogStore {
     return result;
   }
 
+  Future<void> clearScope(String scope) => _serialize(() async {
+    for (final catalog in load(scope)) {
+      await _secrets.delete(_secretKey(scope, catalog.id));
+    }
+
+    if (!await _prefs.remove(_key(scope))) {
+      throw const OpdsException('Could not remove saved catalogs.');
+    }
+  });
+
   /// Omitted credentials preserve the existing secret unless the origin changes.
   Future<void> save(String scope, OpdsCatalog catalog, {OpdsCredentials? credentials, bool clearCredentials = false}) =>
       _serialize(() async {

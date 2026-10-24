@@ -282,7 +282,31 @@ void main() {
     final first = service();
     await first.activateGuest();
     await first.upsert(_book('guest-book'));
-    await first.clearGuestLibrary();
+    await first.clearGuestLibrary(
+      deleteFiles: (books) async {
+        expect(books.map((book) => book.id), ['guest-book']);
+      },
+    );
+    expect(await first.getById('guest-book'), isNull);
+    await first.close();
+  });
+
+  test('clearGuestLibrary retains records when file cleanup fails and permits retry', () async {
+    final first = service();
+    await first.activateGuest();
+    await first.upsert(_book('guest-book'));
+
+    await expectLater(
+      first.clearGuestLibrary(deleteFiles: (_) async => throw StateError('Storage unavailable')),
+      throwsStateError,
+    );
+
+    expect(await first.getById('guest-book'), isNotNull);
+
+    await first.clearGuestLibrary(
+      deleteFiles: (books) async => expect(books.map((book) => book.id), ['guest-book']),
+    );
+
     expect(await first.getById('guest-book'), isNull);
     await first.close();
   });

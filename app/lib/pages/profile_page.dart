@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:go_router/go_router.dart';
@@ -11,27 +10,18 @@ import 'package:papyrus/widgets/profile/about_settings_section.dart';
 import 'package:papyrus/widgets/profile/accessibility_settings_section.dart';
 import 'package:papyrus/widgets/profile/account_settings_section.dart';
 import 'package:papyrus/widgets/profile/appearance_settings_section.dart';
-import 'package:papyrus/widgets/profile/developer_settings_section.dart';
-import 'package:papyrus/widgets/profile/library_settings_section.dart';
 import 'package:papyrus/widgets/profile/notifications_settings_section.dart';
 import 'package:papyrus/widgets/profile/privacy_settings_section.dart';
-import 'package:papyrus/widgets/profile/profile_header.dart';
 import 'package:papyrus/widgets/profile/profile_menu_item.dart';
-import 'package:papyrus/widgets/profile/reading_settings_section.dart';
 import 'package:papyrus/widgets/profile/storage_sync_settings_section.dart';
 import 'package:provider/provider.dart';
 
 enum _ProfileSection {
   account,
   appearance,
-  reading,
-  library,
-  notifications,
   storageSync,
-  privacyData,
   accessibility,
   about,
-  developerOptions,
 }
 
 /// User profile page with account settings, preferences, and app configuration.
@@ -62,23 +52,18 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildMobileLayout(BuildContext context) {
     return Scaffold(
-      appBar: AppPageBar(context: context, title: const Text('Profile')),
+      appBar: AppPageBar(context: context, title: const Text('Settings')),
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.all(Spacing.md),
           children: [
-            _buildMobileHeader(context),
-            const SizedBox(height: Spacing.md),
             const AccountSettingsSection(isDesktop: false),
             const AppearanceSettingsSection(isDesktop: false),
-            const ReadingSettingsSection(isDesktop: false),
-            const LibrarySettingsSection(isDesktop: false),
             const NotificationsSettingsSection(isDesktop: false),
             const StorageSyncSettingsSection(isDesktop: false),
             StorageSyncSettingsSection.buildMobileAcquisitionSection(context),
             const PrivacySettingsSection(isDesktop: false),
             const AccessibilitySettingsSection(isDesktop: false),
-            if (kDebugMode) const DeveloperSettingsSection(isDesktop: false),
             const AboutSettingsSection(isDesktop: false),
             const Divider(height: 1),
             ProfileMenuItem(
@@ -95,29 +80,15 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  Widget _buildMobileHeader(BuildContext context) {
-    final user = context.watch<AuthProvider>().user;
-    final displayName = user?.displayName ?? 'Anonymous User';
-    final userEmail = user?.email;
-    final email = (userEmail != null && userEmail.trim().isNotEmpty) ? userEmail : 'No email provided';
-
-    return ProfileHeader(
-      displayName: displayName,
-      email: email,
-      avatarUrl: user?.avatarUrl,
-      onEditProfile: () => context.go('/profile/edit'),
-      isDesktopLayout: false,
-    );
-  }
-
   Widget _buildDesktopLayout(BuildContext context) {
     return Scaffold(
       body: SafeArea(
         child: Row(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            _buildDesktopNav(context),
+            FocusTraversalGroup(child: _buildDesktopNav(context)),
             const VerticalDivider(width: 1),
-            Expanded(child: _buildDesktopContent(context)),
+            Expanded(child: FocusTraversalGroup(child: _buildDesktopContent(context))),
           ],
         ),
       ),
@@ -151,21 +122,9 @@ class _ProfilePageState extends State<ProfilePage> {
                   ),
                   _buildNavItem(
                     context,
-                    icon: Icons.auto_stories_outlined,
-                    label: 'Reading',
-                    section: _ProfileSection.reading,
-                  ),
-                  _buildNavItem(
-                    context,
-                    icon: Icons.library_books_outlined,
-                    label: 'Library',
-                    section: _ProfileSection.library,
-                  ),
-                  _buildNavItem(
-                    context,
                     icon: Icons.notifications_outlined,
                     label: 'Notifications',
-                    section: _ProfileSection.notifications,
+                    enabled: false,
                   ),
                   _buildNavItem(
                     context,
@@ -177,7 +136,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     context,
                     icon: Icons.shield_outlined,
                     label: 'Privacy',
-                    section: _ProfileSection.privacyData,
+                    enabled: false,
                   ),
                   _buildNavItem(
                     context,
@@ -185,13 +144,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     label: 'Accessibility',
                     section: _ProfileSection.accessibility,
                   ),
-                  if (kDebugMode)
-                    _buildNavItem(
-                      context,
-                      icon: Icons.code,
-                      label: 'Developer options',
-                      section: _ProfileSection.developerOptions,
-                    ),
                   _buildNavItem(context, icon: Icons.info_outline, label: 'About', section: _ProfileSection.about),
                   const SizedBox(height: Spacing.sm),
                   Divider(height: 1, color: colorScheme.outlineVariant),
@@ -218,6 +170,7 @@ class _ProfilePageState extends State<ProfilePage> {
     required IconData icon,
     required String label,
     _ProfileSection? section,
+    bool enabled = true,
     bool isDestructive = false,
     VoidCallback? onTap,
   }) {
@@ -241,34 +194,33 @@ class _ProfilePageState extends State<ProfilePage> {
 
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 2),
-      child: Material(
-        color: bgColor,
-        borderRadius: BorderRadius.circular(AppRadius.md),
-        child: InkWell(
-          onTap:
-              onTap ??
-              () {
-                if (section != null) {
-                  setState(() => _selectedSection = section);
-                }
-              },
+      child: Semantics(
+        enabled: enabled,
+        button: true,
+        child: Material(
+          color: bgColor,
           borderRadius: BorderRadius.circular(AppRadius.md),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm + 2),
-            child: Row(
-              children: [
-                Icon(icon, color: iconColor, size: IconSizes.medium),
-                const SizedBox(width: Spacing.md),
-                Expanded(
-                  child: Text(
-                    label,
-                    style: textTheme.bodyMedium?.copyWith(
-                      color: textColor,
-                      fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+          child: InkWell(
+            canRequestFocus: enabled,
+            onTap: enabled ? onTap ?? () => setState(() => _selectedSection = section!) : null,
+            borderRadius: BorderRadius.circular(AppRadius.md),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm + 2),
+              child: Row(
+                children: [
+                  Icon(icon, color: enabled ? iconColor : Theme.of(context).disabledColor, size: IconSizes.medium),
+                  const SizedBox(width: Spacing.md),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: textTheme.bodyMedium?.copyWith(
+                        color: enabled ? textColor : Theme.of(context).disabledColor,
+                        fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                      ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ),
@@ -279,10 +231,10 @@ class _ProfilePageState extends State<ProfilePage> {
   Widget _buildDesktopContent(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Align(
-      alignment: Alignment.topLeft,
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(Spacing.xl),
+    return SingleChildScrollView(
+      padding: const EdgeInsets.all(Spacing.xl),
+      child: Align(
+        alignment: Alignment.topLeft,
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 600),
           child: Column(
@@ -304,20 +256,10 @@ class _ProfilePageState extends State<ProfilePage> {
         return 'Account';
       case _ProfileSection.appearance:
         return 'Appearance';
-      case _ProfileSection.reading:
-        return 'Reading';
-      case _ProfileSection.library:
-        return 'Library';
-      case _ProfileSection.notifications:
-        return 'Notifications';
       case _ProfileSection.storageSync:
         return 'Storage';
-      case _ProfileSection.privacyData:
-        return 'Privacy & data';
       case _ProfileSection.accessibility:
         return 'Accessibility';
-      case _ProfileSection.developerOptions:
-        return 'Developer options';
       case _ProfileSection.about:
         return 'About';
     }
@@ -329,22 +271,12 @@ class _ProfilePageState extends State<ProfilePage> {
         return const AccountSettingsSection(isDesktop: true);
       case _ProfileSection.appearance:
         return const AppearanceSettingsSection(isDesktop: true);
-      case _ProfileSection.reading:
-        return const ReadingSettingsSection(isDesktop: true);
-      case _ProfileSection.library:
-        return const LibrarySettingsSection(isDesktop: true);
-      case _ProfileSection.notifications:
-        return const NotificationsSettingsSection(isDesktop: true);
       case _ProfileSection.storageSync:
         return const StorageSyncSettingsSection(isDesktop: true);
-      case _ProfileSection.privacyData:
-        return const PrivacySettingsSection(isDesktop: true);
       case _ProfileSection.accessibility:
         return const AccessibilitySettingsSection(isDesktop: true);
       case _ProfileSection.about:
         return const AboutSettingsSection(isDesktop: true);
-      case _ProfileSection.developerOptions:
-        return const DeveloperSettingsSection(isDesktop: true);
     }
   }
 

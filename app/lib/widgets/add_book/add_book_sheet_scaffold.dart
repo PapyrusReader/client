@@ -32,25 +32,33 @@ class AddBookSheetScaffold extends StatelessWidget {
         final isCompactHeight = constraints.maxHeight < 280;
         final verticalPadding = isCompactHeight ? 0.0 : Spacing.md;
 
+        Widget accessibleChrome(Widget child) => MediaQuery.textScalerOf(context).scale(16) > 32
+            ? Flexible(child: SingleChildScrollView(primary: false, child: child))
+            : child;
+
         return Column(
           mainAxisSize: fitContent ? MainAxisSize.min : MainAxisSize.max,
           children: [
-            BottomSheetHeader(
-              key: const Key('add-book-sheet-header'),
-              title: title,
-              onDismiss: canClose ? onClose : null,
-              compact: isCompactHeight,
+            accessibleChrome(
+              BottomSheetHeader(
+                key: const Key('add-book-sheet-header'),
+                title: title,
+                onDismiss: canClose ? onClose : null,
+                compact: isCompactHeight,
+              ),
             ),
             const Divider(height: 1),
             Flexible(fit: fitContent ? FlexFit.loose : FlexFit.tight, child: body),
-            Container(
-              key: const Key('add-book-sheet-footer'),
-              padding: footerPadding ?? EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: verticalPadding),
-              decoration: BoxDecoration(
-                color: colorScheme.surface,
-                border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
+            accessibleChrome(
+              Container(
+                key: const Key('add-book-sheet-footer'),
+                padding: footerPadding ?? EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: verticalPadding),
+                decoration: BoxDecoration(
+                  color: colorScheme.surface,
+                  border: Border(top: BorderSide(color: colorScheme.outlineVariant)),
+                ),
+                child: SafeArea(top: false, child: footer),
               ),
-              child: SafeArea(top: false, child: footer),
             ),
           ],
         );

@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/foundation.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/opds/opds_models.dart';
+import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Captured before import, so its result cannot be attributed to another account.
@@ -155,6 +156,22 @@ class OpdsLibrary extends ChangeNotifier {
     });
 
     return _pending;
+  }
+
+  Future<void> clearScope(String scope) async {
+    if (_scope == scope) {
+      _generation++;
+      _imports = {};
+    }
+
+    _scopedImports.remove(scope);
+    await _pending;
+
+    if (!await _prefs.remove(_key(scope))) {
+      throw const OpdsException('Could not remove catalog import history.');
+    }
+
+    _changed();
   }
 
   void _changed() {

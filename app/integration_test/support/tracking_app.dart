@@ -168,7 +168,7 @@ class TrackingValidationApp {
     store.dispose();
     preferences.dispose();
     fixtureAuth.dispose();
-    await database.clearGuestLibrary();
+    await database.clearGuestLibrary(deleteFiles: (_) async {});
     await database.close();
   }
 }

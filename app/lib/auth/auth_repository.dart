@@ -197,6 +197,16 @@ class AuthRepository {
     return apiClient.updateCurrentUser(accessToken: accessToken, displayName: displayName, avatarUrl: avatarUrl);
   }
 
+  Future<PapyrusUser> uploadProfilePhoto(Uint8List bytes, {required String displayName}) {
+    return _withFreshAccessToken((accessToken) {
+      return apiClient.uploadProfilePhoto(accessToken, bytes, displayName: displayName);
+    });
+  }
+
+  Future<Uint8List> downloadProfilePhoto(String avatarUrl) {
+    return _withFreshAccessToken((accessToken) => apiClient.downloadProfilePhoto(accessToken, avatarUrl));
+  }
+
   Future<String> forgotPassword(String email) {
     return apiClient.forgotPassword(email);
   }

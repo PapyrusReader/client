@@ -30,6 +30,10 @@ class _AppMotionControlState extends State<AppMotionControl> {
     if (_previousKey != null && key != _previousKey && focusNode.hasFocus) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted && focusNode.canRequestFocus) {
+          // A replacement control can inherit an already-focused node without
+          // receiving the focus event that paints its native highlight.
+          focusNode.unfocus(disposition: UnfocusDisposition.previouslyFocusedChild);
+          FocusManager.instance.applyFocusChangesIfNeeded();
           focusNode.requestFocus();
         }
       });

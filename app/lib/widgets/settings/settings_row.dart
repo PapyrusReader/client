@@ -143,17 +143,51 @@ class SettingsToggleRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
-      child: Row(
-        children: [
-          Expanded(child: Text(label, style: textTheme.bodyLarge)),
-          AppMotionControl(
-            value: value,
-            enabled: onChanged != null,
-            builder: (focusNode) => Switch(focusNode: focusNode, value: value, onChanged: onChanged),
+    final enabled = onChanged != null;
+    final toggle = enabled ? () => onChanged!(!value) : null;
+
+    return MergeSemantics(
+      child: Semantics(
+        toggled: value,
+        enabled: enabled,
+        onTap: toggle,
+        child: AppMotionControl(
+          value: value,
+          enabled: enabled,
+          builder: (focusNode) => InkWell(
+            hoverColor: Colors.transparent,
+            focusNode: focusNode,
+            canRequestFocus: enabled,
+            onTap: toggle,
+            excludeFromSemantics: true,
+            borderRadius: BorderRadius.circular(AppRadius.sm),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: TouchTargets.mobileRecommended),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: textTheme.bodyLarge?.copyWith(
+                          color: enabled ? null : Theme.of(context).disabledColor,
+                        ),
+                      ),
+                    ),
+                    ExcludeSemantics(
+                      child: ExcludeFocus(
+                        child: IgnorePointer(
+                          child: Switch(value: value, onChanged: onChanged),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
-        ],
+        ),
       ),
     );
   }

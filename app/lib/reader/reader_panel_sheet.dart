@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/themes/app_accessibility.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
@@ -23,10 +24,12 @@ Route<void> buildReaderPanelSheet(BuildContext context, ReaderPanelRouteContext 
         theme.bottomSheetTheme.shape ??
         const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(AppRadius.xl))),
     clipBehavior: Clip.antiAlias,
-    builder: (context) => AppBottomSheet(
-      title: panel.title,
-      contentPadding: EdgeInsets.zero,
-      scrollBodyBuilder: panel.buildContent,
+    builder: (context) => ReaderSystemTextScope(
+      child: AppBottomSheet(
+        title: panel.title,
+        contentPadding: EdgeInsets.zero,
+        scrollBodyBuilder: panel.buildContent,
+      ),
     ),
   );
 }

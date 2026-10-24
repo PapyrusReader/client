@@ -88,7 +88,10 @@ class BookImportSelectingSection extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: Spacing.lg, vertical: Spacing.md),
       children: [
         if (pickerError case final message?) ...[
-          Text(message, style: TextStyle(color: colorScheme.error, fontSize: 13)),
+          Semantics(
+            liveRegion: true,
+            child: Text(message, style: TextStyle(color: colorScheme.error, fontSize: 13)),
+          ),
           const SizedBox(height: Spacing.sm),
         ],
         Wrap(
