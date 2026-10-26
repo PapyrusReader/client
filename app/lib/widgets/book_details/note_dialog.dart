@@ -115,7 +115,6 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> with PersistentSave<
         bookId: widget.bookId,
         title: _titleController.text.trim(),
         content: _contentController.text.trim(),
-        location: widget.existingNote?.location,
         tags: _tags,
         isPinned: widget.existingNote?.isPinned ?? false,
         createdAt: widget.existingNote?.createdAt ?? DateTime.now(),

@@ -13,7 +13,10 @@ import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/reader/reader_book_adapter.dart';
 import 'package:papyrus/reader/reader_session.dart';
-import 'package:papyrus/reader/reader_panel_sheet.dart';
+import 'package:papyrus/reader/reader_panel_route.dart';
+import 'package:papyrus/reader/reader_library.dart';
+import 'package:papyrus/reader/reader_bookmark_button.dart';
+import 'package:papyrus/reader/reader_library_panel.dart';
 import 'package:papyrus/services/book_import_service_stub.dart'
     if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus_reader/papyrus_reader.dart';
@@ -21,15 +24,18 @@ import 'package:provider/provider.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
 class ReaderPage extends StatefulWidget {
-  const ReaderPage({super.key, required this.bookId});
+  const ReaderPage({super.key, required this.bookId, this.location});
 
   final String bookId;
+  final String? location;
 
   @override
   State<ReaderPage> createState() => _ReaderPageState();
 }
 
 class _ReaderPageState extends State<ReaderPage> {
+  final _controller = ReaderController(registry: ReaderEngineRegistry.defaults());
+  ReaderLibrary? _library;
   Book? _book;
   ReaderDocument? _document;
   ReaderLocator? _initialLocator;
@@ -111,6 +117,17 @@ class _ReaderPageState extends State<ReaderPage> {
       return;
     }
 
+    final ReaderLocator? launchLocator;
+
+    try {
+      launchLocator = widget.location == null
+          ? ReaderBookAdapter.restoreLocator(book)
+          : ReaderBookAdapter.decodeLocation(book, widget.location!);
+    } on FormatException {
+      setState(() => _error = 'This saved location could not be opened.');
+      return;
+    }
+
     try {
       final importService = context.read<BookImportService>();
 
@@ -155,11 +172,9 @@ class _ReaderPageState extends State<ReaderPage> {
       }
 
       _tracker = tracker;
-
-      if (tracker != null) {
-        _trackingStore = dataStore;
-        dataStore.addListener(_scopeChanged);
-      }
+      _library = ReaderLibrary(store: dataStore, bookId: book.id);
+      _trackingStore = dataStore;
+      dataStore.addListener(_scopeChanged);
 
       final session = ReaderSession(
         book: book,
@@ -183,7 +198,7 @@ class _ReaderPageState extends State<ReaderPage> {
           loadBytes: () async => bytes,
         );
 
-        _initialLocator = ReaderBookAdapter.restoreLocator(book);
+        _initialLocator = launchLocator;
         _initialPreferences = preferences;
         _session = session;
       });
@@ -196,7 +211,13 @@ class _ReaderPageState extends State<ReaderPage> {
     }
   }
 
-  void _scopeChanged() => _tracker?.updateScope(_trackingStore!.getShelfIdsForBook(widget.bookId));
+  void _scopeChanged() {
+    _tracker?.updateScope(_trackingStore!.getShelfIdsForBook(widget.bookId));
+
+    if (mounted) {
+      setState(() {});
+    }
+  }
 
   @override
   void dispose() {
@@ -204,6 +225,7 @@ class _ReaderPageState extends State<ReaderPage> {
     _finishTimer?.cancel();
     _lifecycle.dispose();
     _session?.dispose();
+    _controller.dispose();
     super.dispose();
   }
 
@@ -234,21 +256,39 @@ class _ReaderPageState extends State<ReaderPage> {
       );
     }
 
-    return ReaderSystemTextScope(
-      child: PapyrusReader(
-        document: document,
-        initialLocator: _initialLocator,
-        initialPreferences: preferences,
-        builders: ReaderUiBuilders(
-          loading: (context, state) => const _ReaderLoading(),
-          compactPanelRoute: (_, panel) => buildReaderPanelSheet(context, panel),
+    return Scaffold(
+      body: ReaderSystemTextScope(
+        child: PapyrusReader(
+          document: document,
+          controller: _controller,
+          theme: ReaderThemeData.fromTheme(Theme.of(context)).copyWith(sidePanelWidth: 420),
+          highlights: _library!.highlights,
+          onEditHighlight: (highlight) => _library!.editHighlight(context, highlight),
+          onRemoveHighlight: (highlight) => _library!.removeHighlight(context, highlight),
+          onAnnotate: (selection) => _library!.annotate(context, _controller.snapshot, selection),
+          initialLocator: _initialLocator,
+          initialPreferences: preferences,
+          builders: ReaderUiBuilders(
+            loading: (context, state) => const _ReaderLoading(),
+            tableOfContents: (context, panel) => ReaderLibraryPanel(library: _library!, panel: panel),
+            toolbarActions: (context, state) => [
+              ReaderBookmarkButton(library: _library!, snapshot: state.snapshot, isBusy: state.isBusy),
+              IconButton(
+                tooltip: 'New note',
+                icon: const Icon(Icons.note_add_outlined),
+                onPressed: state.isBusy || !_library!.isCurrent ? null : () => _library!.addNote(context),
+              ),
+            ],
+            compactPanelRoute: (_, panel) =>
+                buildReaderPanelRoute(context, panel, bookTitle: book.title, showTitle: false),
+          ),
+          onLocatorChanged: _session!.updateLocator,
+          onActivity: _onActivity,
+          onPreferencesChanged: (updated) {
+            ReaderBookAdapter.persistPreferences(context.read<PreferencesProvider>(), updated);
+          },
+          onBack: _close,
         ),
-        onLocatorChanged: _session!.updateLocator,
-        onActivity: _onActivity,
-        onPreferencesChanged: (updated) {
-          ReaderBookAdapter.persistPreferences(context.read<PreferencesProvider>(), updated);
-        },
-        onBack: _close,
       ),
     );
   }

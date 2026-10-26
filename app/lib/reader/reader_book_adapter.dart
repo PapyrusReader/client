@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
@@ -40,6 +41,46 @@ final class ReaderBookAdapter {
     } on FormatException {
       return null;
     }
+  }
+
+  static ReaderLocator savedLocator(Book book, {Map<String, Object?>? anchor, int? pageNumber}) {
+    final format = formatFor(book.fileFormat);
+
+    if (anchor == null) {
+      if (format == ReaderFormat.pdf && pageNumber != null && pageNumber > 0) {
+        return PdfReaderLocator(
+          pageIndex: pageNumber - 1,
+          pageOffset: 0,
+          totalProgression: book.pageCount != null && book.pageCount! > 1
+              ? ((pageNumber - 1) / (book.pageCount! - 1)).clamp(0, 1)
+              : 0,
+        );
+      }
+
+      throw const FormatException('This item does not have an exact reading location.');
+    }
+
+    final locator = ReaderLocator.fromJson(anchor);
+    final matchesFormat = switch (locator) {
+      EpubReaderLocator() => format == ReaderFormat.epub,
+      PdfReaderLocator() => format == ReaderFormat.pdf,
+    };
+
+    if (!matchesFormat) {
+      throw const FormatException('This saved location does not match the book format.');
+    }
+
+    return locator;
+  }
+
+  static ReaderLocator decodeLocation(Book book, String location) {
+    final decoded = jsonDecode(location);
+
+    if (decoded is! Map<String, Object?>) {
+      throw const FormatException('Invalid reading location.');
+    }
+
+    return savedLocator(book, anchor: decoded);
   }
 
   static Book applyLocator(Book book, ReaderLocator locator, {required DateTime now}) {

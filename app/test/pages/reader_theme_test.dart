@@ -4,6 +4,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/themes/app_theme.dart';
+import 'package:papyrus/reader/reader_panel_route.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus_reader/papyrus_reader.dart';
 
@@ -29,26 +30,34 @@ void main() {
 
           addTearDown(controller.dispose);
 
+          final hostTheme = switch (host) {
+            'dark' => AppTheme.dark,
+            'eink' => AppTheme.eink,
+            _ => AppTheme.light,
+          };
+
           await tester.pumpWidget(
             MaterialApp(
-              theme: switch (host) {
-                'dark' => AppTheme.dark,
-                'eink' => AppTheme.eink,
-                _ => AppTheme.light,
-              },
+              theme: hostTheme,
               home: PapyrusReader(
                 document: ReaderDocument(id: 'theme', format: ReaderFormat.pdf, loadBytes: () async => Uint8List(0)),
                 controller: controller,
+                builders: ReaderUiBuilders(compactPanelRoute: buildReaderPanelRoute),
               ),
             ),
           );
 
+          await tester.pumpAndSettle();
+          expect(find.byTooltip('Reading settings'), findsNothing);
+          await tester.tapAt(tester.getCenter(find.byKey(const ValueKey('reader-content'))));
+          await tester.pump(const Duration(milliseconds: 350));
           await tester.pumpAndSettle();
           await tester.tap(find.byTooltip('Reading settings'));
           await tester.pumpAndSettle();
           final label = find.text('Reading mode');
           final readerTheme = Theme.of(tester.element(label));
           final readerColors = readerTheme.colorScheme;
+          expect(readerColors, hostTheme.colorScheme);
 
           if (host == 'eink') {
             expect(readerTheme.extension<AppMotion>()!.reduceAnimations, isTrue);
@@ -58,12 +67,12 @@ void main() {
           }
 
           final labelText = tester.widget<RichText>(find.descendant(of: label, matching: find.byType(RichText)).first);
-          expect(labelText.text.style!.color, readerColors.onSurfaceVariant);
+          expect(labelText.text.style!.color, hostTheme.inputDecorationTheme.labelStyle!.color);
           await tester.tap(find.text('Paginated').first);
           await tester.pumpAndSettle();
           final option = find.text('Continuous scroll').last;
           final menuTheme = Theme.of(tester.element(option));
-          expect(menuTheme.canvasColor, readerColors.surface);
+          expect(menuTheme.canvasColor, hostTheme.canvasColor);
 
           final optionText = tester.widget<RichText>(
             find.descendant(of: option, matching: find.byType(RichText)).first,
@@ -80,16 +89,16 @@ void main() {
           await tester.tap(option);
           await tester.pumpAndSettle();
           expect(controller.preferences.layoutMode, ReaderLayoutMode.scroll);
-          // A mobile route captures the initial host theme. Reopen a popup
-          // after changing appearance while that settings route is still open.
+          // Page appearance changes must not recolor the app's controls.
           await tester.tap(find.text(reading == Brightness.light ? 'Night' : 'Light'));
           await tester.pumpAndSettle();
-          await tester.tap(find.text('Automatic').first);
+          await tester.tap(find.text('Single').first);
           await tester.pumpAndSettle();
           final columns = find.text('Double').last;
           final changedTheme = Theme.of(tester.element(columns));
-          expect(changedTheme.brightness, reading == Brightness.light ? Brightness.dark : Brightness.light);
-          expect(changedTheme.canvasColor, changedTheme.colorScheme.surface);
+          expect(changedTheme.colorScheme, hostTheme.colorScheme);
+          expect(controller.preferences.brightness, reading == Brightness.light ? Brightness.dark : Brightness.light);
+          expect(changedTheme.canvasColor, hostTheme.canvasColor);
 
           final columnsText = tester.widget<RichText>(
             find.descendant(of: columns, matching: find.byType(RichText)).first,

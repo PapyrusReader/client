@@ -13,7 +13,7 @@ import 'package:papyrus/widgets/shared/app_motion_control.dart';
 /// - Title with truncation for long text
 /// - Content preview (first 3 lines) or full content
 /// - Tag chips for categorization
-/// - Location and date metadata
+/// - Date metadata
 /// - Action menu (via long press or icon button)
 ///
 /// ## Interactions
@@ -174,18 +174,12 @@ class _NoteCardState extends State<NoteCard> {
     );
   }
 
-  /// Location and date metadata row.
+  /// Date metadata row.
   Widget _buildMetadata(BuildContext context, ColorScheme colorScheme, TextTheme textTheme) {
     final metaStyle = textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant);
 
     return Row(
       children: [
-        if (widget.note.hasLocation) ...[
-          Icon(Icons.location_on_outlined, size: IconSizes.small, color: colorScheme.onSurfaceVariant),
-          const SizedBox(width: 4),
-          Flexible(child: Text(widget.note.location!.shortLocation, style: metaStyle)),
-          const SizedBox(width: Spacing.md),
-        ],
         Icon(Icons.access_time, size: IconSizes.small, color: colorScheme.onSurfaceVariant),
         const SizedBox(width: 4),
         Flexible(child: Text(widget.note.dateLabel, style: metaStyle)),
