@@ -13,15 +13,26 @@ import 'package:papyrus/themes/app_motion.dart';
 class AnnotationDialog extends StatefulWidget {
   final String bookId;
   final Annotation? existingAnnotation;
+  final BookLocation? initialLocation;
+  final String? initialText;
   final FutureOr<void> Function(Annotation)? onSave;
 
-  const AnnotationDialog({super.key, required this.bookId, this.existingAnnotation, this.onSave});
+  const AnnotationDialog({
+    super.key,
+    required this.bookId,
+    this.existingAnnotation,
+    this.initialLocation,
+    this.initialText,
+    this.onSave,
+  });
 
   /// Shows the dialog and returns the created/updated annotation, or null if cancelled.
   static Future<Annotation?> show(
     BuildContext context, {
     required String bookId,
     Annotation? existingAnnotation,
+    BookLocation? initialLocation,
+    String? initialText,
     FutureOr<void> Function(Annotation)? onSave,
   }) {
     return showModalBottomSheet<Annotation>(
@@ -30,7 +41,13 @@ class AnnotationDialog extends StatefulWidget {
       isScrollControlled: true,
       useRootNavigator: true,
       useSafeArea: true,
-      builder: (context) => AnnotationDialog(bookId: bookId, existingAnnotation: existingAnnotation, onSave: onSave),
+      builder: (context) => AnnotationDialog(
+        bookId: bookId,
+        existingAnnotation: existingAnnotation,
+        initialLocation: initialLocation,
+        initialText: initialText,
+        onSave: onSave,
+      ),
     );
   }
 
@@ -46,14 +63,17 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
   late final TextEditingController _noteController;
   late HighlightColor _selectedColor;
 
+  BookLocation? get _location => widget.existingAnnotation?.location ?? widget.initialLocation;
+  bool get _isAnchored => _location?.readerLocator != null;
+
   bool get _isEditing => widget.existingAnnotation != null;
 
   @override
   void initState() {
     super.initState();
-    _textController = TextEditingController(text: widget.existingAnnotation?.selectedText ?? '');
-    _pageController = TextEditingController(text: widget.existingAnnotation?.location.pageNumber.toString() ?? '');
-    _chapterController = TextEditingController(text: widget.existingAnnotation?.location.chapterTitle ?? '');
+    _textController = TextEditingController(text: widget.existingAnnotation?.selectedText ?? widget.initialText ?? '');
+    _pageController = TextEditingController(text: _location?.pageNumber.toString() ?? '');
+    _chapterController = TextEditingController(text: _location?.chapterTitle ?? '');
     _noteController = TextEditingController(text: widget.existingAnnotation?.note ?? '');
     _selectedColor = widget.existingAnnotation?.color ?? HighlightColor.yellow;
   }
@@ -76,7 +96,6 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
       return;
     }
 
-    final page = int.parse(_pageController.text);
     final chapter = _chapterController.text.trim();
     final note = _noteController.text.trim();
 
@@ -85,12 +104,14 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
       bookId: widget.bookId,
       selectedText: _textController.text.trim(),
       color: _selectedColor,
-      location: BookLocation(
-        pageNumber: page,
-        chapterTitle: chapter.isNotEmpty ? chapter : null,
-        chapter: widget.existingAnnotation?.location.chapter,
-        percentage: widget.existingAnnotation?.location.percentage,
-      ),
+      location: _isEditing || _isAnchored
+          ? _location!
+          : BookLocation(
+              pageNumber: int.parse(_pageController.text),
+              chapterTitle: chapter.isNotEmpty ? chapter : null,
+              chapter: widget.existingAnnotation?.location.chapter,
+              percentage: widget.existingAnnotation?.location.percentage,
+            ),
       note: note.isNotEmpty ? note : null,
       createdAt: widget.existingAnnotation?.createdAt ?? DateTime.now(),
       updatedAt: _isEditing ? DateTime.now() : null,
@@ -124,6 +145,7 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
             // Highlighted text
             TextFormField(
               controller: _textController,
+              readOnly: _isAnchored,
               decoration: const InputDecoration(
                 labelText: 'Highlighted text',
                 hintText: 'Enter the passage you highlighted...',
@@ -143,35 +165,35 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
             ),
             const SizedBox(height: Spacing.md),
 
-            // Page number
-            TextFormField(
-              controller: _pageController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              decoration: const InputDecoration(labelText: 'Page number', border: OutlineInputBorder()),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter a page number';
-                }
+            if (!_isEditing && !_isAnchored) ...[
+              TextFormField(
+                controller: _pageController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                decoration: const InputDecoration(labelText: 'Page number', border: OutlineInputBorder()),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a page number';
+                  }
 
-                final page = int.tryParse(value);
+                  final page = int.tryParse(value);
 
-                if (page == null || page < 1) {
-                  return 'Enter a valid page number';
-                }
+                  if (page == null || page < 1) {
+                    return 'Enter a valid page number';
+                  }
 
-                return null;
-              },
-            ),
-            const SizedBox(height: Spacing.md),
+                  return null;
+                },
+              ),
+              const SizedBox(height: Spacing.md),
 
-            // Chapter title (optional)
-            TextFormField(
-              controller: _chapterController,
-              decoration: const InputDecoration(labelText: 'Chapter title (optional)', border: OutlineInputBorder()),
-              textCapitalization: TextCapitalization.sentences,
-            ),
-            const SizedBox(height: Spacing.md),
+              TextFormField(
+                controller: _chapterController,
+                decoration: const InputDecoration(labelText: 'Chapter title (optional)', border: OutlineInputBorder()),
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: Spacing.md),
+            ],
 
             // Note (optional)
             TextFormField(

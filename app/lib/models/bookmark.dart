@@ -9,6 +9,7 @@ const _sentinel = _Sentinel();
 class Bookmark {
   final String id;
   final String bookId;
+  final Map<String, Object?>? readerLocator;
   final double position; // 0.0 to 1.0
   final int? pageNumber;
   final String? chapterTitle;
@@ -20,6 +21,7 @@ class Bookmark {
     required this.id,
     required this.bookId,
     required this.position,
+    this.readerLocator,
     this.pageNumber,
     this.chapterTitle,
     this.note,
@@ -38,6 +40,10 @@ class Bookmark {
 
   /// Get a display-friendly location string.
   String get displayLocation {
+    if (readerLocator?['type'] == 'epub' && chapterTitle != null) {
+      return '$chapterTitle · ${(position * 100).round()}%';
+    }
+
     if (chapterTitle != null && pageNumber != null) {
       return '$chapterTitle, Page $pageNumber';
     }
@@ -61,6 +67,7 @@ class Bookmark {
     String? id,
     String? bookId,
     double? position,
+    Object? readerLocator = _sentinel,
     Object? pageNumber = _sentinel,
     Object? chapterTitle = _sentinel,
     Object? note = _sentinel,
@@ -71,6 +78,7 @@ class Bookmark {
       id: id ?? this.id,
       bookId: bookId ?? this.bookId,
       position: position ?? this.position,
+      readerLocator: identical(readerLocator, _sentinel) ? this.readerLocator : readerLocator as Map<String, Object?>?,
       pageNumber: identical(pageNumber, _sentinel) ? this.pageNumber : pageNumber as int?,
       chapterTitle: identical(chapterTitle, _sentinel) ? this.chapterTitle : chapterTitle as String?,
       note: identical(note, _sentinel) ? this.note : note as String?,
@@ -84,6 +92,7 @@ class Bookmark {
       'id': id,
       'book_id': bookId,
       'position': position,
+      'reader_locator': readerLocator,
       'page_number': pageNumber,
       'chapter_title': chapterTitle,
       'note': note,
@@ -97,6 +106,7 @@ class Bookmark {
       id: json['id'] as String,
       bookId: json['book_id'] as String,
       position: (json['position'] as num).toDouble(),
+      readerLocator: (json['reader_locator'] as Map?)?.cast<String, Object?>(),
       pageNumber: json['page_number'] as int?,
       chapterTitle: json['chapter_title'] as String?,
       note: json['note'] as String?,

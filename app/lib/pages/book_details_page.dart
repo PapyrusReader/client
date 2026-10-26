@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:papyrus_reader/papyrus_reader.dart';
 import 'dart:async';
 import 'dart:typed_data';
 
@@ -56,6 +58,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
   late TabController _tabController;
   bool _isPreparingReader = false;
   String? _readingError;
+  ReaderLocator? _readingTarget;
 
   @override
   void initState() {
@@ -243,7 +246,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
                   onEdit: _onEdit,
                   readingActionState: readingActionState,
                   readingError: _readingError,
-                  onRetryReading: _onContinueReading,
+                  onRetryReading: () => _onContinueReading(locator: _readingTarget),
                 ),
                 const SizedBox(height: Spacing.md),
 
@@ -305,7 +308,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
           onEdit: _onEdit,
           readingActionState: readingActionState,
           readingError: _readingError,
-          onRetryReading: _onContinueReading,
+          onRetryReading: () => _onContinueReading(locator: _readingTarget),
         ),
         rail: _buildTabRail(provider),
         body: TabBarView(
@@ -322,14 +325,21 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
               isPhysical: provider.book!.isPhysical,
               onAddBookmark: _onAddBookmark,
               onBookmarkActions: _onBookmarkActions,
+              onBookmarkTap: provider.book!.isPhysical ? null : _onBookmarkTap,
             ),
             BookAnnotations(
               annotations: provider.annotations,
               isPhysical: provider.book!.isPhysical,
               onAddAnnotation: _onAddAnnotation,
               onAnnotationActions: _onAnnotationActions,
+              onAnnotationTap: provider.book!.isPhysical ? null : _onAnnotationTap,
             ),
-            BookNotes(notes: provider.notes, onAddNote: _onAddNote, onNoteActions: _onNoteActions),
+            BookNotes(
+              notes: provider.notes,
+              onAddNote: _onAddNote,
+              onNoteTap: _onEditNote,
+              onNoteActions: _onNoteActions,
+            ),
           ],
         ),
       ),
@@ -352,6 +362,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
           isPhysical: provider.book!.isPhysical,
           onAddBookmark: _onAddBookmark,
           onBookmarkActions: _onBookmarkActions,
+          onBookmarkTap: provider.book!.isPhysical ? null : _onBookmarkTap,
         );
       case BookDetailsTab.annotations:
         return BookAnnotations(
@@ -359,9 +370,15 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
           isPhysical: provider.book!.isPhysical,
           onAddAnnotation: _onAddAnnotation,
           onAnnotationActions: _onAnnotationActions,
+          onAnnotationTap: provider.book!.isPhysical ? null : _onAnnotationTap,
         );
       case BookDetailsTab.notes:
-        return BookNotes(notes: provider.notes, onAddNote: _onAddNote, onNoteActions: _onNoteActions);
+        return BookNotes(
+          notes: provider.notes,
+          onAddNote: _onAddNote,
+          onNoteTap: _onEditNote,
+          onNoteActions: _onNoteActions,
+        );
     }
   }
 
@@ -407,13 +424,38 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
     );
   }
 
-  Future<void> _onContinueReading() async {
+  void _onBookmarkTap(Bookmark bookmark) => _openSavedLocation(bookmark.readerLocator, bookmark.pageNumber);
+
+  void _onAnnotationTap(Annotation annotation) =>
+      _openSavedLocation(annotation.location.readerLocator, annotation.location.pageNumber);
+
+  void _openSavedLocation(Map<String, Object?>? anchor, int? pageNumber) {
+    final book = _provider.book;
+
+    if (book == null) {
+      return;
+    }
+
+    try {
+      final locator = ReaderBookAdapter.savedLocator(book, anchor: anchor, pageNumber: pageNumber);
+      _onContinueReading(locator: locator);
+    } on FormatException {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('This item does not have a valid reading location.')),
+      );
+    }
+  }
+
+  Future<void> _onContinueReading({ReaderLocator? locator}) async {
     final book = _provider.book;
 
     if (book == null || _isPreparingReader) {
       return;
     }
 
+    _readingTarget = locator;
+    final dataStore = context.read<DataStore>();
+    final repository = dataStore.requireBookRepository();
     final messenger = ScaffoldMessenger.of(context);
 
     if (ReaderBookAdapter.formatFor(book.fileFormat) == null) {
@@ -477,7 +519,16 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
       return;
     }
 
-    await context.pushNamed('BOOK_READER', pathParameters: {'bookId': book.id});
+    if (!dataStore.isBookRepositoryCurrent(repository)) {
+      setState(() => _readingError = 'Your library changed. Reopen this book from the library.');
+      return;
+    }
+
+    await context.pushNamed(
+      'BOOK_READER',
+      pathParameters: {'bookId': book.id},
+      queryParameters: {if (locator != null) 'location': jsonEncode(locator.toJson())},
+    );
   }
 
   BookReadingActionState _readingActionState(BookStorageStatusController? controller, Book book) {
@@ -591,18 +642,11 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
     final repository = context.read<DataStore>().libraryRepository?.notes;
 
-    final note = await NoteDialog.show(
+    await NoteDialog.show(
       context,
       bookId: _provider.book!.id,
       onSave: (note) => _provider.addNote(note, repository: repository),
     );
-
-    if (note != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        snackBarAnimationStyle: AppMotion.animationStyle(context),
-        const SnackBar(content: Text('Note added')),
-      );
-    }
   }
 
   void _onAddBookmark() async {
@@ -612,19 +656,12 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
     final repository = context.read<DataStore>().libraryRepository?.bookmarks;
 
-    final bookmark = await BookmarkDialog.show(
+    await BookmarkDialog.show(
       context,
       bookId: _provider.book!.id,
       pageCount: _provider.book!.pageCount,
       onSave: (bookmark) => _provider.addBookmark(bookmark, repository: repository),
     );
-
-    if (bookmark != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        snackBarAnimationStyle: AppMotion.animationStyle(context),
-        const SnackBar(content: Text('Bookmark added')),
-      );
-    }
   }
 
   void _onAddAnnotation() async {
@@ -634,18 +671,11 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
     final repository = context.read<DataStore>().libraryRepository?.annotations;
 
-    final annotation = await AnnotationDialog.show(
+    await AnnotationDialog.show(
       context,
       bookId: _provider.book!.id,
       onSave: (annotation) => _provider.addAnnotation(annotation, repository: repository),
     );
-
-    if (annotation != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        snackBarAnimationStyle: AppMotion.animationStyle(context),
-        const SnackBar(content: Text('Annotation added')),
-      );
-    }
   }
 
   void _onNoteActions(Note note) async {
@@ -670,19 +700,12 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
     final repository = context.read<DataStore>().libraryRepository?.notes;
 
-    final updatedNote = await NoteDialog.show(
+    await NoteDialog.show(
       context,
       bookId: _provider.book!.id,
       existingNote: note,
       onSave: (updated) => _provider.updateNote(note.id, updated, previous: note, repository: repository),
     );
-
-    if (updatedNote != null && mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        snackBarAnimationStyle: AppMotion.animationStyle(context),
-        const SnackBar(content: Text('Note updated')),
-      );
-    }
   }
 
   void _onDeleteNote(Note note) async {
@@ -702,15 +725,6 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
         return;
       }
-
-      if (!mounted) {
-        return;
-      }
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        snackBarAnimationStyle: AppMotion.animationStyle(context),
-        const SnackBar(content: Text('Note deleted')),
-      );
     }
   }
 

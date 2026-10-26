@@ -43,32 +43,53 @@ if ($RequireMissingRuntime) {
     }
 }
 $Installer = (Resolve-Path "dist/papyrus-$Tag-windows-x64-setup.exe").Path
+$Bundle = (Resolve-Path 'build/windows/x64/runner/Release').Path
 $Directory = Join-Path ([IO.Path]::GetTempPath()) ('papyrus-install-' + [Guid]::NewGuid().ToString())
+$DesktopShortcut = Join-Path ([Environment]::GetFolderPath('DesktopDirectory')) 'Papyrus.lnk'
+$StartMenuShortcut = Join-Path ([Environment]::GetFolderPath('Programs')) 'Papyrus/Papyrus.lnk'
+
+foreach ($Shortcut in @($DesktopShortcut, $StartMenuShortcut)) {
+    if (Test-Path $Shortcut) { throw "Packaging test would overwrite an existing shortcut: $Shortcut" }
+}
+
 $UserData = Join-Path $env:APPDATA 'com.papyrus/papyrus'
 New-Item -ItemType Directory -Force $UserData | Out-Null
 $Sentinel = Join-Path $UserData 'packaging-preserve-test.txt'
 if (Test-Path $Sentinel) { throw 'Packaging test sentinel already exists' }
 Set-Content $Sentinel 'preserve-user-data'
 try {
-    foreach ($Pass in @(1, 2)) {
+    foreach ($Pass in @(1, 2, 3)) {
         $Log = Join-Path ([IO.Path]::GetTempPath()) ('papyrus-install-' + [Guid]::NewGuid().ToString() + '.log')
-        $Process = Start-Process $Installer -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$Log`"", "/DIR=`"$Directory`"") -Wait -PassThru
+        $Arguments = @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', "/LOG=`"$Log`"", "/DIR=`"$Directory`"")
+        if ($Pass -eq 1) { $Arguments += '/TASKS=!desktopicon' }
+        if ($Pass -eq 2) { $Arguments += '/TASKS=desktopicon' }
+        $Process = Start-Process $Installer -ArgumentList $Arguments -Wait -PassThru
         if ($Process.ExitCode -ne 0) { throw "Installer failed on pass $Pass with $($Process.ExitCode)" }
         $ExpectedRuntime = 'Papyrus: existing WebView2 runtime retained'
         if ($Pass -eq 1 -and $RequireMissingRuntime) { $ExpectedRuntime = 'Papyrus: installing missing WebView2 runtime' }
-        if (($Pass -eq 2 -or $RequireMissingRuntime) -and -not (Select-String -Path $Log -SimpleMatch $ExpectedRuntime)) {
+        if (($Pass -ge 2 -or $RequireMissingRuntime) -and -not (Select-String -Path $Log -SimpleMatch $ExpectedRuntime)) {
             throw "Installer did not verify the expected runtime path: $ExpectedRuntime"
         }
         Write-Output "Installer pass $Pass runtime validation: $ExpectedRuntime"
         Remove-Item $Log
-        foreach ($Name in @('papyrus.exe', 'flutter_windows.dll', 'msvcp140.dll', 'vcruntime140.dll', 'vcruntime140_1.dll', 'data/app.so')) {
-            if (-not (Test-Path (Join-Path $Directory $Name))) { throw "Missing packaged file: $Name" }
+        Assert-PackageFiles -Directory $Directory -Bundle $Bundle
+
+        if ((Test-Path $DesktopShortcut) -ne ($Pass -ge 2)) {
+            throw "Desktop shortcut did not respect the selected task on pass $Pass"
+        }
+
+        $Shell = New-Object -ComObject WScript.Shell
+        $Shortcuts = @($StartMenuShortcut)
+        if ($Pass -ge 2) { $Shortcuts += $DesktopShortcut }
+
+        foreach ($Shortcut in $Shortcuts) {
+            if (-not (Test-Path $Shortcut)) { throw "Missing shortcut: $Shortcut" }
+            if ($Shell.CreateShortcut($Shortcut).TargetPath -ne (Join-Path $Directory 'papyrus.exe')) {
+                throw "Shortcut points to the wrong executable: $Shortcut"
+            }
         }
     }
-    $App = Start-Process (Join-Path $Directory 'papyrus.exe') -PassThru
-    Start-Sleep -Seconds 15
-    if ($App.HasExited) { throw "Installed app exited during launch check: $($App.ExitCode)" }
-    Stop-Process -Id $App.Id
+    Assert-PapyrusLaunch -Directory $Directory
     $WebViewSdk = (Resolve-Path 'windows/flutter/ephemeral/.plugin_symlinks/desktop_webview_window/windows').Path
     $SmokeBuild = Join-Path $Directory 'packaging-smoke'
     & cmake -S ../packaging/windows/smoke -B $SmokeBuild -A x64 "-DWEBVIEW_SDK=$WebViewSdk"
@@ -81,8 +102,14 @@ try {
     $Uninstall = Start-Process (Join-Path $Directory 'unins000.exe') -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART') -Wait -PassThru
     if ($Uninstall.ExitCode -ne 0) { throw 'Uninstall failed' }
     if (Test-Path (Join-Path $Directory 'papyrus.exe')) { throw 'Uninstall left the application executable' }
+    foreach ($Shortcut in @($DesktopShortcut, $StartMenuShortcut)) {
+        if (Test-Path $Shortcut) { throw "Uninstall left a shortcut: $Shortcut" }
+    }
     if ((Get-Content $Sentinel) -ne 'preserve-user-data') { throw 'Installer changed user data' }
 } finally {
     Remove-TestDirectory $Directory
     Remove-Item -Force $Sentinel
+    foreach ($Shortcut in @($DesktopShortcut, $StartMenuShortcut)) {
+        if (Test-Path $Shortcut) { Remove-Item -Force $Shortcut }
+    }
 }

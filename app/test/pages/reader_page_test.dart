@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
@@ -18,6 +19,112 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
+  for (final format in [BookFormat.epub, BookFormat.pdf]) {
+    testWidgets('explicit $format location takes precedence over resume position', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final preferences = PreferencesProvider(await SharedPreferences.getInstance());
+      final ReaderLocator target = format == BookFormat.epub
+          ? EpubReaderLocator(spineIndex: 3, textOffset: 456, localProgression: .25, totalProgression: .4)
+          : PdfReaderLocator(pageIndex: 7, pageOffset: .35, totalProgression: .4);
+      final ReaderLocator resume = format == BookFormat.epub
+          ? EpubReaderLocator(spineIndex: 1, textOffset: 0, localProgression: 0, totalProgression: .1)
+          : PdfReaderLocator(pageIndex: 1, pageOffset: 0, totalProgression: .1);
+      final book = buildTestBook(
+        id: 'location-book',
+        fileFormat: format,
+        customMetadata: {'reader_locator': resume.toJson()},
+      );
+      final store = DataStore()..loadData(books: [book]);
+      addTearDown(store.dispose);
+      final cache = _ReaderMediaCache();
+      await tester.pumpWidget(
+        MultiProvider(
+          providers: [
+            ChangeNotifierProvider.value(value: store),
+            ChangeNotifierProvider.value(value: preferences),
+            Provider<MediaCacheService>.value(value: cache),
+            Provider<BookImportService>(create: (_) => BookImportService()),
+            ChangeNotifierProvider<AuthProvider>(create: (_) => _ReaderAuth()),
+          ],
+          child: MaterialApp(
+            home: ReaderPage(bookId: book.id, location: jsonEncode(target.toJson())),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      final reader = tester.widget<PapyrusReader>(find.byType(PapyrusReader));
+      expect(reader.initialLocator, target);
+      expect(reader.onNote, isNull);
+      expect(cache.loads, 1);
+      expect(store.getBook(book.id)!.customMetadata!['reader_locator'], resume.toJson());
+      final readerContext = tester.element(find.byType(PapyrusReader));
+
+      showDialog<void>(
+        context: readerContext,
+        builder: (context) => Dialog(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: reader.builders.toolbarActions!(
+              context,
+              ReaderToolbarContext(
+                document: reader.document,
+                snapshot: ReaderReadySnapshot(
+                  document: reader.document,
+                  preferences: const ReaderPreferences(),
+                  capabilities: const ReaderCapabilities(),
+                  locator: target,
+                ),
+                openTableOfContents: () {},
+                openSettings: () {},
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        tester.getCenter(find.byTooltip('New note')).dx,
+        greaterThan(tester.getCenter(find.byTooltip('Add bookmark')).dx),
+      );
+      await tester.tap(find.byTooltip('New note'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      await tester.enterText(find.widgetWithText(TextFormField, 'Title'), 'Freehand thought');
+      await tester.enterText(find.byKey(const Key('note-content-field')), 'Independent of the reading position');
+      await tester.tap(find.text('Save'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(store.notes.single.bookId, book.id);
+      expect(store.notes.single.content, 'Independent of the reading position');
+      expect(store.notes.single.location, isNull);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
+  testWidgets('invalid requested location does not fall back to the resume position', (tester) async {
+    final store = DataStore()
+      ..loadData(
+        books: [buildTestBook(id: 'epub-book', fileFormat: BookFormat.epub)],
+      );
+    addTearDown(store.dispose);
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: store,
+        child: const MaterialApp(
+          home: ReaderPage(bookId: 'epub-book', location: '[]'),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('This saved location could not be opened.'), findsOneWidget);
+    expect(find.byType(PapyrusReader), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('host theme changes keep the same open document and avoid rereading media', (tester) async {
     SharedPreferences.setMockInitialValues({});
     final preferences = PreferencesProvider(await SharedPreferences.getInstance());

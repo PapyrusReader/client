@@ -82,6 +82,10 @@ Future<void> main() async {
           );
           await waitForContent(tester, controller);
           final first = controller.snapshot.locator!.toJson();
+          expect(find.byTooltip('Next'), findsNothing);
+          await tester.tapAt(tester.getRect(find.byKey(const ValueKey('reader-content'))).center);
+          await tester.pump(const Duration(milliseconds: 350));
+          expect(find.byTooltip('Next'), findsOneWidget);
           await tester.tap(find.byTooltip('Next'));
           await waitForContent(tester, controller);
           expect(controller.snapshot.locator!.toJson(), isNot(first), reason: '${fixture.key} must advance');

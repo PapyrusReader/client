@@ -1,6 +1,5 @@
 import 'package:papyrus/widgets/shared/app_drawer.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/note.dart';
 import 'package:papyrus/providers/notes_provider.dart';
@@ -288,7 +287,7 @@ class _NotesPageState extends State<NotesPage> {
           items.add(
             NoteCard(
               note: note,
-              onTap: () => _navigateToBook(context, note.bookId),
+              onTap: () => _editNote(context, provider, note),
               onLongPress: () => _showNoteActions(context, provider, note),
             ),
           );
@@ -302,8 +301,15 @@ class _NotesPageState extends State<NotesPage> {
     );
   }
 
-  void _navigateToBook(BuildContext context, String bookId) {
-    context.goNamed('BOOK_DETAILS', pathParameters: {'bookId': bookId});
+  Future<void> _editNote(BuildContext context, NotesProvider provider, Note note) {
+    final repository = context.read<DataStore>().libraryRepository?.notes;
+
+    return NoteDialog.show(
+      context,
+      bookId: note.bookId,
+      existingNote: note,
+      onSave: (updated) => provider.updateNote(updated, previous: note, repository: repository),
+    );
   }
 
   void _showNoteActions(BuildContext context, NotesProvider provider, Note note) async {

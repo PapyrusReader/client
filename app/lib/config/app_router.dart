@@ -229,7 +229,11 @@ class AppRouter {
 
                   return NoTransitionPage(
                     key: state.pageKey,
-                    child: ReaderPage(bookId: bookId),
+                    child: ReaderPage(
+                      key: ValueKey(state.uri.toString()),
+                      bookId: bookId,
+                      location: state.uri.queryParameters['location'],
+                    ),
                   );
                 },
               ),

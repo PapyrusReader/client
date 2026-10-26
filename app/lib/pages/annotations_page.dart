@@ -1,6 +1,6 @@
 import 'package:papyrus/widgets/shared/app_drawer.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:papyrus/reader/reader_navigation.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/models/annotation.dart';
@@ -300,7 +300,12 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
             AnnotationCard(
               annotation: annotation,
               showActionMenu: isDesktop,
-              onTap: () => _navigateToBook(context, annotation.bookId),
+              onTap: () => openSavedReadingLocation(
+                context,
+                bookId: annotation.bookId,
+                anchor: annotation.location.readerLocator,
+                pageNumber: annotation.location.pageNumber,
+              ),
               onLongPress: () => _onAnnotationActions(context, provider, annotation),
             ),
           );
@@ -312,10 +317,6 @@ class _AnnotationsPageState extends State<AnnotationsPage> {
       padding: EdgeInsets.symmetric(horizontal: libraryPageHorizontalPadding(context)),
       children: items,
     );
-  }
-
-  void _navigateToBook(BuildContext context, String bookId) {
-    context.goNamed('BOOK_DETAILS', pathParameters: {'bookId': bookId});
   }
 
   void _onAnnotationActions(BuildContext context, AnnotationsProvider provider, Annotation annotation) async {

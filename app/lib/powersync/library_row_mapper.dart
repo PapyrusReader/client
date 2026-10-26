@@ -51,7 +51,7 @@ final tagRowMapper = LibraryRowMapper<Tag>(
 Map<String, Object?> _locatedRow(Map<String, dynamic> json, BookLocation? location) {
   final row = Map<String, Object?>.from(json);
 
-  for (final key in ['chapter', 'chapter_title', 'page_number', 'percentage']) {
+  for (final key in ['chapter', 'chapter_title', 'page_number', 'percentage', 'reader_locator', 'selection']) {
     row.remove(key);
   }
 
@@ -62,6 +62,8 @@ Map<String, Object?> _locatedRow(Map<String, dynamic> json, BookLocation? locati
           'chapter_title': location.chapterTitle,
           'page_number': location.pageNumber,
           'percentage': location.percentage,
+          'reader_locator': location.readerLocator,
+          'selection': location.selection,
         };
 
   return encodeLibraryRow(row);
@@ -116,7 +118,7 @@ Map<String, dynamic> decodeLibraryRow(Map<String, dynamic> row) => row.map((key,
     return MapEntry(key, value == true || value == 1);
   }
 
-  if (['tags', 'location', 'payload'].contains(key) && value is String) {
+  if (['tags', 'location', 'payload', 'reader_locator'].contains(key) && value is String) {
     return MapEntry(key, jsonDecode(value));
   }
 

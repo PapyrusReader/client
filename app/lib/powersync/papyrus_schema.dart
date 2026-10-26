@@ -94,6 +94,7 @@ const _annotationsColumns = [
 ];
 
 const _bookmarkColumns = [
+  Column.text('reader_locator'),
   Column.text('owner_user_id'),
   Column.text('book_id'),
   Column.real('position'),

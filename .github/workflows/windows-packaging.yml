@@ -1,19 +1,20 @@
 name: Windows packaging check
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
-      - 'app/windows/**'
-      - 'app/pubspec.yaml'
-      - 'app/pubspec.lock'
-      - 'app/integration_test/desktop_package_*.dart'
+      - 'app/**'
+      - 'packages/**'
       - 'tools/run_packaged_smoke.py'
       - 'tools/check_packaged_reader.*'
       - 'tools/package_windows.ps1'
       - 'tools/check_windows_package.ps1'
+      - 'tools/check_windows_zip.ps1'
       - 'tools/windows_test_helpers.ps1'
       - 'packaging/windows/**'
       - 'docs/INSTALL.md'
+      - 'docs/WINDOWS_TESTING.md'
       - '.github/workflows/release.yml'
       - '.github/workflows/windows-packaging.yml'
 
@@ -27,6 +28,9 @@ concurrency:
 jobs:
   windows:
     runs-on: windows-latest
+    env:
+      PAPYRUS_API_BASE_URL: https://api.papyrus-reader.com
+      POWERSYNC_SERVICE_URL: https://sync.papyrus-reader.com
     defaults:
       run:
         working-directory: app
@@ -37,9 +41,44 @@ jobs:
           flutter-version: '3.41.2'
           cache: true
       - run: flutter pub get --enforce-lockfile
-      - run: flutter build windows --release
-      - run: ../tools/package_windows.ps1 -Tag 'v0.0.0+1'
-      - run: ../tools/check_windows_package.ps1 -Tag 'v0.0.0+1' -RequireMissingRuntime
+      - name: Prepare preview version and endpoints
+        run: |
+          python ../tools/release_gate.py client --endpoints
+          if ($LASTEXITCODE -ne 0) { throw 'Invalid preview endpoints' }
+          $Manifest = Get-Content pubspec.yaml -Raw
+          if ($Manifest -notmatch '(?m)^version: ([0-9]+\.[0-9]+\.[0-9]+)\+([1-9][0-9]*)\s*$') { throw 'Invalid client version' }
+          "PREVIEW_TAG=v$($Matches[1])+$($Matches[2])" >> $env:GITHUB_ENV
+      - name: Build production entrypoint for manual testing
+        run: |
+          flutter build windows --release `
+            --dart-define=PAPYRUS_API_BASE_URL="$env:PAPYRUS_API_BASE_URL" `
+            --dart-define=POWERSYNC_SERVICE_URL="$env:POWERSYNC_SERVICE_URL"
+      - run: ../tools/package_windows.ps1 -Tag $env:PREVIEW_TAG
+      - run: ../tools/check_windows_package.ps1 -Tag $env:PREVIEW_TAG -RequireMissingRuntime
+      - run: ../tools/check_windows_zip.ps1 -Tag $env:PREVIEW_TAG
+      - name: Record preview provenance and checksums
+        run: |
+          $Revision = git rev-parse HEAD
+          if ($LASTEXITCODE -ne 0) { throw 'Could not resolve preview source revision' }
+          @{
+            preview = $true
+            version = $env:PREVIEW_TAG
+            commit = $Revision
+            workflow_run = "$env:GITHUB_SERVER_URL/$env:GITHUB_REPOSITORY/actions/runs/$env:GITHUB_RUN_ID"
+            api = $env:PAPYRUS_API_BASE_URL
+            sync = $env:POWERSYNC_SERVICE_URL
+          } | ConvertTo-Json | Set-Content dist/BUILD-INFO.json
+          Copy-Item ../docs/WINDOWS_TESTING.md dist/WINDOWS_TESTING.md
+          Get-ChildItem dist -File | Where-Object Name -ne 'SHA256SUMS' | Sort-Object Name | ForEach-Object {
+            "$((Get-FileHash $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant())  $($_.Name)"
+          } | Set-Content dist/SHA256SUMS
+      - name: Save production preview before building test entrypoint
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-preview-${{ github.run_id }}
+          path: app/dist/*
+          if-no-files-found: error
+          retention-days: 14
       - name: Build instrumented reader package
         run: flutter build windows --release --target integration_test/desktop_package_smoke.dart --dart-define=INTEGRATION_TEST_SHOULD_REPORT_RESULTS_TO_NATIVE=false
       - name: Package reader test build
@@ -48,6 +87,8 @@ jobs:
           ../tools/package_windows.ps1 -Tag 'v0.0.0+1'
       - name: Validate upgraded package and offline reader
         run: ../tools/check_packaged_reader.ps1 -Tag 'v0.0.0+2' -PreviousTag 'v0.0.0+1'
+      - name: Validate offline reader from ZIP
+        run: ../tools/check_windows_zip.ps1 -Tag 'v0.0.0+2' -ReaderSmoke
       - name: Save native package validation reports
         if: always()
         uses: actions/upload-artifact@v4

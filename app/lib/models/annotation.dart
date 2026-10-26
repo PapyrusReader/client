@@ -65,11 +65,24 @@ class BookLocation {
   final String? chapterTitle;
   final int pageNumber;
   final double? percentage;
+  final Map<String, Object?>? readerLocator;
+  final Map<String, Object?>? selection;
 
-  const BookLocation({this.chapter, this.chapterTitle, required this.pageNumber, this.percentage});
+  const BookLocation({
+    this.chapter,
+    this.chapterTitle,
+    required this.pageNumber,
+    this.percentage,
+    this.readerLocator,
+    this.selection,
+  });
 
   /// Get a display-friendly location string.
   String get displayLocation {
+    if (readerLocator?['type'] == 'epub') {
+      return '${chapterTitle ?? 'Chapter $chapter'} · ${((percentage ?? 0) * 100).round()}%';
+    }
+
     if (chapterTitle != null && chapter != null) {
       return 'Chapter $chapter: $chapterTitle, Page $pageNumber';
     }
@@ -83,6 +96,10 @@ class BookLocation {
 
   /// Get a short location string.
   String get shortLocation {
+    if (readerLocator?['type'] == 'epub') {
+      return 'Ch. $chapter · ${((percentage ?? 0) * 100).round()}%';
+    }
+
     if (chapter != null) {
       return 'Ch. $chapter, p. $pageNumber';
     }
@@ -90,12 +107,21 @@ class BookLocation {
     return 'Page $pageNumber';
   }
 
-  BookLocation copyWith({int? chapter, String? chapterTitle, int? pageNumber, double? percentage}) {
+  BookLocation copyWith({
+    int? chapter,
+    String? chapterTitle,
+    int? pageNumber,
+    double? percentage,
+    Map<String, Object?>? readerLocator,
+    Map<String, Object?>? selection,
+  }) {
     return BookLocation(
       chapter: chapter ?? this.chapter,
       chapterTitle: chapterTitle ?? this.chapterTitle,
       pageNumber: pageNumber ?? this.pageNumber,
       percentage: percentage ?? this.percentage,
+      readerLocator: readerLocator ?? this.readerLocator,
+      selection: selection ?? this.selection,
     );
   }
 }
@@ -157,6 +183,8 @@ class Annotation {
       'chapter_title': location.chapterTitle,
       'page_number': location.pageNumber,
       'percentage': location.percentage,
+      'reader_locator': location.readerLocator,
+      'selection': location.selection,
       'note': note,
       'created_at': createdAt.toIso8601String(),
       'updated_at': updatedAt?.toIso8601String(),
@@ -174,6 +202,8 @@ class Annotation {
         chapterTitle: json['chapter_title'] as String?,
         pageNumber: json['page_number'] as int,
         percentage: (json['percentage'] as num?)?.toDouble(),
+        readerLocator: (json['reader_locator'] as Map?)?.cast<String, Object?>(),
+        selection: (json['selection'] as Map?)?.cast<String, Object?>(),
       ),
       note: json['note'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
