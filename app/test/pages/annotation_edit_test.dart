@@ -11,7 +11,7 @@ import 'package:provider/provider.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
-  testWidgets('annotation menu opens the complete prefilled editor and saves all fields', (tester) async {
+  testWidgets('annotation editor hides and preserves location while saving editable fields', (tester) async {
     await tester.binding.setSurfaceSize(const Size(1200, 1000));
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final store = DataStore();
@@ -43,14 +43,13 @@ void main() {
     await tester.tap(find.text('Edit annotation'));
     await tester.pumpAndSettle();
     expect(find.text('Original passage'), findsOneWidget);
-    expect(find.text('12'), findsOneWidget);
-    expect(find.text('Chapter'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, '12'), findsNothing);
+    expect(find.widgetWithText(TextFormField, 'Chapter'), findsNothing);
     expect(find.widgetWithText(TextFormField, 'Attached note'), findsOneWidget);
     final fields = find.byType(TextFormField);
     await tester.enterText(fields.at(0), 'Edited passage');
-    await tester.enterText(fields.at(1), '24');
-    await tester.enterText(fields.at(2), 'New chapter');
-    await tester.enterText(fields.at(3), '');
+    expect(fields, findsNWidgets(2));
+    await tester.enterText(fields.at(1), '');
     await tester.drag(find.byType(ListView).last, const Offset(0, -300));
     await tester.pumpAndSettle();
     expect(find.text('Highlight color'), findsOneWidget);
@@ -59,8 +58,8 @@ void main() {
     await tester.pumpAndSettle();
     final saved = store.getAnnotation('annotation')!;
     expect(saved.selectedText, 'Edited passage');
-    expect(saved.location.pageNumber, 24);
-    expect(saved.location.chapterTitle, 'New chapter');
+    expect(saved.location.pageNumber, 12);
+    expect(saved.location.chapterTitle, 'Chapter');
     expect(saved.location.chapter, 2);
     expect(saved.location.percentage, 0.2);
     expect(saved.note, isNull);

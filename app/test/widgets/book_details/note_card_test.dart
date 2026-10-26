@@ -63,10 +63,10 @@ void main() {
         expect(find.widgetWithText(Chip, 'important'), findsOneWidget);
       });
 
-      testWidgets('displays location with icon when present', (tester) async {
+      testWidgets('does not display stored reading location metadata', (tester) async {
         await tester.pumpWidget(buildCard());
-        expect(find.byIcon(Icons.location_on_outlined), findsOneWidget);
-        expect(find.text('Ch. 5, p. 120'), findsOneWidget);
+        expect(find.byIcon(Icons.location_on_outlined), findsNothing);
+        expect(find.text('Ch. 5, p. 120'), findsNothing);
       });
 
       testWidgets('hides location when not set', (tester) async {

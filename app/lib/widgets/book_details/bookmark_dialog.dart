@@ -79,17 +79,19 @@ class _BookmarkDialogState extends State<BookmarkDialog> with PersistentSave<Boo
       return;
     }
 
-    final page = int.parse(_pageController.text);
-    final position = widget.pageCount != null ? (page / widget.pageCount!).clamp(0.0, 1.0) : 0.0;
+    final page = _isEditing ? widget.existingBookmark!.pageNumber : int.parse(_pageController.text);
+    final position = widget.pageCount != null ? ((page ?? 1) / widget.pageCount!).clamp(0.0, 1.0) : 0.0;
     final chapter = _chapterController.text.trim();
+    final chapterTitle = chapter.isNotEmpty ? chapter : null;
     final note = _noteController.text.trim();
 
     final bookmark = Bookmark(
       id: widget.existingBookmark?.id ?? const Uuid().v4(),
       bookId: widget.bookId,
-      position: position,
+      position: widget.existingBookmark?.position ?? position,
+      readerLocator: widget.existingBookmark?.readerLocator,
       pageNumber: page,
-      chapterTitle: chapter.isNotEmpty ? chapter : null,
+      chapterTitle: _isEditing ? widget.existingBookmark!.chapterTitle : chapterTitle,
       note: note.isNotEmpty ? note : null,
       colorHex: _selectedColor,
       createdAt: widget.existingBookmark?.createdAt ?? DateTime.now(),
@@ -122,44 +124,44 @@ class _BookmarkDialogState extends State<BookmarkDialog> with PersistentSave<Boo
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            // Page number
-            TextFormField(
-              controller: _pageController,
-              keyboardType: TextInputType.number,
-              inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-              autofocus: !_isEditing,
-              decoration: InputDecoration(
-                labelText: 'Page number',
-                border: const OutlineInputBorder(),
-                suffixText: widget.pageCount != null ? 'of ${widget.pageCount}' : null,
+            if (!_isEditing) ...[
+              TextFormField(
+                controller: _pageController,
+                keyboardType: TextInputType.number,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                autofocus: !_isEditing,
+                decoration: InputDecoration(
+                  labelText: 'Page number',
+                  border: const OutlineInputBorder(),
+                  suffixText: widget.pageCount != null ? 'of ${widget.pageCount}' : null,
+                ),
+                validator: (value) {
+                  if (value == null || value.trim().isEmpty) {
+                    return 'Please enter a page number';
+                  }
+
+                  final page = int.tryParse(value);
+
+                  if (page == null || page < 1) {
+                    return 'Enter a valid page number';
+                  }
+
+                  if (widget.pageCount != null && page > widget.pageCount!) {
+                    return 'Page exceeds total pages (${widget.pageCount})';
+                  }
+
+                  return null;
+                },
               ),
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter a page number';
-                }
+              const SizedBox(height: Spacing.md),
 
-                final page = int.tryParse(value);
-
-                if (page == null || page < 1) {
-                  return 'Enter a valid page number';
-                }
-
-                if (widget.pageCount != null && page > widget.pageCount!) {
-                  return 'Page exceeds total pages (${widget.pageCount})';
-                }
-
-                return null;
-              },
-            ),
-            const SizedBox(height: Spacing.md),
-
-            // Chapter title (optional)
-            TextFormField(
-              controller: _chapterController,
-              decoration: const InputDecoration(labelText: 'Chapter title (optional)', border: OutlineInputBorder()),
-              textCapitalization: TextCapitalization.sentences,
-            ),
-            const SizedBox(height: Spacing.md),
+              TextFormField(
+                controller: _chapterController,
+                decoration: const InputDecoration(labelText: 'Chapter title (optional)', border: OutlineInputBorder()),
+                textCapitalization: TextCapitalization.sentences,
+              ),
+              const SizedBox(height: Spacing.md),
+            ],
 
             // Note (optional)
             TextFormField(

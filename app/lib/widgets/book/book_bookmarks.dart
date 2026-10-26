@@ -20,6 +20,7 @@ class BookBookmarks extends StatefulWidget {
   final String bookTitle;
   final bool isPhysical;
   final VoidCallback? onAddBookmark;
+  final ValueChanged<Bookmark>? onBookmarkTap;
 
   /// Called when the user requests actions menu for a bookmark (long press).
   final Function(Bookmark)? onBookmarkActions;
@@ -30,6 +31,7 @@ class BookBookmarks extends StatefulWidget {
     required this.bookTitle,
     this.isPhysical = false,
     this.onAddBookmark,
+    this.onBookmarkTap,
     this.onBookmarkActions,
   });
 
@@ -230,6 +232,7 @@ class _BookBookmarksState extends State<BookBookmarks> {
       bookmark: bookmark,
       bookTitle: widget.bookTitle,
       showActionMenu: showActionMenu,
+      onTap: widget.onBookmarkTap == null ? null : () => widget.onBookmarkTap!(bookmark),
       onLongPress: () => widget.onBookmarkActions?.call(bookmark),
     );
   }

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/models/book.dart';
@@ -11,6 +12,20 @@ import '../helpers/test_helpers.dart';
 
 void main() {
   group('ReaderBookAdapter', () {
+    test('saved locations preserve anchors and reject missing or mismatched EPUB positions', () {
+      final epub = buildTestBook(fileFormat: BookFormat.epub);
+      final pdf = buildTestBook(fileFormat: BookFormat.pdf, pageCount: 100);
+      final locator = EpubReaderLocator(spineIndex: 3, textOffset: 456, localProgression: .25, totalProgression: .4);
+      expect(ReaderBookAdapter.decodeLocation(epub, jsonEncode(locator.toJson())), locator);
+      expect(() => ReaderBookAdapter.decodeLocation(pdf, jsonEncode(locator.toJson())), throwsFormatException);
+      expect(() => ReaderBookAdapter.decodeLocation(epub, '[]'), throwsFormatException);
+      expect(() => ReaderBookAdapter.decodeLocation(epub, '{broken'), throwsFormatException);
+      expect(() => ReaderBookAdapter.savedLocator(epub, pageNumber: 20), throwsFormatException);
+      final page = ReaderBookAdapter.savedLocator(pdf, pageNumber: 20) as PdfReaderLocator;
+      expect(page.pageIndex, 19);
+      expect(page.pageOffset, 0);
+    });
+
     test('maps only EPUB and PDF formats', () {
       expect(ReaderBookAdapter.formatFor(BookFormat.epub), ReaderFormat.epub);
       expect(ReaderBookAdapter.formatFor(BookFormat.pdf), ReaderFormat.pdf);

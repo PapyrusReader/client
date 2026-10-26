@@ -38,6 +38,44 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  for (final anchored in [false, true]) {
+    testWidgets('bookmark editing hides and preserves location, anchored $anchored', (tester) async {
+      final existing = Bookmark(
+        id: 'bookmark',
+        bookId: 'book',
+        position: .4,
+        pageNumber: anchored ? null : 30,
+        chapterTitle: 'CHAPTER VI. Pig and Pepper',
+        readerLocator: anchored ? {'type': 'epub', 'spineIndex': 6, 'textOffset': 123} : null,
+        createdAt: DateTime.utc(2026),
+      );
+      Bookmark? saved;
+
+      await open(
+        tester,
+        (context) => BookmarkDialog.show(
+          context,
+          bookId: existing.bookId,
+          existingBookmark: existing,
+          onSave: (bookmark) => saved = bookmark,
+        ),
+      );
+
+      expect(find.text(existing.displayLocation), findsNothing);
+      expect(find.text('Page number'), findsNothing);
+      expect(find.text('Chapter title (optional)'), findsNothing);
+      await tester.enterText(find.widgetWithText(TextFormField, 'Note (optional)'), 'Updated note');
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(saved!.readerLocator, existing.readerLocator);
+      expect(saved!.pageNumber, existing.pageNumber);
+      expect(saved!.chapterTitle, existing.chapterTitle);
+      expect(saved!.position, existing.position);
+      expect(saved!.note, 'Updated note');
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   for (final kind in ['create', 'note', 'color', 'delete']) {
     for (final fails in [false, true]) {
       testWidgets('bookmark $kind waits for write and ${fails ? 'keeps failures open' : 'closes after success'}', (

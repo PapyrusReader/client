@@ -1,6 +1,6 @@
 import 'package:papyrus/widgets/shared/app_drawer.dart';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:papyrus/reader/reader_navigation.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/models/bookmark.dart';
@@ -312,7 +312,12 @@ class _BookmarksPageState extends State<BookmarksPage> {
               bookmark: bookmark,
               bookTitle: provider.getBookTitle(bookmark.bookId),
               showActionMenu: isDesktop,
-              onTap: () => _navigateToBook(context, bookmark.bookId),
+              onTap: () => openSavedReadingLocation(
+                context,
+                bookId: bookmark.bookId,
+                anchor: bookmark.readerLocator,
+                pageNumber: bookmark.pageNumber,
+              ),
               onLongPress: () => _onBookmarkActions(context, provider, bookmark),
             ),
           );
@@ -324,10 +329,6 @@ class _BookmarksPageState extends State<BookmarksPage> {
       padding: EdgeInsets.symmetric(horizontal: libraryPageHorizontalPadding(context)),
       children: items,
     );
-  }
-
-  void _navigateToBook(BuildContext context, String bookId) {
-    context.goNamed('BOOK_DETAILS', pathParameters: {'bookId': bookId});
   }
 
   void _onBookmarkActions(BuildContext context, BookmarksProvider provider, Bookmark bookmark) async {

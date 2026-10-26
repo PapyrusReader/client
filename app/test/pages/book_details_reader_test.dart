@@ -1,3 +1,5 @@
+import 'dart:convert';
+import 'package:papyrus_reader/papyrus_reader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -17,6 +19,90 @@ import 'package:provider/provider.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
+  for (final width in [400.0, 1280.0]) {
+    for (final format in [BookFormat.epub, BookFormat.pdf]) {
+      testWidgets('saved items open their exact $format location at width $width', (tester) async {
+        tester.view.physicalSize = Size(width, 900);
+        tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.reset);
+        final book = buildTestBook(id: 'saved-location-book', fileFormat: format);
+        final ReaderLocator bookmarkLocator = format == BookFormat.epub
+            ? EpubReaderLocator(spineIndex: 3, textOffset: 456, localProgression: .25, totalProgression: .4)
+            : PdfReaderLocator(pageIndex: 7, pageOffset: .35, totalProgression: .4);
+        final ReaderLocator annotationLocator = format == BookFormat.epub
+            ? EpubReaderLocator(spineIndex: 4, textOffset: 789, localProgression: .5, totalProgression: .6)
+            : PdfReaderLocator(pageIndex: 12, pageOffset: .65, totalProgression: .6);
+        final store = DataStore()
+          ..loadData(
+            books: [book],
+            bookmarks: [
+              Bookmark(
+                id: 'bookmark',
+                bookId: book.id,
+                position: .4,
+                readerLocator: bookmarkLocator.toJson(),
+                note: 'Saved target',
+                createdAt: DateTime(2026),
+              ),
+            ],
+            annotations: [
+              Annotation(
+                id: 'annotation',
+                bookId: book.id,
+                selectedText: 'Selected target',
+                location: BookLocation(pageNumber: 13, readerLocator: annotationLocator.toJson()),
+                createdAt: DateTime(2026),
+              ),
+            ],
+          );
+        addTearDown(store.dispose);
+        String? routedLocation;
+        final router = GoRouter(
+          initialLocation: '/details/${book.id}',
+          routes: [
+            GoRoute(
+              path: '/details/:bookId',
+              builder: (_, state) => Scaffold(body: BookDetailsPage(id: state.pathParameters['bookId'])),
+            ),
+            GoRoute(
+              name: 'BOOK_READER',
+              path: '/read/:bookId',
+              builder: (_, state) {
+                expect(state.pathParameters['bookId'], book.id);
+                routedLocation = state.uri.queryParameters['location'];
+                return const Scaffold(body: Text('Reader destination'));
+              },
+            ),
+          ],
+        );
+        addTearDown(router.dispose);
+        await tester.pumpWidget(
+          ChangeNotifierProvider.value(
+            value: store,
+            child: MaterialApp.router(routerConfig: router),
+          ),
+        );
+        await tester.pumpAndSettle();
+        for (final (tab, label, locator) in [
+          ('Bookmarks (1)', 'Saved target', bookmarkLocator),
+          ('Annotations (1)', '"Selected target"', annotationLocator),
+        ]) {
+          await tester.ensureVisible(find.text(tab));
+          await tester.tap(find.text(tab));
+          await tester.pumpAndSettle();
+          await tester.ensureVisible(find.text(label));
+          await tester.tap(find.text(label));
+          await tester.pumpAndSettle();
+          expect(find.text('Reader destination'), findsOneWidget);
+          expect(ReaderLocator.fromJson(Map<String, Object?>.from(jsonDecode(routedLocation!) as Map)), locator);
+          router.pop();
+          await tester.pumpAndSettle();
+        }
+        expect(tester.takeException(), isNull);
+      });
+    }
+  }
+
   for (final (size, textScale) in [
     (const Size(400, 850), 1.0),
     (const Size(320, 568), 1.0),
