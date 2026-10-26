@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/models/annotation.dart';
+import 'package:papyrus/models/book.dart';
 import 'package:papyrus/models/bookmark.dart';
 import 'package:papyrus/models/note.dart';
 import 'package:papyrus/reader/reader_library.dart';
@@ -13,6 +14,8 @@ import 'package:papyrus/reader/reader_bookmark_button.dart';
 import 'package:papyrus/reader/reader_library_panel.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus_reader/papyrus_reader.dart';
+
+import '../helpers/test_helpers.dart';
 
 class _Entities<T> implements EntityRepository<T> {
   _Entities(this.id);
@@ -39,6 +42,10 @@ class _Entities<T> implements EntityRepository<T> {
 }
 
 class _Repository extends Fake implements EditableBookRepository, LibraryRepository {
+  _Repository({this.snapshot = const LibrarySnapshot()});
+
+  final LibrarySnapshot snapshot;
+
   @override
   bool isCurrent = true;
   @override
@@ -50,7 +57,7 @@ class _Repository extends Fake implements EditableBookRepository, LibraryReposit
   @override
   final _Entities<Note> notes = _Entities<Note>((value) => value.id);
   @override
-  Stream<LibrarySnapshot> watchLibrary() => Stream.value(const LibrarySnapshot());
+  Stream<LibrarySnapshot> watchLibrary() => Stream.value(snapshot);
 }
 
 void main() {
@@ -278,6 +285,97 @@ void main() {
       expect(find.text('Go to passage'), findsNothing);
       await tester.tap(find.text('Close'));
       await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
+  for (final (format, pageNumber, canNavigate) in [
+    (BookFormat.pdf, 20, true),
+    (BookFormat.pdf, 0, false),
+    (BookFormat.epub, 20, false),
+  ]) {
+    testWidgets('page-only saved items in $format at page $pageNumber', (tester) async {
+      final book = buildTestBook(id: 'book', fileFormat: format, pageCount: 100);
+      final repository = _Repository(
+        snapshot: LibrarySnapshot(
+          books: [book],
+          bookmarks: [
+            Bookmark(
+              id: 'bookmark',
+              bookId: book.id,
+              position: .2,
+              pageNumber: pageNumber,
+              note: 'Page bookmark',
+              createdAt: DateTime.utc(2026),
+            ),
+          ],
+          annotations: [
+            Annotation(
+              id: 'annotation',
+              bookId: book.id,
+              selectedText: 'Page annotation',
+              location: BookLocation(pageNumber: pageNumber),
+              createdAt: DateTime.utc(2026),
+            ),
+          ],
+        ),
+      );
+      final store = DataStore(bookRepository: repository);
+      final library = ReaderLibrary(store: store, bookId: book.id);
+      final controller = ReaderController(registry: ReaderEngineRegistry.defaults());
+      addTearDown(controller.dispose);
+      addTearDown(store.dispose);
+      ReaderLocator? navigated;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Scaffold(
+            body: ReaderLibraryPanel(
+              library: library,
+              panel: ReaderPanelContext(
+                snapshot: snapshot,
+                controller: controller,
+                close: () {},
+                navigate: (locator) => navigated = locator,
+                buildContents: (_) => const SizedBox.shrink(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Bookmarks'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Page bookmark'));
+      await tester.pumpAndSettle();
+
+      if (canNavigate) {
+        expect((navigated as PdfReaderLocator).pageIndex, 19);
+        expect(find.byType(AlertDialog), findsNothing);
+      } else {
+        expect(navigated, isNull);
+        expect(find.text('Go to passage'), findsNothing);
+        await tester.tap(find.text('Close'));
+        await tester.pumpAndSettle();
+      }
+
+      navigated = null;
+      await tester.tap(find.text('Annotations'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Page annotation'));
+      await tester.pumpAndSettle();
+      expect(find.byType(AlertDialog), findsOneWidget);
+
+      if (canNavigate) {
+        await tester.tap(find.text('Go to passage'));
+        await tester.pumpAndSettle();
+        expect((navigated as PdfReaderLocator).pageIndex, 19);
+      } else {
+        expect(find.text('Go to passage'), findsNothing);
+        expect(navigated, isNull);
+      }
+
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     });
