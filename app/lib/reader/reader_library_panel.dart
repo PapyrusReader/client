@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/models/bookmark.dart';
 import 'package:papyrus/models/note.dart';
+import 'package:papyrus/reader/reader_book_adapter.dart';
 import 'package:papyrus/reader/reader_library.dart';
 import 'package:papyrus/reader/reader_bookmark_button.dart';
 import 'package:papyrus/themes/app_motion.dart';
@@ -123,14 +124,14 @@ class ReaderLibraryPanel extends StatelessWidget {
         item.displayLocation,
         Icons.bookmark,
         item.color,
-        item.readerLocator,
+        _savedAnchor(item.readerLocator, item.pageNumber),
       ),
       Annotation() => (
         item.selectedText,
         [item.location.displayLocation, if (item.hasNote) item.note!].join('\n'),
         Icons.format_quote,
         item.color.accentColor,
-        item.location.readerLocator,
+        _savedAnchor(item.location.readerLocator, item.location.pageNumber),
       ),
       Note() => (
         item.title,
@@ -162,6 +163,24 @@ class ReaderLibraryPanel extends StatelessWidget {
         ],
       ),
     );
+  }
+
+  Map<String, Object?>? _savedAnchor(Map<String, Object?>? anchor, int? pageNumber) {
+    if (anchor != null) {
+      return anchor;
+    }
+
+    final book = library.store.getBook(library.bookId);
+
+    if (book == null) {
+      return null;
+    }
+
+    try {
+      return ReaderBookAdapter.savedLocator(book, pageNumber: pageNumber).toJson();
+    } on FormatException {
+      return null;
+    }
   }
 
   void _goTo(BuildContext context, Map<String, Object?> anchor) {
