@@ -72,13 +72,31 @@ class ReaderLibrary {
       PdfReaderLocator() => locator.totalProgression,
     };
     String? chapterTitle;
+    EpubReaderLocator? chapterLocator;
+
+    int comparePositions(EpubReaderLocator left, EpubReaderLocator right) {
+      if (left.textOffset != null && right.textOffset != null) {
+        return left.textOffset!.compareTo(right.textOffset!);
+      }
+
+      return left.localProgression.compareTo(right.localProgression);
+    }
 
     void findTitle(List<ReaderTocEntry> entries) {
       for (final entry in entries) {
+        final entryLocator = entry.locator;
+
         if (locator is EpubReaderLocator &&
-            entry.locator is EpubReaderLocator &&
-            (entry.locator as EpubReaderLocator).spineIndex == locator.spineIndex) {
-          chapterTitle = entry.title;
+            entryLocator is EpubReaderLocator &&
+            entryLocator.spineIndex == locator.spineIndex) {
+          final unresolvedAnchor = entryLocator.anchor != null && entryLocator.textOffset == null;
+          final precedesLocation = comparePositions(entryLocator, locator) <= 0;
+          final followsChapter = chapterLocator == null || comparePositions(entryLocator, chapterLocator!) >= 0;
+
+          if (!unresolvedAnchor && precedesLocation && followsChapter) {
+            chapterTitle = entry.title;
+            chapterLocator = entryLocator;
+          }
         }
 
         findTitle(entry.children);

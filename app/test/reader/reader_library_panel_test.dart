@@ -69,6 +69,75 @@ void main() {
     toc: [ReaderTocEntry(title: 'Third chapter', locator: locator)],
   );
 
+  test('saved EPUB titles follow the nearest preceding section, including selection starts', () {
+    final store = DataStore(bookRepository: _Repository());
+    addTearDown(store.dispose);
+    final library = ReaderLibrary(store: store, bookId: 'book');
+
+    EpubReaderLocator at(int offset) => EpubReaderLocator(
+      spineIndex: 2,
+      textOffset: offset,
+      localProgression: offset / 1000,
+      totalProgression: .4,
+    );
+
+    final toc = [
+      ReaderTocEntry(title: 'Later section', locator: at(500)),
+      ReaderTocEntry(
+        title: 'Chapter start',
+        locator: at(0),
+        children: [ReaderTocEntry(title: 'Early section', locator: at(100))],
+      ),
+      ReaderTocEntry(
+        title: 'Unresolved section',
+        locator: EpubReaderLocator(spineIndex: 2, anchor: 'missing', localProgression: 0, totalProgression: .4),
+      ),
+    ];
+
+    final current = ReaderReadySnapshot(
+      document: snapshot.document,
+      preferences: snapshot.preferences,
+      capabilities: snapshot.capabilities,
+      locator: at(600),
+      toc: toc,
+    );
+
+    expect(library.location(current).chapterTitle, 'Later section');
+
+    for (final (offset, title) in [(50, 'Chapter start'), (100, 'Early section'), (120, 'Early section')]) {
+      final selected = ReaderSelection(text: 'Text', start: at(offset), end: at(offset + 10));
+      final saved = library.location(current, selection: selected);
+      expect(saved.chapterTitle, title);
+      expect(saved.readerLocator, selected.start.toJson());
+    }
+  });
+
+  test('saved EPUB titles compare progression when offsets are unavailable', () {
+    final store = DataStore(bookRepository: _Repository());
+    addTearDown(store.dispose);
+    final library = ReaderLibrary(store: store, bookId: 'book');
+
+    EpubReaderLocator at(double progress) => EpubReaderLocator(
+      spineIndex: 2,
+      localProgression: progress,
+      totalProgression: .4,
+    );
+
+    final current = ReaderReadySnapshot(
+      document: snapshot.document,
+      preferences: snapshot.preferences,
+      capabilities: snapshot.capabilities,
+      locator: at(.3),
+      toc: [
+        ReaderTocEntry(title: 'Start', locator: at(0)),
+        ReaderTocEntry(title: 'Early section', locator: at(.2)),
+        ReaderTocEntry(title: 'Later section', locator: at(.5)),
+      ],
+    );
+
+    expect(library.location(current).chapterTitle, 'Early section');
+  });
+
   for (final (width, eink) in [(390.0, false), (1000.0, false), (390.0, true)]) {
     testWidgets('create, view and navigate saved reader items at width $width, eink $eink', (tester) async {
       tester.view.devicePixelRatio = 1;
