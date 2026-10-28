@@ -27,7 +27,7 @@ dependencies:
   papyrus_reader:
     git:
       url: https://github.com/PapyrusReader/reader.git
-      ref: 865e94adffe957042cd2a6107173bd05a78a3e87
+      ref: e6c59a7eb238b2088b0b92b25f36b617d63181c1
   epub_pro: ^5.6.0
   syncfusion_flutter_pdf: ^32.2.3
   dart_mobi: ^1.0.2
