@@ -63,7 +63,8 @@ the client root, or `../../tools/papyrus` from `app/`.
 - Analysis: `flutter analyze --no-fatal-warnings --no-fatal-infos` (same policy as CI).
 - Focused tests: `flutter test test/<domain>/<name>_test.dart`.
 - Suite/coverage: `flutter test --coverage`.
-- Web bootstrap: `node --test test/web/flutter_bootstrap_test.cjs`.
+- Web bootstrap and cover worker: `node --test test/web/*.cjs`.
+- Browser cover transport and drag-and-drop: `flutter test --platform chrome test/services/book_cover_storage_web_test.dart test/platform/book_import_drop_registration_web_test.dart`.
 - Web compile for platform-sensitive changes: `flutter build web --dart-define-from-file=.dart_defines`.
 
 Add the narrowest regression for changed behavior. UI changes need a relevant

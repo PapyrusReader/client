@@ -71,6 +71,12 @@ jobs:
       - name: Check report normalization
         run: python3 -m unittest discover -s ../.github/scripts -p 'test_*.py'
 
+      - name: Check browser bootstrap and cover worker
+        run: node --test test/web/*.cjs
+
+      - name: Check browser cover transport and drag-and-drop
+        run: flutter test --platform chrome test/services/book_cover_storage_web_test.dart test/platform/book_import_drop_registration_web_test.dart
+
       - name: Run tests with coverage
         id: tests
         run: |

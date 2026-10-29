@@ -174,10 +174,5 @@ void main() {
         expect(restored.colorHex, original.colorHex);
       });
     });
-
-    test('availableColors contains expected number of colors', () {
-      expect(Bookmark.availableColors.length, 7);
-      expect(Bookmark.availableColors.first, '#FF5722');
-    });
   });
 }

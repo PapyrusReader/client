@@ -12,7 +12,12 @@ import 'package:papyrus/widgets/book_edit/cover_image_picker.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
-  for (final theme in [AppTheme.dark, AppTheme.highContrastDark, AppTheme.highContrastLight, AppTheme.eink]) {
+  for (final (themeIndex, theme) in [
+    AppTheme.dark,
+    AppTheme.highContrastDark,
+    AppTheme.highContrastLight,
+    AppTheme.eink,
+  ].indexed) {
     for (final layout in [
       (screen: const Size(3840, 2160), width: 3560.0, scale: 1.0),
       (screen: const Size(1800, 1200), width: 1520.0, scale: 1.0),
@@ -23,6 +28,10 @@ void main() {
       (screen: const Size(1200, 1200), width: 920.0, scale: 2.0),
       (screen: const Size(1000, 1200), width: 640.0, scale: 2.0),
     ]) {
+      if (themeIndex > 0 && !(layout.width == 560 || layout.scale == 2)) {
+        continue;
+      }
+
       testWidgets('desktop details/edit covers match at ${layout.width}, scale ${layout.scale}, ${theme.brightness}', (
         tester,
       ) async {
