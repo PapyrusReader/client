@@ -666,7 +666,7 @@ void main() {
     expect(find.widgetWithText(FilledButton, 'Add catalog'), findsNothing);
     expect(find.text('Catalogs'), findsNothing);
     expect(find.byType(LibraryPageHeader), findsNothing);
-    expect(tester.getTopLeft(find.byType(LibraryMobileToolbar)).dy, 16);
+    expect(tester.getTopLeft(find.byTooltip('Library sections')).dy, 8);
     expect(tester.getCenter(find.byTooltip('Downloads')).dy, tester.getCenter(find.byTooltip('Library sections')).dy);
     await tester.tap(find.byTooltip('Add catalog'));
     await tester.pumpAndSettle();
@@ -805,7 +805,7 @@ void main() {
     final header = tester.getRect(find.byKey(const Key('catalog-mobile-header')));
     expect(header.left, 0);
     expect(header.width, 424);
-    expect(header.height, 80);
+    expect(header.height, 64);
     expect(heading.left, 72);
     expect(find.byKey(const Key('catalog-header-divider')), findsNothing);
     final field = tester.getRect(find.byType(TextField));

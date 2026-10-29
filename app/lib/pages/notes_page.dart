@@ -78,19 +78,11 @@ class _NotesPageState extends State<NotesPage> {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: EdgeInsets.only(
-                top: Spacing.md,
-                left: libraryPageHorizontalPadding(context),
-                right: libraryPageHorizontalPadding(context),
-              ),
-              child: LibraryMobileToolbar(
-                onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
-                search: _buildSearchField(provider),
-                actions: [_buildSortButton(provider)],
-              ),
+            LibraryMobileToolbar(
+              onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
+              search: _buildSearchField(provider),
+              actions: [_buildSortButton(provider)],
             ),
-            const SizedBox(height: Spacing.md),
 
             // Tag filter chips
             if (provider.hasNotes && provider.allTags.isNotEmpty) _buildTagFilterChips(provider),

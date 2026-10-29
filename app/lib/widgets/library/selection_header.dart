@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
 
 /// Contextual header shown when selection mode is active.
 /// Replaces the normal library header with close, count, select all, and actions.
@@ -10,6 +11,7 @@ class SelectionHeader extends StatelessWidget {
   final VoidCallback onSelectAll;
   final VoidCallback onDeselectAll;
   final Widget? actions;
+  final bool compact;
 
   const SelectionHeader({
     super.key,
@@ -19,6 +21,7 @@ class SelectionHeader extends StatelessWidget {
     required this.onSelectAll,
     required this.onDeselectAll,
     this.actions,
+    this.compact = false,
   });
 
   bool get _allSelected => selectedCount >= totalCount && totalCount > 0;
@@ -27,11 +30,16 @@ class SelectionHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
+    final close = IconButton(icon: const Icon(Icons.close), tooltip: 'Exit selection', onPressed: onClose);
+
+    final selectAll = TextButton(
+      onPressed: _allSelected ? onDeselectAll : onSelectAll,
+      child: Text(_allSelected ? 'Deselect all' : 'Select all', maxLines: 1, overflow: TextOverflow.ellipsis),
+    );
 
     final selectionControls = Row(
       children: [
-        IconButton(icon: const Icon(Icons.close), tooltip: 'Exit selection', onPressed: onClose),
-        const SizedBox(width: Spacing.sm),
+        if (!compact) ...[close, const SizedBox(width: Spacing.sm)],
         Flexible(
           child: Text(
             '$selectedCount selected',
@@ -41,12 +49,13 @@ class SelectionHeader extends StatelessWidget {
           ),
         ),
         const SizedBox(width: Spacing.md),
-        TextButton(
-          onPressed: _allSelected ? onDeselectAll : onSelectAll,
-          child: Text(_allSelected ? 'Deselect all' : 'Select all'),
-        ),
+        compact ? Flexible(child: selectAll) : selectAll,
       ],
     );
+
+    if (compact) {
+      return AppPageToolbar(leading: close, content: selectionControls, actions: [?actions]);
+    }
 
     return Row(
       children: [

@@ -151,7 +151,7 @@ void main() {
         expect(find.byType(LibraryPageHeader), findsNothing);
 
         if (layout.screen.width < 840) {
-          expect(tester.getTopLeft(find.byType(LibraryMobileToolbar)).dy, 16);
+          expect(tester.getTopLeft(find.byType(LibraryMobileToolbar)).dy, 0);
           expect(
             tester.getRect(find.byTooltip('Library sections')).right,
             lessThan(tester.getRect(find.byType(TextField)).left),

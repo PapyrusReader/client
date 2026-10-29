@@ -29,10 +29,10 @@ void main() {
         navigator.currentState!.push(MaterialPageRoute<void>(builder: (_) => const DeveloperOptionsPage()));
         await tester.pumpAndSettle();
         expect(find.byType(BackButton), findsOneWidget);
-        expect(tester.getSize(find.byType(AppBar)).height, width == 400 ? 80 : kToolbarHeight);
+        expect(tester.getSize(find.byType(AppBar)).height, width == 400 ? 64 : kToolbarHeight);
 
         if (width == 400) {
-          expect(tester.getCenter(find.byType(BackButtonIcon)), const Offset(40, 40));
+          expect(tester.getCenter(find.byType(BackButtonIcon)), const Offset(40, 32));
         }
 
         await tester.tap(find.byType(BackButton));
