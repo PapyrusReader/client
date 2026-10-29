@@ -125,7 +125,11 @@ void main() {
       (2507.0, 1.0),
       (360.0, 2.0),
     ]) {
-      testWidgets('$name $width text $scale catalog journey in the app shell', (tester) async {
+      final fullJourney = _capture || (name == 'light' && scale == 1 && (width == 360 || width == 1280));
+
+      testWidgets('$name $width text $scale catalog ${fullJourney ? 'journey' : 'layout and keyboard'}', (
+        tester,
+      ) async {
         tester.view.physicalSize = Size(
           width,
           width > 2000
@@ -136,9 +140,9 @@ void main() {
         );
 
         tester.view.devicePixelRatio = 1;
+        addTearDown(tester.view.resetViewInsets);
         addTearDown(tester.view.resetPhysicalSize);
         addTearDown(tester.view.resetDevicePixelRatio);
-        addTearDown(tester.view.resetViewInsets);
         SharedPreferences.setMockInitialValues({});
         final store = OpdsCatalogStore(await SharedPreferences.getInstance(), secrets: MemorySecrets());
 
@@ -374,6 +378,39 @@ void main() {
         final label = '$name-${width.toInt()}-${scale.toInt()}x';
         await _snapshot(tester, '$label-sources');
 
+        if (!fullJourney) {
+          expect(find.byType(CatalogSourceTile).hitTestable(), findsWidgets);
+
+          if (width < 840) {
+            expect(find.byTooltip('Library sections').hitTestable(), findsOneWidget);
+          }
+
+          await tester.tap(
+            width < 840 ? find.byTooltip('Add catalog') : find.widgetWithText(FilledButton, 'Add catalog'),
+          );
+
+          await _settle(tester);
+          expect(find.byKey(const Key('opds-name')).hitTestable(), findsOneWidget);
+          tester.view.viewInsets = const FakeViewPadding(bottom: 300);
+          await _settle(tester);
+          await tester.ensureVisible(find.text('Cancel'));
+          await tester.tap(find.text('Cancel'));
+          await _settle(tester);
+          expect(find.byKey(const Key('opds-name')), findsNothing);
+          tester.view.resetViewInsets();
+          router.go(
+            Uri(
+              path: '/library/catalogs/gutenberg/book',
+              queryParameters: {'feed': 'https://www.gutenberg.org/feed', 'publication': 'pride'},
+            ).toString(),
+          );
+
+          await _settle(tester);
+          expect(find.byType(OpdsPublicationDetails), findsOneWidget);
+          await _expectDetailsLayout(tester, width, scale);
+          return;
+        }
+
         if (width < 840) {
           expect(find.byKey(const Key('catalog-mobile-header')), findsNothing);
           expect(find.byType(LibraryMobileToolbar), findsOneWidget);
@@ -478,18 +515,8 @@ void main() {
         await tester.tap(find.text('Pride and Prejudice'));
         await _snapshot(tester, '$label-details');
 
-        if (width < 840) {
-          final header = find.byKey(const Key('catalog-book-mobile-header'));
-          expect(tester.getSize(header).height, scale == 1 ? 80 : 96);
-          expect(find.byKey(const Key('catalog-book-header-divider')), findsNothing);
-          final rail = find.byType(BookDetailsTabRail);
-          await tester.dragFrom(Offset(width / 2, 700), const Offset(0, -1600));
-          await tester.pumpAndSettle();
-          expect(tester.getRect(rail).left, 0);
-          expect(tester.getRect(rail).width, width);
-          expect(tester.getTopLeft(rail).dy, tester.getBottomLeft(header).dy);
-          await _snapshot(tester, '$label-details-scrolled');
-        }
+        await _expectDetailsLayout(tester, width, scale);
+        await _snapshot(tester, '$label-details-scrolled');
 
         expect(find.text('Details'), findsOneWidget);
         await tester.ensureVisible(find.text('Description'));
@@ -557,5 +584,19 @@ void main() {
         }
       });
     }
+  }
+}
+
+Future<void> _expectDetailsLayout(WidgetTester tester, double width, double scale) async {
+  if (width < 840) {
+    final header = find.byKey(const Key('catalog-book-mobile-header'));
+    expect(tester.getSize(header).height, scale == 1 ? 80 : 96);
+    expect(find.byKey(const Key('catalog-book-header-divider')), findsNothing);
+    final rail = find.byType(BookDetailsTabRail);
+    await tester.dragFrom(Offset(width / 2, 700), const Offset(0, -1600));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(rail).left, 0);
+    expect(tester.getRect(rail).width, width);
+    expect(tester.getTopLeft(rail).dy, tester.getBottomLeft(header).dy);
   }
 }

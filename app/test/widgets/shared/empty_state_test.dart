@@ -58,8 +58,12 @@ void main() {
 
     testWidgets('is centered', (tester) async {
       await tester.pumpWidget(buildEmptyState());
-      // EmptyState contains a Center widget
-      expect(find.byType(Center), findsAtLeastNWidgets(1));
+      final bounds = tester.getRect(find.byType(EmptyState));
+      final title = tester.getRect(find.text('No books found'));
+      final icon = tester.getRect(find.byIcon(Icons.library_books_outlined));
+      expect(title.center.dx, closeTo(bounds.center.dx, 1));
+      expect(icon.center.dx, closeTo(bounds.center.dx, 1));
+      expect((icon.top + title.bottom) / 2, closeTo(bounds.center.dy, 1));
     });
 
     testWidgets('uses custom icon size', (tester) async {

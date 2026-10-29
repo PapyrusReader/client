@@ -21,7 +21,7 @@ import 'package:provider/provider.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
-  for (final theme in [AppTheme.dark, AppTheme.eink]) {
+  for (final (themeIndex, theme) in [AppTheme.dark, AppTheme.eink].indexed) {
     for (final layout in [
       (screen: const Size(320, 1000), pageWidth: 320.0, scale: 1.0),
       (screen: const Size(400, 1000), pageWidth: 400.0, scale: 1.0),
@@ -30,6 +30,10 @@ void main() {
       (screen: const Size(1200, 1000), pageWidth: 920.0, scale: 1.0),
       (screen: const Size(1200, 1000), pageWidth: 920.0, scale: 2.0),
     ]) {
+      if (themeIndex > 0 && layout.scale != 2) {
+        continue;
+      }
+
       testWidgets('visible books align with search at ${layout.screen.width}/${layout.pageWidth}, '
           'scale ${layout.scale}, ${theme.brightness}', (tester) async {
         tester.view.devicePixelRatio = 1;

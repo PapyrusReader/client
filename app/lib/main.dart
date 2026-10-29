@@ -74,7 +74,33 @@ Future main() async {
 class Papyrus extends StatefulWidget {
   final SharedPreferences prefs;
 
-  const Papyrus({super.key, required this.prefs});
+  const Papyrus({super.key, required this.prefs})
+    : _repositoryFactory = null,
+      _database = null,
+      _uploads = null,
+      _importer = null,
+      _child = null;
+
+  @visibleForTesting
+  const Papyrus.withServices({
+    super.key,
+    required this.prefs,
+    required AuthRepository Function(PapyrusApiConfig config, String profileKey) repositoryFactory,
+    required PapyrusPowerSyncService database,
+    required MediaUploadQueue uploads,
+    required BookImportService importer,
+    required Widget child,
+  }) : _repositoryFactory = repositoryFactory,
+       _database = database,
+       _uploads = uploads,
+       _importer = importer,
+       _child = child;
+
+  final AuthRepository Function(PapyrusApiConfig config, String profileKey)? _repositoryFactory;
+  final PapyrusPowerSyncService? _database;
+  final MediaUploadQueue? _uploads;
+  final BookImportService? _importer;
+  final Widget? _child;
 
   @override
   State<Papyrus> createState() => _PapyrusState();
@@ -222,8 +248,8 @@ class _PapyrusState extends State<Papyrus> {
 
     _dataStore = DataStore();
     _preferencesProvider = PreferencesProvider(widget.prefs);
-    _mediaUploadQueue = MediaUploadQueue(widget.prefs, onWorkAvailable: _processMediaUploads);
-    _bookImportService = BookImportService();
+    _mediaUploadQueue = widget._uploads ?? MediaUploadQueue(widget.prefs, onWorkAvailable: _processMediaUploads);
+    _bookImportService = widget._importer ?? BookImportService();
     _authProvider = AuthProvider(widget.prefs, repository: _authRepository);
     _acquisitionAvailabilityProvider = AcquisitionAvailabilityProvider(authProvider: _authProvider);
 
@@ -233,29 +259,31 @@ class _PapyrusState extends State<Papyrus> {
       activeApiConfig: () => _syncSettingsProvider.activeApiConfig,
     );
 
-    _powerSyncService = PapyrusPowerSyncService(
-      trackingCapability: () async {
-        final response = await http
-            .get(_syncSettingsProvider.activeApiConfig.endpoint('/sync/settings'))
-            .timeout(const Duration(seconds: 5));
+    _powerSyncService =
+        widget._database ??
+        PapyrusPowerSyncService(
+          trackingCapability: () async {
+            final response = await http
+                .get(_syncSettingsProvider.activeApiConfig.endpoint('/sync/settings'))
+                .timeout(const Duration(seconds: 5));
 
-        if (response.statusCode != 200) {
-          return 0;
-        }
+            if (response.statusCode != 200) {
+              return 0;
+            }
 
-        return (jsonDecode(response.body) as Map)['tracking_schema_version'] as int? ?? 0;
-      },
-      connectorFactory: () => PapyrusPowerSyncConnector(
-        supportsTracking: () => _powerSyncService.supportsTracking,
-        trackingSchemaVersion: () => _powerSyncService.trackingSchemaVersion,
-        authRepository: _authRepository,
-        config: _syncSettingsProvider.activeApiConfig,
-        onUploadComplete: () async {
-          await _powerSyncService.refreshBookMetadataSyncState();
-          await _processMediaUploads();
-        },
-      ),
-    );
+            return (jsonDecode(response.body) as Map)['tracking_schema_version'] as int? ?? 0;
+          },
+          connectorFactory: () => PapyrusPowerSyncConnector(
+            supportsTracking: () => _powerSyncService.supportsTracking,
+            trackingSchemaVersion: () => _powerSyncService.trackingSchemaVersion,
+            authRepository: _authRepository,
+            config: _syncSettingsProvider.activeApiConfig,
+            onUploadComplete: () async {
+              await _powerSyncService.refreshBookMetadataSyncState();
+              await _processMediaUploads();
+            },
+          ),
+        );
 
     _bookStorageStatusController = BookStorageStatusController(
       authProvider: _authProvider,
@@ -317,6 +345,12 @@ class _PapyrusState extends State<Papyrus> {
   }
 
   AuthRepository _buildAuthRepository(PapyrusApiConfig config, String profileKey) {
+    final factory = widget._repositoryFactory;
+
+    if (factory != null) {
+      return factory(config, profileKey);
+    }
+
     final tokenStore = TokenStore(SecureRefreshTokenStorage.scoped(profileKey));
 
     return AuthRepository(
@@ -573,41 +607,43 @@ class _PapyrusState extends State<Papyrus> {
         ),
         ChangeNotifierProvider.value(value: _preferencesProvider),
       ],
-      child: Consumer<PreferencesProvider>(
-        builder: (context, preferencesProvider, child) {
-          final isEink = preferencesProvider.isEinkMode;
-          final lightTheme = preferencesProvider.increaseContrast ? AppTheme.highContrastLight : AppTheme.light;
-          final darkTheme = preferencesProvider.increaseContrast ? AppTheme.highContrastDark : AppTheme.dark;
+      child:
+          widget._child ??
+          Consumer<PreferencesProvider>(
+            builder: (context, preferencesProvider, child) {
+              final isEink = preferencesProvider.isEinkMode;
+              final lightTheme = preferencesProvider.increaseContrast ? AppTheme.highContrastLight : AppTheme.light;
+              final darkTheme = preferencesProvider.increaseContrast ? AppTheme.highContrastDark : AppTheme.dark;
 
-          return MaterialApp.router(
-            title: 'Papyrus',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.withTypography(
-              isEink ? AppTheme.eink : lightTheme,
-              dyslexiaFont: preferencesProvider.dyslexiaFont,
-            ),
-            darkTheme: AppTheme.withTypography(
-              isEink ? AppTheme.eink : darkTheme,
-              dyslexiaFont: preferencesProvider.dyslexiaFont,
-            ),
-            highContrastTheme: AppTheme.withTypography(
-              isEink ? AppTheme.eink : AppTheme.highContrastLight,
-              dyslexiaFont: preferencesProvider.dyslexiaFont,
-            ),
-            highContrastDarkTheme: AppTheme.withTypography(
-              isEink ? AppTheme.eink : AppTheme.highContrastDark,
-              dyslexiaFont: preferencesProvider.dyslexiaFont,
-            ),
-            themeMode: isEink ? ThemeMode.light : preferencesProvider.themeMode,
-            themeAnimationDuration:
-                isEink || preferencesProvider.reduceAnimations || MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : kThemeAnimationDuration,
-            builder: (context, child) => AppAccessibilityScope(preferences: preferencesProvider, child: child!),
-            routerConfig: _appRouter.router,
-          );
-        },
-      ),
+              return MaterialApp.router(
+                title: 'Papyrus',
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.withTypography(
+                  isEink ? AppTheme.eink : lightTheme,
+                  dyslexiaFont: preferencesProvider.dyslexiaFont,
+                ),
+                darkTheme: AppTheme.withTypography(
+                  isEink ? AppTheme.eink : darkTheme,
+                  dyslexiaFont: preferencesProvider.dyslexiaFont,
+                ),
+                highContrastTheme: AppTheme.withTypography(
+                  isEink ? AppTheme.eink : AppTheme.highContrastLight,
+                  dyslexiaFont: preferencesProvider.dyslexiaFont,
+                ),
+                highContrastDarkTheme: AppTheme.withTypography(
+                  isEink ? AppTheme.eink : AppTheme.highContrastDark,
+                  dyslexiaFont: preferencesProvider.dyslexiaFont,
+                ),
+                themeMode: isEink ? ThemeMode.light : preferencesProvider.themeMode,
+                themeAnimationDuration:
+                    isEink || preferencesProvider.reduceAnimations || MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : kThemeAnimationDuration,
+                builder: (context, child) => AppAccessibilityScope(preferences: preferencesProvider, child: child!),
+                routerConfig: _appRouter.router,
+              );
+            },
+          ),
     );
   }
 }
