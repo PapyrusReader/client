@@ -29,7 +29,8 @@ def summarize(events):
     lines = [
         "### Flutter test durations",
         "",
-        f"Runner elapsed: {elapsed / 1000:.2f}s ({state} report).",
+        f"Test reporter elapsed: {elapsed / 1000:.2f}s ({state} report).",
+        "This excludes work before reporter startup, such as browser compilation. Use job timings for the full CI cost.",
         "Durations include per-test setup/teardown. Tests can overlap, so their sum is not elapsed or runner time.",
         "Skipped and hidden runner events are excluded from the ranking.",
         "",

@@ -12,7 +12,7 @@ class TestTimingTest(unittest.TestCase):
             {"type": "testDone", "time": 4000, "testID": 1, "result": "success"},
             {"type": "done", "time": 4500},
         ])
-        self.assertIn("Runner elapsed: 4.50s (complete report)", report)
+        self.assertIn("Test reporter elapsed: 4.50s (complete report)", report)
         self.assertIn("| 2.00 | failure | failed \\| case |", report)
         self.assertLess(report.index("| 4.00"), report.index("| 2.00"))
 
