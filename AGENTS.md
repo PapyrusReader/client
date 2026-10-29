@@ -67,6 +67,8 @@ the client root, or `../../tools/papyrus` from `app/`.
 - Browser cover transport and drag-and-drop: `flutter test --platform chrome test/services/book_cover_storage_web_test.dart test/platform/book_import_drop_registration_web_test.dart`.
 - Web compile for platform-sensitive changes: `flutter build web --dart-define-from-file=.dart_defines`.
 
+CI runs browser checks alongside the Dart coverage job. The existing Code quality checks gate requires both jobs to pass. Test-duration summaries are generated from the retained JSON reports.
+
 Add the narrowest regression for changed behavior. UI changes need a relevant
 widget test and visual verification when a running target is available. Analyze
 and run relevant tests before broadening to full suites. Report warnings and
