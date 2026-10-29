@@ -241,35 +241,29 @@ class _LibraryPageState extends State<LibraryPage> {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: EdgeInsets.only(
-                top: Spacing.md,
-                left: libraryPageHorizontalPadding(context),
-                right: libraryPageHorizontalPadding(context),
+            switch (downloadsProvider) {
+              final provider? when isOnline => _buildOnlineHeader(provider),
+              _ when hasJobSelection => _buildJobSelectionHeader(
+                downloadsProvider!,
+                selectableJobs: acquisitionView.selectableJobs,
+                includeActions: false,
               ),
-              child: switch (downloadsProvider) {
-                final provider? when isOnline => _buildOnlineHeader(provider),
-                _ when hasJobSelection => _buildJobSelectionHeader(
-                  downloadsProvider!,
-                  selectableJobs: acquisitionView.selectableJobs,
-                  includeActions: false,
-                ),
-                _ when widget.isShelfView => _buildShelfPageHeader(libraryProvider, books),
-                _ when isBookSelection => SelectionHeader(
-                  selectedCount: libraryProvider.selectedCount,
-                  totalCount: books.length,
-                  onClose: libraryProvider.exitSelectionMode,
-                  onSelectAll: () => libraryProvider.selectAll(books.map((book) => book.id).toList()),
-                  onDeselectAll: libraryProvider.deselectAll,
-                ),
-                _ => _buildMobileLocalHeader(libraryProvider),
-              },
-            ),
+              _ when widget.isShelfView => _buildShelfPageHeader(libraryProvider, books),
+              _ when isBookSelection => SelectionHeader(
+                compact: true,
+                selectedCount: libraryProvider.selectedCount,
+                totalCount: books.length,
+                onClose: libraryProvider.exitSelectionMode,
+                onSelectAll: () => libraryProvider.selectAll(books.map((book) => book.id).toList()),
+                onDeselectAll: libraryProvider.deselectAll,
+              ),
+              _ => _buildMobileLocalHeader(libraryProvider),
+            },
 
             if (!isOnline)
               Column(
                 children: [
-                  SizedBox(height: Spacing.sm),
+                  if (widget.isShelfView) const SizedBox(height: Spacing.sm),
                   LibraryFilterChips(
                     filterOptions: filterOptions,
                     showDownloading: !widget.isShelfView && localItems.hasDownloadingItems,
@@ -392,24 +386,33 @@ class _LibraryPageState extends State<LibraryPage> {
             backTooltip: 'Back to shelf',
             compact: compact,
             onBack: _isAddingToShelf ? null : widget.onBack,
-            actions: [compact ? AppPageLeading(child: selectionAction) : selectionAction],
+            actions: [selectionAction],
           )
         else
           _buildShelfIdentity(context, compact: compact, provider: provider, selectionAction: selectionAction),
 
-        const SizedBox(height: Spacing.md),
-        LibraryToolbar(
-          search: _buildSearchBar(provider),
-          actions: [
-            if (!compact && !widget.selectBooksForShelf)
-              Visibility(
-                visible: !provider.isSelectionMode,
-                maintainState: true,
-                maintainAnimation: true,
-                maintainSize: true,
-                child: LibraryAddButton(label: 'Add to shelf', onPressed: _openShelfBookSelection),
-              ),
-          ],
+        Padding(
+          padding: compact
+              ? EdgeInsets.fromLTRB(
+                  libraryPageHorizontalPadding(context),
+                  Spacing.sm,
+                  libraryPageHorizontalPadding(context),
+                  0,
+                )
+              : const EdgeInsets.only(top: Spacing.md),
+          child: LibraryToolbar(
+            search: _buildSearchBar(provider),
+            actions: [
+              if (!compact && !widget.selectBooksForShelf)
+                Visibility(
+                  visible: !provider.isSelectionMode,
+                  maintainState: true,
+                  maintainAnimation: true,
+                  maintainSize: true,
+                  child: LibraryAddButton(label: 'Add to shelf', onPressed: _openShelfBookSelection),
+                ),
+            ],
+          ),
         ),
       ],
     );
@@ -570,6 +573,7 @@ class _LibraryPageState extends State<LibraryPage> {
       final isDesktop = MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
 
       return SelectionHeader(
+        compact: !isDesktop,
         selectedCount: provider.selectedReleaseTokens.length,
         totalCount: provider.remoteResults.length,
         onClose: provider.clearReleaseSelection,
@@ -586,6 +590,7 @@ class _LibraryPageState extends State<LibraryPage> {
     }
 
     return OnlineBooksHeader(
+      compact: MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall,
       controller: _onlineSearchController,
       autofocus: provider.remoteQuery == null && _onlineSearchController.text.isEmpty,
       isSearching: provider.isSearching,
@@ -681,6 +686,7 @@ class _LibraryPageState extends State<LibraryPage> {
     final selectedJobs = _visibleSelectedJobs(provider, selectableJobs);
 
     return SelectionHeader(
+      compact: MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall,
       selectedCount: selectedJobs.length,
       totalCount: selectableJobs.length,
       onClose: provider.clearJobSelection,
@@ -953,21 +959,25 @@ class _LibraryPageState extends State<LibraryPage> {
       tooltip: backTooltip,
     );
 
+    final heading = Semantics(
+      header: true,
+      child: Text(
+        title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: titleStyle?.copyWith(fontWeight: FontWeight.w600),
+      ),
+    );
+
+    if (compact) {
+      return AppPageToolbar(leading: backButton, content: heading, actions: actions);
+    }
+
     return Row(
       children: [
-        compact ? AppPageLeading(child: backButton) : backButton,
+        backButton,
         const SizedBox(width: Spacing.sm),
-        Expanded(
-          child: Semantics(
-            header: true,
-            child: Text(
-              title,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-              style: titleStyle?.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ),
+        Expanded(child: heading),
         const SizedBox(width: Spacing.sm),
         ...actions,
       ],
@@ -992,27 +1002,25 @@ class _LibraryPageState extends State<LibraryPage> {
           maintainState: true,
           maintainAnimation: true,
           maintainSize: true,
-          child: compact ? AppPageLeading(child: selectionAction) : selectionAction,
+          child: selectionAction,
         ),
 
         if (compact)
-          AppPageLeading(
-            child: PopupMenuButton<String>(
-              popUpAnimationStyle: AppMotion.animationStyle(context),
-              icon: const Icon(Icons.more_vert),
-              tooltip: 'Shelf options',
-              onSelected: (action) {
-                if (action == 'details') {
-                  ShelfInfoSheet.show(context, shelfId: widget.shelf!.id);
-                } else if (action == 'edit') {
-                  widget.onEditShelf?.call();
-                }
-              },
-              itemBuilder: (_) => [
-                const PopupMenuItem(value: 'details', child: Text('Details')),
-                if (widget.onEditShelf != null) const PopupMenuItem(value: 'edit', child: Text('Edit')),
-              ],
-            ),
+          PopupMenuButton<String>(
+            popUpAnimationStyle: AppMotion.animationStyle(context),
+            icon: const Icon(Icons.more_vert),
+            tooltip: 'Shelf options',
+            onSelected: (action) {
+              if (action == 'details') {
+                ShelfInfoSheet.show(context, shelfId: widget.shelf!.id);
+              } else if (action == 'edit') {
+                widget.onEditShelf?.call();
+              }
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(value: 'details', child: Text('Details')),
+              if (widget.onEditShelf != null) const PopupMenuItem(value: 'edit', child: Text('Edit')),
+            ],
           )
         else ...[
           const SizedBox(width: Spacing.sm),

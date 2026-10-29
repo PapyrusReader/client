@@ -84,8 +84,9 @@ void main() {
         await tester.pumpAndSettle();
         final search = tester.getRect(find.byType(TextField));
         final mobile = layout.screen.width < 840;
-        final toolbar = tester.getRect(find.byType(mobile ? LibraryMobileToolbar : LibraryToolbar));
+        final bounds = tester.getRect(find.byType(mobile ? LibraryMobileToolbar : LibraryToolbar));
         final gutter = mobile ? 16.0 : 24.0;
+        final toolbar = mobile ? bounds.deflate(gutter) : bounds;
         expect(toolbar.left, closeTo(layout.screen.width - layout.pageWidth + gutter, .001));
 
         if (!mobile) {

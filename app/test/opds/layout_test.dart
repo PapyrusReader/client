@@ -590,7 +590,7 @@ void main() {
 Future<void> _expectDetailsLayout(WidgetTester tester, double width, double scale) async {
   if (width < 840) {
     final header = find.byKey(const Key('catalog-book-mobile-header'));
-    expect(tester.getSize(header).height, scale == 1 ? 80 : 96);
+    expect(tester.getSize(header).height, scale == 1 ? 64 : 80);
     expect(find.byKey(const Key('catalog-book-header-divider')), findsNothing);
     final rail = find.byType(BookDetailsTabRail);
     await tester.dragFrom(Offset(width / 2, 700), const Offset(0, -1600));
