@@ -579,8 +579,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: dc5ea75298644ae7e613616c7aa31e4292c5ffb7
-      resolved-ref: dc5ea75298644ae7e613616c7aa31e4292c5ffb7
+      ref: ee7737deb9b579199e812d14c580bc1a957f6344
+      resolved-ref: ee7737deb9b579199e812d14c580bc1a957f6344
       url: "https://github.com/PapyrusReader/reader.git"
     source: git
     version: "0.0.1"
