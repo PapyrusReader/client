@@ -100,6 +100,7 @@ void main() {
         'line_spacing': 'relaxed',
         'margins': 'large',
         'reading_mode': 'scroll',
+        'page_turn_animation': false,
       });
 
       final provider = PreferencesProvider(await SharedPreferences.getInstance());
@@ -110,6 +111,7 @@ void main() {
       expect(preferences.lineHeight, 1.75);
       expect(preferences.pageMargins, const EdgeInsets.all(40));
       expect(preferences.layoutMode, ReaderLayoutMode.scroll);
+      expect(preferences.pageTurnAnimation, isFalse);
       expect(preferences.backgroundColor, colors.surface);
       expect(preferences.foregroundColor, colors.onSurface);
       expect(preferences.brightness, Brightness.dark);
@@ -125,6 +127,7 @@ void main() {
         lineHeight: 1.8,
         pageMargins: EdgeInsets.all(42),
         layoutMode: ReaderLayoutMode.scroll,
+        pageTurnAnimation: false,
       );
 
       ReaderBookAdapter.persistPreferences(provider, readerPreferences);
@@ -133,6 +136,12 @@ void main() {
       expect(provider.lineSpacing, 'relaxed');
       expect(provider.margins, 'large');
       expect(provider.readingMode, 'scroll');
+      final reopened = PreferencesProvider(await SharedPreferences.getInstance());
+      expect(reopened.pageTurnAnimation, isFalse);
+      expect(
+        ReaderBookAdapter.preferencesFor(reopened, ColorScheme.fromSeed(seedColor: Colors.purple)).pageTurnAnimation,
+        isFalse,
+      );
     });
   });
 }
