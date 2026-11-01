@@ -82,7 +82,7 @@ Future<void> showUpdateSettings(BuildContext context, UpdateController controlle
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-            TextButton(
+            FilledButton(
               onPressed: controller.busy || controller.staged ? null : controller.check,
               key: const ValueKey('check-updates'),
               child: IndexedStack(

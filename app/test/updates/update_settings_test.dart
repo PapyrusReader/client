@@ -136,7 +136,7 @@ void main() {
         await tester.pump();
         expect(find.text('Checking…'), findsOneWidget);
         expect(find.text(message), findsOneWidget);
-        expect(tester.widget<TextButton>(checkButton).onPressed, isNull);
+        expect(tester.widget<FilledButton>(checkButton).onPressed, isNull);
         expectStableLayout();
         await tester.pump(const Duration(milliseconds: 200));
         expectStableLayout();
@@ -153,7 +153,7 @@ void main() {
           findsOneWidget,
         );
         expect(find.text('Check now'), findsOneWidget);
-        expect(tester.widget<TextButton>(checkButton).onPressed, isNotNull);
+        expect(tester.widget<FilledButton>(checkButton).onPressed, isNotNull);
         expect(tester.takeException(), isNull);
         result = Completer<int?>();
       }
