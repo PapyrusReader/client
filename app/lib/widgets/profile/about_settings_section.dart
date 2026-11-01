@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:papyrus/updates/update_controller.dart';
+import 'package:papyrus/updates/update_settings.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:papyrus/services/about_links.dart';
@@ -21,6 +24,8 @@ class _AboutSettingsSectionState extends State<AboutSettingsSection> {
 
   @override
   Widget build(BuildContext context) {
+    final updates = context.watch<UpdateController?>();
+
     return FutureBuilder<PackageInfo>(
       future: _packageInfo,
       builder: (context, snapshot) {
@@ -38,6 +43,12 @@ class _AboutSettingsSectionState extends State<AboutSettingsSection> {
 
         final rows = [
           SettingsRow(label: 'Version', value: version, showChevron: false),
+          if (updates != null)
+            SettingsRow(
+              label: 'App updates',
+              value: updates.available ? 'Update available' : 'Check for updates',
+              onTap: () => showUpdateSettings(context, updates),
+            ),
           SettingsRow(label: 'Licenses', onTap: () => context.push('/profile/licenses')),
           SettingsRow(label: 'Support', onTap: () => context.push('/profile/support')),
           SettingsRow(

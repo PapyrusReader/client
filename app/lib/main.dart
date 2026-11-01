@@ -1,6 +1,8 @@
 import 'package:papyrus/folders/directory_access_factory.dart';
 import 'package:papyrus/folders/folder_import_target.dart';
 import 'package:papyrus/folders/watched_folders.dart';
+import 'package:papyrus/updates/update_controller.dart';
+import 'package:papyrus/updates/update_settings.dart';
 import 'package:papyrus/services/reading_device_identity.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -214,6 +216,7 @@ class _PapyrusState extends State<Papyrus> {
   late final AcquisitionAvailabilityProvider _acquisitionAvailabilityProvider;
   late final AcquisitionDownloadsComposition _acquisitionDownloadsComposition;
   late final PreferencesProvider _preferencesProvider;
+  late final UpdateController _updateController;
   late final SyncSettingsProvider _syncSettingsProvider;
   late final MediaUploadQueue _mediaUploadQueue;
   late final BookImportService _bookImportService;
@@ -253,6 +256,7 @@ class _PapyrusState extends State<Papyrus> {
 
     _dataStore = DataStore();
     _preferencesProvider = PreferencesProvider(widget.prefs);
+    _updateController = UpdateController(preferences: widget.prefs)..start();
     _mediaUploadQueue = widget._uploads ?? MediaUploadQueue(widget.prefs, onWorkAvailable: _processMediaUploads);
     _bookImportService = widget._importer ?? BookImportService();
     _authProvider = AuthProvider(widget.prefs, repository: _authRepository);
@@ -363,6 +367,7 @@ class _PapyrusState extends State<Papyrus> {
     _authProvider.dispose();
     _syncSettingsProvider.dispose();
     _preferencesProvider.dispose();
+    _updateController.dispose();
     super.dispose();
   }
 
@@ -647,6 +652,7 @@ class _PapyrusState extends State<Papyrus> {
           create: (_) => LibraryProvider(dataStore: _dataStore, preferences: _preferencesProvider),
         ),
         ChangeNotifierProvider.value(value: _preferencesProvider),
+        ChangeNotifierProvider.value(value: _updateController),
       ],
       child:
           widget._child ??
@@ -680,7 +686,10 @@ class _PapyrusState extends State<Papyrus> {
                     isEink || preferencesProvider.reduceAnimations || MediaQuery.disableAnimationsOf(context)
                     ? Duration.zero
                     : kThemeAnimationDuration,
-                builder: (context, child) => AppAccessibilityScope(preferences: preferencesProvider, child: child!),
+                builder: (context, child) => AppAccessibilityScope(
+                  preferences: preferencesProvider,
+                  child: UpdateNotice(controller: _updateController, router: _appRouter.router, child: child!),
+                ),
                 routerConfig: _appRouter.router,
               );
             },

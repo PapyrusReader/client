@@ -48,6 +48,13 @@ android {
         versionName = flutter.versionName
     }
 
+    buildFeatures { buildConfig = true }
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("play") { dimension = "distribution" }
+        create("direct") { dimension = "distribution" }
+    }
+
     signingConfigs {
         if (hasUploadKey) {
             create("upload") {
@@ -71,5 +78,7 @@ flutter {
 }
 
 dependencies {
+    implementation("com.google.android.play:app-update:2.1.0")
+    implementation("androidx.core:core-ktx:1.15.0")
     implementation("org.slf4j:slf4j-nop:1.7.36")
 }

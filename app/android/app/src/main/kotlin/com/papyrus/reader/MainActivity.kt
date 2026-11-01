@@ -15,6 +15,7 @@ import java.util.UUID
 import java.util.concurrent.Executors
 
 class MainActivity : FlutterActivity() {
+    private val appUpdates by lazy { AppUpdates(this) }
     private val folderRequest = 7142
     private var folderResult: MethodChannel.Result? = null
     private val worker = Executors.newSingleThreadExecutor()
@@ -24,6 +25,7 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        appUpdates.configure(flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "papyrus/folders").setMethodCallHandler { call, result ->
             if (call.method == "pick") {
                 if (folderResult != null) {
@@ -122,6 +124,11 @@ class MainActivity : FlutterActivity() {
             }
             result?.error("access", "Could not keep access to this folder. Select a permitted subfolder.", null)
         }
+    }
+
+    override fun onResume() {
+        super.onResume()
+        appUpdates.resumeUpdate()
     }
 
     override fun onDestroy() {

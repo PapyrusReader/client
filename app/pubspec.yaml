@@ -63,12 +63,14 @@ dev_dependencies:
 
   shared_preferences_platform_interface: ^2.4.1
 flutter:
+  default-flavor: play
   config:
     enable-swift-package-manager: false
 
   uses-material-design: true
 
   assets:
+    - assets/updates/install_windows.ps1
     - assets/images/google_logo.png
     - assets/images/logo.png
     - assets/images/logo-icon-light.svg
