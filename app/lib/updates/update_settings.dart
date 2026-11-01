@@ -31,10 +31,17 @@ Future<void> showUpdateSettings(BuildContext context, UpdateController controlle
                 children: [
                   Text(controller.message),
                   const SizedBox(height: Spacing.md),
-                  SettingsToggleRow(
-                    label: 'Check automatically',
-                    value: controller.automatic,
-                    onChanged: controller.setAutomatic,
+                  Theme(
+                    data: Theme.of(context).copyWith(
+                      splashFactory: NoSplash.splashFactory,
+                      highlightColor: Colors.transparent,
+                    ),
+                    child: SettingsToggleRow(
+                      label: 'Check automatically',
+                      value: controller.automatic,
+                      onChanged: controller.setAutomatic,
+                      padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
+                    ),
                   ),
                   if (controller.channel == UpdateChannel.apt) ...[
                     const SizedBox(height: Spacing.md),

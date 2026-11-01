@@ -137,7 +137,15 @@ class SettingsToggleRow extends StatelessWidget {
   final ValueChanged<bool>? onChanged;
 
   /// Creates a settings toggle row widget.
-  const SettingsToggleRow({super.key, required this.label, required this.value, this.onChanged});
+  const SettingsToggleRow({
+    super.key,
+    required this.label,
+    required this.value,
+    this.onChanged,
+    this.padding = const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+  });
+
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
@@ -164,7 +172,7 @@ class SettingsToggleRow extends StatelessWidget {
             child: ConstrainedBox(
               constraints: const BoxConstraints(minHeight: TouchTargets.mobileRecommended),
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
+                padding: padding,
                 child: Row(
                   children: [
                     Expanded(

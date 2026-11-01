@@ -168,6 +168,25 @@ void main() {
     expect(checks, 1);
   });
 
+  test('changing automatic checks persists without starting a check or changing status', () async {
+    var checks = 0;
+    final updates = controller(
+      manifest: () async {
+        checks++;
+        throw StateError('offline');
+      },
+    );
+
+    await updates.check();
+    final message = updates.message;
+    await updates.setAutomatic(false);
+    await updates.setAutomatic(true);
+    expect(preferences.getBool('updates.automatic'), isTrue);
+    expect(checks, 1);
+    expect(updates.message, message);
+    expect(updates.busy, isFalse);
+  });
+
   test('invalid release identity fails closed', () {
     for (final data in [
       {...metadata(), 'tag': 'v0.2.0+8'},

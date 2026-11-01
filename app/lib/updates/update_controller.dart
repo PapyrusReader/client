@@ -54,16 +54,14 @@ class UpdateController extends ChangeNotifier {
   Future<void> setAutomatic(bool value) async {
     await preferences.setBool('updates.automatic', value);
     _notify();
-
-    if (value) {
-      await _backgroundCheck();
-    }
   }
 
   Future<void> _backgroundCheck() async {
     final lastCheck = preferences.getInt('updates.lastCheck') ?? 0;
 
-    if (!automatic || DateTime.now().millisecondsSinceEpoch - lastCheck < const Duration(days: 1).inMilliseconds) {
+    if (viewingSettings ||
+        !automatic ||
+        DateTime.now().millisecondsSinceEpoch - lastCheck < const Duration(days: 1).inMilliseconds) {
       return;
     }
 

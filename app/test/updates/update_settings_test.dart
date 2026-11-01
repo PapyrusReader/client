@@ -1,3 +1,6 @@
+import 'dart:ui' as ui;
+
+import 'package:flutter/rendering.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +12,66 @@ import 'package:papyrus/updates/update_settings.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  for (final eink in [false, true]) {
+    testWidgets('automatic toggle stays aligned and has no pressed ink, eink=$eink', (tester) async {
+      SharedPreferences.setMockInitialValues({'updates.automatic': false});
+      var checks = 0;
+      final preferences = await SharedPreferences.getInstance();
+      final updates = UpdateController(
+        preferences: preferences,
+        channelProvider: () async {
+          checks++;
+          return UpdateChannel.windows;
+        },
+      );
+
+      addTearDown(updates.dispose);
+      const status = 'Could not check for updates. Check your connection and try again.';
+      updates.message = status;
+      final boundaryKey = GlobalKey();
+
+      await tester.pumpWidget(
+        RepaintBoundary(
+          key: boundaryKey,
+          child: MaterialApp(
+            theme: eink ? AppTheme.eink : AppTheme.dark,
+            home: Scaffold(
+              body: Builder(
+                builder: (context) => TextButton(
+                  onPressed: () => showUpdateSettings(context, updates),
+                  child: const Text('Open updates'),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open updates'));
+      await tester.pumpAndSettle();
+      final dialog = tester.getRect(find.byType(AlertDialog));
+      final label = tester.getTopLeft(find.text('Check automatically'));
+      expect(label.dx, tester.getTopLeft(find.text(status)).dx);
+      final before = await capture(tester, boundaryKey);
+      final gesture = await tester.startGesture(tester.getCenter(find.byType(Switch)));
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(await capture(tester, boundaryKey), before);
+      await gesture.up();
+      await tester.pumpAndSettle();
+      expect(preferences.getBool('updates.automatic'), isTrue);
+      expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
+      expect(find.text(status), findsOneWidget);
+      expect(tester.getRect(find.byType(AlertDialog)), dialog);
+      expect(tester.getTopLeft(find.text('Check automatically')), label);
+      expect(checks, 0);
+      await tester.tap(find.text('Check automatically'));
+      await tester.pumpAndSettle();
+      expect(preferences.getBool('updates.automatic'), isFalse);
+      expect(tester.getRect(find.byType(AlertDialog)), dialog);
+      expect(checks, 0);
+    });
+  }
+
   for (final scale in [1.0, 2.0]) {
     testWidgets('notice and dialog work on a narrow e-ink screen at text scale $scale', (tester) async {
       tester.view.physicalSize = const Size(360, 780);
@@ -69,4 +132,18 @@ void main() {
       expect(find.text('A Papyrus update is available.'), findsNothing);
     });
   }
+}
+
+Future<List<int>> capture(WidgetTester tester, GlobalKey key) async {
+  return (await tester.runAsync(() async {
+    final boundary = key.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+    final image = await boundary.toImage();
+
+    try {
+      final bytes = await image.toByteData(format: ui.ImageByteFormat.rawRgba);
+      return bytes!.buffer.asUint8List();
+    } finally {
+      image.dispose();
+    }
+  }))!;
 }
