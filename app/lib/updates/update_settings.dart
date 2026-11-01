@@ -29,7 +29,19 @@ Future<void> showUpdateSettings(BuildContext context, UpdateController controlle
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(controller.message),
+                  Stack(
+                    children: [
+                      // Reserve the wrapped error height so checking and retrying do not move the dialog.
+                      const Visibility(
+                        visible: false,
+                        maintainSize: true,
+                        maintainAnimation: true,
+                        maintainState: true,
+                        child: Text(UpdateController.checkFailureMessage),
+                      ),
+                      Text(controller.message),
+                    ],
+                  ),
                   const SizedBox(height: Spacing.md),
                   Theme(
                     data: Theme.of(context).copyWith(

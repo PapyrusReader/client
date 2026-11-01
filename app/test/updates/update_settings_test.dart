@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ui' as ui;
 
 import 'package:flutter/rendering.dart';
@@ -51,7 +52,7 @@ void main() {
       await tester.pumpAndSettle();
       final dialog = tester.getRect(find.byType(AlertDialog));
       final label = tester.getTopLeft(find.text('Check automatically'));
-      expect(label.dx, tester.getTopLeft(find.text(status)).dx);
+      expect(label.dx, tester.getTopLeft(find.text(status).hitTestable()).dx);
       final before = await capture(tester, boundaryKey);
       final gesture = await tester.startGesture(tester.getCenter(find.byType(Switch)));
       await tester.pump(const Duration(milliseconds: 100));
@@ -60,7 +61,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(preferences.getBool('updates.automatic'), isTrue);
       expect(tester.widget<Switch>(find.byType(Switch)).value, isTrue);
-      expect(find.text(status), findsOneWidget);
+      expect(find.text(status).hitTestable(), findsOneWidget);
       expect(tester.getRect(find.byType(AlertDialog)), dialog);
       expect(tester.getTopLeft(find.text('Check automatically')), label);
       expect(checks, 0);
@@ -69,6 +70,79 @@ void main() {
       expect(preferences.getBool('updates.automatic'), isFalse);
       expect(tester.getRect(find.byType(AlertDialog)), dialog);
       expect(checks, 0);
+    });
+  }
+
+  for (final (width, scale, eink) in [(800.0, 1.0, false), (360.0, 1.0, false), (360.0, 2.0, true)]) {
+    testWidgets('Check now keeps status and controls in place at width $width, scale $scale', (tester) async {
+      tester.view.physicalSize = Size(width, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      SharedPreferences.setMockInitialValues({});
+      var result = Completer<int?>();
+      final updates = UpdateController(
+        preferences: await SharedPreferences.getInstance(),
+        appInfo: () async =>
+            PackageInfo(appName: 'Papyrus', packageName: 'papyrus', version: '0.2.0', buildNumber: '6'),
+        channelProvider: () async => UpdateChannel.play,
+        playCheck: () => result.future,
+      );
+
+      addTearDown(updates.dispose);
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: eink ? AppTheme.eink : AppTheme.dark,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+            child: child!,
+          ),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => showUpdateSettings(context, updates),
+                child: const Text('Open updates'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Open updates'));
+      await tester.pumpAndSettle();
+      final dialog = tester.getRect(find.byType(AlertDialog));
+      final toggle = tester.getRect(find.byType(Switch));
+      final check = tester.getRect(find.widgetWithText(TextButton, 'Check now'));
+
+      void expectStableLayout() {
+        expect(tester.getRect(find.byType(AlertDialog)), dialog);
+        expect(tester.getRect(find.byType(Switch)), toggle);
+        expect(tester.getRect(find.widgetWithText(TextButton, 'Check now')), check);
+        expect(tester.takeException(), isNull);
+      }
+
+      for (final fails in [true, false]) {
+        await tester.tap(find.text('Check now'));
+        await tester.pump();
+        expect(find.text('Checking for updates…'), findsOneWidget);
+        expectStableLayout();
+        await tester.pump(const Duration(milliseconds: 200));
+        expectStableLayout();
+
+        if (fails) {
+          result.completeError(StateError('Offline'));
+        } else {
+          result.complete(null);
+        }
+
+        await tester.pumpAndSettle();
+        expect(
+          find.text(fails ? UpdateController.checkFailureMessage : 'Papyrus is up to date.').hitTestable(),
+          findsOneWidget,
+        );
+        expectStableLayout();
+        result = Completer<int?>();
+      }
     });
   }
 
