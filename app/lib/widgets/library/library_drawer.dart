@@ -62,6 +62,15 @@ class LibraryDrawer extends StatelessWidget {
                     },
                   ),
                   _DrawerNavItem(
+                    icon: Icons.folder_outlined,
+                    label: 'Folders',
+                    isSelected: currentPath.startsWith('/library/folders'),
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.go('/library/folders');
+                    },
+                  ),
+                  _DrawerNavItem(
                     icon: Icons.public,
                     label: 'Catalogs',
                     count: catalogs?.catalogs.length ?? 0,

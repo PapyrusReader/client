@@ -65,6 +65,12 @@ class AdaptiveAppShell extends StatelessWidget {
             count: dataStore.shelves.length,
             selectedIcon: Icons.shelves,
           ),
+          const AppShellNavItem(
+            path: '/library/folders',
+            label: 'Folders',
+            icon: Icons.folder_outlined,
+            selectedIcon: Icons.folder,
+          ),
           AppShellNavItem(
             path: '/library/catalogs',
             label: 'Catalogs',

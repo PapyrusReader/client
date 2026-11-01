@@ -41,6 +41,8 @@ jobs:
           flutter-version: '3.41.2'
           cache: true
       - run: flutter pub get --enforce-lockfile
+      - name: Validate watched folders on Windows
+        run: flutter test test/folders
       - name: Prepare preview version and endpoints
         run: |
           python ../tools/release_gate.py client --endpoints

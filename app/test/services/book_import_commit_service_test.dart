@@ -391,6 +391,45 @@ void main() {
     await repository.dispose();
   });
 
+  test('journaled import retains committed metadata and cover when queue persistence fails', () async {
+    Book? saved;
+    var coverStored = false;
+
+    final service = BookImportCommitService(
+      storePendingCover: (_, _, _) async => coverStored = true,
+      storeGuestCover: (_, _) async => fail('account import'),
+      deletePendingCover: (_, _) async => coverStored = false,
+      deleteGuestCover: (_) async => fail('account import'),
+      addBook: (book) => saved = book,
+      deleteBook: (_) => saved = null,
+      enqueueImportedBookMedia:
+          ({
+            required scope,
+            required book,
+            required filename,
+            required contentType,
+            coverFilename,
+            coverContentType,
+          }) async {
+            throw StateError('Queue persistence failed');
+          },
+    );
+
+    await expectLater(
+      service.commit(
+        result: _result(coverImage: Uint8List.fromList([1])),
+        sourceFilename: 'book.epub',
+        addedAt: addedAt,
+        localFilePath: 'book-1',
+        accountScope: accountScope,
+        retainCommittedBook: true,
+      ),
+      throwsStateError,
+    );
+    expect(saved?.id, 'book-1');
+    expect(coverStored, isTrue);
+  });
+
   test('account enqueue waits for metadata upsert to finish', () async {
     final repository = _GatedDeleteBookRepository(gateUpsert: true);
     final dataStore = DataStore(bookRepository: repository);

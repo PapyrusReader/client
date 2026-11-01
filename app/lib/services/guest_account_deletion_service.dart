@@ -1,3 +1,4 @@
+import 'package:papyrus/folders/watched_folders.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/opds/opds_downloads.dart';
@@ -13,6 +14,7 @@ class GuestAccountDeletionService {
     required this.files,
     required this.catalogs,
     required this.downloads,
+    this.folders,
   });
 
   final AuthProvider auth;
@@ -20,8 +22,10 @@ class GuestAccountDeletionService {
   final BookImportService files;
   final OpdsCatalogs catalogs;
   final OpdsDownloads downloads;
+  final WatchedFolders? folders;
 
   Future<void> delete() => auth.deleteGuestAccount(() async {
+    await folders?.suspend();
     await downloads.cancelAndWait();
 
     await library.clearGuestLibrary(
@@ -32,6 +36,7 @@ class GuestAccountDeletionService {
 
         await files.clearCoverFiles(MediaStorageScope.localGuest);
         await catalogs.clearScope(MediaStorageScope.localGuest.persistenceKey);
+        await folders?.clear();
       },
     );
   });

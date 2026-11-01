@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:crypto/crypto.dart';
+import 'package:flutter/foundation.dart';
 import 'package:papyrus/media/cover_storage_bucket.dart';
 import 'package:papyrus/media/local_cover_image_provider.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
@@ -21,32 +21,43 @@ export 'package:papyrus/services/book_import_result.dart';
 class BookImportService {
   static final RegExp _safeFilePart = RegExp(r'^[a-zA-Z0-9_.-]+$');
 
-  final _metadataService = FileMetadataService();
   static final Map<String, Future<void>> _coverOperations = {};
 
   /// Imports a book file: extracts metadata and stores the file locally.
   ///
   /// Supports all formats handled by [FileMetadataService]:
   /// EPUB, PDF, MOBI, AZW3, CBZ, CBR, TXT.
-  Future<BookImportResult> importBook(Uint8List bytes, String filename) async {
+  Future<BookImportResult> importBook(Uint8List bytes, String filename) =>
+      importBookWithId(bytes, filename, const Uuid().v4());
+
+  /// Reuses a journaled identity when recovering an interrupted folder import.
+  Future<BookImportResult> importBookWithId(Uint8List bytes, String filename, String bookId) async {
+    if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(bookId)) {
+      throw ArgumentError.value(bookId, 'bookId', 'Invalid import identity');
+    }
+
     final ext = p.extension(filename).toLowerCase().replaceFirst('.', '');
 
     if (ext.isEmpty) {
       throw ArgumentError('Filename has no extension: $filename');
     }
 
-    final bookId = const Uuid().v4();
-
     // Extract metadata
-    final metadata = await _metadataService.extractMetadata(bytes, filename);
-
-    // Compute SHA-256 hash
-    final fileHash = sha256.convert(bytes).toString();
+    final (metadata, fileHash) = await compute(_extractImportMetadata, (bytes, filename));
 
     // Store the file
     final booksDir = await _getBooksDirectory();
     final file = File(p.join(booksDir.path, '$bookId.$ext'));
-    await file.writeAsBytes(bytes);
+    final temporary = File('${file.path}.tmp');
+
+    try {
+      await temporary.writeAsBytes(bytes, flush: true);
+      await temporary.rename(file.path);
+    } finally {
+      if (await temporary.exists()) {
+        await temporary.delete();
+      }
+    }
 
     return BookImportResult(
       bookId: bookId,
@@ -74,9 +85,12 @@ class BookImportService {
     final files = booksDir.listSync();
 
     for (final entity in files) {
-      if (entity is File && p.basenameWithoutExtension(entity.path) == bookId) {
+      final name = p.basename(entity.path);
+
+      if (entity is File &&
+          (p.basenameWithoutExtension(entity.path) == bookId ||
+              (name.startsWith('$bookId.') && name.endsWith('.tmp')))) {
         await entity.delete();
-        return;
       }
     }
   }
@@ -374,4 +388,9 @@ class BookImportService {
 
     return directory;
   }
+}
+
+Future<(FileMetadataResult, String)> _extractImportMetadata((Uint8List, String) input) async {
+  final metadata = await FileMetadataService().extractMetadata(input.$1, input.$2);
+  return (metadata, sha256.convert(input.$1).toString());
 }

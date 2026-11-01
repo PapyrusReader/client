@@ -63,6 +63,7 @@ class LibraryFilters {
   final Set<String> formats;
   final Set<String> topicIds;
   final Set<String> shelfIds;
+  final Set<String> folderIds;
   final Set<String> publishers;
   final Set<String> seriesNames;
   final Set<LibraryReadingStatus> statuses;
@@ -80,6 +81,7 @@ class LibraryFilters {
     Set<String> formats = const {},
     Set<String> topicIds = const {},
     Set<String> shelfIds = const {},
+    Set<String> folderIds = const {},
     Set<String> publishers = const {},
     Set<String> seriesNames = const {},
     Set<LibraryReadingStatus> statuses = const {},
@@ -95,6 +97,7 @@ class LibraryFilters {
        formats = Set.unmodifiable(formats),
        topicIds = Set.unmodifiable(topicIds),
        shelfIds = Set.unmodifiable(shelfIds),
+       folderIds = Set.unmodifiable(folderIds),
        publishers = Set.unmodifiable(publishers),
        seriesNames = Set.unmodifiable(seriesNames),
        statuses = Set.unmodifiable(statuses),
@@ -120,6 +123,10 @@ class LibraryFilters {
     }
 
     if (shelfIds.isNotEmpty) {
+      count++;
+    }
+
+    if (folderIds.isNotEmpty) {
       count++;
     }
 
@@ -170,6 +177,7 @@ class LibraryFilters {
     Set<String>? formats,
     Set<String>? topicIds,
     Set<String>? shelfIds,
+    Set<String>? folderIds,
     Set<String>? publishers,
     Set<String>? seriesNames,
     Set<LibraryReadingStatus>? statuses,
@@ -187,6 +195,7 @@ class LibraryFilters {
       formats: formats ?? this.formats,
       topicIds: topicIds ?? this.topicIds,
       shelfIds: shelfIds ?? this.shelfIds,
+      folderIds: folderIds ?? this.folderIds,
       publishers: publishers ?? this.publishers,
       seriesNames: seriesNames ?? this.seriesNames,
       statuses: statuses ?? this.statuses,
@@ -216,6 +225,7 @@ class LibraryFilters {
         setEquals(other.formats, formats) &&
         setEquals(other.topicIds, topicIds) &&
         setEquals(other.shelfIds, shelfIds) &&
+        setEquals(other.folderIds, folderIds) &&
         setEquals(other.publishers, publishers) &&
         setEquals(other.seriesNames, seriesNames) &&
         setEquals(other.statuses, statuses) &&
@@ -235,6 +245,7 @@ class LibraryFilters {
     Object.hashAllUnordered(formats),
     Object.hashAllUnordered(topicIds),
     Object.hashAllUnordered(shelfIds),
+    Object.hashAllUnordered(folderIds),
     Object.hashAllUnordered(publishers),
     Object.hashAllUnordered(seriesNames),
     Object.hashAllUnordered(statuses),

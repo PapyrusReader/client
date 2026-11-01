@@ -11,6 +11,7 @@ import tempfile
 from pathlib import Path
 
 from release_gate import parse
+from prepare_web_offline import prepare as prepare_web_offline
 
 TAG = re.compile(r"v([0-9]+\.[0-9]+\.[0-9]+)\+([1-9][0-9]*)")
 
@@ -172,6 +173,7 @@ def main() -> None:
 
     if args.command == "stamp-web":
         (args.root / "release.json").write_text(json.dumps(identity(args.tag, args.revision), indent=2) + "\n")
+        prepare_web_offline(args.root)
     elif args.command == "seal":
         instructions = Path(__file__).resolve().parents[1] / "docs/INSTALL.md"
         shutil.copyfile(instructions, args.root / names(args.tag)["instructions"])

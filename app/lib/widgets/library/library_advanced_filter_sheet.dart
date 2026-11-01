@@ -18,6 +18,8 @@ class LibraryAdvancedFilterSheet extends StatefulWidget {
   final ScrollController? scrollController;
   final List<Book>? sourceBooks;
   final LibraryFilterOptions? filterOptions;
+  final List<LibraryFilterOption<String>> folderOptions;
+  final Map<String, Set<String>> folderBookIds;
 
   const LibraryAdvancedFilterSheet({
     super.key,
@@ -26,6 +28,8 @@ class LibraryAdvancedFilterSheet extends StatefulWidget {
     this.scrollController,
     this.sourceBooks,
     this.filterOptions,
+    this.folderOptions = const [],
+    this.folderBookIds = const {},
   });
 
   static Future<LibraryFilters?> show(
@@ -34,6 +38,8 @@ class LibraryAdvancedFilterSheet extends StatefulWidget {
     required DataStore dataStore,
     List<Book>? sourceBooks,
     LibraryFilterOptions? filterOptions,
+    List<LibraryFilterOption<String>> folderOptions = const [],
+    Map<String, Set<String>> folderBookIds = const {},
   }) {
     return showModalBottomSheet<LibraryFilters>(
       sheetAnimationStyle: AppMotion.animationStyle(context),
@@ -56,6 +62,8 @@ class LibraryAdvancedFilterSheet extends StatefulWidget {
                 dataStore: dataStore,
                 sourceBooks: sourceBooks,
                 filterOptions: filterOptions,
+                folderOptions: folderOptions,
+                folderBookIds: folderBookIds,
               ),
             ),
           );
@@ -82,6 +90,8 @@ class LibraryAdvancedFilterSheet extends StatefulWidget {
                   scrollController: scrollController,
                   sourceBooks: sourceBooks,
                   filterOptions: filterOptions,
+                  folderOptions: folderOptions,
+                  folderBookIds: folderBookIds,
                 ),
               ),
             );
@@ -106,7 +116,14 @@ class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet>
           : LibraryFilterOptions.fromDataStore(widget.dataStore, books: _sourceBooks));
 
   int get _matchingBookCount {
-    return widget.libraryProvider.filterBooks(_sourceBooks, dataStore: widget.dataStore, filters: _draft).length;
+    return widget.libraryProvider
+        .filterBooks(
+          _sourceBooks,
+          dataStore: widget.dataStore,
+          filters: _draft,
+          folderBookIds: widget.folderBookIds,
+        )
+        .length;
   }
 
   void _updateDraft(LibraryFilters filters) {
@@ -213,6 +230,7 @@ class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet>
     );
 
     final shelfOptions = _withSelectedOptions(_options.shelves, _draft.shelfIds, _shelfLabel);
+    final folderOptions = _withSelectedOptions(widget.folderOptions, _draft.folderIds, (_) => 'Unavailable folder');
     final topicOptions = _withSelectedOptions(_options.topics, _draft.topicIds, _topicLabel);
 
     final readingStatusOptions = _withSelectedOptions(
@@ -231,7 +249,7 @@ class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet>
         publisherOptions.isNotEmpty ||
         seriesOptions.isNotEmpty;
 
-    final hasOrganizationOptions = shelfOptions.isNotEmpty || topicOptions.isNotEmpty;
+    final hasOrganizationOptions = shelfOptions.isNotEmpty || topicOptions.isNotEmpty || folderOptions.isNotEmpty;
     final hasRatingOptions = availableRatings.isNotEmpty || showUnrated;
 
     return AppBottomSheet(
@@ -295,6 +313,13 @@ class _LibraryAdvancedFilterSheetState extends State<LibraryAdvancedFilterSheet>
                   options: shelfOptions,
                   selectedValues: _draft.shelfIds,
                   onChanged: (values) => _updateDraft(_draft.copyWith(shelfIds: values)),
+                ),
+              if (folderOptions.isNotEmpty)
+                _SearchableFacet<String>(
+                  label: 'Source folders',
+                  options: folderOptions,
+                  selectedValues: _draft.folderIds,
+                  onChanged: (values) => _updateDraft(_draft.copyWith(folderIds: values)),
                 ),
               if (topicOptions.isNotEmpty)
                 _SearchableFacet<String>(

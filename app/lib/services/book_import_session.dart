@@ -40,6 +40,7 @@ class BookImportSession {
     required BookImportService importService,
     required AuthProvider authProvider,
     required PapyrusPowerSyncService powerSyncService,
+    bool retainCommittedBook = false,
   }) {
     final repository = dataStore.requireBookRepository();
     final authenticated = authProvider.isSignedIn && powerSyncService.mode == LibraryDatabaseMode.authenticated;
@@ -84,6 +85,7 @@ class BookImportSession {
         addedAt: DateTime.now(),
         localFilePath: kIsWeb ? 'opfs://books/${result.bookId}.${result.fileExtension}' : result.bookId,
         accountScope: scope,
+        retainCommittedBook: retainCommittedBook,
       ),
     );
   }
