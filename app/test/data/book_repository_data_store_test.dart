@@ -17,6 +17,7 @@ class FakeBookRepository implements BookRepository {
   final List<String> deletes = [];
   Completer<void>? upsertGate;
   Completer<void>? deleteGate;
+  Completer<void>? readGate;
   Object? upsertError;
   Object? deleteError;
 
@@ -33,6 +34,7 @@ class FakeBookRepository implements BookRepository {
 
   @override
   Future<Book?> getById(String id) async {
+    await readGate?.future;
     return upserts.where((book) => book.id == id).firstOrNull;
   }
 
@@ -58,6 +60,28 @@ Book _book(String id, String title) {
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
+  });
+
+  test('deletion cannot record folder exclusions in a switched library', () async {
+    final first = FakeBookRepository();
+    final second = FakeBookRepository();
+    first.upserts.add(_book('one', 'First'));
+    first.readGate = Completer<void>();
+    final store = DataStore(bookRepository: first);
+    var exclusions = 0;
+    store.beforeBookDelete = (_) async => exclusions++;
+    final deleting = store.deleteBookAndWait('one');
+    await store.attachBookRepository(second);
+    final expectation = expectLater(deleting, throwsStateError);
+    first.readGate!.complete();
+    await expectation;
+    expect(exclusions, 0);
+    expect(first.deletes, isEmpty);
+    expect(second.deletes, isEmpty);
+    await store.disposeBookRepository();
+    await first.controller.close();
+    await second.controller.close();
+    store.dispose();
   });
 
   test('repository stream is the source of the DataStore book snapshot', () async {

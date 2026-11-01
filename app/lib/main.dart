@@ -1,3 +1,6 @@
+import 'package:papyrus/folders/directory_access_factory.dart';
+import 'package:papyrus/folders/folder_import_target.dart';
+import 'package:papyrus/folders/watched_folders.dart';
 import 'package:papyrus/services/reading_device_identity.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -214,6 +217,8 @@ class _PapyrusState extends State<Papyrus> {
   late final SyncSettingsProvider _syncSettingsProvider;
   late final MediaUploadQueue _mediaUploadQueue;
   late final BookImportService _bookImportService;
+  late final WatchedFolders _watchedFolders;
+  bool _folderLibraryReady = false;
   late final OpdsCatalogs _opdsCatalogs;
   late final OpdsDownloads _opdsDownloads;
   late final OpdsHttpClient _opdsHttpClient;
@@ -285,6 +290,21 @@ class _PapyrusState extends State<Papyrus> {
           ),
         );
 
+    _watchedFolders = WatchedFolders(
+      access: createDirectoryAccess(),
+      deleteStagedFile: _bookImportService.deleteBookFile,
+      libraryReady: () => _dataStore.isLoaded && !_switchingSyncProfile && !_authProvider.isDeletingGuestAccount,
+      captureTarget: () => LibraryFolderImportTarget(
+        store: _dataStore,
+        queue: _mediaUploadQueue,
+        importer: _bookImportService,
+        auth: _authProvider,
+        database: _powerSyncService,
+      ),
+    );
+    _dataStore.beforeBookDelete = (book) => _watchedFolders.recordDeletion(book.id, book.fileHash);
+    _dataStore.addListener(_handleFolderLibraryReady);
+
     _bookStorageStatusController = BookStorageStatusController(
       authProvider: _authProvider,
       powerSyncService: _powerSyncService,
@@ -326,6 +346,8 @@ class _PapyrusState extends State<Papyrus> {
 
   @override
   void dispose() {
+    _dataStore.removeListener(_handleFolderLibraryReady);
+    _watchedFolders.dispose();
     _authProvider.removeListener(_syncPowerSyncAuthState);
     _syncSettingsProvider.removeListener(_handleSyncSettingsChanged);
     unawaited(_disposeDataServices());
@@ -365,7 +387,18 @@ class _PapyrusState extends State<Papyrus> {
     await _powerSyncService.close();
   }
 
+  void _handleFolderLibraryReady() {
+    final ready = _dataStore.isLoaded;
+
+    if (ready && !_folderLibraryReady) {
+      _watchedFolders.schedule();
+    }
+
+    _folderLibraryReady = ready;
+  }
+
   void _syncPowerSyncAuthState() {
+    _watchedFolders.invalidate();
     _updateOpdsScope();
 
     if (_authStateOperation != null) {
@@ -412,6 +445,7 @@ class _PapyrusState extends State<Papyrus> {
           _authProvider.user?.userId == userId &&
           !_authProvider.isOfflineMode) {
         _opdsCatalogs.setScope(scope.persistenceKey);
+        unawaited(_watchedFolders.activate(scope.persistenceKey));
       }
 
       await _refreshMediaUsage();
@@ -428,11 +462,14 @@ class _PapyrusState extends State<Papyrus> {
           _activeProfileKey == profileKey &&
           _syncSettingsProvider.activeProfileKey == profileKey) {
         _opdsCatalogs.setScope(MediaStorageScope.localGuest.persistenceKey);
+        unawaited(_watchedFolders.activate(MediaStorageScope.localGuest.persistenceKey));
       }
 
       return;
     }
 
+    await _watchedFolders.suspend();
+    unawaited(_watchedFolders.activate(null));
     await _mediaUploadQueue.activateScope(null);
 
     if (!_authProvider.isBootstrapping && _powerSyncService.mode != null) {
@@ -464,6 +501,8 @@ class _PapyrusState extends State<Papyrus> {
 
   Future<void> _switchActiveSyncProfile(String nextProfileKey, PapyrusApiConfig nextConfig) async {
     _switchingSyncProfile = true;
+    await _watchedFolders.suspend();
+    unawaited(_watchedFolders.activate(null));
 
     try {
       await _mediaUploadQueue.waitUntilIdle();
@@ -578,6 +617,7 @@ class _PapyrusState extends State<Papyrus> {
         // Core data store - single source of truth
         ChangeNotifierProvider.value(value: _dataStore),
         ChangeNotifierProvider.value(value: _mediaUploadQueue),
+        ChangeNotifierProvider.value(value: _watchedFolders),
         ChangeNotifierProvider.value(value: _syncSettingsProvider),
         ChangeNotifierProvider.value(value: _bookStorageStatusController),
         Provider.value(value: _powerSyncService),
@@ -589,6 +629,7 @@ class _PapyrusState extends State<Papyrus> {
             files: _bookImportService,
             catalogs: _opdsCatalogs,
             downloads: _opdsDownloads,
+            folders: _watchedFolders,
           ),
         ),
         ChangeNotifierProvider.value(value: _opdsCatalogs),

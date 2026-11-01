@@ -57,6 +57,7 @@ class BookImportCommitService {
     required DateTime addedAt,
     required String localFilePath,
     MediaStorageScope? accountScope,
+    bool retainCommittedBook = false,
   }) async {
     final book = Book(
       id: result.bookId,
@@ -112,6 +113,12 @@ class BookImportCommitService {
 
       return book;
     } catch (error, stackTrace) {
+      if (metadataAdded && retainCommittedBook && _isLibraryContextCurrent()) {
+        // Journaled imports repair their outbox separately without removing a
+        // book that is already available locally.
+        Error.throwWithStackTrace(error, stackTrace);
+      }
+
       if (metadataAdded) {
         await _bestEffort(() => _deleteBook(book.id));
       }

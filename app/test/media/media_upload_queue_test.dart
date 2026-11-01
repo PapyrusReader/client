@@ -10,6 +10,18 @@ import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// ignore: depend_on_referenced_packages
+import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
+
+class _FailingPreferences extends InMemorySharedPreferencesStore {
+  _FailingPreferences() : super.empty();
+  bool failWrites = true;
+
+  @override
+  Future<bool> setValue(String valueType, String key, Object value) async {
+    return failWrites ? false : super.setValue(valueType, key, value);
+  }
+}
 
 void main() {
   setUp(() {
@@ -124,6 +136,33 @@ void main() {
     final task = stored.single as Map<String, dynamic>;
     expect(task, isNot(contains('cover_base64')));
     expect(prefs.getString('media_upload_queue:official--user-1'), isNot(contains(base64Encode('cover'.codeUnits))));
+  });
+
+  test('failed single-media enqueue stays absent until its retry is persisted', () async {
+    final platform = _FailingPreferences();
+    SharedPreferencesStorePlatform.instance = platform;
+    final prefs = await SharedPreferences.getInstance();
+    final queue = MediaUploadQueue(prefs);
+    final scope = MediaStorageScope(profileKey: 'official', userId: 'user-1');
+    await queue.activateScope(scope);
+    final book = _book(filePath: 'book-1', fileSize: 10, fileHash: 'hash');
+
+    Future<void> enqueue() =>
+        queue.enqueueBookFile(book: book, filename: 'book.epub', contentType: 'application/epub+zip');
+
+    await expectLater(enqueue(), throwsStateError);
+    expect(queue.pendingTasks, isEmpty);
+    expect(prefs.getString('media_upload_queue:${scope.persistenceKey}'), isNull);
+    await queue.activateScope(null);
+    await queue.activateScope(scope);
+    expect(queue.pendingTasks, isEmpty);
+    platform.failWrites = false;
+    await enqueue();
+    final restored = MediaUploadQueue(prefs);
+    await restored.activateScope(scope);
+    expect(restored.pendingTasks.single.bookId, book.id);
+    queue.dispose();
+    restored.dispose();
   });
 
   test('restored cover task reads scoped pending file and drains the task', () async {

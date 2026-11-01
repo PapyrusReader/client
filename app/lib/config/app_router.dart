@@ -1,3 +1,4 @@
+import 'package:papyrus/pages/watched_folders_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -135,7 +136,15 @@ class AppRouter {
               GoRoute(
                 name: 'BOOKS',
                 path: 'books',
-                pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const LibraryPage()),
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: const LibraryPage(),
+                ),
+              ),
+              GoRoute(
+                path: 'folders',
+                pageBuilder: (context, state) =>
+                    NoTransitionPage(key: state.pageKey, child: const WatchedFoldersPage()),
               ),
               GoRoute(
                 name: 'CATALOGS',

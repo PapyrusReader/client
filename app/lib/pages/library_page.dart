@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/folders/watched_folders.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/models/library_filter_options.dart';
 import 'package:papyrus/models/shelf.dart';
@@ -134,6 +135,8 @@ class _LibraryPageState extends State<LibraryPage> {
 
   @override
   Widget build(BuildContext context) {
+    context.watch<WatchedFolders?>();
+
     final libraryProvider = context.watch<LibraryProvider>();
     final downloadsProvider = widget.isShelfView ? null : context.watch<AcquisitionDownloadsProvider?>();
     final dataStore = context.watch<DataStore>();
@@ -189,6 +192,14 @@ class _LibraryPageState extends State<LibraryPage> {
     return shelfBooks;
   }
 
+  Map<String, Set<String>> _folderBookIds() {
+    final folders = context.read<WatchedFolders?>();
+
+    return {
+      for (final folder in folders?.folders ?? []) folder.id: folders!.bookIds(folder.id),
+    };
+  }
+
   LibraryFilterOptions _filterOptions(DataStore dataStore, List<Book> sourceBooks) {
     return widget.isShelfView
         ? LibraryFilterOptions.fromDataStore(dataStore, books: sourceBooks)
@@ -196,7 +207,7 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   List<Book> _getFilteredBooks(LibraryProvider provider, DataStore dataStore, List<Book> sourceBooks) {
-    final books = provider.filterBooks(sourceBooks, dataStore: dataStore);
+    final books = provider.filterBooks(sourceBooks, dataStore: dataStore, folderBookIds: _folderBookIds());
     return provider.sortBooks(books);
   }
 
@@ -528,15 +539,22 @@ class _LibraryPageState extends State<LibraryPage> {
     final dataStore = context.read<DataStore>();
     final sourceBooks = _sourceBooks(dataStore);
 
+    final folders = context.read<WatchedFolders?>();
+    final scope = folders?.scope;
+
     final filters = await LibraryAdvancedFilterSheet.show(
       context,
       libraryProvider: libraryProvider,
       dataStore: dataStore,
       sourceBooks: sourceBooks,
       filterOptions: _filterOptions(dataStore, sourceBooks),
+      folderOptions: [
+        for (final folder in folders?.folders ?? []) LibraryFilterOption(value: folder.id, label: folder.name),
+      ],
+      folderBookIds: _folderBookIds(),
     );
 
-    if (filters != null && mounted) {
+    if (filters != null && mounted && scope == folders?.scope) {
       libraryProvider.applyFilters(filters);
     }
   }
@@ -1136,7 +1154,14 @@ class _LibraryPageState extends State<LibraryPage> {
         ? books.where((book) => items.downloadingBookIds.contains(book.id)).toList()
         : books;
 
-    final candidatePlaceholders = showDownloadingOnly ? items.downloadingOrphanJobs : items.orphanJobs;
+    final List<AcquisitionJob> candidatePlaceholders;
+
+    if (libraryProvider.filters.folderIds.isNotEmpty) {
+      candidatePlaceholders = const [];
+    } else {
+      candidatePlaceholders = showDownloadingOnly ? items.downloadingOrphanJobs : items.orphanJobs;
+    }
+
     final normalizedQuery = libraryProvider.searchQuery.trim().toLowerCase();
 
     final visiblePlaceholderJobs = normalizedQuery.isEmpty

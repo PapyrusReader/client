@@ -1,3 +1,4 @@
+import 'package:papyrus/folders/watched_folders.dart';
 import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'dart:async';
 
@@ -532,16 +533,22 @@ class StorageSyncSettingsSection extends StatelessWidget {
 
     try {
       final files = context.read<BookImportService>();
+      final folders = context.read<WatchedFolders?>();
+      final database = context.read<PapyrusPowerSyncService>();
+      await folders?.suspend();
 
-      await context.read<PapyrusPowerSyncService>().clearGuestLibrary(
+      await database.clearGuestLibrary(
         deleteFiles: (books) async {
           for (final book in books) {
             await files.deleteBookFile(book.id);
           }
 
           await files.clearCoverFiles(MediaStorageScope.localGuest);
+          await folders?.clear();
         },
       );
+
+      folders?.resume();
 
       messenger.showSnackBar(
         snackBarAnimationStyle: snackBarAnimationStyle,
@@ -575,7 +582,14 @@ class StorageSyncSettingsSection extends StatelessWidget {
       final scope = context.read<MediaUploadQueue>().activeScope;
       final powerSyncService = context.read<PapyrusPowerSyncService>();
       final importService = context.read<BookImportService>();
-      await powerSyncService.clearAuthenticatedCache();
+      final folders = context.read<WatchedFolders?>();
+      await folders?.suspend();
+
+      try {
+        await powerSyncService.clearAuthenticatedCache();
+      } finally {
+        folders?.resume();
+      }
 
       if (scope != null) {
         await importService.clearCoverFiles(scope);

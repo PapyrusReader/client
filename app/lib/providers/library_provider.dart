@@ -170,11 +170,24 @@ class LibraryProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  List<Book> filterBooks(List<Book> books, {required DataStore dataStore, LibraryFilters? filters}) {
+  List<Book> filterBooks(
+    List<Book> books, {
+    required DataStore dataStore,
+    LibraryFilters? filters,
+    Map<String, Set<String>> folderBookIds = const {},
+  }) {
     final searchQuery = _searchQuery.trim().toLowerCase();
     final appliedFilters = filters ?? _filters;
 
+    final folderMatches = {
+      for (final id in appliedFilters.folderIds) ...?folderBookIds[id],
+    };
+
     return books.where((book) {
+      if (appliedFilters.folderIds.isNotEmpty && !folderMatches.contains(book.id)) {
+        return false;
+      }
+
       if (searchQuery.isNotEmpty &&
           !book.title.toLowerCase().contains(searchQuery) &&
           !book.allAuthors.toLowerCase().contains(searchQuery)) {

@@ -1,2 +1,9 @@
 #include? "Pods/Target Support Files/Pods-Runner/Pods-Runner.debug.xcconfig"
 #include "Generated.xcconfig"
+
+// Flutter 3.41 invokes lipo with multiple architectures, which Xcode 27 rejects.
+// Debug simulators run on the host architecture. Device and release builds keep their defaults.
+PAPYRUS_SIMULATOR_ARCH_arm64 = arm64
+PAPYRUS_SIMULATOR_ARCH_arm64e = arm64
+PAPYRUS_SIMULATOR_ARCH_x86_64 = x86_64
+ARCHS[sdk=iphonesimulator*] = $(PAPYRUS_SIMULATOR_ARCH_$(NATIVE_ARCH_ACTUAL))

@@ -147,7 +147,15 @@ class BookImportService {
   /// Supports EPUB and PDF files.
   /// Throws [UnsupportedError] when called on non-web platforms.
   /// Throws [ArgumentError] for unsupported file formats.
-  Future<BookImportResult> importBook(Uint8List bytes, String filename) async {
+  Future<BookImportResult> importBook(Uint8List bytes, String filename) =>
+      importBookWithId(bytes, filename, const Uuid().v4());
+
+  /// Reuses a journaled identity when recovering an interrupted folder import.
+  Future<BookImportResult> importBookWithId(Uint8List bytes, String filename, String bookId) async {
+    if (!RegExp(r'^[a-zA-Z0-9_-]+$').hasMatch(bookId)) {
+      throw ArgumentError.value(bookId, 'bookId', 'Invalid import identity');
+    }
+
     if (!kIsWeb) {
       throw UnsupportedError('BookImportService is only supported on web.');
     }
@@ -178,7 +186,6 @@ class BookImportService {
       }
     }
 
-    final bookId = const Uuid().v4();
     final completer = Completer<JSObject>();
     final worker = _getWorker();
     _pending['process:$bookId'] = completer;

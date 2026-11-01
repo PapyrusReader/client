@@ -1,3 +1,7 @@
+import 'dart:async';
+import 'package:papyrus/widgets/add_book/connect_folder_sheet.dart';
+import 'package:papyrus/folders/watched_folders.dart';
+import 'package:provider/provider.dart';
 import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -75,6 +79,17 @@ class _AddBookChoiceSheetState extends State<AddBookChoiceSheet> {
     Navigator.of(context).pop(choice);
   }
 
+  void _connectFolder() {
+    if (_isSelecting) {
+      return;
+    }
+
+    _isSelecting = true;
+    final completed = ModalRoute.of(context)?.completed;
+    Navigator.of(context).pop();
+    unawaited(connectBookFolder(widget.callerContext, afterDismissal: completed));
+  }
+
   @override
   Widget build(BuildContext context) {
     return AppBottomSheet(
@@ -88,6 +103,15 @@ class _AddBookChoiceSheetState extends State<AddBookChoiceSheet> {
             title: 'Import digital books',
             subtitle: 'EPUB, PDF, AZW3, MOBI, CBZ/CBR',
             onTap: () => _select(_AddBookChoice.importDigital),
+          ),
+          const SizedBox(height: Spacing.sm),
+          _ChoiceOption(
+            icon: Icons.create_new_folder_outlined,
+            title: context.watch<WatchedFolders?>()?.supportsWatching == false ? 'Import folder' : 'Connect folder',
+            subtitle: context.watch<WatchedFolders?>()?.supportsWatching == false
+                ? 'Add books from a device folder'
+                : 'Automatically add books from a device folder',
+            onTap: _connectFolder,
           ),
           const SizedBox(height: Spacing.sm),
           _ChoiceOption(
