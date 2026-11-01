@@ -82,24 +82,57 @@ Future<void> showUpdateSettings(BuildContext context, UpdateController controlle
           ),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-            FilledButton(
-              onPressed: controller.busy || controller.staged ? null : controller.check,
-              key: const ValueKey('check-updates'),
-              child: IndexedStack(
-                index: controller.checking ? 1 : 0,
-                alignment: Alignment.center,
-                children: const [Text('Check now'), Text('Checking…')],
-              ),
-            ),
             if (controller.available && !controller.external && !controller.staged)
               FilledButton(
                 onPressed: controller.busy ? null : controller.install,
                 child: Text(controller.channel == UpdateChannel.web ? 'Reload' : 'Update'),
+              )
+            else
+              FilledButton(
+                onPressed: controller.busy || controller.staged ? null : controller.check,
+                key: const ValueKey('check-updates'),
+                child: IndexedStack(
+                  index: controller.checking ? 1 : 0,
+                  alignment: Alignment.center,
+                  children: const [Text('Check now'), Text('Checking…')],
+                ),
               ),
           ],
         ),
       ),
     );
+  } finally {
+    controller.setViewingSettings(false);
+  }
+}
+
+Future<bool> showUpdatePrompt(BuildContext context, UpdateController controller) async {
+  if (controller.viewingSettings) {
+    return false;
+  }
+
+  controller.setViewingSettings(true);
+
+  try {
+    return await showDialog<bool>(
+          context: context,
+          animationStyle: AppMotion.animationStyle(context),
+          builder: (context) => ListenableBuilder(
+            listenable: controller,
+            builder: (context, child) => AlertDialog(
+              title: const Text('App update'),
+              content: Text(controller.message),
+              actions: [
+                TextButton(onPressed: () => Navigator.pop(context, true), child: const Text('Later')),
+                FilledButton(
+                  onPressed: controller.busy || controller.staged ? null : controller.install,
+                  child: Text(controller.channel == UpdateChannel.web ? 'Reload' : 'Update'),
+                ),
+              ],
+            ),
+          ),
+        ) ??
+        false;
   } finally {
     controller.setViewingSettings(false);
   }
@@ -118,6 +151,26 @@ class UpdateNotice extends StatefulWidget {
 
 class _UpdateNoticeState extends State<UpdateNotice> {
   bool _dismissed = false;
+
+  Future<void> _viewUpdate() async {
+    final context = widget.router.routerDelegate.navigatorKey.currentContext!;
+
+    if (widget.controller.external) {
+      await showUpdateSettings(context, widget.controller);
+
+      if (mounted) {
+        setState(() => _dismissed = true);
+      }
+
+      return;
+    }
+
+    final dismissed = await showUpdatePrompt(context, widget.controller);
+
+    if (mounted && dismissed) {
+      setState(() => _dismissed = true);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -138,14 +191,10 @@ class _UpdateNoticeState extends State<UpdateNotice> {
               SafeArea(
                 bottom: false,
                 child: MaterialBanner(
-                  content: const Text('A Papyrus update is available.'),
+                  content: const Text('Update available'),
                   actions: [
-                    TextButton(onPressed: () => setState(() => _dismissed = true), child: const Text('Later')),
                     TextButton(
-                      onPressed: () => showUpdateSettings(
-                        widget.router.routerDelegate.navigatorKey.currentContext!,
-                        widget.controller,
-                      ),
+                      onPressed: _viewUpdate,
                       child: const Text('View update'),
                     ),
                   ],

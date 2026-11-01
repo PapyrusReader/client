@@ -167,12 +167,17 @@ void main() {
       addTearDown(tester.view.resetPhysicalSize);
       addTearDown(tester.view.resetDevicePixelRatio);
       SharedPreferences.setMockInitialValues({});
+      var installs = 0;
       final updates = UpdateController(
         preferences: await SharedPreferences.getInstance(),
         appInfo: () async =>
             PackageInfo(appName: 'Papyrus', packageName: 'papyrus', version: '0.2.0', buildNumber: '6'),
         channelProvider: () async => UpdateChannel.play,
         playCheck: () async => 7,
+        installer: (_, _) async {
+          installs++;
+          return 'Follow Google Play to finish the update.';
+        },
       );
       addTearDown(updates.dispose);
       final router = GoRouter(
@@ -201,23 +206,24 @@ void main() {
       );
       await updates.check();
       await tester.pumpAndSettle();
-      expect(find.text('A Papyrus update is available.'), findsNothing);
+      expect(find.text('Update available'), findsNothing);
       router.go('/');
       await tester.pumpAndSettle();
       await tester.tap(find.text('View update'));
       await tester.pumpAndSettle();
-      expect(find.text('App updates'), findsOneWidget);
+      expect(find.text('App update'), findsOneWidget);
       expect(find.text('Update'), findsOneWidget);
-      await tester.ensureVisible(find.text('Check automatically'));
-      await tester.tap(find.text('Check automatically'));
-      await tester.pumpAndSettle();
-      expect(updates.automatic, isFalse);
+      expect(find.text('Check automatically'), findsNothing);
+      expect(find.text('Check now'), findsNothing);
+      expect(updates.automatic, isTrue);
       expect(tester.takeException(), isNull);
-      await tester.tap(find.text('Close'));
+      await tester.tap(find.text('Update'));
       await tester.pumpAndSettle();
+      expect(installs, 1);
+      expect(find.text('Follow Google Play to finish the update.'), findsOneWidget);
       await tester.tap(find.text('Later'));
       await tester.pumpAndSettle();
-      expect(find.text('A Papyrus update is available.'), findsNothing);
+      expect(find.text('Update available'), findsNothing);
     });
   }
 }
