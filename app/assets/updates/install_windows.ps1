@@ -21,4 +21,5 @@ try {
 } catch {
     $_ | Out-String | Add-Content -LiteralPath $Log
     # Keep the verified installer and diagnostics for a manual retry.
+    exit 1
 }
