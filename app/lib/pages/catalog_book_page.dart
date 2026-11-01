@@ -12,7 +12,7 @@ import 'package:papyrus/opds/opds_resource_cache.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/opds/opds_download_panel.dart';
 import 'package:papyrus/widgets/opds/opds_download_actions.dart';
-import 'package:papyrus/widgets/opds/opds_mobile_header.dart';
+import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:papyrus/widgets/opds/opds_publication_details.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 import 'package:provider/provider.dart';
@@ -376,10 +376,14 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             if (MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall)
-              OpdsMobileHeader(
+              AppPageToolbar(
                 key: const Key('catalog-book-mobile-header'),
                 leading: IconButton(tooltip: 'Back to catalog', onPressed: _back, icon: const BackButtonIcon()),
-                title: catalog?.name ?? 'Book details',
+                content: Text(
+                  catalog?.name ?? 'Book details',
+                  style: Theme.of(context).textTheme.titleLarge,
+                  overflow: TextOverflow.ellipsis,
+                ),
                 actions: [
                   OpdsDownloadsButton(
                     compact: true,

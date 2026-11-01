@@ -93,18 +93,10 @@ class _ShelvesPageState extends State<ShelvesPage> {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: EdgeInsets.only(
-                top: Spacing.md,
-                left: libraryPageHorizontalPadding(context),
-                right: libraryPageHorizontalPadding(context),
-              ),
-              child: LibraryMobileToolbar(
-                onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
-                search: _buildSearchField(provider),
-              ),
+            LibraryMobileToolbar(
+              onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
+              search: _buildSearchField(provider),
             ),
-            const SizedBox(height: Spacing.sm),
             const ShelvesFilterChips(),
             Expanded(child: _buildShelfResults(context, provider, shelves)),
           ],

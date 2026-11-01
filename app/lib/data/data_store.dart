@@ -58,6 +58,8 @@ class DataStore extends ChangeNotifier {
   final List<BookShelfRelation> _bookShelfRelations = [];
   final List<BookTagRelation> _bookTagRelations = [];
 
+  Future<void> Function(Book book)? beforeBookDelete;
+
   bool _isLoaded = false;
   Object? _libraryLoadError;
   bool _disposed = false;
@@ -342,12 +344,22 @@ class DataStore extends ChangeNotifier {
   }
 
   void deleteBook(String id) {
-    final repository = requireBookRepository();
-    _reportWrite(repository.delete(id));
+    requireBookRepository();
+    _reportWrite(deleteBookAndWait(id));
   }
 
   Future<void> deleteBookAndWait(String id) async {
     final repository = requireBookRepository();
+    final book = await repository.getById(id);
+
+    if (!isBookRepositoryCurrent(repository)) {
+      throw StateError('The selected library changed.');
+    }
+
+    if (book != null) {
+      await beforeBookDelete?.call(book);
+    }
+
     await deleteBookFromRepositoryAndWait(repository, id);
   }
 

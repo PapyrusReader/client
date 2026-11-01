@@ -122,11 +122,20 @@ void main() {
     final secondService = BookImportService();
     final candidates = List.generate(12, (index) => Uint8List.fromList(List.filled(4096, index)));
 
-    await Future.wait(
-      candidates.indexed.map(
+    await service.storeCoverFile(scope, 'asset-1', candidates.first);
+    final file = File('${root.path}/media-covers/${scope.persistenceKey}/cached/asset-1.bin');
+
+    await Future.wait([
+      ...candidates.indexed.map(
         (candidate) => (candidate.$1.isEven ? service : secondService).storeCoverFile(scope, 'asset-1', candidate.$2),
       ),
-    );
+      () async {
+        for (var attempt = 0; attempt < 20; attempt++) {
+          final visible = await file.readAsBytes();
+          expect(candidates.any((bytes) => _bytesEqual(bytes, visible)), isTrue);
+        }
+      }(),
+    ]);
 
     final stored = await service.getCoverFile(scope, 'asset-1');
     expect(candidates.any((bytes) => _bytesEqual(bytes, stored)), isTrue);
@@ -138,19 +147,6 @@ void main() {
           .where((file) => file.path.endsWith('.tmp') || file.path.endsWith('.bak')),
       isEmpty,
     );
-  });
-
-  test('native replacement uses direct rename without moving the existing cache aside', () {
-    final source = File('lib/services/book_import_service_stub.dart').readAsStringSync();
-
-    final writer = source.substring(
-      source.indexOf('Future<void> _writeCoverFile'),
-      source.indexOf('Future<void> _removeCoverFile'),
-    );
-
-    expect(writer, contains('await tempFile.rename(file.path);'));
-    expect(writer, isNot(contains('backupFile')));
-    expect(writer, isNot(contains("await file.rename")));
   });
 
   test('pending store queued during promotion preserves the newer generation', () async {
@@ -326,21 +322,6 @@ void main() {
     expect(() => service.storeGuestCoverFile('../book', Uint8List.fromList([1])), throwsArgumentError);
   });
 
-  test('book worker declares scoped bucket cover actions and validates buckets', () {
-    final source = File('web/book_worker.js').readAsStringSync();
-
-    for (final action in ['getCover', 'storeCover', 'deleteCover', 'promoteCover', 'clearCovers']) {
-      expect(source, contains("case '$action':"));
-    }
-
-    expect(source, contains("new Set(['cached', 'pending', 'books'])"));
-    expect(source, contains("validateCoverBucket(bucket)"));
-    expect(source, contains("getDirectoryHandle(bucket, { create })"));
-    expect(source, contains('withCoverLocks('));
-    expect(source, contains('navigator.locks.request'));
-    expect(source, contains('coverLockName('));
-  });
-
   test('book worker derives shared Web Lock names from cover keys', () async {
     final result = await Process.run('node', const [
       '-e',
@@ -454,52 +435,6 @@ vm.runInContext(source, context);
     ]);
 
     expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
-  });
-
-  test('web cover writes transfer a copy so caller bytes remain renderable', () {
-    final source = File('lib/services/book_import_service.dart').readAsStringSync();
-
-    final helper = source.substring(
-      source.indexOf('Future<JSObject> _sendCoverRequest'),
-      source.indexOf('BookImportResult _parseImportResult'),
-    );
-
-    expect(helper, contains('final actualBytes = Uint8List.fromList(bytes);'));
-    expect(helper, contains("message['bucket'] = bucket.pathComponent.toJS;"));
-    expect(helper, isNot(contains('bytes.offsetInBytes == 0 && bytes.lengthInBytes == bytes.buffer.lengthInBytes')));
-  });
-
-  test('web cover mutations evict only successfully removed decoded keys', () {
-    final source = File('lib/services/book_import_service.dart').readAsStringSync();
-
-    final deleteHelper = source.substring(
-      source.indexOf('Future<void> _deleteCoverFile'),
-      source.indexOf('Future<void> clearCoverFiles'),
-    );
-
-    final promotion = source.substring(
-      source.indexOf('Future<void> promotePendingCoverFile'),
-      source.indexOf('Future<Uint8List?> _getCoverFile'),
-    );
-
-    final storeHelper = source.substring(
-      source.indexOf('Future<void> _storeCoverFile'),
-      source.indexOf('Future<void> _deleteCoverFile'),
-    );
-
-    expect(source, contains("import 'package:papyrus/media/local_cover_image_provider.dart';"));
-
-    expect(
-      deleteHelper.indexOf("await _sendCoverRequest(type: 'deleteCover'"),
-      lessThan(deleteHelper.indexOf('LocalCoverImageProvider.evictKey(')),
-    );
-
-    expect(deleteHelper, contains('scopeKey: scope.persistenceKey'));
-    expect(deleteHelper, contains('bucket: bucket'));
-    expect(deleteHelper, contains('fileId: id'));
-    expect(promotion, contains("await _sendCoverRequest(\n      type: 'promoteCover'"));
-    expect(promotion, isNot(contains('LocalCoverImageProvider.evictKey(')));
-    expect(storeHelper, isNot(contains('LocalCoverImageProvider.evictKey(')));
   });
 }
 

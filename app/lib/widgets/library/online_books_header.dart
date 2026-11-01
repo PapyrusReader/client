@@ -11,8 +11,10 @@ class OnlineBooksHeader extends StatelessWidget {
     required this.isSearching,
     required this.onBack,
     required this.onSearch,
+    this.compact = false,
   });
 
+  final bool compact;
   final TextEditingController controller;
   final bool autofocus;
   final bool isSearching;
@@ -35,7 +37,7 @@ class OnlineBooksHeader extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final useCompactLayout = constraints.maxWidth < Breakpoints.tablet;
+        final useStackedLayout = constraints.maxWidth < Breakpoints.tablet;
 
         final backButton = Semantics(
           label: 'Back',
@@ -50,30 +52,47 @@ class OnlineBooksHeader extends StatelessWidget {
           overflow: TextOverflow.ellipsis,
         );
 
-        if (useCompactLayout) {
+        if (useStackedLayout) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Row(
-                children: [
-                  AppPageLeading(child: backButton),
-                  const SizedBox(width: Spacing.sm),
-                  Expanded(child: title),
-                ],
+              if (compact)
+                AppPageToolbar(leading: backButton, content: title)
+              else ...[
+                Row(
+                  children: [
+                    backButton,
+                    const SizedBox(width: Spacing.sm),
+                    Expanded(child: title),
+                  ],
+                ),
+                const SizedBox(height: Spacing.sm),
+              ],
+              Padding(
+                padding: compact ? EdgeInsets.symmetric(horizontal: AppPageToolbar.padding.left) : EdgeInsets.zero,
+                child: _buildSearchField(),
               ),
-              const SizedBox(height: Spacing.sm),
-              _buildSearchField(),
             ],
           );
+        }
+
+        final search = Row(
+          children: [
+            Expanded(flex: 2, child: title),
+            const SizedBox(width: Spacing.lg),
+            Expanded(flex: 3, child: _buildSearchField()),
+          ],
+        );
+
+        if (compact) {
+          return AppPageToolbar(leading: backButton, content: search);
         }
 
         return Row(
           children: [
             backButton,
             const SizedBox(width: Spacing.sm),
-            Expanded(flex: 2, child: title),
-            const SizedBox(width: Spacing.lg),
-            Expanded(flex: 3, child: _buildSearchField()),
+            Expanded(child: search),
           ],
         );
       },

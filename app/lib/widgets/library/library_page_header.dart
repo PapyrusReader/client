@@ -4,7 +4,7 @@ import 'package:papyrus/widgets/shared/app_page_bar.dart';
 
 /// Matches collection content and filter rows to the toolbar's page margins.
 double libraryPageHorizontalPadding(BuildContext context) =>
-    MediaQuery.sizeOf(context).width >= Breakpoints.desktopSmall ? Spacing.lg : Spacing.md;
+    MediaQuery.sizeOf(context).width >= Breakpoints.desktopSmall ? Spacing.lg : AppPageToolbar.padding.left;
 
 /// Page identity and contextual actions for nested Library routes.
 class LibraryPageHeader extends StatelessWidget {
@@ -26,16 +26,10 @@ class LibraryPageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (compact) {
-      return SizedBox(
-        height: appMobileToolbarHeight(context),
-        child: AppPageBar(
-          context: context,
-          primary: false,
-          automaticallyImplyLeading: false,
-          leading: leading,
-          title: Text(title, overflow: TextOverflow.ellipsis),
-          actions: actions,
-        ),
+      return AppPageToolbar(
+        leading: leading,
+        content: Text(title, style: Theme.of(context).textTheme.titleLarge, overflow: TextOverflow.ellipsis),
+        actions: actions,
       );
     }
 
@@ -113,31 +107,15 @@ class LibraryMobileToolbar extends StatelessWidget {
   final List<Widget> actions;
 
   @override
-  Widget build(BuildContext context) {
-    final menu = SizedBox.square(
-      dimension: TouchTargets.mobileRecommended,
-      child: IconButton(
-        icon: const Icon(Icons.menu, size: IconSizes.navigation),
-        onPressed: onMenuPressed,
-        tooltip: 'Library sections',
-      ),
-    );
-
-    return ConstrainedBox(
-      constraints: BoxConstraints(minHeight: appMobileToolbarHeight(context) - Spacing.md * 2),
-      child: Row(
-        children: [
-          menu,
-          if (search != null) ...[
-            const SizedBox(width: Spacing.sm),
-            Expanded(child: search!),
-          ] else
-            const Spacer(),
-          for (final action in actions) ...[const SizedBox(width: Spacing.sm), action],
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) => AppPageToolbar(
+    leading: IconButton(
+      icon: const Icon(Icons.menu),
+      onPressed: onMenuPressed,
+      tooltip: 'Library sections',
+    ),
+    content: search,
+    actions: actions,
+  );
 }
 
 /// A compact desktop toolbar; the sidebar supplies the collection's name.

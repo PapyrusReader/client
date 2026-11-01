@@ -1,12 +1,11 @@
 name: Linux packaging check
 
 on:
+  workflow_dispatch:
   pull_request:
     paths:
-      - 'app/linux/**'
-      - 'app/pubspec.yaml'
-      - 'app/pubspec.lock'
-      - 'app/integration_test/desktop_package_*.dart'
+      - 'app/**'
+      - 'packages/**'
       - 'tools/run_packaged_smoke.py'
       - 'tools/check_packaged_reader.*'
       - 'tools/install_linux_build_dependencies.sh'
@@ -45,6 +44,8 @@ jobs:
           cache: true
       - name: Install locked dependencies
         run: flutter pub get --enforce-lockfile
+      - name: Validate watched folders on Linux
+        run: flutter test test/folders
       - name: Compile Linux release
         run: flutter build linux --release
       - name: Package Linux downloads

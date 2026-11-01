@@ -126,6 +126,7 @@ final class ReaderBookAdapter {
       foregroundColor: colors.onSurface,
       brightness: colors.brightness,
       layoutMode: preferences.readingMode == 'scroll' ? ReaderLayoutMode.scroll : ReaderLayoutMode.paginated,
+      pageTurnAnimation: preferences.pageTurnAnimation,
     );
   }
 
@@ -160,6 +161,10 @@ final class ReaderBookAdapter {
 
     if (target.margins != margins) {
       target.margins = margins;
+    }
+
+    if (target.pageTurnAnimation != preferences.pageTurnAnimation) {
+      target.pageTurnAnimation = preferences.pageTurnAnimation;
     }
 
     final readingMode = preferences.layoutMode == ReaderLayoutMode.scroll ? 'scroll' : 'paginated';

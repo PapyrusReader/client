@@ -298,12 +298,9 @@ class _CatalogsPageState extends State<CatalogsPage> {
 
     if (mobile) {
       if (widget.catalogId == null) {
-        return Padding(
-          padding: const EdgeInsets.only(top: Spacing.md, left: Spacing.md, right: Spacing.md),
-          child: LibraryMobileToolbar(
-            onMenuPressed: () => openAppDrawer(context, Scaffold.maybeOf(context)),
-            actions: [downloadsButton],
-          ),
+        return LibraryMobileToolbar(
+          onMenuPressed: () => openAppDrawer(context, Scaffold.maybeOf(context)),
+          actions: [downloadsButton],
         );
       }
 

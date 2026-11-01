@@ -5,10 +5,10 @@ import 'package:papyrus/pages/book_details_page.dart';
 import 'package:papyrus/pages/library_page.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/widgets/library/online_books_header.dart';
+import 'package:papyrus/widgets/library/selection_header.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/book_details/book_cover_image.dart';
 import 'package:papyrus/widgets/library/library_page_header.dart';
-import 'package:papyrus/widgets/search/library_search_bar.dart';
 import 'package:provider/provider.dart';
 
 import '../../helpers/test_helpers.dart';
@@ -45,21 +45,8 @@ void main() {
             ),
           );
 
-          await tester.pumpWidget(
-            app(
-              Scaffold(
-                body: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: LibraryMobileToolbar(
-                      onMenuPressed: () {},
-                      search: const LibrarySearchBar(),
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
+          await tester.pumpWidget(app(const LibraryPage()));
+          await tester.pumpAndSettle();
 
           final menuCenter = tester.getCenter(find.byIcon(Icons.menu));
           final menuSize = tester.getSize(find.byIcon(Icons.menu));
@@ -70,9 +57,9 @@ void main() {
           expect(tester.getCenter(back), menuCenter);
           expect(tester.getSize(back), menuSize);
           expect(tester.getTopLeft(find.byType(CoverImagePreview)).dy, switch (scale) {
-            1.0 => 104,
-            1.5 => 108,
-            _ => 120,
+            1.0 => 88,
+            1.5 => 92,
+            _ => 104,
           });
           expect(tester.takeException(), isNull);
 
@@ -80,10 +67,7 @@ void main() {
             app(
               Scaffold(
                 body: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: LibraryMobileToolbar(onMenuPressed: () {}),
-                  ),
+                  child: LibraryMobileToolbar(onMenuPressed: () {}),
                 ),
               ),
             ),
@@ -117,6 +101,29 @@ void main() {
           await tester.tap(find.byTooltip('Back to shelves'));
           expect(backCalls, 1);
           expect(tester.takeException(), isNull);
+          var closeCalls = 0;
+          await tester.pumpWidget(
+            app(
+              Scaffold(
+                body: SafeArea(
+                  child: SelectionHeader(
+                    compact: true,
+                    selectedCount: 1,
+                    totalCount: 1,
+                    onClose: () => closeCalls += 1,
+                    onSelectAll: () {},
+                    onDeselectAll: () {},
+                  ),
+                ),
+              ),
+            ),
+          );
+
+          expect(tester.getCenter(find.byTooltip('Exit selection')), menuCenter);
+          expect(tester.getSize(find.byTooltip('Exit selection')), const Size(48, 48));
+          await tester.tap(find.byTooltip('Exit selection'));
+          expect(closeCalls, 1);
+          expect(tester.takeException(), isNull);
           final search = TextEditingController();
           addTearDown(search.dispose);
 
@@ -124,15 +131,13 @@ void main() {
             app(
               Scaffold(
                 body: SafeArea(
-                  child: Padding(
-                    padding: const EdgeInsets.all(16),
-                    child: OnlineBooksHeader(
-                      controller: search,
-                      autofocus: false,
-                      isSearching: false,
-                      onBack: () => backCalls += 1,
-                      onSearch: (_) {},
-                    ),
+                  child: OnlineBooksHeader(
+                    compact: true,
+                    controller: search,
+                    autofocus: false,
+                    isSearching: false,
+                    onBack: () => backCalls += 1,
+                    onSearch: (_) {},
                   ),
                 ),
               ),

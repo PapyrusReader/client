@@ -364,9 +364,14 @@ class MediaUploadQueue extends ChangeNotifier {
     final scope = _requireActiveScope();
 
     await _withMutation(() async {
+      if (_activeScope != scope) {
+        throw StateError('Authenticated media upload scope changed before enqueue');
+      }
+
+      final nextTasks = [..._tasks.where((existing) => existing.id != task.id), task];
+      await _saveTasks(scope, nextTasks);
       _advanceTaskVersion(task.id);
-      _tasks = [..._tasks.where((existing) => existing.id != task.id), task];
-      await _save(scope);
+      _tasks = nextTasks;
       notifyListeners();
     });
 
@@ -502,10 +507,20 @@ class MediaUploadQueue extends ChangeNotifier {
   Future<void> _save(MediaStorageScope scope) => _saveTasks(scope, _tasks);
 
   Future<void> _saveTasks(MediaStorageScope scope, List<MediaUploadTask> tasks) async {
-    final saved = await _prefs.setString(_storageKey(scope), jsonEncode(tasks.map((task) => task.toJson()).toList()));
+    try {
+      final saved = await _prefs.setString(_storageKey(scope), jsonEncode(tasks.map((task) => task.toJson()).toList()));
 
-    if (!saved) {
-      throw StateError('Could not persist media upload queue');
+      if (!saved) {
+        throw StateError('Could not persist media upload queue');
+      }
+    } catch (error, stackTrace) {
+      // Preferences update their memory cache before the platform write finishes.
+      // A failed write must not appear durable when this profile is reopened.
+      try {
+        await _prefs.reload();
+      } catch (_) {}
+
+      Error.throwWithStackTrace(error, stackTrace);
     }
   }
 

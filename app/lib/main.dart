@@ -1,3 +1,8 @@
+import 'package:papyrus/folders/directory_access_factory.dart';
+import 'package:papyrus/folders/folder_import_target.dart';
+import 'package:papyrus/folders/watched_folders.dart';
+import 'package:papyrus/updates/update_controller.dart';
+import 'package:papyrus/updates/update_settings.dart';
 import 'package:papyrus/services/reading_device_identity.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -74,7 +79,33 @@ Future main() async {
 class Papyrus extends StatefulWidget {
   final SharedPreferences prefs;
 
-  const Papyrus({super.key, required this.prefs});
+  const Papyrus({super.key, required this.prefs})
+    : _repositoryFactory = null,
+      _database = null,
+      _uploads = null,
+      _importer = null,
+      _child = null;
+
+  @visibleForTesting
+  const Papyrus.withServices({
+    super.key,
+    required this.prefs,
+    required AuthRepository Function(PapyrusApiConfig config, String profileKey) repositoryFactory,
+    required PapyrusPowerSyncService database,
+    required MediaUploadQueue uploads,
+    required BookImportService importer,
+    required Widget child,
+  }) : _repositoryFactory = repositoryFactory,
+       _database = database,
+       _uploads = uploads,
+       _importer = importer,
+       _child = child;
+
+  final AuthRepository Function(PapyrusApiConfig config, String profileKey)? _repositoryFactory;
+  final PapyrusPowerSyncService? _database;
+  final MediaUploadQueue? _uploads;
+  final BookImportService? _importer;
+  final Widget? _child;
 
   @override
   State<Papyrus> createState() => _PapyrusState();
@@ -185,9 +216,12 @@ class _PapyrusState extends State<Papyrus> {
   late final AcquisitionAvailabilityProvider _acquisitionAvailabilityProvider;
   late final AcquisitionDownloadsComposition _acquisitionDownloadsComposition;
   late final PreferencesProvider _preferencesProvider;
+  late final UpdateController _updateController;
   late final SyncSettingsProvider _syncSettingsProvider;
   late final MediaUploadQueue _mediaUploadQueue;
   late final BookImportService _bookImportService;
+  late final WatchedFolders _watchedFolders;
+  bool _folderLibraryReady = false;
   late final OpdsCatalogs _opdsCatalogs;
   late final OpdsDownloads _opdsDownloads;
   late final OpdsHttpClient _opdsHttpClient;
@@ -222,8 +256,9 @@ class _PapyrusState extends State<Papyrus> {
 
     _dataStore = DataStore();
     _preferencesProvider = PreferencesProvider(widget.prefs);
-    _mediaUploadQueue = MediaUploadQueue(widget.prefs, onWorkAvailable: _processMediaUploads);
-    _bookImportService = BookImportService();
+    _updateController = UpdateController(preferences: widget.prefs)..start();
+    _mediaUploadQueue = widget._uploads ?? MediaUploadQueue(widget.prefs, onWorkAvailable: _processMediaUploads);
+    _bookImportService = widget._importer ?? BookImportService();
     _authProvider = AuthProvider(widget.prefs, repository: _authRepository);
     _acquisitionAvailabilityProvider = AcquisitionAvailabilityProvider(authProvider: _authProvider);
 
@@ -233,29 +268,46 @@ class _PapyrusState extends State<Papyrus> {
       activeApiConfig: () => _syncSettingsProvider.activeApiConfig,
     );
 
-    _powerSyncService = PapyrusPowerSyncService(
-      trackingCapability: () async {
-        final response = await http
-            .get(_syncSettingsProvider.activeApiConfig.endpoint('/sync/settings'))
-            .timeout(const Duration(seconds: 5));
+    _powerSyncService =
+        widget._database ??
+        PapyrusPowerSyncService(
+          trackingCapability: () async {
+            final response = await http
+                .get(_syncSettingsProvider.activeApiConfig.endpoint('/sync/settings'))
+                .timeout(const Duration(seconds: 5));
 
-        if (response.statusCode != 200) {
-          return 0;
-        }
+            if (response.statusCode != 200) {
+              return 0;
+            }
 
-        return (jsonDecode(response.body) as Map)['tracking_schema_version'] as int? ?? 0;
-      },
-      connectorFactory: () => PapyrusPowerSyncConnector(
-        supportsTracking: () => _powerSyncService.supportsTracking,
-        trackingSchemaVersion: () => _powerSyncService.trackingSchemaVersion,
-        authRepository: _authRepository,
-        config: _syncSettingsProvider.activeApiConfig,
-        onUploadComplete: () async {
-          await _powerSyncService.refreshBookMetadataSyncState();
-          await _processMediaUploads();
-        },
+            return (jsonDecode(response.body) as Map)['tracking_schema_version'] as int? ?? 0;
+          },
+          connectorFactory: () => PapyrusPowerSyncConnector(
+            supportsTracking: () => _powerSyncService.supportsTracking,
+            trackingSchemaVersion: () => _powerSyncService.trackingSchemaVersion,
+            authRepository: _authRepository,
+            config: _syncSettingsProvider.activeApiConfig,
+            onUploadComplete: () async {
+              await _powerSyncService.refreshBookMetadataSyncState();
+              await _processMediaUploads();
+            },
+          ),
+        );
+
+    _watchedFolders = WatchedFolders(
+      access: createDirectoryAccess(),
+      deleteStagedFile: _bookImportService.deleteBookFile,
+      libraryReady: () => _dataStore.isLoaded && !_switchingSyncProfile && !_authProvider.isDeletingGuestAccount,
+      captureTarget: () => LibraryFolderImportTarget(
+        store: _dataStore,
+        queue: _mediaUploadQueue,
+        importer: _bookImportService,
+        auth: _authProvider,
+        database: _powerSyncService,
       ),
     );
+    _dataStore.beforeBookDelete = (book) => _watchedFolders.recordDeletion(book.id, book.fileHash);
+    _dataStore.addListener(_handleFolderLibraryReady);
 
     _bookStorageStatusController = BookStorageStatusController(
       authProvider: _authProvider,
@@ -298,6 +350,8 @@ class _PapyrusState extends State<Papyrus> {
 
   @override
   void dispose() {
+    _dataStore.removeListener(_handleFolderLibraryReady);
+    _watchedFolders.dispose();
     _authProvider.removeListener(_syncPowerSyncAuthState);
     _syncSettingsProvider.removeListener(_handleSyncSettingsChanged);
     unawaited(_disposeDataServices());
@@ -313,10 +367,17 @@ class _PapyrusState extends State<Papyrus> {
     _authProvider.dispose();
     _syncSettingsProvider.dispose();
     _preferencesProvider.dispose();
+    _updateController.dispose();
     super.dispose();
   }
 
   AuthRepository _buildAuthRepository(PapyrusApiConfig config, String profileKey) {
+    final factory = widget._repositoryFactory;
+
+    if (factory != null) {
+      return factory(config, profileKey);
+    }
+
     final tokenStore = TokenStore(SecureRefreshTokenStorage.scoped(profileKey));
 
     return AuthRepository(
@@ -331,7 +392,18 @@ class _PapyrusState extends State<Papyrus> {
     await _powerSyncService.close();
   }
 
+  void _handleFolderLibraryReady() {
+    final ready = _dataStore.isLoaded;
+
+    if (ready && !_folderLibraryReady) {
+      _watchedFolders.schedule();
+    }
+
+    _folderLibraryReady = ready;
+  }
+
   void _syncPowerSyncAuthState() {
+    _watchedFolders.invalidate();
     _updateOpdsScope();
 
     if (_authStateOperation != null) {
@@ -378,6 +450,7 @@ class _PapyrusState extends State<Papyrus> {
           _authProvider.user?.userId == userId &&
           !_authProvider.isOfflineMode) {
         _opdsCatalogs.setScope(scope.persistenceKey);
+        unawaited(_watchedFolders.activate(scope.persistenceKey));
       }
 
       await _refreshMediaUsage();
@@ -394,11 +467,14 @@ class _PapyrusState extends State<Papyrus> {
           _activeProfileKey == profileKey &&
           _syncSettingsProvider.activeProfileKey == profileKey) {
         _opdsCatalogs.setScope(MediaStorageScope.localGuest.persistenceKey);
+        unawaited(_watchedFolders.activate(MediaStorageScope.localGuest.persistenceKey));
       }
 
       return;
     }
 
+    await _watchedFolders.suspend();
+    unawaited(_watchedFolders.activate(null));
     await _mediaUploadQueue.activateScope(null);
 
     if (!_authProvider.isBootstrapping && _powerSyncService.mode != null) {
@@ -430,6 +506,8 @@ class _PapyrusState extends State<Papyrus> {
 
   Future<void> _switchActiveSyncProfile(String nextProfileKey, PapyrusApiConfig nextConfig) async {
     _switchingSyncProfile = true;
+    await _watchedFolders.suspend();
+    unawaited(_watchedFolders.activate(null));
 
     try {
       await _mediaUploadQueue.waitUntilIdle();
@@ -544,6 +622,7 @@ class _PapyrusState extends State<Papyrus> {
         // Core data store - single source of truth
         ChangeNotifierProvider.value(value: _dataStore),
         ChangeNotifierProvider.value(value: _mediaUploadQueue),
+        ChangeNotifierProvider.value(value: _watchedFolders),
         ChangeNotifierProvider.value(value: _syncSettingsProvider),
         ChangeNotifierProvider.value(value: _bookStorageStatusController),
         Provider.value(value: _powerSyncService),
@@ -555,6 +634,7 @@ class _PapyrusState extends State<Papyrus> {
             files: _bookImportService,
             catalogs: _opdsCatalogs,
             downloads: _opdsDownloads,
+            folders: _watchedFolders,
           ),
         ),
         ChangeNotifierProvider.value(value: _opdsCatalogs),
@@ -572,42 +652,48 @@ class _PapyrusState extends State<Papyrus> {
           create: (_) => LibraryProvider(dataStore: _dataStore, preferences: _preferencesProvider),
         ),
         ChangeNotifierProvider.value(value: _preferencesProvider),
+        ChangeNotifierProvider.value(value: _updateController),
       ],
-      child: Consumer<PreferencesProvider>(
-        builder: (context, preferencesProvider, child) {
-          final isEink = preferencesProvider.isEinkMode;
-          final lightTheme = preferencesProvider.increaseContrast ? AppTheme.highContrastLight : AppTheme.light;
-          final darkTheme = preferencesProvider.increaseContrast ? AppTheme.highContrastDark : AppTheme.dark;
+      child:
+          widget._child ??
+          Consumer<PreferencesProvider>(
+            builder: (context, preferencesProvider, child) {
+              final isEink = preferencesProvider.isEinkMode;
+              final lightTheme = preferencesProvider.increaseContrast ? AppTheme.highContrastLight : AppTheme.light;
+              final darkTheme = preferencesProvider.increaseContrast ? AppTheme.highContrastDark : AppTheme.dark;
 
-          return MaterialApp.router(
-            title: 'Papyrus',
-            debugShowCheckedModeBanner: false,
-            theme: AppTheme.withTypography(
-              isEink ? AppTheme.eink : lightTheme,
-              dyslexiaFont: preferencesProvider.dyslexiaFont,
-            ),
-            darkTheme: AppTheme.withTypography(
-              isEink ? AppTheme.eink : darkTheme,
-              dyslexiaFont: preferencesProvider.dyslexiaFont,
-            ),
-            highContrastTheme: AppTheme.withTypography(
-              isEink ? AppTheme.eink : AppTheme.highContrastLight,
-              dyslexiaFont: preferencesProvider.dyslexiaFont,
-            ),
-            highContrastDarkTheme: AppTheme.withTypography(
-              isEink ? AppTheme.eink : AppTheme.highContrastDark,
-              dyslexiaFont: preferencesProvider.dyslexiaFont,
-            ),
-            themeMode: isEink ? ThemeMode.light : preferencesProvider.themeMode,
-            themeAnimationDuration:
-                isEink || preferencesProvider.reduceAnimations || MediaQuery.disableAnimationsOf(context)
-                ? Duration.zero
-                : kThemeAnimationDuration,
-            builder: (context, child) => AppAccessibilityScope(preferences: preferencesProvider, child: child!),
-            routerConfig: _appRouter.router,
-          );
-        },
-      ),
+              return MaterialApp.router(
+                title: 'Papyrus',
+                debugShowCheckedModeBanner: false,
+                theme: AppTheme.withTypography(
+                  isEink ? AppTheme.eink : lightTheme,
+                  dyslexiaFont: preferencesProvider.dyslexiaFont,
+                ),
+                darkTheme: AppTheme.withTypography(
+                  isEink ? AppTheme.eink : darkTheme,
+                  dyslexiaFont: preferencesProvider.dyslexiaFont,
+                ),
+                highContrastTheme: AppTheme.withTypography(
+                  isEink ? AppTheme.eink : AppTheme.highContrastLight,
+                  dyslexiaFont: preferencesProvider.dyslexiaFont,
+                ),
+                highContrastDarkTheme: AppTheme.withTypography(
+                  isEink ? AppTheme.eink : AppTheme.highContrastDark,
+                  dyslexiaFont: preferencesProvider.dyslexiaFont,
+                ),
+                themeMode: isEink ? ThemeMode.light : preferencesProvider.themeMode,
+                themeAnimationDuration:
+                    isEink || preferencesProvider.reduceAnimations || MediaQuery.disableAnimationsOf(context)
+                    ? Duration.zero
+                    : kThemeAnimationDuration,
+                builder: (context, child) => AppAccessibilityScope(
+                  preferences: preferencesProvider,
+                  child: UpdateNotice(controller: _updateController, router: _appRouter.router, child: child!),
+                ),
+                routerConfig: _appRouter.router,
+              );
+            },
+          ),
     );
   }
 }

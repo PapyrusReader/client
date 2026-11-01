@@ -76,6 +76,89 @@ void main() {
     toc: [ReaderTocEntry(title: 'Third chapter', locator: locator)],
   );
 
+  for (final (name, theme) in [('light', AppTheme.light), ('dark', AppTheme.dark), ('eink', AppTheme.eink)]) {
+    testWidgets('contents and settings share header geometry in $name theme', (
+      tester,
+    ) async {
+      tester.view.physicalSize = const Size(1200, 900);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      final store = DataStore(bookRepository: _Repository());
+      addTearDown(store.dispose);
+      final library = ReaderLibrary(store: store, bookId: 'book');
+
+      final controller = ReaderController(
+        registry: ReaderEngineRegistry([
+          ReaderEngineRegistration(
+            formats: const {ReaderFormat.pdf},
+            factory: () => PdfReaderEngine(facadeFactory: (_) async => _PanelPdfFacade()),
+          ),
+        ]),
+      );
+
+      addTearDown(controller.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: PapyrusReader(
+            document: ReaderDocument(id: 'book', format: ReaderFormat.pdf, loadBytes: () async => Uint8List(0)),
+            controller: controller,
+            theme: ReaderThemeData.fromTheme(theme).copyWith(sidePanelWidth: 420),
+            builders: ReaderUiBuilders(
+              tableOfContents: (_, panel) => ReaderLibraryPanel(panel: panel, library: library),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      await tester.tapAt(tester.getCenter(find.byKey(const ValueKey('reader-content'))));
+      await tester.pump(const Duration(milliseconds: 350));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Reading settings'));
+      await tester.pumpAndSettle();
+      final settingsTitle = find.text('Reading settings');
+      final titleStyle = tester.widget<Text>(settingsTitle).style;
+      final titlePosition = tester.getTopLeft(settingsTitle);
+      final closeBounds = tester.getRect(find.byTooltip('Close panel'));
+
+      Finder headerBorder(Finder title) => find
+          .ancestor(
+            of: title,
+            matching: find.byWidgetPredicate((widget) {
+              if (widget is! DecoratedBox || widget.decoration is! BoxDecoration) {
+                return false;
+              }
+
+              final border = (widget.decoration as BoxDecoration).border;
+              return border is Border && border.bottom.style == BorderStyle.solid;
+            }),
+          )
+          .first;
+
+      final headerBounds = tester.getRect(headerBorder(settingsTitle));
+      final headerDecoration = tester.widget<DecoratedBox>(headerBorder(settingsTitle)).decoration;
+      await tester.tap(find.byTooltip('Close panel'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byTooltip('Table of contents'));
+      await tester.pumpAndSettle();
+      final contentsTitle = find.text('Contents');
+      expect(tester.widget<Text>(contentsTitle).style, titleStyle);
+      expect(tester.getTopLeft(contentsTitle), titlePosition);
+      expect(tester.getRect(find.byTooltip('Close panel')), closeBounds);
+      expect(tester.getRect(headerBorder(contentsTitle)), headerBounds);
+      expect(tester.widget<DecoratedBox>(headerBorder(contentsTitle)).decoration, headerDecoration);
+      expect(find.text('Bookmarks'), findsOneWidget);
+      await tester.tap(find.byTooltip('Close panel'));
+      await tester.pumpAndSettle();
+      expect(find.text('Contents'), findsNothing);
+      expect(tester.takeException(), isNull);
+      await tester.pumpWidget(const SizedBox.shrink());
+    });
+  }
+
   test('saved EPUB titles follow the nearest preceding section, including selection starts', () {
     final store = DataStore(bookRepository: _Repository());
     addTearDown(store.dispose);
@@ -177,6 +260,7 @@ void main() {
                         controller: controller,
                         close: () {},
                         showHeader: width >= 720,
+                        buildHeader: (_, title) => Text(title),
                         navigate: (locator) => navigated = locator,
                         buildContents: (_) => const Center(child: Text('Third chapter')),
                       ),
@@ -337,6 +421,7 @@ void main() {
                 snapshot: snapshot,
                 controller: controller,
                 close: () {},
+                buildHeader: (_, title) => Text(title),
                 navigate: (locator) => navigated = locator,
                 buildContents: (_) => const SizedBox.shrink(),
               ),
@@ -489,4 +574,18 @@ void main() {
     expect(library.highlights, isEmpty);
     await tester.pumpWidget(const SizedBox.shrink());
   });
+}
+
+final class _PanelPdfFacade implements PdfFacade {
+  @override
+  int get pageCount => 3;
+
+  @override
+  List<PdfFacadeOutlineEntry> get outline => const [];
+
+  @override
+  Future<void> showPage(int pageIndex, double pageOffset) async {}
+
+  @override
+  Widget buildViewport(PdfViewportConfiguration configuration) => const SizedBox.expand();
 }

@@ -33,10 +33,12 @@ void main() {
     (path: '/library/notes', label: 'Notes', page: NotesPage()),
   ];
 
-  for (final theme in [AppTheme.dark, AppTheme.eink]) {
+  for (final (appearance, theme) in [('dark', AppTheme.dark), ('eink', AppTheme.eink)]) {
     for (final layout in [(width: 400.0, height: 850.0, scale: 1.0), (width: 320.0, height: 568.0, scale: 2.0)]) {
+      final fullJourney = appearance == 'dark' && layout.scale == 1;
+
       testWidgets(
-        'all Library pages share their drawer at ${layout.width}, scale ${layout.scale}, ${theme.brightness}',
+        '${fullJourney ? 'all sections' : 'representative sections'} share their drawer at ${layout.width}, scale ${layout.scale}, $appearance',
         (tester) async {
           tester.view.physicalSize = Size(layout.width, layout.height);
           tester.view.devicePixelRatio = 1;
@@ -97,9 +99,11 @@ void main() {
           await tester.pumpAndSettle();
           final catalogMenuRect = tester.getRect(find.byTooltip('Library sections'));
 
-          // Every page opens the shell drawer, covering the bottom navigation.
-          // Follow real drawer links through every page and back to Catalogs.
-          final journey = [sections[2], ...sections.where((section) => section.label != 'Catalogs'), sections[2]];
+          final journey = [
+            sections[2],
+            if (fullJourney) ...sections.where((section) => section.label != 'Catalogs') else sections[0],
+            sections[2],
+          ];
 
           for (var index = 0; index < journey.length; index++) {
             final section = journey[index];

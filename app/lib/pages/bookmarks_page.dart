@@ -90,19 +90,11 @@ class _BookmarksPageState extends State<BookmarksPage> {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: EdgeInsets.only(
-                top: Spacing.md,
-                left: libraryPageHorizontalPadding(context),
-                right: libraryPageHorizontalPadding(context),
-              ),
-              child: LibraryMobileToolbar(
-                onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
-                search: _buildSearchField(provider),
-                actions: [_buildSortButton(provider)],
-              ),
+            LibraryMobileToolbar(
+              onMenuPressed: () => openAppDrawer(context, _scaffoldKey.currentState),
+              search: _buildSearchField(provider),
+              actions: [_buildSortButton(provider)],
             ),
-            const SizedBox(height: Spacing.md),
 
             // Color filter chips
             if (provider.hasBookmarks) _buildColorFilterChips(provider),

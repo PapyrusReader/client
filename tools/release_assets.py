@@ -11,6 +11,8 @@ import tempfile
 from pathlib import Path
 
 from release_gate import parse
+from prepare_web_offline import prepare as prepare_web_offline
+from apt_repository import APT_FILES
 
 TAG = re.compile(r"v([0-9]+\.[0-9]+\.[0-9]+)\+([1-9][0-9]*)")
 
@@ -50,6 +52,14 @@ def seal(root: Path, tag: str, revision: str) -> dict:
     metadata = identity(tag, revision)
     files = names(tag)
 
+    apt_present = set(APT_FILES.values()) & {path.name for path in root.iterdir()}
+
+    if apt_present:
+        if apt_present != set(APT_FILES.values()):
+            raise ValueError("APT repository assets must be published together")
+
+        files.update(APT_FILES)
+
     if {path.name for path in root.iterdir()} != set(files.values()):
         raise ValueError("Release must contain exactly the expected assets")
 
@@ -72,6 +82,9 @@ def verify(root: Path, tag: str, revision: str) -> dict:
     # Published AAB-only releases stay retryable without modifying their assets.
     if "android_apk" not in metadata["assets"]:
         files.pop("android_apk")
+
+    if set(APT_FILES) & set(metadata["assets"]):
+        files.update(APT_FILES)
 
     if set(metadata["assets"]) != set(files):
         raise ValueError("Unexpected release assets")
@@ -172,6 +185,7 @@ def main() -> None:
 
     if args.command == "stamp-web":
         (args.root / "release.json").write_text(json.dumps(identity(args.tag, args.revision), indent=2) + "\n")
+        prepare_web_offline(args.root)
     elif args.command == "seal":
         instructions = Path(__file__).resolve().parents[1] / "docs/INSTALL.md"
         shutil.copyfile(instructions, args.root / names(args.tag)["instructions"])

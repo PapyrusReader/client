@@ -35,11 +35,7 @@ class ReaderLibraryPanel extends StatelessWidget {
 
         return Column(
           children: [
-            if (panel.showHeader)
-              ListTile(
-                title: const Text('Contents'),
-                trailing: IconButton(tooltip: 'Close contents', onPressed: panel.close, icon: const Icon(Icons.close)),
-              ),
+            if (panel.showHeader) panel.buildHeader!(context, 'Contents'),
             const TabBar(
               isScrollable: true,
               tabAlignment: TabAlignment.start,

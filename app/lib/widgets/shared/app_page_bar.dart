@@ -1,35 +1,61 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 
-double appMobileToolbarHeight(BuildContext context) {
-  final painter = TextPainter(
-    text: TextSpan(text: 'Search', style: Theme.of(context).textTheme.bodyLarge),
-    textDirection: Directionality.of(context),
-    textScaler: MediaQuery.textScalerOf(context),
-  )..layout();
+/// Mobile toolbar geometry shared by scaffold app bars and inline page headers.
+/// The containing page or scaffold owns the system safe-area inset.
+class AppPageToolbar extends StatelessWidget {
+  const AppPageToolbar({super.key, this.leading, this.content, this.actions = const []});
 
-  final searchHeight = painter.height + Spacing.sm * 2;
-  painter.dispose();
-  return Spacing.md * 2 + searchHeight.clamp(TouchTargets.mobileRecommended, double.infinity);
-}
+  final Widget? leading;
+  final Widget? content;
+  final List<Widget> actions;
 
-/// Leading control for a mobile header that already has page padding.
-class AppPageLeading extends StatelessWidget {
-  const AppPageLeading({super.key, required this.child});
+  static const padding = EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm);
 
-  final Widget child;
+  static double height(BuildContext context) {
+    final painter = TextPainter(
+      text: TextSpan(text: 'Search', style: Theme.of(context).textTheme.bodyLarge),
+      textDirection: Directionality.of(context),
+      textScaler: MediaQuery.textScalerOf(context),
+    )..layout();
+
+    final searchHeight = painter.height + Spacing.sm * 2;
+    painter.dispose();
+    return padding.vertical + searchHeight.clamp(TouchTargets.mobileRecommended, double.infinity);
+  }
 
   @override
-  Widget build(BuildContext context) => SizedBox(
-    width: TouchTargets.mobileRecommended,
-    height: appMobileToolbarHeight(context) - Spacing.md * 2,
-    child: Center(
-      child: SizedBox.square(dimension: TouchTargets.mobileRecommended, child: child),
+  Widget build(BuildContext context) => Padding(
+    padding: padding,
+    child: ConstrainedBox(
+      constraints: BoxConstraints(minHeight: height(context) - padding.vertical),
+      child: IconTheme.merge(
+        data: const IconThemeData(size: IconSizes.navigation),
+        child: Row(
+          children: [
+            if (leading != null) ...[
+              SizedBox.square(dimension: TouchTargets.mobileRecommended, child: leading),
+              const SizedBox(width: Spacing.sm),
+            ],
+            Expanded(child: content ?? const SizedBox.shrink()),
+            for (final action in actions) ...[
+              const SizedBox(width: Spacing.sm),
+              ConstrainedBox(
+                constraints: const BoxConstraints(
+                  minWidth: TouchTargets.mobileRecommended,
+                  minHeight: TouchTargets.mobileRecommended,
+                ),
+                child: action,
+              ),
+            ],
+          ],
+        ),
+      ),
     ),
   );
 }
 
-/// Matches the navigation position of a padded mobile search toolbar.
+/// Scaffold app bar using the same mobile toolbar as inline page headers.
 class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
   AppPageBar({
     super.key,
@@ -43,7 +69,7 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
     this.foregroundColor,
   }) : compact = MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall,
        toolbarHeight = MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall
-           ? appMobileToolbarHeight(context)
+           ? AppPageToolbar.height(context)
            : Theme.of(context).appBarTheme.toolbarHeight ?? kToolbarHeight;
 
   final double toolbarHeight;
@@ -80,23 +106,14 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
       backgroundColor: backgroundColor,
       foregroundColor: foregroundColor,
       toolbarHeight: toolbarHeight,
-      leadingWidth: compact ? Spacing.md + TouchTargets.mobileRecommended + Spacing.sm : null,
-      leading: compact && navigation != null
-          ? Padding(
-              padding: const EdgeInsets.only(left: Spacing.md, right: Spacing.sm),
-              child: Center(
-                child: SizedBox.square(dimension: TouchTargets.mobileRecommended, child: navigation),
-              ),
-            )
-          : navigation,
+      leading: compact ? null : navigation,
       iconTheme: compact
           ? IconThemeData(color: foregroundColor ?? Theme.of(context).colorScheme.onSurface, size: IconSizes.navigation)
           : null,
       centerTitle: compact ? false : null,
-      titleSpacing: compact ? (navigation == null ? Spacing.md : 0) : null,
-      title: title,
-      actions: actions,
-      actionsPadding: compact ? const EdgeInsets.only(right: Spacing.md) : null,
+      titleSpacing: compact ? 0 : null,
+      title: compact ? AppPageToolbar(leading: navigation, content: title, actions: actions) : title,
+      actions: compact ? null : actions,
     );
   }
 }

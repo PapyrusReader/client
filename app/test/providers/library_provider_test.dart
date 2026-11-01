@@ -36,6 +36,30 @@ void main() {
       expect(picker.isSelectionMode, isTrue);
     });
 
+    test('folder facets use a union within the category and intersect with other filters', () {
+      final store = createTestDataStore();
+      addTearDown(store.dispose);
+      final first = buildTestBook(id: 'first', author: 'Ada');
+      final second = buildTestBook(id: 'second', author: 'Ada');
+      final third = buildTestBook(id: 'third', author: 'Other');
+      final books = [first, second, third];
+      final memberships = {
+        'one': {'first', 'third'},
+        'two': {'first', 'second'},
+      };
+      provider.applyFilters(LibraryFilters(folderIds: {'one', 'two'}, authors: {'ada'}));
+      expect(provider.activeFilterCount, 2);
+      expect(
+        provider.filterBooks(books, dataStore: store, folderBookIds: memberships).map((book) => book.id),
+        ['first', 'second'],
+      );
+      expect(provider.filterBooks(books, dataStore: store), isEmpty);
+      provider.applyFilters(provider.filters.copyWith(folderIds: {'disconnected'}));
+      expect(provider.filterBooks(books, dataStore: store, folderBookIds: memberships), isEmpty);
+      provider.resetQuickFilters();
+      expect(provider.filterBooks(books, dataStore: store), books);
+    });
+
     group('initial state', () {
       test('uses the default view, sort, search, and filters', () {
         expect(provider.viewMode, LibraryViewMode.grid);

@@ -204,9 +204,10 @@ void main() {
     );
 
     await tester.pump();
-    final headerRow = find.ancestor(of: find.text('Online results'), matching: find.byType(Row));
-    expect(headerRow, findsOneWidget);
-    expect(find.descendant(of: headerRow, matching: find.byType(TextField)), findsOneWidget);
+    final title = tester.getRect(find.text('Online results'));
+    final search = tester.getRect(find.byType(TextField));
+    expect(title.right, lessThan(search.left));
+    expect(title.center.dy, search.center.dy);
     expect(tester.takeException(), isNull);
   });
 }

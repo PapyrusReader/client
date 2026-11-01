@@ -39,8 +39,8 @@ jobs:
       - name: Check platform dimensions, artwork and safe zones
         run: python tools/generate_icons.py --check
 
-  quality:
-    name: Code quality checks
+  tests:
+    name: Dart quality and coverage
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -76,6 +76,10 @@ jobs:
         run: |
           mkdir -p build/test-results
           flutter test --coverage --file-reporter json:build/test-results/tests.json
+
+      - name: Summarize test durations
+        if: ${{ !cancelled() && hashFiles('app/build/test-results/tests.json') != '' }}
+        run: python3 ../.github/scripts/summarize_test_timing.py build/test-results/tests.json >> "$GITHUB_STEP_SUMMARY"
 
       - name: Generate JUnit report
         if: ${{ !cancelled() && (steps.tests.outcome == 'success' || steps.tests.outcome == 'failure') }}
@@ -131,3 +135,50 @@ jobs:
           token: ${{ secrets.CODECOV_TOKEN }}
           fail_ci_if_error: true
           disable_search: true
+
+  browser:
+    name: Browser behavior checks
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - name: Check browser bootstrap and cover worker
+        run: node --test test/web/*.cjs
+
+      - name: Check browser cover transport and drag-and-drop
+        run: |
+          mkdir -p build/test-results
+          flutter test --platform chrome --file-reporter json:build/test-results/browser.json \
+            test/services/book_cover_storage_web_test.dart test/platform/book_import_drop_registration_web_test.dart
+
+      - name: Summarize browser test durations
+        if: ${{ !cancelled() && hashFiles('app/build/test-results/browser.json') != '' }}
+        run: python3 ../.github/scripts/summarize_test_timing.py build/test-results/browser.json >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save browser test results
+        if: ${{ !cancelled() && hashFiles('app/build/test-results/browser.json') != '' }}
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: client-browser-test-results-${{ github.run_attempt }}
+          path: app/build/test-results/browser.json
+          if-no-files-found: error
+          retention-days: 14
+
+  quality:
+    name: Code quality checks
+    if: ${{ always() }}
+    needs: [tests, browser]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require both test jobs
+        env:
+          TEST_RESULT: ${{ needs.tests.result }}
+          BROWSER_RESULT: ${{ needs.browser.result }}
+        run: test "$TEST_RESULT" = success && test "$BROWSER_RESULT" = success
