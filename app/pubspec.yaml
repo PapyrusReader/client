@@ -63,7 +63,6 @@ dev_dependencies:
 
   shared_preferences_platform_interface: ^2.4.1
 flutter:
-  default-flavor: play
   config:
     enable-swift-package-manager: false
 

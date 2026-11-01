@@ -28,16 +28,18 @@ Future<void> downloadUpdate(
     var received = 0;
     final total = response.contentLength;
 
-    await for (final bytes in response.stream.timeout(const Duration(seconds: 30))) {
-      received += bytes.length;
+    await sink.addStream(
+      response.stream.timeout(const Duration(seconds: 30)).map((bytes) {
+        received += bytes.length;
 
-      if (received > maximumBytes) {
-        throw const HttpException('Update exceeds download limit');
-      }
+        if (received > maximumBytes) {
+          throw const HttpException('Update exceeds download limit');
+        }
 
-      sink.add(bytes);
-      progress(total == null || total == 0 ? null : received / total);
-    }
+        progress(total == null || total == 0 ? null : received / total);
+        return bytes;
+      }),
+    );
 
     await sink.flush();
     await sink.close();
@@ -53,7 +55,11 @@ Future<void> downloadUpdate(
       throw const FormatException('Update checksum mismatch');
     }
   } catch (_) {
-    await sink?.close();
+    try {
+      await sink?.close();
+    } catch (_) {
+      // addStream can close the sink itself when the network stream fails.
+    }
 
     if (await destination.exists()) {
       await destination.delete();

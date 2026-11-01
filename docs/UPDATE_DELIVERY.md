@@ -23,7 +23,8 @@
 5. Publish an optional signed flat APT repository as GitHub release assets. Once
    configured, `.deb` users subscribe once and use their normal software updater.
 6. Web builds compare their compiled build number with the deployed `release.json`
-   and reload only when requested. Existing centrally deployed delivery is retained.
+   and activate the waiting offline worker before reloading when requested. Other
+open Papyrus tabs prevent activation until they are closed. Existing centrally deployed delivery is retained.
 
 ## Trust and release contract
 
@@ -37,8 +38,7 @@ is compromised. Windows Authenticode signing remains a separate future setup.
 Android additionally verifies the installed package identity and signing
 certificate before handing the APK to the OS installer.
 
-The Play AAB has no sideload-install permission. Build it with `--flavor play`
-(the default). Build the direct APK from the `--flavor direct` AAB. The release
+The Play AAB has no sideload-install permission. Build it with `--flavor play`. Build the direct APK from the `--flavor direct` AAB. The release
 workflow produces both from the same revision. Never redirect Play builds to the
 APK feed or switch keys to make an update install.
 

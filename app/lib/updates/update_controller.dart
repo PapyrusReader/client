@@ -21,6 +21,7 @@ class UpdateController extends ChangeNotifier {
   bool busy = false;
   bool available = false;
   bool staged = false;
+  bool viewingSettings = false;
   double? progress;
   String message = 'Check for a newer version of Papyrus.';
   Timer? _timer;
@@ -37,6 +38,11 @@ class UpdateController extends ChangeNotifier {
 
   bool get automatic => preferences.getBool('updates.automatic') ?? true;
   bool get external => channel == UpdateChannel.apt || channel == UpdateChannel.manual;
+
+  void setViewingSettings(bool value) {
+    viewingSettings = value;
+    _notify();
+  }
 
   void start() {
     if (kReleaseMode) {
@@ -128,7 +134,16 @@ class UpdateController extends ChangeNotifier {
     try {
       final asset = channel == UpdateChannel.play || channel == UpdateChannel.web ? null : release!.asset(_assetKey);
 
+      var previousPercent = -1;
+
       message = await installer(asset, (value) {
+        final percent = value == null ? 0 : (value * 100).floor();
+
+        if (percent == previousPercent) {
+          return;
+        }
+
+        previousPercent = percent;
         progress = value;
         message = value == null ? 'Downloading update…' : 'Downloading update: ${(value * 100).floor()}%';
         _notify();

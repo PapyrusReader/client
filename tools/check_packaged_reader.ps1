@@ -32,6 +32,10 @@ function Install-TestUpdate([string]$Version) {
     if (-not (Test-Path $Report)) { throw "Updater did not relaunch the reader. See $Download/update.log" }
     $Result = Get-Content -LiteralPath $Report -Raw | ConvertFrom-Json
     if ($Result.passed -ne $true) { throw 'Updater did not preserve the seeded library' }
+    $Relaunched = Get-Process papyrus -ErrorAction SilentlyContinue | Where-Object { $_.Path -eq (Join-Path $Directory 'papyrus.exe') }
+    foreach ($Process in $Relaunched) {
+        if (-not $Process.WaitForExit(30000)) { throw 'Relaunched reader did not finish its test' }
+    }
     Remove-Item Env:PAPYRUS_SMOKE_REPORT
 }
 
