@@ -17,12 +17,23 @@ function Install-TestUpdate([string]$Version) {
     $Installer = Join-Path $Download 'setup.exe'
     Copy-Item "dist/papyrus-$Version-windows-x64-setup.exe" $Installer
     $Checksum = (Get-FileHash -LiteralPath $Installer -Algorithm SHA256).Hash.ToLowerInvariant()
+    $Helper = (Resolve-Path 'assets/updates/install_windows.ps1').Path
+    $RejectedLog = Join-Path $Download 'update.log'
+    & powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File $Helper `
+        -ParentId ([int]::MaxValue) -Installer $Installer -Checksum ('0' * 64) -InstallDirectory $Directory
+
+    if ($LASTEXITCODE -ne 1 -or -not (Test-Path $Installer) -or
+        -not (Select-String -LiteralPath $RejectedLog -SimpleMatch 'Update checksum changed after download.')) {
+        throw 'Updater did not reject an invalid checksum before installation'
+    }
+
+    Copy-Item $RejectedLog (Join-Path $Reports 'windows-updater-rejected.log')
+    Remove-Item $RejectedLog
     $Report = Join-Path $PWD 'build/package-smoke-results/windows-updater.json'
     Remove-Item -LiteralPath $Report -ErrorAction SilentlyContinue
     $env:PAPYRUS_PERSISTENCE_PHASE = 'verify'
     $env:PAPYRUS_SMOKE_REPORT = $Report
     $Parent = Start-Process powershell.exe -ArgumentList @('-NoProfile', '-Command', 'Start-Sleep -Seconds 3') -PassThru
-    $Helper = (Resolve-Path 'assets/updates/install_windows.ps1').Path
     $Arguments = @('-NoProfile', '-NonInteractive', '-ExecutionPolicy', 'Bypass', '-File', "`"$Helper`"", '-ParentId', $Parent.Id,
         '-Installer', "`"$Installer`"", '-Checksum', $Checksum, '-InstallDirectory', "`"$Directory`"")
     $Updater = Start-Process powershell.exe -ArgumentList $Arguments -PassThru -NoNewWindow `
