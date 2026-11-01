@@ -185,9 +185,13 @@ void main() {
         expect(tester.getRect(toggle), toggleBounds);
         expect(find.text('16 files cannot be imported'), findsOneWidget);
         expect(find.text('—'), findsNothing);
-        expect(tester.widget<FilledButton>(import).onPressed, isNull);
+        expect(tester.widget<FilledButton>(import).onPressed, isNotNull);
+        expect(find.byType(LinearProgressIndicator), findsNothing);
       }
 
+      await tester.pump(const Duration(milliseconds: 200));
+      expect(tester.widget<FilledButton>(import).onPressed, isNull);
+      expect(find.byType(LinearProgressIndicator), findsOneWidget);
       scans.first.complete(FolderPreview()..supported = 999);
       await tester.pump();
       expect(find.text('999'), findsNothing);
@@ -204,6 +208,35 @@ void main() {
       expect(tester.getRect(name), nameBounds);
       expect(tester.getRect(toggle), toggleBounds);
       expect(tester.takeException(), isNull);
+
+      await tester.tap(toggle);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+      scans.last.complete(FolderPreview()..supported = 2);
+      await tester.pump();
+      expect(find.byType(LinearProgressIndicator), findsNothing);
+      expect(tester.widget<FilledButton>(import).onPressed, isNotNull);
+
+      await tester.tap(toggle);
+      await tester.pump();
+      await tester.tap(import);
+      await tester.pump();
+      expect(folders.connections, 0, reason: 'Import waits for the latest preview.');
+      scans.last.completeError(const FolderAccessException('access', 'Folder access denied'));
+      await tester.pumpAndSettle();
+      expect(folders.connections, 0);
+      expect(find.text('Folder access denied'), findsOneWidget);
+      expect(tester.widget<FilledButton>(import).onPressed, isNull);
+
+      await tester.tap(toggle);
+      await tester.pump();
+      await tester.tap(import);
+      await tester.pump();
+      expect(folders.connections, 0);
+      scans.last.complete(FolderPreview()..supported = 3);
+      await tester.pumpAndSettle();
+      expect(folders.connections, 1);
+      expect(find.byType(ConnectFolderSheet), findsNothing);
     });
   }
 

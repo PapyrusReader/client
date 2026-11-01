@@ -173,28 +173,60 @@ class _FolderDetailsSheetState extends State<FolderDetailsSheet> {
                 color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.3),
                 shape: theme.cardTheme.shape ?? const RoundedRectangleBorder(),
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Wrap(
-                    spacing: Spacing.md,
-                    runSpacing: Spacing.xs,
-                    crossAxisAlignment: WrapCrossAlignment.center,
+              child: LayoutBuilder(
+                builder: (context, constraints) {
+                  final status = Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      FolderStatusLabel(folder: folder, shelfMissing: shelfMissing),
-                      if (recovery != null)
-                        TextButton(
-                          onPressed: enabled ? () => _action(recovery.$2) : null,
-                          child: Text(recovery.$1),
+                      FolderStatusLabel(
+                        folder: folder,
+                        shelfMissing: shelfMissing,
+                        reserveHeight: recovery == null,
+                      ),
+                      if (folder.error != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: Spacing.sm),
+                          child: Text(folder.error!, style: secondary),
                         ),
                     ],
-                  ),
-                  if (folder.error != null)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: Spacing.sm),
-                      child: Text(folder.error!, style: secondary),
+                  );
+
+                  if (recovery == null) {
+                    return status;
+                  }
+
+                  final action = FilledButton(
+                    style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, TouchTargets.mobileRecommended),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: Spacing.buttonPaddingHorizontal,
+                        vertical: Spacing.sm,
+                      ),
                     ),
-                ],
+                    onPressed: enabled ? () => _action(recovery.$2) : null,
+                    child: Text(recovery.$1, textAlign: TextAlign.center),
+                  );
+
+                  if (constraints.maxWidth < MediaQuery.textScalerOf(context).scale(280)) {
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        status,
+                        const SizedBox(height: Spacing.sm),
+                        Align(alignment: Alignment.centerRight, child: action),
+                      ],
+                    );
+                  }
+
+                  return Row(
+                    children: [
+                      Expanded(child: status),
+                      const SizedBox(width: Spacing.md),
+                      action,
+                    ],
+                  );
+                },
               ),
             ),
             FolderProgressBar(folder: folder),
@@ -221,20 +253,36 @@ class _FolderDetailsSheetState extends State<FolderDetailsSheet> {
             const SizedBox(height: Spacing.md),
             const Divider(height: 1),
             const SizedBox(height: Spacing.md),
-            Wrap(
-              spacing: Spacing.xl,
-              runSpacing: Spacing.sm,
-              children: [
-                _FolderProperty(
-                  label: 'Destination shelf',
-                  value: shelfMissing ? 'Unavailable' : shelf?.name ?? 'No shelf',
-                ),
-                _FolderProperty(label: 'Subfolders', value: folder.recursive ? 'Included' : 'Excluded'),
-                _FolderProperty(
-                  label: 'Last successful check',
-                  value: folderLastChecked(folder, includeLabel: false),
-                ),
-              ],
+            LayoutBuilder(
+              builder: (context, constraints) {
+                final singleRow = constraints.maxWidth >= MediaQuery.textScalerOf(context).scale(280);
+                final width = singleRow ? (constraints.maxWidth - Spacing.sm * 2) / 3 : constraints.maxWidth;
+
+                return Wrap(
+                  spacing: Spacing.sm,
+                  runSpacing: Spacing.sm,
+                  children: [
+                    SizedBox(
+                      width: width,
+                      child: _FolderProperty(
+                        label: 'Shelf',
+                        value: shelfMissing ? 'Unavailable' : shelf?.name ?? 'No shelf',
+                      ),
+                    ),
+                    SizedBox(
+                      width: width,
+                      child: _FolderProperty(label: 'Subfolders', value: folder.recursive ? 'Included' : 'Excluded'),
+                    ),
+                    SizedBox(
+                      width: width,
+                      child: _FolderProperty(
+                        label: 'Last checked',
+                        value: folderLastChecked(folder, includeLabel: false),
+                      ),
+                    ),
+                  ],
+                );
+              },
             ),
             if (!guest && pending > 0) ...[
               const SizedBox(height: Spacing.sm),
@@ -267,19 +315,14 @@ class _FolderProperty extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    return IntrinsicWidth(
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: Spacing.sm),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
-            const SizedBox(height: Spacing.xs),
-            SelectableText(value, style: theme.textTheme.bodyMedium),
-          ],
-        ),
-      ),
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(label, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+        const SizedBox(height: Spacing.xs),
+        SelectableText(value, style: theme.textTheme.bodyMedium),
+      ],
     );
   }
 }

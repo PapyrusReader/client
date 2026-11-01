@@ -103,22 +103,12 @@ class _WatchedFoldersPageState extends State<WatchedFoldersPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (desktop)
-              Padding(
-                padding: EdgeInsets.fromLTRB(padding, Spacing.lg, padding, Spacing.md),
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(minHeight: TouchTargets.desktopRecommended),
-                  child: LibraryToolbar(
-                    search: Text('Folders', style: Theme.of(context).textTheme.headlineSmall),
-                    actions: [if (!empty) LibraryAddButton(label: label, onPressed: onConnect)],
-                  ),
-                ),
-              )
-            else
-              LibraryMobileToolbar(
-                search: Text('Folders', style: Theme.of(context).textTheme.titleLarge),
-                onMenuPressed: () => openAppDrawer(context, Scaffold.maybeOf(context)),
-              ),
+            LibraryCollectionHeader(
+              title: 'Folders',
+              onMenuPressed: () => openAppDrawer(context, Scaffold.maybeOf(context)),
+              actions: [if (desktop && !empty) LibraryAddButton(label: label, onPressed: onConnect)],
+            ),
+            if (desktop) const SizedBox(height: Spacing.md),
             if (error != null)
               Padding(
                 padding: EdgeInsets.symmetric(horizontal: padding, vertical: Spacing.sm),

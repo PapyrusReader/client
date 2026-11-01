@@ -106,7 +106,7 @@ class _FolderColumns extends StatelessWidget {
       Expanded(flex: 2, child: shelf),
       const SizedBox(width: Spacing.md),
       SizedBox(width: 136, child: checked),
-      SizedBox(width: 128, child: action),
+      SizedBox(width: MediaQuery.textScalerOf(context).scale(160), child: action),
     ],
   );
 }
@@ -145,7 +145,12 @@ class _FolderRow extends StatelessWidget {
       _ => null,
     };
     final identity = FolderIdentity(folder: folder, titleStyle: theme.textTheme.titleMedium);
-    final status = FolderStatusLabel(folder: folder, shelfMissing: shelfMissing);
+    final status = FolderStatusLabel(
+      folder: folder,
+      shelfMissing: shelfMissing,
+      alignment: wide ? Alignment.centerLeft : Alignment.topLeft,
+      reserveHeight: wide,
+    );
     final books = Text(
       '$count',
       style: theme.textTheme.bodyMedium,
@@ -160,20 +165,13 @@ class _FolderRow extends StatelessWidget {
       height: actionHeight,
       child: action == null
           ? null
-          : TextButton(
+          : FilledButton(
               onPressed: busy ? null : () => onAction(action.$2),
-              style: TextButton.styleFrom(
+              style: FilledButton.styleFrom(
                 minimumSize: const Size(0, TouchTargets.mobileRecommended),
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
+                padding: EdgeInsets.symmetric(horizontal: wide ? Spacing.buttonPaddingHorizontal : Spacing.sm),
               ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Flexible(child: Text(action.$1, maxLines: 2, overflow: TextOverflow.ellipsis)),
-                  const SizedBox(width: Spacing.xs),
-                  const Icon(Icons.chevron_right, size: IconSizes.small),
-                ],
-              ),
+              child: Text(action.$1, maxLines: 2, overflow: TextOverflow.ellipsis, textAlign: TextAlign.center),
             ),
     );
 
@@ -206,7 +204,13 @@ class _FolderRow extends StatelessWidget {
                   : Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        identity,
+                        Row(
+                          children: [
+                            Expanded(child: identity),
+                            const SizedBox(width: Spacing.sm),
+                            SizedBox(width: 128, child: actionButton),
+                          ],
+                        ),
                         const SizedBox(height: Spacing.md),
                         _FolderSummary(
                           status: status,
@@ -214,7 +218,6 @@ class _FolderRow extends StatelessWidget {
                           shelf: Text(shelfName),
                           checked: Text(folderLastChecked(folder, includeLabel: false)),
                         ),
-                        Align(alignment: Alignment.centerRight, child: actionButton),
                       ],
                     ),
             ),
@@ -245,8 +248,6 @@ class _FolderSummary extends StatelessWidget {
         _ => 1,
       };
       final fields = [('Status', status), ('Books', books), ('Destination shelf', shelf), ('Last checked', checked)];
-      final valueHeight =
-          textScale.scale(theme.textTheme.bodyMedium!.fontSize!) * (theme.textTheme.bodyMedium!.height ?? 1.4) * 2;
 
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -268,18 +269,11 @@ class _FolderSummary extends StatelessWidget {
                           style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                         ),
                         const SizedBox(height: Spacing.xs),
-                        SizedBox(
-                          height: valueHeight,
-                          child: Align(
-                            alignment: Alignment.centerLeft,
-                            heightFactor: 1,
-                            child: DefaultTextStyle(
-                              style: theme.textTheme.bodyMedium!,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              child: fields[index].$2,
-                            ),
-                          ),
+                        DefaultTextStyle(
+                          style: theme.textTheme.bodyMedium!,
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                          child: fields[index].$2,
                         ),
                       ],
                     ),

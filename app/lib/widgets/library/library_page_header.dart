@@ -6,6 +6,42 @@ import 'package:papyrus/widgets/shared/app_page_bar.dart';
 double libraryPageHorizontalPadding(BuildContext context) =>
     MediaQuery.sizeOf(context).width >= Breakpoints.desktopSmall ? Spacing.lg : AppPageToolbar.padding.left;
 
+/// Shared title placement for top-level Library collection pages.
+class LibraryCollectionHeader extends StatelessWidget {
+  const LibraryCollectionHeader({super.key, required this.title, required this.onMenuPressed, this.actions = const []});
+
+  final String title;
+  final VoidCallback onMenuPressed;
+  final List<Widget> actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final mobile = MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
+    final textTheme = Theme.of(context).textTheme;
+    final heading = Text(
+      title,
+      style: mobile ? textTheme.titleLarge : textTheme.headlineSmall,
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    if (mobile) {
+      return LibraryMobileToolbar(search: heading, onMenuPressed: onMenuPressed, actions: actions);
+    }
+
+    return Padding(
+      padding: const EdgeInsets.only(top: Spacing.lg, left: Spacing.lg, right: Spacing.lg),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: kMinInteractiveDimension),
+        child: LibraryToolbar(
+          search: Align(alignment: Alignment.centerLeft, heightFactor: 1, child: heading),
+          actions: actions,
+        ),
+      ),
+    );
+  }
+}
+
 /// Page identity and contextual actions for nested Library routes.
 class LibraryPageHeader extends StatelessWidget {
   const LibraryPageHeader({
