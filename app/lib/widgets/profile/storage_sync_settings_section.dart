@@ -537,18 +537,20 @@ class StorageSyncSettingsSection extends StatelessWidget {
       final database = context.read<PapyrusPowerSyncService>();
       await folders?.suspend();
 
-      await database.clearGuestLibrary(
-        deleteFiles: (books) async {
-          for (final book in books) {
-            await files.deleteBookFile(book.id);
-          }
+      try {
+        await database.clearGuestLibrary(
+          deleteFiles: (books) async {
+            for (final book in books) {
+              await files.deleteBookFile(book.id);
+            }
 
-          await files.clearCoverFiles(MediaStorageScope.localGuest);
-          await folders?.clear();
-        },
-      );
-
-      folders?.resume();
+            await files.clearCoverFiles(MediaStorageScope.localGuest);
+            await folders?.clear();
+          },
+        );
+      } finally {
+        folders?.resume();
+      }
 
       messenger.showSnackBar(
         snackBarAnimationStyle: snackBarAnimationStyle,
