@@ -69,6 +69,7 @@ flutter:
   uses-material-design: true
 
   assets:
+    - assets/updates/install_windows.ps1
     - assets/images/google_logo.png
     - assets/images/logo.png
     - assets/images/logo-icon-light.svg

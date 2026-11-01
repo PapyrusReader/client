@@ -9,13 +9,14 @@ const source = readFileSync(join(__dirname, '../../web/papyrus_service_worker.js
 const origin = 'https://papyrus.test';
 const scope = `${origin}/reader/`;
 
-function worker({failAsset = false} = {}) {
+function worker({failAsset = false, windows = 1} = {}) {
   const handlers = {};
   const stores = new Map([['unrelated-cache', new Map()], ['papyrus-offline-old', new Map()]]);
   const requests = [];
   let offline = false;
+  let activated = false;
   const key = request => new URL(typeof request === 'string' ? request : request.href || request.url, scope).href;
-  const manifest = {revision: 'test', assets: ['index.html', 'main.dart.js', 'book_worker.js', 'canvaskit/canvaskit.wasm']};
+  const manifest = {revision: 'test', assets: ['index.html', 'main.dart.js', 'book_worker.js', 'canvaskit/canvaskit.wasm', 'release.json']};
   const fetch = async request => {
     requests.push(key(request));
     if (offline) throw new Error('Offline');
@@ -44,12 +45,21 @@ function worker({failAsset = false} = {}) {
       async delete(name) { return stores.delete(name); },
     },
     self: {
-      registration: {scope}, location: {origin}, clients: {async claim() {}},
+      registration: {scope}, location: {origin}, clients: {async claim() {}, async matchAll() { return Array(windows).fill({}); }},
+      async skipWaiting() { activated = true; },
       addEventListener(name, handler) { handlers[name] = handler; },
     },
   });
   return {
     stores, requests,
+    activated: () => activated,
+    async activateUpdate() {
+      let operation;
+      let response;
+      handlers.message({data: 'activate-update', ports: [{postMessage(value) { response = value; }}], waitUntil(value) { operation = value; }});
+      await operation;
+      return response;
+    },
     offline() { offline = true; },
     lifecycle(name) {
       let operation;
@@ -93,4 +103,20 @@ test('failed preparation removes the partial cache and leaves the existing relea
   await assert.rejects(runtime.lifecycle('install'), /Download interrupted/);
   assert.ok(!runtime.stores.has('papyrus-offline-test'));
   assert.ok(runtime.stores.has('papyrus-offline-old'));
+});
+
+test('release checks bypass cached release metadata', async () => {
+  const runtime = worker();
+  await runtime.lifecycle('install');
+  assert.equal(runtime.fetch(scope + 'release.json?check=123'), undefined);
+});
+
+test('only explicit activation from a sole tab skips waiting', async () => {
+  const single = worker();
+  assert.equal(single.activated(), false);
+  await single.activateUpdate();
+  assert.equal(single.activated(), true);
+  const multiple = worker({windows: 2});
+  assert.equal(await multiple.activateUpdate(), 'other-tabs');
+  assert.equal(multiple.activated(), false);
 });

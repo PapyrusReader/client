@@ -37,6 +37,18 @@ self.addEventListener('install', event => {
   })());
 });
 
+self.addEventListener('message', event => {
+  if (event.data !== 'activate-update') return;
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({type: 'window', includeUncontrolled: true});
+    if (windows.length > 1) {
+      event.ports[0]?.postMessage('other-tabs');
+      return;
+    }
+    await self.skipWaiting();
+  })());
+});
+
 self.addEventListener('activate', event => {
   event.waitUntil((async () => {
     await metadata();
@@ -51,6 +63,7 @@ self.addEventListener('fetch', event => {
   const request = event.request;
   const url = new URL(request.url);
   if (request.method !== 'GET' || url.origin !== self.location.origin) return;
+  if (url.pathname === new URL('release.json', self.registration.scope).pathname) return;
   // Never cache authenticated endpoints or user media.
   if (url.pathname.includes('/v1/') || url.pathname.includes('/api/')) return;
   event.respondWith((async () => {

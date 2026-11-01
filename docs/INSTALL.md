@@ -9,11 +9,14 @@ or compare the selected file's hash with its entry in `SHA256SUMS`.
 
 Download `papyrus-vVERSION+BUILD-android-universal.apk` for direct installation.
 Open it on your Android device and allow installation from that browser or file
-manager when prompted. Install subsequent APKs over the existing app to retain
-your library and settings.
+manager when prompted. Use About → App updates for subsequent releases. Android may ask you to allow
+Papyrus to install updates. Updates retain your library and settings. Older
+builds need one manual APK upgrade to acquire the updater.
 
 Google Play internal testers can instead use the Play opt-in link. The AAB is
-for Play publishing. Use the APK when installing a downloaded file.
+for Play publishing. Play-installed builds receive Play updates, including while
+in internal testing. Enable auto-update in Play or use About → App updates.
+Use the APK when installing a downloaded file.
 
 Direct APKs use Papyrus's upload signing key. Google Play uses its app signing
 key, so Android may reject switching between the two installation sources.
@@ -30,7 +33,9 @@ storage, offline libraries and accounts are not cleared by deployment.
 
 Download `papyrus-vVERSION+BUILD-windows-x64-setup.exe` and run it as your normal
 user. It installs under your user profile, adds a Start menu shortcut and can
-upgrade an existing installation. Close Papyrus before upgrading.
+upgrade an existing installation. For future releases, use About → App updates. Once downloaded, close Papyrus
+normally to install the update and reopen the app. Older builds need one manual
+upgrade to acquire the updater.
 Setup offers an optional desktop shortcut, unchecked on a fresh installation.
 
 The installer is unsigned: Windows may show an unknown-publisher/SmartScreen
@@ -86,7 +91,9 @@ If FUSE is unavailable, extract and run it:
 ./squashfs-root/AppRun
 ```
 
-Replace the AppImage to upgrade. The `.tar.gz` bundle remains available for manual
+Use About → App updates to download and verify a new AppImage. The image must
+be writable. Close and reopen Papyrus to use the update. Older builds need one
+manual replacement to acquire the updater. The `.tar.gz` bundle remains available for manual
 installation with the same system-library requirements as the `.deb`.
 
 Ubuntu 24.04 and Debian 13 are the AppImage validation targets. Only releases whose
@@ -102,3 +109,22 @@ pattern with that exact path; extracted launches must enter the same named profi
 with `aa-exec -p PROFILE -- /path/to/squashfs-root/AppRun`. Native CI validates this
 explicit namespace prerequisite, rather than claiming compatibility with Ubuntu's
 unmodified default policy.
+
+## Subscribe to Linux package updates
+
+This is available after the first release containing `InRelease` and
+`papyrus-archive-keyring.gpg`. Download the key from that release and compare its
+fingerprint with the maintainer's published `APT_SIGNING_FINGERPRINT` before
+installing it. Then run:
+
+```sh
+sudo install -m 644 papyrus-archive-keyring.gpg /usr/share/keyrings/papyrus-archive-keyring.gpg
+printf '%s\n' 'deb [arch=amd64 signed-by=/usr/share/keyrings/papyrus-archive-keyring.gpg] https://github.com/PapyrusReader/client/releases/latest/download/ ./' | sudo tee /etc/apt/sources.list.d/papyrus.list
+sudo apt update
+sudo apt install papyrus
+```
+
+Future versions appear in your system's package updater. Automatic installation
+depends on your system's settings for third-party repositories. If a new release
+appears between refreshing the index and installing, run `sudo apt update` again.
+Do not use `trusted=yes` or disable signature verification.

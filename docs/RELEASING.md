@@ -102,7 +102,7 @@ an actionable message; they cannot silently use the debug certificate.
 3. Configure the public API, PowerSync, SMTP and Google OAuth settings using the
    server deployment runbook. Check the endpoints from outside your local network.
 4. Merge the initial `0.0.1+1` version change (or dispatch Release on `master`), download the
-   `android-release` artifact, and upload `app-release.aab` to internal testing.
+   `android-release` artifact, and upload the `*-android-universal.aab` to internal testing.
    The local validation bundle uses a temporary certificate and placeholder
    URLs and must **never** be submitted to Play.
 5. Add testers and share Play's opt-in link. Install through Play on real devices
@@ -110,7 +110,7 @@ an actionable message; they cannot silently use the debug certificate.
    media upload/download, sync/reconnect and reader resume.
 6. Check Play's native-library/page-size diagnostics. ELF alignment checks do not
    replace APK packaging or actual Android 16 KB emulator/device tests. Use
-   `bundletool dump config --bundle=app-release.aab` to verify
+   `bundletool dump config --bundle=app-play-release.aab` to verify
    `PAGE_ALIGNMENT_16K`, and test an APK generated from the bundle.
 
 After GitHub publication, the delivery workflow automatically sends the signed
@@ -160,7 +160,9 @@ Windows uses an unsigned, per-user Inno Setup installer. Visual C++ runtimes are
 included, and Microsoft's Authenticode-verified offline WebView2 installer runs
 only when needed. Test a clean Windows x64 machine both with and without WebView2,
 then upgrade and uninstall while retaining a real library. No trusted signing
-service, Microsoft Store submission or automatic desktop updater is configured.
+service or Microsoft Store submission is configured. Installed Windows and
+AppImage builds include integrated update delivery. See [update delivery](UPDATE_DELIVERY.md)
+for the plan, APT signing configuration and native acceptance checks.
 
 The Windows packaging workflow also runs on app changes and supports manual
 dispatch. It saves a `windows-preview-RUN_ID` artifact of the production entrypoint
