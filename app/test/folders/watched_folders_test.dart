@@ -455,6 +455,28 @@ void main() {
     expect(target.books, hasLength(1));
   });
 
+  for (final clockCatchesUp in [false, true]) {
+    test('future-dated changes stay eligible when the clock catches up: $clockCatchesUp', () async {
+      access.put('book.epub', [1]);
+      final folder = await connect();
+      final original = target.books.single;
+      access.put('book.epub', [2]);
+      access.reportedModified = DateTime.now().add(const Duration(seconds: 10)).millisecondsSinceEpoch;
+      await folders.scanNow(folder.id);
+      expect(await folders.issues(folder.id), isEmpty);
+      expect(access.reads, 1);
+
+      if (clockCatchesUp) {
+        clockOffset = const Duration(seconds: 20);
+      }
+
+      await folders.scanNow(folder.id);
+      expect((await folders.issues(folder.id)).single['state'], 'changed');
+      expect(target.books.single, same(original));
+      expect(access.reads, 2);
+    });
+  }
+
   for (final condition in ['recent', 'missing timestamp', 'future timestamp', 'changed during read']) {
     test('one-time selections finish files deferred for $condition before pausing', () async {
       await folders.activate(null);
