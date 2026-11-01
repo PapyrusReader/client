@@ -22,6 +22,7 @@ Future<void> showUpdateSettings(BuildContext context, UpdateController controlle
         listenable: controller,
         builder: (context, child) => AlertDialog(
           title: const Text('App updates'),
+          contentPadding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.lg, Spacing.sm),
           content: SizedBox(
             width: 420,
             child: SingleChildScrollView(
@@ -29,20 +30,8 @@ Future<void> showUpdateSettings(BuildContext context, UpdateController controlle
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Stack(
-                    children: [
-                      // Reserve the wrapped error height so checking and retrying do not move the dialog.
-                      const Visibility(
-                        visible: false,
-                        maintainSize: true,
-                        maintainAnimation: true,
-                        maintainState: true,
-                        child: Text(UpdateController.checkFailureMessage),
-                      ),
-                      Text(controller.message),
-                    ],
-                  ),
-                  const SizedBox(height: Spacing.md),
+                  Text(controller.message),
+                  const SizedBox(height: Spacing.sm),
                   Theme(
                     data: Theme.of(context).copyWith(
                       splashFactory: NoSplash.splashFactory,
@@ -95,7 +84,12 @@ Future<void> showUpdateSettings(BuildContext context, UpdateController controlle
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
             TextButton(
               onPressed: controller.busy || controller.staged ? null : controller.check,
-              child: const Text('Check now'),
+              key: const ValueKey('check-updates'),
+              child: IndexedStack(
+                index: controller.checking ? 1 : 0,
+                alignment: Alignment.center,
+                children: const [Text('Check now'), Text('Checking…')],
+              ),
             ),
             if (controller.available && !controller.external && !controller.staged)
               FilledButton(

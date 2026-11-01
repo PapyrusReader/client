@@ -27,7 +27,7 @@ void main() {
       );
 
       addTearDown(updates.dispose);
-      const status = 'Could not check for updates. Check your connection and try again.';
+      const status = UpdateController.checkFailureMessage;
       updates.message = status;
       final boundaryKey = GlobalKey();
 
@@ -110,21 +110,33 @@ void main() {
 
       await tester.tap(find.text('Open updates'));
       await tester.pumpAndSettle();
-      final dialog = tester.getRect(find.byType(AlertDialog));
-      final toggle = tester.getRect(find.byType(Switch));
-      final check = tester.getRect(find.widgetWithText(TextButton, 'Check now'));
+      final checkButton = find.byKey(const ValueKey('check-updates'));
+      var dialog = tester.getRect(find.byType(AlertDialog));
+      var toggle = tester.getRect(find.byType(Switch));
+      var check = tester.getRect(checkButton);
 
       void expectStableLayout() {
         expect(tester.getRect(find.byType(AlertDialog)), dialog);
         expect(tester.getRect(find.byType(Switch)), toggle);
-        expect(tester.getRect(find.widgetWithText(TextButton, 'Check now')), check);
+        expect(tester.getRect(checkButton), check);
         expect(tester.takeException(), isNull);
       }
 
       for (final fails in [true, false]) {
+        final message = updates.message;
+        dialog = tester.getRect(find.byType(AlertDialog));
+        toggle = tester.getRect(find.byType(Switch));
+        check = tester.getRect(checkButton);
+        final statusBottom = tester.getBottomLeft(find.text(message)).dy;
+        final toggleTop = tester
+            .getTopLeft(find.ancestor(of: find.byType(Switch), matching: find.byType(Theme)).first)
+            .dy;
+        expect(toggleTop - statusBottom, 8);
         await tester.tap(find.text('Check now'));
         await tester.pump();
-        expect(find.text('Checking for updates…'), findsOneWidget);
+        expect(find.text('Checking…'), findsOneWidget);
+        expect(find.text(message), findsOneWidget);
+        expect(tester.widget<TextButton>(checkButton).onPressed, isNull);
         expectStableLayout();
         await tester.pump(const Duration(milliseconds: 200));
         expectStableLayout();
@@ -140,7 +152,9 @@ void main() {
           find.text(fails ? UpdateController.checkFailureMessage : 'Papyrus is up to date.').hitTestable(),
           findsOneWidget,
         );
-        expectStableLayout();
+        expect(find.text('Check now'), findsOneWidget);
+        expect(tester.widget<TextButton>(checkButton).onPressed, isNotNull);
+        expect(tester.takeException(), isNull);
         result = Completer<int?>();
       }
     });

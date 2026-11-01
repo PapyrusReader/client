@@ -10,7 +10,7 @@ import 'package:papyrus/updates/update_release.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class UpdateController extends ChangeNotifier {
-  static const checkFailureMessage = 'Could not check for updates. Check your connection and try again.';
+  static const checkFailureMessage = 'Could not check for updates. Try again.';
 
   final SharedPreferences preferences;
   final Future<PackageInfo> Function() appInfo;
@@ -21,6 +21,7 @@ class UpdateController extends ChangeNotifier {
   UpdateChannel? channel;
   UpdateRelease? release;
   bool busy = false;
+  bool checking = false;
   bool available = false;
   bool staged = false;
   bool viewingSettings = false;
@@ -76,7 +77,7 @@ class UpdateController extends ChangeNotifier {
     }
 
     busy = true;
-    message = 'Checking for updates…';
+    checking = true;
     _notify();
 
     try {
@@ -109,6 +110,7 @@ class UpdateController extends ChangeNotifier {
       release = null;
       message = checkFailureMessage;
     } finally {
+      checking = false;
       busy = false;
       _notify();
     }
