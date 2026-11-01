@@ -812,8 +812,13 @@ class WatchedFolders extends ChangeNotifier with WidgetsBindingObserver {
 
     final needsObservation = file.modified == 0 || file.modified > now;
 
-    if (needsObservation && (previous?['stamp'] != file.stamp || previous?['seen'] == null)) {
-      await repository.save('files', recordId, {...?previous, 'stamp': file.stamp, 'seen': now}, folderId: folder.id);
+    if (needsObservation && (previous?['observedStamp'] != file.stamp || previous?['seen'] == null)) {
+      await repository.save('files', recordId, {
+        ...?previous,
+        'observedStamp': file.stamp,
+        'seen': now,
+      }, folderId: folder.id);
+
       return _FileResult.deferred;
     }
 

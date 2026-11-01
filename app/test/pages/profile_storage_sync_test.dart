@@ -11,6 +11,7 @@ import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
+import 'package:papyrus/folders/watched_folders.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/services/book_import_service_stub.dart'
@@ -129,6 +130,29 @@ class _Files extends BookImportService {
   }
 }
 
+class _Folders extends ChangeNotifier implements WatchedFolders {
+  bool suspended = false;
+  int clearCalls = 0;
+
+  @override
+  Future<void> suspend() async {
+    suspended = true;
+  }
+
+  @override
+  void resume() {
+    suspended = false;
+  }
+
+  @override
+  Future<void> clear() async {
+    clearCalls++;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({});
@@ -162,6 +186,7 @@ void main() {
     AcquisitionAvailabilityProvider? acquisitionAvailabilityProvider,
     Widget Function(Widget page)? pageBuilder,
     BookImportService? files,
+    WatchedFolders? folders,
   }) async {
     final prefs = await SharedPreferences.getInstance();
 
@@ -179,6 +204,7 @@ void main() {
         ),
         Provider<PapyrusPowerSyncService>.value(value: powerSyncService),
         if (files != null) Provider<BookImportService>.value(value: files),
+        if (folders != null) ChangeNotifierProvider<WatchedFolders>.value(value: folders),
         StreamProvider<SyncState>.value(value: powerSyncService.syncStates, initialData: powerSyncService.syncState),
         ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
         ChangeNotifierProvider<AcquisitionAvailabilityProvider>.value(
@@ -210,6 +236,8 @@ void main() {
     final auth = await buildAuthProvider(guest: true);
     final service = _FakePowerSyncService(currentMode: LibraryDatabaseMode.guest, currentSyncState: const SyncState());
     final files = _Files()..failDeletion = true;
+    final folders = _Folders();
+    addTearDown(folders.dispose);
     service.guestBooks = [Book(id: 'guest-book', title: 'Guest book', author: 'Reader', addedAt: DateTime.now())];
 
     await tester.pumpWidget(
@@ -217,6 +245,7 @@ void main() {
         authProvider: auth,
         powerSyncService: service,
         files: files,
+        folders: folders,
         pageBuilder: (_) => const Scaffold(body: StorageSyncSettingsSection()),
       ),
     );
@@ -229,6 +258,8 @@ void main() {
     expect(find.textContaining('Could not clear local library'), findsOneWidget);
     expect(service.guestBooks.single.id, 'guest-book');
     expect(service.clearGuestLibraryCalls, 0);
+    expect(folders.suspended, isFalse);
+    expect(folders.clearCalls, 0);
     files.failDeletion = false;
     await tester.tap(find.text('Clear local library'));
     await tester.pumpAndSettle();
@@ -238,6 +269,8 @@ void main() {
     expect(files.clearedScopes, [MediaStorageScope.localGuest]);
     expect(service.guestBooks, isEmpty);
     expect(service.clearGuestLibraryCalls, 1);
+    expect(folders.suspended, isFalse);
+    expect(folders.clearCalls, 1);
     expect(auth.isOfflineMode, isTrue);
   });
 
