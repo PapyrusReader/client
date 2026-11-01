@@ -455,6 +455,63 @@ void main() {
     expect(target.books, hasLength(1));
   });
 
+  for (final condition in ['recent', 'missing timestamp', 'future timestamp', 'changed during read']) {
+    test('one-time selections finish files deferred for $condition before pausing', () async {
+      await folders.activate(null);
+      folders.dispose();
+      var now = DateTime.now();
+      folders = WatchedFolders(
+        access: access,
+        captureTarget: () => target,
+        libraryReady: () => ready,
+        now: () => now,
+        pollInterval: const Duration(days: 1),
+        openRepository: (scope) => FolderRepository.open(scope, databasePath: '${temporary.path}/$scope.db'),
+      );
+      await folders.activate('guest');
+      await folders.waitUntilIdle();
+      access.put('book.epub', [1]);
+
+      switch (condition) {
+        case 'recent':
+          access.reportedModified = now.millisecondsSinceEpoch;
+        case 'missing timestamp':
+          access.reportedModified = 0;
+        case 'future timestamp':
+          access.reportedModified = now.add(const Duration(days: 1)).millisecondsSinceEpoch;
+        case 'changed during read':
+          access.afterRead = () {
+            access.afterRead = null;
+            access.put('book.epub', [2]);
+          };
+      }
+
+      const selection = FolderGrant(
+        key: 'selection',
+        identity: 'selection',
+        name: 'Books',
+        location: 'Books',
+        persistent: false,
+      );
+      await folders.connect(selection);
+      await folders.waitUntilIdle();
+      final folder = folders.folders.single;
+      expect(target.books, isEmpty);
+      expect(folder.enabled, isTrue, reason: 'Deferred files must remain eligible for automatic scans');
+      now = now.add(const Duration(seconds: 3));
+      folders.schedule();
+      await folders.waitUntilIdle();
+      expect(target.books, hasLength(1));
+      expect(target.copies.values.single, condition == 'changed during read' ? [2] : [1]);
+      expect(folder.enabled, isFalse);
+      expect(folder.status, FolderStatus.paused);
+      access.put('later.pdf', [3]);
+      folders.schedule();
+      await folders.waitUntilIdle();
+      expect(target.books, hasLength(1), reason: 'Completed one-time selections must not watch later additions');
+    });
+  }
+
   test('failed grant replacement retains the saved connection', () async {
     final folder = await connect();
     repository.rejectReplacement = true;

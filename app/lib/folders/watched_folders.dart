@@ -12,6 +12,8 @@ import 'package:uuid/uuid.dart';
 
 class _ScanCancelled implements Exception {}
 
+enum _FileResult { processed, deferred }
+
 class _FolderWork {
   _FolderWork(this.recordId, {this.job});
 
@@ -685,6 +687,8 @@ class WatchedFolders extends ChangeNotifier with WidgetsBindingObserver {
         _notify();
       }
 
+      var hasDeferredFiles = false;
+
       for (final item in work.values) {
         _check(target, folder, generation);
 
@@ -698,7 +702,11 @@ class WatchedFolders extends ChangeNotifier with WidgetsBindingObserver {
           final previous = await repository.get('files', item.recordId);
 
           try {
-            await _consider(repository, folder, target, generation, file, item.recordId, previous);
+            final result = await _consider(repository, folder, target, generation, file, item.recordId, previous);
+
+            if (result == _FileResult.deferred) {
+              hasDeferredFiles = true;
+            }
           } on _ScanCancelled {
             rethrow;
           } catch (failure) {
@@ -732,7 +740,7 @@ class WatchedFolders extends ChangeNotifier with WidgetsBindingObserver {
           ? FolderStatus.attention
           : FolderStatus.upToDate;
       folder.lastScan = DateTime.now();
-      if (!folder.grant.persistent) {
+      if (!folder.grant.persistent && !hasDeferredFiles) {
         folder.enabled = false;
         folder.status = FolderStatus.paused;
         folder.error = 'Select this folder again to import later additions.';
@@ -756,7 +764,7 @@ class WatchedFolders extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  Future<void> _consider(
+  Future<_FileResult> _consider(
     FolderRepository repository,
     WatchedFolder folder,
     FolderImportTarget target,
@@ -788,29 +796,29 @@ class WatchedFolders extends ChangeNotifier with WidgetsBindingObserver {
       await repository.save('files', recordId, {...previous!, 'state': 'excluded'}, folderId: folder.id);
 
       if (previous['stamp'] == file.stamp) {
-        return;
+        return _FileResult.processed;
       }
     }
 
     if (_unchanged(file, previous)) {
-      return;
+      return _FileResult.processed;
     }
 
-    final now = DateTime.now().millisecondsSinceEpoch;
+    final now = _now().millisecondsSinceEpoch;
 
     if (file.modified > 0 && file.modified <= now && now - file.modified < stabilityDelay.inMilliseconds) {
-      return;
+      return _FileResult.deferred;
     }
 
     final needsObservation = file.modified == 0 || file.modified > now;
 
     if (needsObservation && (previous?['stamp'] != file.stamp || previous?['seen'] == null)) {
       await repository.save('files', recordId, {...?previous, 'stamp': file.stamp, 'seen': now}, folderId: folder.id);
-      return;
+      return _FileResult.deferred;
     }
 
     if (needsObservation && now - (previous!['seen'] as int) < stabilityDelay.inMilliseconds) {
-      return;
+      return _FileResult.deferred;
     }
 
     final start = await access.stat(folder.grant, file);
@@ -819,7 +827,7 @@ class WatchedFolders extends ChangeNotifier with WidgetsBindingObserver {
     _check(target, folder, generation);
 
     if (start.stamp != end.stamp || (end.size >= 0 && bytes.length != end.size)) {
-      return;
+      return _FileResult.deferred;
     }
 
     final hash = await fingerprint(bytes);
@@ -839,12 +847,12 @@ class WatchedFolders extends ChangeNotifier with WidgetsBindingObserver {
         'state': 'excluded',
         'bookId': previousId,
       }, folderId: folder.id);
-      return;
+      return _FileResult.processed;
     }
 
     if (!requested && previousHash == hash && const ['done', 'ignored', 'changed'].contains(previous?['state'])) {
       await repository.save('files', recordId, {...previous!, ...record}, folderId: folder.id);
-      return;
+      return _FileResult.processed;
     }
 
     if (!requested && previouslyCommitted && previousId != null && previousHash != null && previousHash != hash) {
@@ -854,7 +862,7 @@ class WatchedFolders extends ChangeNotifier with WidgetsBindingObserver {
         'bookId': previousId,
         'previousHash': previousHash,
       }, folderId: folder.id);
-      return;
+      return _FileResult.processed;
     }
 
     final knownId = _knownHashes[hash];
@@ -870,7 +878,7 @@ class WatchedFolders extends ChangeNotifier with WidgetsBindingObserver {
       }, folderId: folder.id);
       (_bookIds[folder.id] ??= {}).add(existing.id);
       folder.duplicates++;
-      return;
+      return _FileResult.processed;
     }
 
     final jobId = recordId;
@@ -897,6 +905,7 @@ class WatchedFolders extends ChangeNotifier with WidgetsBindingObserver {
     _knownHashes[hash] = job['bookId'] as String;
     _pendingHashes[hash] = job['bookId'] as String;
     await _recover(repository, folder, target, generation, job, bytes: bytes);
+    return _FileResult.processed;
   }
 
   Future<void> _recover(
