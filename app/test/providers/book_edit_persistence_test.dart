@@ -39,6 +39,29 @@ void main() {
     await directory.delete(recursive: true);
   });
 
+  test('genre edits persist, can be cleared, and preserve other custom metadata', () async {
+    final original = await service.getById('book');
+    await service.scopedBooks.update(
+      original!.copyWith(customMetadata: {'source': 'imported', 'genre': 'Fiction'}),
+      previous: original,
+    );
+
+    await editor.loadBook('book');
+    editor.updateGenre('  Science fiction  ');
+    expect(await editor.save(), isTrue);
+    await service.activateAuthenticated('other-account');
+    await service.activateGuest();
+    final saved = await service.getById('book');
+    expect(saved?.genre, 'Science fiction');
+    expect(saved?.customMetadata?['source'], 'imported');
+    await editor.loadBook('book');
+    editor.updateGenre('   ');
+    expect(await editor.save(), isTrue);
+    final cleared = await service.getById('book');
+    expect(cleared?.genre, isNull);
+    expect(cleared?.customMetadata, {'source': 'imported'});
+  });
+
   test('saving a stale editor preserves an unrelated remote field', () async {
     final original = editor.originalBook!;
     editor.updateTitle('Edited title');

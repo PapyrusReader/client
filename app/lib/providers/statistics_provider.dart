@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:intl/intl.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/daily_activity.dart';
 import 'package:papyrus/models/genre_stats.dart';
@@ -10,6 +11,42 @@ import 'package:papyrus/goals/goal_progress.dart';
 
 /// Time period for statistics filtering.
 enum StatsPeriod { week, month, year, allTime, custom }
+
+enum StatisticsBucketSize { day, month, year }
+
+/// A chart interval with exact values and explicit calendar boundaries.
+class StatisticsActivity extends DailyActivity {
+  StatisticsActivity({
+    required super.date,
+    required this.endDate,
+    required this.seconds,
+    required this.pages,
+    required this.bucketSize,
+    required super.booksRead,
+  }) : super(readingMinutes: seconds ~/ 60, pagesRead: pages.floor());
+
+  final DateTime endDate;
+  final int seconds;
+  final double pages;
+  final StatisticsBucketSize bucketSize;
+
+  double get minutes => seconds / 60;
+
+  String get intervalLabel => switch (bucketSize) {
+    StatisticsBucketSize.day => DateFormat.yMMMd().format(date),
+    StatisticsBucketSize.month => DateFormat.yMMM().format(date),
+    StatisticsBucketSize.year => DateFormat.y().format(date),
+  };
+
+  String get axisLabel => switch (bucketSize) {
+    StatisticsBucketSize.day => DateFormat.MMMd().format(date),
+    StatisticsBucketSize.month => DateFormat('MMM yy').format(date),
+    StatisticsBucketSize.year => DateFormat.y().format(date),
+  };
+
+  @override
+  String get readingTimeLabel => seconds > 0 && seconds < 60 ? '${seconds}s' : super.readingTimeLabel;
+}
 
 /// Monthly reading statistics.
 class MonthlyStats {
@@ -57,17 +94,29 @@ class SessionStats {
   final int totalSessions;
   final int totalMinutes;
   final int totalPages;
+  final int totalSeconds;
 
-  const SessionStats({required this.totalSessions, required this.totalMinutes, required this.totalPages});
+  const SessionStats({
+    required this.totalSessions,
+    required this.totalMinutes,
+    required this.totalPages,
+    int? totalSeconds,
+  }) : totalSeconds = totalSeconds ?? totalMinutes * 60;
 
   /// Average session duration in minutes.
-  double get averageSessionDuration => totalSessions > 0 ? totalMinutes / totalSessions : 0;
+  double get averageSessionDuration => totalSessions > 0 ? totalSeconds / 60 / totalSessions : 0;
 
   /// Reading velocity (pages per hour).
   double get pagesPerHour => totalMinutes > 0 ? (totalPages / totalMinutes) * 60 : 0;
 
   /// Formatted average session duration.
   String get averageSessionLabel {
+    final seconds = (averageSessionDuration * 60).round();
+
+    if (seconds > 0 && seconds < 60) {
+      return '${seconds}s';
+    }
+
     final avg = averageSessionDuration.round();
 
     if (avg < 60) {
@@ -91,6 +140,10 @@ class SessionStats {
 /// Provider for statistics page state management.
 /// Uses DataStore as the single source of truth.
 class StatisticsProvider extends ChangeNotifier {
+  StatisticsProvider({DateTime Function()? now}) : _now = now ?? DateTime.now;
+
+  final DateTime Function() _now;
+  GoalProgress? _periodTotals;
   DataStore? _dataStore;
 
   // Loading state
@@ -105,8 +158,8 @@ class StatisticsProvider extends ChangeNotifier {
   DateTime? _customEndDate;
 
   // Chart data
-  List<DailyActivity> _readingTimeData = [];
-  List<DailyActivity> _pagesReadData = [];
+  List<StatisticsActivity> _readingTimeData = [];
+  List<StatisticsActivity> _pagesReadData = [];
   List<MonthlyStats> _monthlyStats = [];
   List<GenreStats> _genreDistribution = [];
   ReadingStreak _streak = ReadingStreak.empty;
@@ -183,7 +236,7 @@ class StatisticsProvider extends ChangeNotifier {
     }
 
     final range = _getDateRangeForPeriod();
-    final now = DateTime.now().toUtc();
+    final now = _now().toUtc();
     final periods = <String, ReadingGoal>{};
 
     for (final record in _dataStore!.goalPeriods) {
@@ -210,24 +263,50 @@ class StatisticsProvider extends ChangeNotifier {
         .length;
   }
 
-  /// Total reading minutes in the selected period.
-  int get totalReadingMinutes {
-    if (_dataStore == null) {
-      return 0;
-    }
+  int get totalReadingSeconds => _periodTotals?.seconds ?? 0;
+  int get totalReadingMinutes => totalReadingSeconds ~/ 60;
+  int get pagesRead => (_periodTotals?.pages ?? 0).floor();
+  bool get hasEstimatedPages => _periodTotals?.estimated ?? false;
 
+  /// Uses the same five-minute qualification as reading-day goals and streaks.
+  int get daysRead => _periodTotals?.days ?? 0;
+
+  Set<String> get _readBookIds {
     final range = _getDateRangeForPeriod();
-    return _dataStore!.activityTotals(range.start, range.end).seconds ~/ 60;
+    return {
+      for (final activity in _periodTotals?.activities ?? <ReadingActivity>[])
+        if (activity.kind == 'reading') activity.bookId,
+      ..._completedBooks(range.start, range.end),
+    };
   }
 
-  /// Pages read in the selected period.
-  int get pagesRead {
-    if (_dataStore == null) {
-      return 0;
+  int get booksRead => _readBookIds.length;
+
+  int get periodDays {
+    final range = _getDateRangeForPeriod();
+    return DateTime.utc(
+      range.end.year,
+      range.end.month,
+      range.end.day,
+    ).difference(DateTime.utc(range.start.year, range.start.month, range.start.day)).inDays.clamp(1, 1000000);
+  }
+
+  String get activityIntervalLabel => switch (bucketSize) {
+    StatisticsBucketSize.day => 'Daily totals',
+    StatisticsBucketSize.month => 'Monthly totals',
+    StatisticsBucketSize.year => 'Yearly totals',
+  };
+
+  StatisticsBucketSize get bucketSize {
+    if (_selectedPeriod == StatsPeriod.year) {
+      return StatisticsBucketSize.month;
     }
 
-    final range = _getDateRangeForPeriod();
-    return _dataStore!.activityTotals(range.start, range.end).pages.floor();
+    if (periodDays <= 60) {
+      return StatisticsBucketSize.day;
+    }
+
+    return periodDays <= 366 * 5 ? StatisticsBucketSize.month : StatisticsBucketSize.year;
   }
 
   /// Session statistics for the selected period.
@@ -247,17 +326,26 @@ class StatisticsProvider extends ChangeNotifier {
       ),
     );
 
-    return SessionStats(totalSessions: sessions.length, totalMinutes: totalReadingMinutes, totalPages: pagesRead);
+    return SessionStats(
+      totalSessions: sessions.length,
+      totalMinutes: totalReadingMinutes,
+      totalPages: pagesRead,
+      totalSeconds: totalReadingSeconds,
+    );
   }
 
-  List<DailyActivity> get readingTimeData => _readingTimeData;
-  List<DailyActivity> get pagesReadData => _pagesReadData;
+  List<StatisticsActivity> get readingTimeData => _readingTimeData;
+  List<StatisticsActivity> get pagesReadData => _pagesReadData;
   List<MonthlyStats> get monthlyStats => _monthlyStats;
   List<GenreStats> get genreDistribution => _genreDistribution;
   ReadingStreak get streak => _streak;
 
   /// Total reading time formatted (e.g., "3.5h").
   String get totalReadingLabel {
+    if (totalReadingSeconds > 0 && totalReadingSeconds < 60) {
+      return '${totalReadingSeconds}s';
+    }
+
     final hours = totalReadingMinutes / 60;
 
     if (hours < 1) {
@@ -271,30 +359,19 @@ class StatisticsProvider extends ChangeNotifier {
     return '${hours.toStringAsFixed(1)}h';
   }
 
-  /// Average reading time per day for the period.
+  /// Includes every calendar day in the selected period, including today.
   String get averageReadingLabel {
-    if (_readingTimeData.isEmpty) {
-      return '0m';
+    final seconds = (totalReadingSeconds / periodDays).round();
+
+    if (seconds > 0 && seconds < 60) {
+      return '${seconds}s';
     }
 
-    final avgMinutes = _readingTimeData.averageMinutes;
-
-    if (avgMinutes < 60) {
-      return '${avgMinutes}m';
-    }
-
-    final hours = avgMinutes / 60;
-    return '${hours.toStringAsFixed(1)}h';
+    final minutes = (seconds / 60).round();
+    return minutes < 60 ? '${minutes}m' : '${(minutes / 60).toStringAsFixed(1)}h';
   }
 
-  /// Average daily reading time in minutes.
-  int get averageDailyMinutes {
-    if (_readingTimeData.isEmpty) {
-      return 0;
-    }
-
-    return _readingTimeData.averageMinutes;
-  }
+  int get averageDailyMinutes => (totalReadingSeconds / 60 / periodDays).round();
 
   /// Period label for display.
   String get periodLabel {
@@ -342,8 +419,6 @@ class StatisticsProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      // Simulate network delay for realistic UX
-      await Future.delayed(const Duration(milliseconds: 100));
       _updateDataForPeriod();
       _isLoading = false;
       notifyListeners();
@@ -384,7 +459,7 @@ class StatisticsProvider extends ChangeNotifier {
   }
 
   ({DateTime start, DateTime end}) _getDateRangeForPeriod() {
-    final now = DateTime.now();
+    final now = _now();
 
     switch (_selectedPeriod) {
       case StatsPeriod.week:
@@ -398,11 +473,23 @@ class StatisticsProvider extends ChangeNotifier {
       case StatsPeriod.year:
         return (start: DateTime(now.year, 1, 1), end: DateTime(now.year, now.month, now.day + 1));
       case StatsPeriod.allTime:
-        return (start: DateTime(2000), end: DateTime(now.year, now.month, now.day + 1));
+        final trackedBooks = {
+          for (final activity in _dataStore?.readingActivities ?? <ReadingActivity>[])
+            if (activity.kind == 'completion') activity.bookId,
+        };
+
+        final dates = <DateTime>[
+          for (final activity in _dataStore?.effectiveReadingActivities ?? <ReadingActivity>[])
+            activity.startTime.toLocal(),
+          for (final book in _dataStore?.books ?? [])
+            if (book.completedAt != null && !trackedBooks.contains(book.id)) book.completedAt!.toLocal(),
+        ].where((date) => !date.isAfter(now)).toList()..sort();
+        final first = dates.isEmpty ? now : dates.first;
+        return (start: DateTime(first.year, first.month, first.day), end: DateTime(now.year, now.month, now.day + 1));
       case StatsPeriod.custom:
         if (_customStartDate != null && _customEndDate != null) {
           return (
-            start: _customStartDate!,
+            start: DateTime(_customStartDate!.year, _customStartDate!.month, _customStartDate!.day),
             end: DateTime(_customEndDate!.year, _customEndDate!.month, _customEndDate!.day + 1),
           );
         }
@@ -410,16 +497,28 @@ class StatisticsProvider extends ChangeNotifier {
     }
   }
 
+  ({DateTime start, DateTime end}) _getChartDateRange() {
+    final range = _getDateRangeForPeriod();
+    final start = range.start;
+    final end = switch (_selectedPeriod) {
+      StatsPeriod.week => DateTime(start.year, start.month, start.day + 7),
+      StatsPeriod.month => DateTime(start.year, start.month + 1),
+      StatsPeriod.year => DateTime(start.year + 1),
+      StatsPeriod.allTime || StatsPeriod.custom => range.end,
+    };
+
+    return (start: start, end: end);
+  }
+
   void _updateDataForPeriod() {
-    final books = _dataStore?.books ?? [];
+    final range = _getDateRangeForPeriod();
+    _periodTotals = _dataStore?.activityTotals(range.start, range.end);
+    final readBookIds = _readBookIds;
     final genres = <String, int>{};
 
-    for (final book in books) {
-      final genre = book.customMetadata?['genre'];
-
-      if (genre is String && genre.trim().isNotEmpty) {
-        genres.update(genre.trim(), (n) => n + 1, ifAbsent: () => 1);
-      }
+    for (final bookId in readBookIds) {
+      final genre = _dataStore?.getBook(bookId)?.genre ?? 'Unspecified';
+      genres.update(genre, (count) => count + 1, ifAbsent: () => 1);
     }
 
     final count = genres.values.fold<int>(0, (total, value) => total + value);
@@ -428,7 +527,7 @@ class StatisticsProvider extends ChangeNotifier {
         .map((entry) => GenreStats(genre: entry.key, bookCount: entry.value, percentage: entry.value / count))
         .toList();
 
-    final now = DateTime.now();
+    final now = _now();
     final qualified = _dataStore?.activityTotals(DateTime.utc(1900), now.toUtc()).qualifiedDays.toList() ?? [];
     qualified.sort();
     var best = 0;
@@ -476,45 +575,71 @@ class StatisticsProvider extends ChangeNotifier {
     _pagesReadData = _readingTimeData;
   }
 
-  List<DailyActivity> _generateActivityData() {
-    if (_dataStore == null) {
+  List<StatisticsActivity> _generateActivityData() {
+    final store = _dataStore;
+
+    if (store == null) {
       return [];
     }
 
-    final range = _getDateRangeForPeriod();
-    final end = DateTime(range.end.year, range.end.month, range.end.day);
-    final count = end.difference(range.start).inDays.clamp(1, 60);
-    final first = DateTime(end.year, end.month, end.day - count);
+    final range = _getChartDateRange();
+    final elapsedEnd = _getDateRangeForPeriod().end;
+    final size = bucketSize;
+    final activities = <StatisticsActivity>[];
+    var cursor = range.start;
 
-    return List.generate(count, (i) {
-      final day = DateTime(first.year, first.month, first.day + i);
-      final totals = _dataStore!.activityTotals(day, DateTime(day.year, day.month, day.day + 1));
+    while (cursor.isBefore(range.end)) {
+      final boundary = switch (size) {
+        StatisticsBucketSize.day => DateTime(cursor.year, cursor.month, cursor.day + 1),
+        StatisticsBucketSize.month => DateTime(cursor.year, cursor.month + 1),
+        StatisticsBucketSize.year => DateTime(cursor.year + 1),
+      };
 
-      return DailyActivity(
-        date: day,
-        readingMinutes: totals.seconds ~/ 60,
-        pagesRead: totals.pages.floor(),
-        booksRead: _completedBooks(day, DateTime(day.year, day.month, day.day + 1)).toList(),
+      final end = boundary.isAfter(range.end) ? range.end : boundary;
+      final dataEnd = end.isAfter(elapsedEnd) ? elapsedEnd : end;
+      final totals = cursor.isBefore(dataEnd) ? store.activityTotals(cursor, dataEnd) : null;
+
+      activities.add(
+        StatisticsActivity(
+          date: cursor,
+          endDate: end,
+          seconds: totals?.seconds ?? 0,
+          pages: totals?.pages ?? 0,
+          bucketSize: size,
+          booksRead: cursor.isBefore(dataEnd) ? _completedBooks(cursor, dataEnd).toList() : const [],
+        ),
       );
-    });
+
+      cursor = end;
+    }
+
+    return activities;
   }
 
   List<MonthlyStats> _generateMonthlyStats() {
-    final now = DateTime.now();
+    final range = _getDateRangeForPeriod();
+    final months = <MonthlyStats>[];
+    var cursor = range.start;
 
-    return List.generate(12, (i) {
-      final start = DateTime(now.year, now.month - i);
-      final end = DateTime(start.year, start.month + 1);
-      final totals = _dataStore?.activityTotals(start, end);
+    while (cursor.isBefore(range.end)) {
+      final boundary = DateTime(cursor.year, cursor.month + 1);
+      final end = boundary.isAfter(range.end) ? range.end : boundary;
+      final totals = _dataStore?.activityTotals(cursor, end);
 
-      return MonthlyStats(
-        month: start.month,
-        year: start.year,
-        booksRead: _completedBooks(start, end).length,
-        pagesRead: totals?.pages.floor() ?? 0,
-        readingMinutes: (totals?.seconds ?? 0) ~/ 60,
+      months.add(
+        MonthlyStats(
+          month: cursor.month,
+          year: cursor.year,
+          booksRead: _completedBooks(cursor, end).length,
+          pagesRead: totals?.pages.floor() ?? 0,
+          readingMinutes: (totals?.seconds ?? 0) ~/ 60,
+        ),
       );
-    }).reversed.toList();
+
+      cursor = end;
+    }
+
+    return months;
   }
 
   String _formatShortDate(DateTime date) {

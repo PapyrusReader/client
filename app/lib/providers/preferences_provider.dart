@@ -16,6 +16,7 @@ class PreferencesProvider extends ChangeNotifier {
 
   // Theme
   static const _keyThemeMode = 'theme_mode';
+  static const _keyPageAlignment = 'page_alignment';
 
   // Reading
   static const _keyDefaultFont = 'default_font';
@@ -83,6 +84,20 @@ class PreferencesProvider extends ChangeNotifier {
 
   set themeModePref(String value) {
     _prefs.setString(_keyThemeMode, value);
+    notifyListeners();
+  }
+
+  /// Page content alignment. Currently applied only by Statistics.
+  String get pageAlignment => _prefs.get(_keyPageAlignment) == 'center' ? 'center' : 'left';
+
+  set pageAlignment(String value) {
+    final alignment = value == 'center' ? 'center' : 'left';
+
+    if (pageAlignment == alignment) {
+      return;
+    }
+
+    _prefs.setString(_keyPageAlignment, alignment);
     notifyListeners();
   }
 

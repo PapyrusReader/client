@@ -33,6 +33,11 @@ void main() {
 
   final activity = ReadingActivity(
     id: 'reading',
+    source: 'reader',
+    coverage: const [
+      PageCoverage(key: 'book:epub:0:100:1000', start: 0, end: 1, pagesPerUnit: 1),
+      PageCoverage(key: 'book:epub:0:300:500:1000', start: 0, end: 1, pagesPerUnit: 1),
+    ],
     startPosition: 0.25,
     endPosition: 0.35,
     deviceType: 'android',

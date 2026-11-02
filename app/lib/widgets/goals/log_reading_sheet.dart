@@ -421,7 +421,7 @@ class ReadingActivityTile extends StatelessWidget {
       false => [
         if (activity.seconds > 0) activity.seconds < 60 ? '${activity.seconds} sec' : '${activity.seconds ~/ 60} min',
         if (activity.pages > 0) '${activity.pages} pages',
-        if (activity.coverage.isNotEmpty) activity.isEstimated ? 'Estimated pages' : 'PDF pages',
+        if (activity.coverage.isNotEmpty) activity.isEstimated ? 'Estimated pages' : 'Reader pages',
       ].join(' · '),
     };
 
@@ -581,7 +581,7 @@ class _ActivityDetailsState extends State<_ActivityDetails> {
     final parts = [
       if (activity.seconds > 0) _duration(activity.seconds),
       if (activity.pages > 0) '${activity.pages} ${activity.pages == 1 ? 'page' : 'pages'}',
-      if (activity.coverage.isNotEmpty) activity.isEstimated ? 'Estimated EPUB pages' : 'PDF pages',
+      if (activity.coverage.isNotEmpty) activity.isEstimated ? 'Estimated EPUB pages' : 'Reader pages',
     ];
 
     return parts.isEmpty ? 'No reading time or pages recorded.' : parts.join(' · ');

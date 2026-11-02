@@ -52,6 +52,7 @@ class _BookEditPageState extends State<BookEditPage> {
   // Text controllers
   final _titleController = TextEditingController();
   final _subtitleController = TextEditingController();
+  final _genreController = TextEditingController();
   final _authorController = TextEditingController();
   final _publisherController = TextEditingController();
   final _languageController = TextEditingController();
@@ -95,6 +96,7 @@ class _BookEditPageState extends State<BookEditPage> {
 
     _titleController.text = book.title;
     _subtitleController.text = book.subtitle ?? '';
+    _genreController.text = book.genre ?? '';
     _authorController.text = book.author;
     _publisherController.text = book.publisher ?? '';
     _languageController.text = book.language ?? '';
@@ -126,6 +128,7 @@ class _BookEditPageState extends State<BookEditPage> {
   void dispose() {
     _titleController.dispose();
     _subtitleController.dispose();
+    _genreController.dispose();
     _authorController.dispose();
     _publisherController.dispose();
     _languageController.dispose();
@@ -358,6 +361,8 @@ class _BookEditPageState extends State<BookEditPage> {
         BookTextField(controller: _titleController, label: 'Title', required: true, onChanged: _provider.updateTitle),
         const SizedBox(height: Spacing.md),
         BookTextField(controller: _subtitleController, label: 'Subtitle', onChanged: _provider.updateSubtitle),
+        const SizedBox(height: Spacing.md),
+        BookTextField(controller: _genreController, label: 'Genre', onChanged: _provider.updateGenre),
         const SizedBox(height: Spacing.md),
         BookTextField(
           controller: _descriptionController,
@@ -766,6 +771,7 @@ class _BookEditPageState extends State<BookEditPage> {
     if (book != null) {
       _titleController.text = book.title;
       _subtitleController.text = book.subtitle ?? '';
+      _genreController.text = book.genre ?? '';
       _authorController.text = book.author;
       _publisherController.text = book.publisher ?? '';
       _languageController.text = book.language ?? '';

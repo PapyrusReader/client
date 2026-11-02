@@ -171,6 +171,7 @@ class CompactStatCard extends StatelessWidget {
 class StatSectionCard extends StatelessWidget {
   /// The section title.
   final String title;
+  final String? subtitle;
 
   /// Optional action widget (e.g., button).
   final Widget? action;
@@ -181,28 +182,56 @@ class StatSectionCard extends StatelessWidget {
   /// Whether to use desktop styling.
   final bool isDesktop;
 
-  const StatSectionCard({super.key, required this.title, this.action, required this.child, this.isDesktop = false});
+  const StatSectionCard({
+    super.key,
+    required this.title,
+    this.action,
+    this.subtitle,
+    required this.child,
+    this.isDesktop = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
+    final shape = Theme.of(context).cardTheme.shape;
+
     return Container(
       padding: EdgeInsets.all(isDesktop ? Spacing.lg : Spacing.md),
-      decoration: BoxDecoration(
+      decoration: ShapeDecoration(
         color: colorScheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(AppRadius.xl),
-        border: Border.all(color: colorScheme.outlineVariant, width: BorderWidths.thin),
+        shape: (shape is OutlinedBorder ? shape : const RoundedRectangleBorder()).copyWith(
+          side: BorderSide(color: colorScheme.outlineVariant, width: BorderWidths.thin),
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              Text(title, style: textTheme.titleMedium),
-              ?action,
+              Expanded(
+                flex: 1,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(title, style: textTheme.titleMedium),
+                    if (subtitle != null) ...[
+                      const SizedBox(height: Spacing.xs),
+                      Text(subtitle!, style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant)),
+                    ],
+                  ],
+                ),
+              ),
+              if (action != null) ...[
+                const SizedBox(width: Spacing.sm),
+                Expanded(
+                  flex: 1,
+                  child: Align(alignment: AlignmentDirectional.centerEnd, child: action!),
+                ),
+              ],
             ],
           ),
           const SizedBox(height: Spacing.md),

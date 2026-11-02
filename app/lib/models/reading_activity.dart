@@ -1,6 +1,6 @@
 import 'package:papyrus/models/reading_session.dart';
 
-/// Stable document coverage, independent of the current screen's pagination.
+/// Coverage of an identified reader page, deduplicated across checkpoints.
 class PageCoverage {
   const PageCoverage({
     required this.key,

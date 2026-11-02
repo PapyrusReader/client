@@ -37,7 +37,7 @@ class ReadingActivityTracker {
   bool _foreground = true;
   bool _disposed = false;
   DateTime? _started;
-  DateTime? _exposedSince;
+  final Map<String, DateTime> _exposedSince = {};
   String _coverageKey = '';
   final List<ReadingActivity> _pending = [];
   Map<String, dynamic>? _pendingPatch;
@@ -59,16 +59,12 @@ class ReadingActivityTracker {
     _event = event;
     _coverageKey = key;
 
-    if (changed) {
-      _exposedSince = null;
-    }
-
     if (!_active) {
       _started = null;
-      _exposedSince = null;
+      _exposedSince.clear();
     } else {
       _started ??= now;
-      _exposedSince ??= now;
+      _updateExposures(now);
     }
 
     if (event.locator != null) {
@@ -77,6 +73,18 @@ class ReadingActivityTracker {
 
     if (changed || wasActive != _active) {
       unawaited(_drain());
+    }
+  }
+
+  String _exposureKey(ReaderContentCoverage extent) =>
+      extent.chapterCount == null ? extent.key : jsonEncode([extent.key, extent.start, extent.end]);
+
+  void _updateExposures(DateTime now) {
+    final keys = _event!.coverage.map(_exposureKey).toSet();
+    _exposedSince.removeWhere((key, _) => !keys.contains(key));
+
+    for (final key in keys) {
+      _exposedSince.putIfAbsent(key, () => now);
     }
   }
 
@@ -98,7 +106,12 @@ class ReadingActivityTracker {
     _capture(_now().toUtc());
     _foreground = foreground;
     _started = _active ? _now().toUtc() : null;
-    _exposedSince = _started;
+    _exposedSince.clear();
+
+    if (_active) {
+      _updateExposures(_started!);
+    }
+
     unawaited(_drain());
   }
 
@@ -127,29 +140,29 @@ class ReadingActivityTracker {
 
     final coverage = <PageCoverage>[];
 
-    if (_exposedSince != null && now.difference(_exposedSince!) >= exposureThreshold) {
-      for (final extent in _event!.coverage) {
-        if (extent.end <= extent.start) {
-          continue;
-        }
+    for (final extent in _event!.coverage) {
+      final exposedSince = _exposedSince[_exposureKey(extent)];
 
-        final chapterCount = extent.chapterCount;
-        final pageCount = book.pageCount;
-
-        if (chapterCount != null && (pageCount == null || pageCount <= 0)) {
-          continue;
-        }
-
-        coverage.add(
-          PageCoverage(
-            key: '${book.id}:${extent.key}',
-            start: extent.start,
-            end: extent.end,
-            pagesPerUnit: chapterCount == null ? 1 : pageCount! / chapterCount,
-            estimated: chapterCount != null,
-          ),
-        );
+      if (extent.end <= extent.start || exposedSince == null || now.difference(exposedSince) < exposureThreshold) {
+        continue;
       }
+
+      final chapterCount = extent.chapterCount;
+      final pageCount = book.pageCount;
+
+      if (chapterCount != null && (pageCount == null || pageCount <= 0)) {
+        continue;
+      }
+
+      coverage.add(
+        PageCoverage(
+          key: '${book.id}:${extent.key}',
+          start: chapterCount == null ? 0 : extent.start,
+          end: chapterCount == null ? 1 : extent.end,
+          pagesPerUnit: chapterCount == null ? 1 : pageCount! / chapterCount,
+          estimated: chapterCount != null,
+        ),
+      );
     }
 
     _pending.add(

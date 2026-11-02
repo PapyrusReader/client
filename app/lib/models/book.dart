@@ -117,6 +117,11 @@ class Book {
     this.lastReadAt,
   });
 
+  String? get genre {
+    final value = customMetadata?['genre'];
+    return value is String && value.trim().isNotEmpty ? value.trim() : null;
+  }
+
   /// Progress as a percentage (0-100).
   int get progressPercent => (currentPosition * 100).round();
 
