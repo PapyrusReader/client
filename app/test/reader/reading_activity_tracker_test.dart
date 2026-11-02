@@ -141,7 +141,7 @@ void main() {
     tracker.onActivity(
       event(
         coverage: const [
-          ReaderContentCoverage(key: 'epub:0:100:300:1000', start: .1, end: .2, chapterCount: 10),
+          ReaderContentCoverage(key: 'epub:0:100:1000', start: .1, end: .2),
         ],
       ),
     );
@@ -149,7 +149,7 @@ void main() {
     tracker.onActivity(
       event(
         coverage: const [
-          ReaderContentCoverage(key: 'epub:0:100:300:1000', start: .15, end: .3, chapterCount: 10),
+          ReaderContentCoverage(key: 'epub:0:100:1000', start: .15, end: .3),
         ],
       ),
     );
@@ -187,6 +187,43 @@ void main() {
     expect(repository.records.length, 1);
   });
 
+  test('chapter coverage preserves calibrated ranges and resets exposure on a turn', () async {
+    for (final pageCount in [null, 200]) {
+      var now = start;
+      final repository = RecordingRepository();
+      final tracker = ReadingActivityTracker(
+        repository: repository,
+        book: Book(id: 'book', title: 'Book', author: '', addedAt: start, pageCount: pageCount),
+        shelfIds: [],
+        deviceId: 'one',
+        onError: (_) {},
+        now: () => now,
+        checkpointInterval: const Duration(days: 1),
+      );
+
+      for (final (from, to, seconds) in [(0.0, .1, 10), (.1, .2, 9), (.2, .3, 10)]) {
+        tracker.onActivity(
+          event(
+            coverage: [
+              ReaderContentCoverage(key: 'epub:0:1000', start: from, end: to, chapterCount: 10),
+            ],
+          ),
+        );
+        now = now.add(Duration(seconds: seconds));
+      }
+
+      await tracker.close();
+      final coverage = repository.records.values.expand((activity) => activity.coverage).toList();
+
+      if (pageCount == null) {
+        expect(coverage, isEmpty);
+      } else {
+        expect(coverage.map((extent) => (extent.start, extent.end)), [(0.0, .1), (.2, .3)]);
+        expect(coverage.every((extent) => extent.estimated && extent.pagesPerUnit == 20), isTrue);
+      }
+    }
+  });
+
   test('EPUB rendered pages count without metadata and checkpoints do not duplicate them', () async {
     for (final count in [null, 200]) {
       var now = start;
@@ -205,8 +242,8 @@ void main() {
       tracker.onActivity(
         event(
           coverage: const [
-            ReaderContentCoverage(key: 'epub:0:100:300:1000', start: .1, end: .3, chapterCount: 10),
-            ReaderContentCoverage(key: 'epub:0:300:500:1000', start: .3, end: .5, chapterCount: 10),
+            ReaderContentCoverage(key: 'epub:0:100:1000', start: .1, end: .3),
+            ReaderContentCoverage(key: 'epub:0:300:1000', start: .3, end: .5),
           ],
         ),
       );

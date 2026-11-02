@@ -76,8 +76,11 @@ class ReadingActivityTracker {
     }
   }
 
+  String _exposureKey(ReaderContentCoverage extent) =>
+      extent.chapterCount == null ? extent.key : jsonEncode([extent.key, extent.start, extent.end]);
+
   void _updateExposures(DateTime now) {
-    final keys = _event!.coverage.map((extent) => extent.key).toSet();
+    final keys = _event!.coverage.map(_exposureKey).toSet();
     _exposedSince.removeWhere((key, _) => !keys.contains(key));
 
     for (final key in keys) {
@@ -138,18 +141,26 @@ class ReadingActivityTracker {
     final coverage = <PageCoverage>[];
 
     for (final extent in _event!.coverage) {
-      final exposedSince = _exposedSince[extent.key];
+      final exposedSince = _exposedSince[_exposureKey(extent)];
 
       if (extent.end <= extent.start || exposedSince == null || now.difference(exposedSince) < exposureThreshold) {
+        continue;
+      }
+
+      final chapterCount = extent.chapterCount;
+      final pageCount = book.pageCount;
+
+      if (chapterCount != null && (pageCount == null || pageCount <= 0)) {
         continue;
       }
 
       coverage.add(
         PageCoverage(
           key: '${book.id}:${extent.key}',
-          start: 0,
-          end: 1,
-          pagesPerUnit: 1,
+          start: chapterCount == null ? 0 : extent.start,
+          end: chapterCount == null ? 1 : extent.end,
+          pagesPerUnit: chapterCount == null ? 1 : pageCount! / chapterCount,
+          estimated: chapterCount != null,
         ),
       );
     }
