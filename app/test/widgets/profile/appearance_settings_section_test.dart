@@ -13,6 +13,7 @@ void main() {
       SharedPreferences.setMockInitialValues({'theme_mode': 'light'});
       final prefs = await SharedPreferences.getInstance();
       prefsProvider = PreferencesProvider(prefs);
+      addTearDown(prefsProvider.dispose);
     });
 
     Widget buildSection({bool isDesktop = false}) {
@@ -22,6 +23,26 @@ void main() {
           home: Scaffold(body: AppearanceSettingsSection(isDesktop: isDesktop)),
         ),
       );
+    }
+
+    for (final isDesktop in [false, true]) {
+      testWidgets('page alignment picker saves both choices on ${isDesktop ? "desktop" : "mobile"}', (tester) async {
+        await tester.pumpWidget(buildSection(isDesktop: isDesktop));
+        expect(find.text('Left'), findsOneWidget);
+        await tester.tap(find.text('Page alignment'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Center'));
+        await tester.pumpAndSettle();
+        expect(prefsProvider.pageAlignment, 'center');
+        expect(find.text('Center'), findsOneWidget);
+        await tester.tap(find.text('Page alignment'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Left'));
+        await tester.pumpAndSettle();
+        expect(prefsProvider.pageAlignment, 'left');
+        expect(find.text('Left'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
     }
 
     testWidgets('renders mobile appearance settings and opens theme picker', (tester) async {

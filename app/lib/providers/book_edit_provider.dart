@@ -176,6 +176,26 @@ class BookEditProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  void updateGenre(String value) {
+    final book = _editedBook;
+
+    if (book == null) {
+      return;
+    }
+
+    final metadata = Map<String, dynamic>.from(book.customMetadata ?? {});
+    final genre = value.trim();
+
+    if (genre.isEmpty) {
+      metadata.remove('genre');
+    } else {
+      metadata['genre'] = genre;
+    }
+
+    _editedBook = book.copyWith(customMetadata: metadata);
+    notifyListeners();
+  }
+
   void updatePublisher(String? value) {
     if (_editedBook == null) {
       return;
