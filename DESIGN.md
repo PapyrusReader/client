@@ -140,8 +140,8 @@ The shared spacing scale supplies gaps, padding and margins. Breakpoint tokens
 start tablet at 600, small desktop at 840 and large desktop at 1200 logical pixels.
 They define 4/8/12 grid columns and 16/24/24 gutters for mobile/tablet/desktop.
 Actual pages choose their composition within available width and text scaling.
-The statistics composition and its local width constraints belong in
-[its surface brief](.impeccable/surfaces/statistics.md).
+Statistics defaults to left alignment with shared page margins. Its optional
+center alignment limits content width to 1120 logical pixels.
 
 ## Elevation & Depth
 
