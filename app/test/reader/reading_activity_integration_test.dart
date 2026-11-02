@@ -13,7 +13,7 @@ import 'package:papyrus_reader/src/engine/epub/worker/epub_worker.dart';
 import 'reading_activity_tracker_test.dart' show RecordingRepository;
 
 void main() {
-  testWidgets('actual reader coverage credits consecutive EPUB pages without collapsing a chapter', (tester) async {
+  testWidgets('pinned reader records two distinct rendered EPUB pages', (tester) async {
     var now = DateTime.utc(2026, 11, 2, 12);
     final repository = RecordingRepository();
     final tracker = ReadingActivityTracker(
@@ -39,7 +39,9 @@ void main() {
     now = now.add(const Duration(seconds: 10));
     await tracker.flush();
     final firstPages = repository.records.values.single.coverage.single;
-    final firstTotal = (firstPages.end - firstPages.start) * firstPages.pagesPerUnit;
+    expect(first.chapterCount, isNull);
+    expect(firstPages.estimated, isFalse);
+    expect((firstPages.end - firstPages.start) * firstPages.pagesPerUnit, 1);
     var turned = false;
     final turn = engine.goNext().then((_) => turned = true);
 
@@ -58,19 +60,9 @@ void main() {
     final coverage = repository.records.values.expand((activity) => activity.coverage).toList();
     expect(coverage, hasLength(2));
 
-    if (first.chapterCount != null) {
-      // The Git-pinned reader emits normalized chapter extents.
-      expect(coverage.map((extent) => (extent.start, extent.end)), [
-        (first.start, first.end),
-        (second.start, second.end),
-      ]);
-      expect(coverage.every((extent) => extent.estimated), isTrue);
-      final total = coverage.fold<double>(0, (sum, extent) => sum + (extent.end - extent.start) * extent.pagesPerUnit);
-      expect(total, greaterThan(firstTotal));
-    } else {
-      expect(coverage.map((extent) => extent.key).toSet(), hasLength(2));
-      expect(coverage.every((extent) => !extent.estimated && extent.end - extent.start == 1), isTrue);
-    }
+    expect(coverage.map((extent) => extent.key).toSet(), hasLength(2));
+    expect(coverage.every((extent) => !extent.estimated && extent.end - extent.start == 1), isTrue);
+    expect(coverage.fold<double>(0, (sum, extent) => sum + extent.pagesPerUnit), 2);
   });
 }
 
