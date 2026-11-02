@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/folders/directory_access.dart';
@@ -46,7 +48,7 @@ Future<void> connectBookFolder(BuildContext context, {Future<dynamic>? afterDism
         context,
         builder: (context) => FolderSheet(
           title: 'Could not connect folder',
-          body: Text('$error'),
+          body: Text(_folderErrorMessage(error)),
           footer: BottomSheetActions(
             primary: OutlinedButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
           ),
@@ -77,26 +79,36 @@ class _ConnectFolderSheetState extends State<ConnectFolderSheet> {
   FolderPreview? _preview;
   String? _error;
   bool _saving = false;
-  bool _scanning = false;
+  bool _showScanProgress = false;
+  Timer? _scanProgressTimer;
+  late Future<void> _pendingScan;
   int _revision = 0;
 
   @override
   void initState() {
     super.initState();
-    _scan();
+    _startScan();
   }
 
   @override
   void dispose() {
+    _scanProgressTimer?.cancel();
     _name.dispose();
     super.dispose();
   }
 
+  void _startScan() {
+    _pendingScan = _scan();
+  }
+
   Future<void> _scan() async {
     final revision = ++_revision;
-    setState(() {
-      _scanning = true;
-      _error = null;
+    _scanProgressTimer?.cancel();
+    setState(() => _error = null);
+    _scanProgressTimer = Timer(AnimationDurations.standard, () {
+      if (mounted && revision == _revision) {
+        setState(() => _showScanProgress = true);
+      }
     });
 
     try {
@@ -107,16 +119,18 @@ class _ConnectFolderSheetState extends State<ConnectFolderSheet> {
       );
 
       if (mounted && revision == _revision) {
+        _scanProgressTimer?.cancel();
         setState(() {
           _preview = preview;
-          _scanning = false;
+          _showScanProgress = false;
         });
       }
     } catch (error) {
       if (mounted && revision == _revision) {
+        _scanProgressTimer?.cancel();
         setState(() {
-          _error = '$error';
-          _scanning = false;
+          _error = _folderErrorMessage(error);
+          _showScanProgress = false;
         });
       }
     }
@@ -126,6 +140,18 @@ class _ConnectFolderSheetState extends State<ConnectFolderSheet> {
     setState(() => _saving = true);
 
     try {
+      // A quick recheck keeps the action available, but must finish before importing.
+      await _pendingScan;
+
+      if (!mounted) {
+        return;
+      }
+
+      if (_error != null || _preview == null) {
+        setState(() => _saving = false);
+        return;
+      }
+
       if (widget.scope != widget.folders.scope) {
         throw StateError('The selected library changed. Choose this folder again.');
       }
@@ -139,7 +165,7 @@ class _ConnectFolderSheetState extends State<ConnectFolderSheet> {
       if (mounted) {
         setState(() {
           _saving = false;
-          _error = '$error';
+          _error = _folderErrorMessage(error);
         });
       }
     }
@@ -153,7 +179,8 @@ class _ConnectFolderSheetState extends State<ConnectFolderSheet> {
     final textTheme = Theme.of(context).textTheme;
     final secondaryStyle = textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant);
     final problemCount = (preview?.unsupported ?? 0) + (preview?.inaccessible ?? 0);
-    final canImport = !_saving && !_scanning && preview != null && _error == null && _name.text.trim().isNotEmpty;
+    final canImport =
+        !_saving && !_showScanProgress && preview != null && _error == null && _name.text.trim().isNotEmpty;
 
     return FolderSheet(
       title: widget.grant.persistent ? 'Connect folder' : 'Import folder',
@@ -162,6 +189,13 @@ class _ConnectFolderSheetState extends State<ConnectFolderSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
+          if (_error != null) ...[
+            Semantics(
+              liveRegion: true,
+              child: Text(_error!, style: TextStyle(color: colors.error)),
+            ),
+            const SizedBox(height: Spacing.md),
+          ],
           FolderLocationField(grant: widget.grant),
           const SizedBox(height: Spacing.md),
           TextField(
@@ -182,13 +216,13 @@ class _ConnectFolderSheetState extends State<ConnectFolderSheet> {
                 ? null
                 : (value) {
                     setState(() => _recursive = value);
-                    _scan();
+                    _startScan();
                   },
           ),
           const Divider(height: Spacing.lg),
           SizedBox(
             height: Spacing.xs,
-            child: _scanning
+            child: _showScanProgress
                 ? const AppLinearProgressIndicator(semanticsLabel: 'Checking folder', minHeight: Spacing.xs)
                 : null,
           ),
@@ -216,17 +250,6 @@ class _ConnectFolderSheetState extends State<ConnectFolderSheet> {
               Text('Select this folder again to import new books.', style: secondaryStyle),
             ],
           ],
-          if (_error != null) ...[
-            const SizedBox(height: Spacing.md),
-            Semantics(
-              liveRegion: true,
-              child: Text(_error!, style: TextStyle(color: colors.error)),
-            ),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton(onPressed: _saving ? null : _scan, child: const Text('Check folder again')),
-            ),
-          ],
         ],
       ),
       footer: BottomSheetFormActions(
@@ -237,6 +260,8 @@ class _ConnectFolderSheetState extends State<ConnectFolderSheet> {
     );
   }
 }
+
+String _folderErrorMessage(Object error) => error is StateError ? error.message : '$error';
 
 String _previewSize(FolderPreview? preview) {
   if (preview == null) {
