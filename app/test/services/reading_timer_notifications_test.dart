@@ -170,6 +170,48 @@ void main() {
     expect(timer.elapsed, const Duration(seconds: 30));
   });
 
+  test('failed initial loads preserve native actions until the timer is restored', () async {
+    final original = timer.session!;
+    Map<String, dynamic>? pending = batch(original, [action('pause', 'pause', 30)]);
+    var acknowledgements = 0;
+
+    binding.defaultBinaryMessenger.setMockMethodCallHandler(channel, (call) async {
+      if (call.method == 'pending') return pending;
+
+      if (call.method == 'acknowledge') {
+        acknowledgements++;
+        pending = null;
+      }
+
+      return null;
+    });
+
+    timer.dispose();
+    library.trackingRepository.failLoad = true;
+    timer = ReadingTimerProvider(store, now: () => now, tick: false);
+    final notifications = ReadingTimerNotifications(timer, onOpen: () {}, channel: channel, supported: true);
+    addTearDown(notifications.dispose);
+    await pumpEventQueue();
+    expect(timer.loading, isFalse);
+    expect(timer.error, isNotNull);
+    expect(acknowledgements, 0);
+    expect(timer.available, isFalse);
+    expect(await timer.applyNotificationActions(pending!), isFalse);
+    await timer.reload();
+    await pumpEventQueue();
+    expect(acknowledgements, 0);
+    expect(pending, isNotNull);
+    library.trackingRepository.failLoad = false;
+    now = start.add(const Duration(minutes: 3));
+    await timer.reload();
+    await pumpEventQueue();
+    expect(timer.available, isTrue);
+    expect(acknowledgements, 1);
+    expect(pending, isNull);
+    expect(timer.running, isFalse);
+    expect(timer.elapsed, const Duration(seconds: 30));
+  });
+
   test('switching profiles clears native state and rejects old controls', () async {
     final original = timer.session!;
     var clears = 0;

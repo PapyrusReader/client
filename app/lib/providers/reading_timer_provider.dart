@@ -35,6 +35,7 @@ class ReadingTimerProvider extends ChangeNotifier {
   int _generation = 0;
   int? _lastSecond;
   bool _disposed = false;
+  bool _loaded = false;
   bool loading = false;
   bool busy = false;
   String? error;
@@ -42,7 +43,7 @@ class ReadingTimerProvider extends ChangeNotifier {
   DateTime get now => _now().toUtc();
   Object? get libraryIdentity => _repository;
   ReadingTimer? get session => _repository?.isCurrent == true ? _session : null;
-  bool get available => _repository?.isCurrent == true && !loading;
+  bool get available => _repository?.isCurrent == true && _loaded && !loading;
   Duration get elapsed => session?.elapsed(now) ?? Duration.zero;
   bool get running => session?.isRunning(now) == true;
   bool get goalReached => session?.reachedGoal(now) == true;
@@ -74,6 +75,7 @@ class ReadingTimerProvider extends ChangeNotifier {
     _subscription = null;
     _repository = repository;
     _session = null;
+    _loaded = false;
     error = null;
     busy = false;
     loading = repository != null;
@@ -85,12 +87,15 @@ class ReadingTimerProvider extends ChangeNotifier {
         (value) {
           if (_isCurrent(generation, repository)) {
             _session = value;
+            _loaded = true;
             loading = false;
+            error = null;
             notifyListeners();
           }
         },
         onError: (Object failure) {
           if (_isCurrent(generation, repository)) {
+            _loaded = false;
             loading = false;
             error = 'Your timer could not be loaded. Try again.';
             notifyListeners();
@@ -119,9 +124,11 @@ class ReadingTimerProvider extends ChangeNotifier {
 
       if (_isCurrent(generation, repository)) {
         _session = restored;
+        _loaded = true;
       }
     } catch (_) {
       if (_isCurrent(generation, repository)) {
+        _loaded = false;
         error = 'Your timer could not be loaded. Try again.';
       }
     } finally {
@@ -219,6 +226,10 @@ class ReadingTimerProvider extends ChangeNotifier {
   /// Command IDs double as versions so a crash between writing and acknowledging
   /// cannot apply the same interval twice. A changed remote version wins.
   Future<bool> applyNotificationActions(Map<String, dynamic> batch) async {
+    if (!available || busy) {
+      return false;
+    }
+
     final current = session;
     final actions = (batch['actions'] as List).map((value) => Map<String, dynamic>.from(value as Map)).toList();
     final appliedIndex = actions.indexWhere((action) => action['id'] == current?.version);

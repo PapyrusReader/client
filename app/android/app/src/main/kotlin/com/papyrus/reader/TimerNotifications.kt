@@ -64,10 +64,10 @@ internal class TimerNotificationStore(context: Context) {
             if (action.getString("id") == through) found = true
         }
         if (!found) return
-        // A different session invalidates controls from the previous notification.
-        val same = snapshot?.optString("id") == state.optJSONObject("base")?.optString("id")
+        val committed = snapshot?.optString("id") == state.optJSONObject("base")?.optString("id") &&
+            snapshot?.optString("version") == through
         write(JSONObject().put("base", snapshot ?: JSONObject.NULL)
-            .put("actions", if (same) remaining else JSONArray()))
+            .put("actions", if (committed) remaining else JSONArray()))
     }
 
     fun record(id: String?, token: String?, kind: String) {

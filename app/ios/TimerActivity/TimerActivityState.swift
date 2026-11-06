@@ -82,7 +82,8 @@ struct TimerJournal: Codable {
 
     mutating func acknowledge(through: String, snapshot: TimerSnapshot?) throws {
         guard let index = actions.firstIndex(where: { $0.id == through }) else { return }
-        actions = snapshot?.id == base?.id ? Array(actions.dropFirst(index + 1)) : []
+        let committed = snapshot?.id == base?.id && snapshot?.version == through
+        actions = committed ? Array(actions.dropFirst(index + 1)) : []
         base = snapshot
         try save()
     }
