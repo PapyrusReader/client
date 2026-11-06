@@ -391,7 +391,11 @@ class GoalsProvider extends ChangeNotifier {
     final shelfIds = correcting?.shelfIds ?? store.getShelfIdsForBook(book.id);
 
     final activities = <ReadingActivity>[
-      if (correcting != null) store.reversalFor(correcting, note: 'Corrected entry'),
+      if (correcting != null)
+        for (final entry in store.effectiveReadingActivities.where(
+          (activity) => activity.id == correcting.id || correcting.constituentIds.contains(activity.id),
+        ))
+          store.reversalFor(entry, note: 'Corrected entry'),
     ];
 
     if (minutes > 0 || pages > 0) {

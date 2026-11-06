@@ -1,3 +1,5 @@
+import 'package:papyrus/services/reading_timer_notifications.dart';
+import 'package:papyrus/providers/reading_timer_provider.dart';
 import 'package:papyrus/folders/directory_access_factory.dart';
 import 'package:papyrus/folders/folder_import_target.dart';
 import 'package:papyrus/folders/watched_folders.dart';
@@ -212,6 +214,8 @@ class AcquisitionDownloadsComposition {
 
 class _PapyrusState extends State<Papyrus> {
   late final DataStore _dataStore;
+  late final ReadingTimerProvider _readingTimer;
+  late final ReadingTimerNotifications _timerNotifications;
   late final AuthProvider _authProvider;
   late final AcquisitionAvailabilityProvider _acquisitionAvailabilityProvider;
   late final AcquisitionDownloadsComposition _acquisitionDownloadsComposition;
@@ -343,6 +347,12 @@ class _PapyrusState extends State<Papyrus> {
       acquisitionAvailabilityProvider: _acquisitionAvailabilityProvider,
     );
 
+    _readingTimer = ReadingTimerProvider(_dataStore);
+    _timerNotifications = ReadingTimerNotifications(
+      _readingTimer,
+      onOpen: () => _appRouter.router.go('/library/timer'),
+    );
+
     _authProvider.addListener(_syncPowerSyncAuthState);
     _syncSettingsProvider.addListener(_handleSyncSettingsChanged);
     _syncPowerSyncAuthState();
@@ -350,6 +360,8 @@ class _PapyrusState extends State<Papyrus> {
 
   @override
   void dispose() {
+    _timerNotifications.dispose();
+    _readingTimer.dispose();
     _dataStore.removeListener(_handleFolderLibraryReady);
     _watchedFolders.dispose();
     _authProvider.removeListener(_syncPowerSyncAuthState);
@@ -621,6 +633,7 @@ class _PapyrusState extends State<Papyrus> {
       providers: [
         // Core data store - single source of truth
         ChangeNotifierProvider.value(value: _dataStore),
+        ChangeNotifierProvider.value(value: _readingTimer),
         ChangeNotifierProvider.value(value: _mediaUploadQueue),
         ChangeNotifierProvider.value(value: _watchedFolders),
         ChangeNotifierProvider.value(value: _syncSettingsProvider),

@@ -203,6 +203,9 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
       await deleteFiles(snapshot.books);
 
       await database.writeTransaction((tx) async {
+        await tx.execute('DELETE FROM reading_timer');
+        await tx.execute('DELETE FROM reading_timers');
+
         for (final table in libraryTableNames.reversed) {
           await tx.execute('DELETE FROM $table');
         }
@@ -334,6 +337,7 @@ class PapyrusPowerSyncService implements BookRepository, LibraryRepository, Trac
     _database = database;
     _library = LibraryDatabase(database, _refreshPendingWrites);
     _library!.trackingSupported = mode == LibraryDatabaseMode.guest;
+    await _library!.migrateTimer();
     _watchBooks(database);
 
     if (mode == LibraryDatabaseMode.authenticated && connectAuthenticated) {

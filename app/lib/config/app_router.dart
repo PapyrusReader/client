@@ -1,3 +1,4 @@
+import 'package:papyrus/pages/reading_timer_page.dart';
 import 'package:papyrus/pages/watched_folders_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -211,6 +212,11 @@ class AppRouter {
                 name: 'NOTES',
                 path: 'notes',
                 pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const NotesPage()),
+              ),
+              GoRoute(
+                name: 'READING_TIMER',
+                path: 'timer',
+                pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const ReadingTimerPage()),
               ),
               GoRoute(
                 name: 'SEARCH_OPTIONS',

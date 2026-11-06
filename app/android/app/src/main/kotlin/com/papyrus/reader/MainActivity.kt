@@ -26,6 +26,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         appUpdates.configure(flutterEngine)
+        TimerNotifications.configure(this, flutterEngine)
         MethodChannel(flutterEngine.dartExecutor.binaryMessenger, "papyrus/folders").setMethodCallHandler { call, result ->
             if (call.method == "pick") {
                 if (folderResult != null) {
@@ -93,6 +94,21 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        TimerNotifications.opened(intent)
+    }
+
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
+        TimerNotifications.detach(flutterEngine)
+        super.cleanUpFlutterEngine(flutterEngine)
+    }
+
+    override fun onRequestPermissionsResult(requestCode: Int, permissions: Array<out String>, grantResults: IntArray) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults)
+        if (requestCode == TimerNotifications.permissionRequest) TimerNotifications.refresh(this, true)
     }
 
     @Deprecated("Activity result bridge for Flutter folder access")
