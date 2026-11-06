@@ -271,7 +271,7 @@ class _ReadingTimerPageState extends State<ReadingTimerPage> {
     return Column(
       children: [
         ConstrainedBox(
-          constraints: BoxConstraints(maxWidth: widget.focusMode ? 420 : 400),
+          constraints: BoxConstraints(maxWidth: widget.focusMode ? 380 : 360),
           child: ReadingTimerClock(
             key: const ValueKey('timer-clock'),
             digitSize: widget.focusMode ? 88 : 64,
