@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
@@ -75,13 +74,14 @@ void main() {
   }
 
   for (final size in [const Size(320, 700), const Size(390, 844), const Size(1440, 900)]) {
-    testWidgets('confirmation is explicit and keyboard accessible at $size', (tester) async {
+    testWidgets('opening a link verifies once without signing in at $size', (tester) async {
       final semantics = tester.ensureSemantics();
       var calls = 0;
       final auth = await mount(
         tester,
         (request) async {
           calls += 1;
+          expect(request.method, 'POST');
           expect(request.url.path, '/custom/api/auth/verify-email');
           expect(jsonDecode(request.body), {'token': 'opaque-token'});
           return response({'message': 'Email verified successfully'});
@@ -89,10 +89,7 @@ void main() {
         token: 'opaque-token',
         size: size,
       );
-      expect(calls, 0);
-      expect(find.text('Confirm email address'), findsOneWidget);
-      await tester.ensureVisible(find.text('Confirm email address'));
-      await tester.sendKeyEvent(LogicalKeyboardKey.enter);
+      await tester.pump(const Duration(seconds: 2));
       await tester.pumpAndSettle();
       expect(calls, 1);
       expect(find.text('Email verified'), findsOneWidget);
@@ -128,9 +125,6 @@ void main() {
       }, 400),
       token: 'expired',
     );
-    await tester.ensureVisible(find.text('Confirm email address'));
-    await tester.tap(find.text('Confirm email address'));
-    await tester.pumpAndSettle();
     expect(find.text('Resend verification email'), findsOneWidget);
     expect(
       tester
@@ -146,22 +140,40 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('network failure retains explicit confirmation for retry', (tester) async {
+  testWidgets('network failure offers a manual retry without repeating automatically', (tester) async {
     var calls = 0;
     await mount(tester, (_) async {
       calls += 1;
       if (calls == 1) throw http.ClientException('offline');
       return response({'message': 'Email verified successfully'});
     }, token: 'retry');
-    await tester.ensureVisible(find.text('Confirm email address'));
-    await tester.tap(find.text('Confirm email address'));
-    await tester.pumpAndSettle();
     expect(find.text('Authentication request failed. Please try again.'), findsOneWidget);
-    await tester.ensureVisible(find.text('Confirm email address'));
-    await tester.tap(find.text('Confirm email address'));
+    await tester.pump(const Duration(seconds: 2));
+    expect(calls, 1);
+    await tester.ensureVisible(find.text('Try again'));
+    await tester.tap(find.text('Try again'));
     await tester.pumpAndSettle();
     expect(calls, 2);
     expect(find.text('Email verified'), findsOneWidget);
+  });
+
+  testWidgets('automatic verification respects rate limits without repeated requests', (tester) async {
+    var calls = 0;
+    await mount(tester, (_) async {
+      calls += 1;
+      return response({
+        'error': {
+          'code': 'RATE_LIMIT_EXCEEDED',
+          'message': 'Too many requests',
+          'details': {'retry_after': 35},
+        },
+      }, 429);
+    }, token: 'limited');
+    expect(calls, 1);
+    expect(tester.widget<FilledButton>(find.widgetWithText(FilledButton, 'Try again')).onPressed, isNull);
+    await tester.pump(const Duration(seconds: 36));
+    expect(calls, 1);
+    expect(find.text('Email verified'), findsNothing);
   });
 
   testWidgets('resend cooldown and enlarged text preserve actionable controls', (tester) async {
@@ -230,9 +242,6 @@ void main() {
         {'retry-after': '60'},
       );
     }, token: 'expired');
-    await tester.ensureVisible(find.text('Confirm email address'));
-    await tester.tap(find.text('Confirm email address'));
-    await tester.pumpAndSettle();
     await tester.enterText(find.byType(TextFormField), 'alice@example.com');
     await tester.pumpAndSettle();
     await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Resend verification email'));
@@ -249,9 +258,10 @@ void main() {
 
   testWidgets('server change discards the captured token and pending email', (tester) async {
     var calls = 0;
-    final auth = await mount(tester, (_) async {
+    final completed = Completer<http.Response>();
+    final auth = await mount(tester, (_) {
       calls += 1;
-      return response({'message': 'Verified'});
+      return completed.future;
     }, token: 'private');
     await auth.replaceRepository(
       repository((_) async => fail('Must not send to new server'), server: 'two'),
@@ -260,15 +270,25 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Confirm email address'), findsNothing);
     expect(find.textContaining('different server'), findsOneWidget);
-    expect(calls, 0);
+    expect(calls, 1);
+    completed.complete(response({'message': 'Verified'}));
+    await tester.pumpAndSettle();
+    expect(find.text('Email verified'), findsNothing);
   });
 
-  testWidgets('leaving during confirmation ignores a late response', (tester) async {
+  testWidgets('missing link offers offline reading without a verification request', (tester) async {
+    final auth = await mount(tester, (_) async => fail('No verification token'));
+    expect(find.text('Request a new link'), findsOneWidget);
+    await tester.ensureVisible(find.text('Continue offline'));
+    await tester.tap(find.text('Continue offline'));
+    await tester.pumpAndSettle();
+    expect(find.text('Library'), findsOneWidget);
+    expect(auth.isOfflineMode, isTrue);
+  });
+
+  testWidgets('leaving during automatic verification ignores a late response', (tester) async {
     final completed = Completer<http.Response>();
     final auth = await mount(tester, (_) => completed.future, token: 'private');
-    await tester.ensureVisible(find.text('Confirm email address'));
-    await tester.tap(find.text('Confirm email address'));
-    await tester.pump();
     await tester.ensureVisible(find.text('Back to sign in'));
     await tester.tap(find.text('Back to sign in'));
     await tester.pumpAndSettle();

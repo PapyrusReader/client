@@ -34,6 +34,7 @@ class _VerificationPageState extends State<VerificationPage> {
   String? _message;
   bool _busy = false;
   bool _verified = false;
+  bool _verificationFailed = false;
   bool _invalidLink = false;
   bool _serverChanged = false;
 
@@ -63,6 +64,14 @@ class _VerificationPageState extends State<VerificationPage> {
     if (_serverKey == null) {
       _serverKey = auth.serverKey;
       _email.text = auth.pendingVerification?.email ?? '';
+
+      if (widget.isLink && !_invalidLink) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) {
+            _verify();
+          }
+        });
+      }
     } else if (_serverKey != auth.serverKey) {
       _token = null;
       _email.clear();
@@ -96,8 +105,13 @@ class _VerificationPageState extends State<VerificationPage> {
       _serverChanged ||
       (widget.isLink && kIsWeb && _auth?.serverKey != '${PapyrusApiConfig.fromEnvironment().apiBaseUri}');
 
-  Future<void> _confirm() async {
-    if (_busy || _wrongServer || _token == null || _secondsUntil(_auth!.retryAt) > 0) {
+  Future<void> _verify() async {
+    if (_busy || _wrongServer || _token == null) {
+      return;
+    }
+
+    if (_secondsUntil(_auth!.retryAt) > 0) {
+      setState(() => _verificationFailed = true);
       return;
     }
 
@@ -111,6 +125,7 @@ class _VerificationPageState extends State<VerificationPage> {
     setState(() {
       _busy = false;
       _verified = message != null;
+      _verificationFailed = message == null;
       _message = message;
       _invalidLink = _auth!.errorCode == 'VERIFICATION_TOKEN_INVALID';
 
@@ -153,16 +168,16 @@ class _VerificationPageState extends State<VerificationPage> {
     final auth = context.watch<AuthProvider>();
     final remaining = _secondsUntil(auth.resendAt);
     final retry = _secondsUntil(auth.retryAt);
-    final canConfirm = widget.isLink && !_verified && !_invalidLink && !_wrongServer;
+    final hasVerificationToken = widget.isLink && !_verified && !_invalidLink && !_wrongServer;
     final String heading;
     final String subtitle;
 
     if (_verified) {
       heading = 'Email verified';
       subtitle = 'You can now sign in to Papyrus.';
-    } else if (canConfirm) {
-      heading = 'Verify your email';
-      subtitle = 'Confirm this is your email address.';
+    } else if (hasVerificationToken) {
+      heading = _verificationFailed && !_busy ? 'Verification failed' : 'Verifying your email';
+      subtitle = _verificationFailed && !_busy ? 'Please try again.' : 'Please wait…';
     } else if (_invalidLink) {
       heading = 'Request a new link';
       subtitle = 'This link cannot be used. Request a new one, or sign in if you have already verified your email.';
@@ -201,16 +216,16 @@ class _VerificationPageState extends State<VerificationPage> {
           Text('Try again in ${retry}s.'),
           const SizedBox(height: Spacing.md),
         ],
-        if (canConfirm) ...[
+        if (hasVerificationToken && _verificationFailed && !_busy) ...[
           FilledButton(
             style: FilledButton.styleFrom(minimumSize: buttonSize),
             autofocus: true,
-            onPressed: _busy || retry > 0 ? null : _confirm,
-            child: Text(_busy ? 'Verifying…' : 'Confirm email address'),
+            onPressed: _busy || retry > 0 ? null : _verify,
+            child: const Text('Try again'),
           ),
           const SizedBox(height: Spacing.md),
         ],
-        if (!_verified && !_wrongServer && !canConfirm) ...[
+        if (!_verified && !_wrongServer && !hasVerificationToken) ...[
           const SizedBox(height: Spacing.md),
           Form(
             key: _formKey,
@@ -229,7 +244,7 @@ class _VerificationPageState extends State<VerificationPage> {
           ),
           const SizedBox(height: Spacing.lg),
         ],
-        if (canConfirm)
+        if (hasVerificationToken)
           OutlinedButton(
             style: OutlinedButton.styleFrom(minimumSize: buttonSize),
             onPressed: _signIn,
@@ -242,7 +257,7 @@ class _VerificationPageState extends State<VerificationPage> {
             child: Text(_verified ? 'Sign in' : 'Back to sign in'),
           ),
         const SizedBox(height: Spacing.sm),
-        TextButton(onPressed: () => navigateToOffline(context), child: const Text('Continue as guest')),
+        TextButton(onPressed: () => navigateToOffline(context), child: const Text('Continue offline')),
         if (auth.hasOfflineAccount)
           TextButton(
             onPressed: () {
