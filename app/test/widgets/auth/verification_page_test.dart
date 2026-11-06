@@ -98,7 +98,7 @@ void main() {
       expect(find.text('Email verified'), findsOneWidget);
       expect(
         tester
-            .getSemantics(find.text('Sign in again to open your account. Verification does not sign you in.'))
+            .getSemantics(find.text('You can now sign in to Papyrus.'))
             .getSemanticsData()
             .flagsCollection
             .isLiveRegion,
@@ -106,8 +106,8 @@ void main() {
       );
       expect(auth.isSignedIn, isFalse);
       expect(find.text('Confirm email address'), findsNothing);
-      await tester.ensureVisible(find.text('Back to sign in'));
-      await tester.tap(find.text('Back to sign in'));
+      await tester.ensureVisible(find.text('Sign in'));
+      await tester.tap(find.text('Sign in'));
       await tester.pumpAndSettle();
       expect(find.text('Fresh sign-in'), findsOneWidget);
       semantics.dispose();
@@ -134,7 +134,7 @@ void main() {
     expect(find.text('Resend verification email'), findsOneWidget);
     expect(
       tester
-          .getSemantics(find.textContaining('This link is missing, invalid'))
+          .getSemantics(find.textContaining('This link cannot be used'))
           .getSemanticsData()
           .flagsCollection
           .isLiveRegion,

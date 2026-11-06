@@ -139,9 +139,7 @@ class _VerificationPageState extends State<VerificationPage> {
 
     setState(() {
       _busy = false;
-      _message = message == null
-          ? null
-          : 'Request accepted. Check your inbox and spam folder. Delivery may take a few minutes.';
+      _message = message == null ? null : 'Check your inbox and spam folder for a new link. It may take a few minutes.';
     });
   }
 
@@ -161,14 +159,13 @@ class _VerificationPageState extends State<VerificationPage> {
 
     if (_verified) {
       heading = 'Email verified';
-      subtitle = 'Sign in again to open your account. Verification does not sign you in.';
+      subtitle = 'You can now sign in to Papyrus.';
     } else if (canConfirm) {
       heading = 'Verify your email';
-      subtitle = 'Confirm below to verify your email address. This will not sign you in.';
+      subtitle = 'Confirm this is your email address.';
     } else if (_invalidLink) {
       heading = 'Request a new link';
-      subtitle =
-          'This link is missing, invalid, expired, or already used. Sign in if you already verified, or request a new link below.';
+      subtitle = 'This link cannot be used. Request a new one, or sign in if you have already verified your email.';
     } else {
       heading = 'Check your email';
       subtitle = 'Open the verification link in your email, then return here to sign in.';
@@ -187,7 +184,7 @@ class _VerificationPageState extends State<VerificationPage> {
       children: [
         if (_wrongServer)
           const Text(
-            'This link belongs to this web deployment, but a different server is selected. Return to the issuing server’s app and open the email link again.',
+            'This link is for a different server. Open it in the Papyrus app for that server.',
           ),
         if (_message != null && !_verified) ...[
           Semantics(liveRegion: true, child: Text(_message!)),
@@ -230,8 +227,6 @@ class _VerificationPageState extends State<VerificationPage> {
             onPressed: _busy || remaining > 0 || retry > 0 ? null : _resend,
             child: Text(resendLabel),
           ),
-          const SizedBox(height: Spacing.sm),
-          const Text('If an account needs verification, a link will be queued. Check your spam folder too.'),
           const SizedBox(height: Spacing.lg),
         ],
         if (canConfirm)
@@ -244,7 +239,7 @@ class _VerificationPageState extends State<VerificationPage> {
           FilledButton(
             style: FilledButton.styleFrom(minimumSize: buttonSize),
             onPressed: _signIn,
-            child: const Text('Back to sign in'),
+            child: Text(_verified ? 'Sign in' : 'Back to sign in'),
           ),
         const SizedBox(height: Spacing.sm),
         TextButton(onPressed: () => navigateToOffline(context), child: const Text('Continue as guest')),
