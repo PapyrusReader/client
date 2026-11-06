@@ -59,6 +59,7 @@ class _ShelfCardState extends State<ShelfCard> {
       margin: EdgeInsets.zero,
       clipBehavior: Clip.antiAlias,
       elevation: AppElevation.level1,
+      shadowColor: colorScheme.brightness == Brightness.dark ? colorScheme.outline : null,
       child: InkWell(
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
