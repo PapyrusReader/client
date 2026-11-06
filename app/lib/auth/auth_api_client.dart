@@ -31,6 +31,8 @@ class AuthApiException implements Exception {
 
 class AuthApiClient {
   static const serverUnavailableMessage = 'Unable to connect. Please try again.';
+  static const verificationUnavailableMessage =
+      'We couldn’t send the verification email. Try again, or contact your server administrator.';
   static const rateLimitMessage = 'Too many requests. Please try again later.';
 
   final PapyrusApiConfig config;
@@ -387,7 +389,9 @@ class AuthApiClient {
         recoveryAuthorization: error['code'] == 'ACCOUNT_DELETION_PENDING'
             ? AccountDeletionAuthorization.fromJson(error['details']['authorization'] as Map<String, dynamic>)
             : null,
-        message: error['message'] as String? ?? 'Authentication request failed',
+        message: error['code'] == 'VERIFICATION_UNAVAILABLE'
+            ? verificationUnavailableMessage
+            : error['message'] as String? ?? 'Authentication request failed',
       );
     }
 

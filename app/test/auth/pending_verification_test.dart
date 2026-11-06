@@ -342,6 +342,7 @@ void main() {
     expect(await auth.resendVerification('alice@example.com'), isNull);
     expect(auth.retryAt!.isAfter(DateTime.now()), isTrue);
     expect(auth.errorCode, 'VERIFICATION_UNAVAILABLE');
+    expect(auth.error, AuthApiClient.verificationUnavailableMessage);
     auth.dispose();
   });
 }

@@ -239,7 +239,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Resend verification email'));
     await tester.pumpAndSettle();
-    expect(find.text('Verification email is temporarily unavailable. Please try again later.'), findsOneWidget);
+    expect(
+      find.text('We couldn’t send the verification email. Try again, or contact your server administrator.'),
+      findsOneWidget,
+    );
     expect(find.textContaining('Try again in'), findsOneWidget);
     expect(tester.widget<OutlinedButton>(find.byType(OutlinedButton)).onPressed, isNull);
   });
