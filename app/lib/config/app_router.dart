@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/pages/auth/oauth_callback_page.dart';
+import 'package:papyrus/pages/auth/verification_page.dart';
+import 'package:papyrus/platform/web_redirect.dart';
 import 'package:papyrus/pages/book_details_page.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/pages/bookmarks_page.dart';
@@ -57,7 +59,7 @@ class AppRouter {
   }
 
   late final GoRouter router = GoRouter(
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: false,
     navigatorKey: rootNavigatorKey,
     refreshListenable: Listenable.merge([
       authProvider,
@@ -66,6 +68,17 @@ class AppRouter {
       acquisitionAvailabilityProvider,
     ]),
     routes: [
+      GoRoute(
+        path: '/verify-email',
+        pageBuilder: (context, state) => NoTransitionPage(
+          key: state.pageKey,
+          child: VerificationPage(token: takeVerificationToken(state.uri.queryParameters['token']), isLink: true),
+        ),
+      ),
+      GoRoute(
+        path: '/verification',
+        pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const VerificationPage()),
+      ),
       GoRoute(
         path: '/startup',
         pageBuilder: (context, state) => NoTransitionPage(
@@ -333,6 +346,14 @@ class AppRouter {
   String? redirectForPath(String destination) {
     var uri = Uri.parse(destination);
 
+    if (uri.path == '/verify-email' || uri.path == '/verification') {
+      return null;
+    }
+
+    if (authProvider.pendingVerification != null) {
+      return '/verification';
+    }
+
     if (authProvider.isBootstrapping) {
       return uri.path == '/startup' ? null : Uri(path: '/startup', queryParameters: {'from': destination}).toString();
     }
@@ -361,7 +382,7 @@ class AppRouter {
         location == '/reset-password' ||
         location == '/auth/callback';
 
-    if (!authProvider.isSignedIn && !authProvider.isOfflineMode) {
+    if (!authProvider.isSignedIn && !authProvider.isOfflineMode && !authProvider.hasOfflineAccount) {
       if (isAuthRoute) {
         return restoredDestination;
       }
@@ -369,7 +390,8 @@ class AppRouter {
       return '/';
     }
 
-    if (location == '/' || location == '/login' || location == '/register' || location == '/reset-password') {
+    if (!authProvider.hasOfflineAccount &&
+        (location == '/' || location == '/login' || location == '/register' || location == '/reset-password')) {
       return '/library/books';
     }
 

@@ -5,6 +5,8 @@ import 'dart:typed_data';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/auth/auth_models.dart';
+import 'package:papyrus/auth/auth_api_client.dart';
+import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/main.dart';
 import 'package:papyrus/models/book.dart';
@@ -24,6 +26,11 @@ import '../providers/auth_provider_test.dart' show FakeAuthRepository;
 
 class _Database extends Fake implements PapyrusPowerSyncService {
   final activation = Completer<void>();
+  final onlineChanges = <bool>[];
+  final clears = <bool>[];
+
+  @override
+  Future<void> setOnline(bool online) async => onlineChanges.add(online);
   final started = Completer<void>();
 
   @override
@@ -50,7 +57,11 @@ class _Database extends Fake implements PapyrusPowerSyncService {
   }
 
   @override
-  Future<void> deactivate({bool clearAuthenticated = false}) async => mode = null;
+  Future<void> deactivate({bool clearAuthenticated = false}) async {
+    clears.add(clearAuthenticated);
+    mode = null;
+  }
+
   @override
   Future<void> close() async {}
   @override
@@ -71,7 +82,7 @@ class _Repository extends FakeAuthRepository {
       'access_token': 'access',
       'refresh_token': 'refresh',
       'expires_in': 3600,
-      'user': {'user_id': userId, 'connected_providers': <String>[]},
+      'user': {'user_id': userId, 'email_verified': true, 'connected_providers': <String>[]},
     });
   }
 
@@ -125,6 +136,55 @@ class _Importer extends BookImportService {
 }
 
 void main() {
+  testWidgets('verification denial disconnects the account without clearing storage, and fresh sign-in reconnects', (
+    tester,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final prefs = await SharedPreferences.getInstance();
+    final database = _Database()..activation.complete();
+    final repository = _Repository('alice');
+    late AuthProvider auth;
+
+    await tester.pumpWidget(
+      Papyrus.withServices(
+        prefs: prefs,
+        repositoryFactory: (_, _) => repository,
+        database: database,
+        uploads: MediaUploadQueue(prefs),
+        importer: _Importer(),
+        child: Builder(
+          builder: (context) {
+            auth = context.read<AuthProvider>();
+            return const SizedBox.shrink();
+          },
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(auth.isSignedIn, isTrue);
+    repository.refreshError = const AuthApiException(
+      statusCode: 403,
+      code: 'EMAIL_VERIFICATION_REQUIRED',
+      message: 'Verify your email',
+      pendingVerification: PendingVerification(email: 'alice@example.com', resendAfter: 0),
+    );
+    await auth.refresh();
+    await tester.pumpAndSettle();
+    expect(auth.hasOfflineAccount, isTrue);
+    expect(database.onlineChanges, [false]);
+    expect(database.clears, isEmpty);
+    repository.refreshError = null;
+    repository.refreshResult = repository.bootstrapResult;
+    await auth.refresh();
+    await tester.pumpAndSettle();
+    expect(database.onlineChanges, [false, true]);
+    await auth.signOut();
+    await tester.pumpAndSettle();
+    expect(database.clears, isNotEmpty);
+    expect(database.clears, everyElement(isFalse));
+    await tester.pumpWidget(const SizedBox.shrink());
+  });
+
   for (final guest in [false, true]) {
     testWidgets('catalogs wait for the ${guest ? 'guest' : 'account'} database activation', (tester) async {
       SharedPreferences.setMockInitialValues({'offline_mode': guest});

@@ -14,6 +14,7 @@ class AuthApiException implements Exception {
   final String? code;
   final Duration? retryAfter;
   final AccountDeletionAuthorization? recoveryAuthorization;
+  final PendingVerification? pendingVerification;
 
   const AuthApiException({
     required this.statusCode,
@@ -21,6 +22,7 @@ class AuthApiException implements Exception {
     this.code,
     this.retryAfter,
     this.recoveryAuthorization,
+    this.pendingVerification,
   });
 
   @override
@@ -63,7 +65,7 @@ class AuthApiClient {
     return config.endpoint('/auth/oauth/google/start', {'redirect_uri': redirectUri});
   }
 
-  Future<AuthTokens> register({
+  Future<PendingVerification> register({
     required String email,
     required String password,
     required String displayName,
@@ -81,7 +83,30 @@ class AuthApiClient {
       },
     );
 
-    return AuthTokens.fromJson(json);
+    if (json['status'] == 'verification_required' &&
+        json['email'] is String &&
+        json['message'] is String &&
+        !json.containsKey('access_token') &&
+        !json.containsKey('refresh_token')) {
+      return PendingVerification.fromJson(json);
+    }
+
+    // During rollout an older server may still issue an unverified session.
+    final accessToken = json['access_token'];
+
+    if (accessToken is String && accessToken.isNotEmpty) {
+      try {
+        await logout(accessToken);
+      } catch (_) {
+        // Never install the rejected session, even when revocation is unavailable.
+      }
+    }
+
+    if (json['user'] is Map<String, dynamic> && json['user']['email_verified'] == false) {
+      return PendingVerification(email: email.trim().toLowerCase(), resendAfter: 0);
+    }
+
+    throw const FormatException('Expected pending registration');
   }
 
   Future<AuthTokens> login({
@@ -199,12 +224,18 @@ class AuthApiClient {
 
   Future<String> verifyEmail(String token) async {
     final json = await _postJson(config.endpoint('/auth/verify-email'), body: {'token': token});
-    return json['message'] as String? ?? 'Email verified successfully';
+    final message = json['message'];
+
+    if (message is! String || message.isEmpty) {
+      throw const FormatException('Invalid verification response');
+    }
+
+    return message;
   }
 
-  Future<String> resendVerification(String email) async {
+  Future<VerificationDelivery> resendVerification(String email) async {
     final json = await _postJson(config.endpoint('/auth/resend-verification'), body: {'email': email});
-    return json['message'] as String? ?? 'If the email is registered, a verification link has been sent';
+    return VerificationDelivery.fromJson(json);
   }
 
   Future<PowerSyncToken> powerSyncToken(String accessToken) async {
@@ -314,11 +345,26 @@ class AuthApiClient {
 
   Map<String, dynamic> _decodeResponse(http.Response response) {
     if (response.statusCode == 429) {
+      String? retryHeader = response.headers['retry-after'];
+
+      if (retryHeader == null) {
+        try {
+          final body = jsonDecode(response.body);
+          final seconds = body['error']['details']['retry_after'];
+
+          if (seconds is int && seconds >= 0) {
+            retryHeader = '$seconds';
+          }
+        } catch (_) {
+          // Proxies may return a non-JSON rate-limit response.
+        }
+      }
+
       throw AuthApiException(
         statusCode: 429,
         code: 'RATE_LIMIT_EXCEEDED',
         message: rateLimitMessage,
-        retryAfter: _retryAfter(response.headers['retry-after']),
+        retryAfter: _retryAfter(retryHeader),
       );
     }
 
@@ -334,6 +380,10 @@ class AuthApiClient {
       throw AuthApiException(
         statusCode: response.statusCode,
         code: error['code'] as String?,
+        retryAfter: response.headers.containsKey('retry-after') ? _retryAfter(response.headers['retry-after']) : null,
+        pendingVerification: error['code'] == 'EMAIL_VERIFICATION_REQUIRED'
+            ? PendingVerification.fromJson(error['details'] as Map<String, dynamic>)
+            : null,
         recoveryAuthorization: error['code'] == 'ACCOUNT_DELETION_PENDING'
             ? AccountDeletionAuthorization.fromJson(error['details']['authorization'] as Map<String, dynamic>)
             : null,

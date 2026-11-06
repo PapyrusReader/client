@@ -108,3 +108,39 @@ class AccountDeletionAuthorization {
     );
   }
 }
+
+class PendingVerification {
+  final String? email;
+  final int resendAfter;
+
+  const PendingVerification({required this.email, required this.resendAfter});
+
+  factory PendingVerification.fromJson(Map<String, dynamic> json) {
+    final email = json['email'];
+    final seconds = json['resend_after'];
+
+    if ((email != null && (email is! String || email.isEmpty)) || seconds is! int || seconds < 0) {
+      throw const FormatException('Invalid verification response');
+    }
+
+    return PendingVerification(email: email as String?, resendAfter: seconds);
+  }
+}
+
+class VerificationDelivery {
+  final String message;
+  final int resendAfter;
+
+  const VerificationDelivery({required this.message, required this.resendAfter});
+
+  factory VerificationDelivery.fromJson(Map<String, dynamic> json) {
+    final message = json['message'];
+    final seconds = json['resend_after'];
+
+    if (message is! String || message.isEmpty || seconds is! int || seconds < 0) {
+      throw const FormatException('Invalid verification delivery response');
+    }
+
+    return VerificationDelivery(message: message, resendAfter: seconds);
+  }
+}

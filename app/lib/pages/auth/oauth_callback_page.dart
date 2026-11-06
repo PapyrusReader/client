@@ -19,6 +19,17 @@ class OAuthCallbackPage extends StatefulWidget {
 class _OAuthCallbackPageState extends State<OAuthCallbackPage> {
   String? _errorMessage;
   bool _showingConfirmation = false;
+  AuthProvider? _auth;
+  bool _completing = false;
+
+  @override
+  void dispose() {
+    if (_completing) {
+      _auth?.cancelAuthentication(notify: false);
+    }
+
+    super.dispose();
+  }
 
   @override
   void initState() {
@@ -28,6 +39,8 @@ class _OAuthCallbackPageState extends State<OAuthCallbackPage> {
 
   Future<void> _completeSignIn() async {
     final authProvider = context.read<AuthProvider>();
+    _auth = authProvider;
+    _completing = true;
     clearBrowserQuery();
 
     final success = await authProvider.completeGoogleSignIn(widget.callbackUri);
@@ -36,8 +49,15 @@ class _OAuthCallbackPageState extends State<OAuthCallbackPage> {
       return;
     }
 
+    _completing = false;
+
     if (success) {
       context.goNamed('LIBRARY');
+      return;
+    }
+
+    if (authProvider.pendingVerification != null) {
+      context.go('/verification');
       return;
     }
 
@@ -94,6 +114,13 @@ class _OAuthCallbackPageState extends State<OAuthCallbackPage> {
                   Text(_errorMessage!, style: theme.textTheme.titleMedium, textAlign: TextAlign.center),
                   const SizedBox(height: Spacing.lg),
                   FilledButton(onPressed: () => context.go('/login'), child: const Text('Back to sign in')),
+                  if (_auth?.errorCode == 'verification_unavailable')
+                    TextButton(
+                      onPressed: () => context.go('/verification'),
+                      child: const Text('Request verification email'),
+                    ),
+                  if (_auth?.errorCode == 'email_required')
+                    TextButton(onPressed: () => context.go('/register'), child: const Text('Register with email')),
                 ],
               ],
             ),

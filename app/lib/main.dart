@@ -240,6 +240,7 @@ class _PapyrusState extends State<Papyrus> {
   bool _switchingSyncProfile = false;
   Future<void>? _authStateOperation;
   bool _authStateUpdateQueued = false;
+  bool _authSyncSuspended = false;
 
   @override
   void initState() {
@@ -449,11 +450,28 @@ class _PapyrusState extends State<Papyrus> {
     final user = _authProvider.user;
     final profileKey = _activeProfileKey;
 
+    if (user != null && !_authProvider.isOfflineMode && !_authProvider.isSignedIn) {
+      await _watchedFolders.suspend();
+      await _mediaUploadQueue.activateScope(MediaStorageScope(profileKey: profileKey, userId: user.userId));
+
+      if (_authProvider.pendingVerification != null && _powerSyncService.mode != null && !_authSyncSuspended) {
+        _authSyncSuspended = true;
+        await _powerSyncService.setOnline(false);
+      }
+
+      return;
+    }
+
     if (user != null && !_authProvider.isOfflineMode) {
       final userId = user.userId;
       final scope = MediaStorageScope(profileKey: profileKey, userId: userId);
       await _mediaUploadQueue.activateScope(scope);
       await _powerSyncService.activateAuthenticated(userId, profileKey: profileKey);
+
+      if (_authSyncSuspended && _authProvider.isSignedIn && _authProvider.user?.userId == userId) {
+        _authSyncSuspended = false;
+        await _powerSyncService.setOnline(true);
+      }
 
       if (!_switchingSyncProfile &&
           _activeProfileKey == profileKey &&
@@ -471,6 +489,7 @@ class _PapyrusState extends State<Papyrus> {
     }
 
     if (_authProvider.isOfflineMode) {
+      _authSyncSuspended = false;
       await _mediaUploadQueue.activateScope(null);
       await _powerSyncService.activateGuest();
 
@@ -490,7 +509,7 @@ class _PapyrusState extends State<Papyrus> {
     await _mediaUploadQueue.activateScope(null);
 
     if (!_authProvider.isBootstrapping && _powerSyncService.mode != null) {
-      await _powerSyncService.deactivate(clearAuthenticated: !_switchingSyncProfile);
+      await _powerSyncService.deactivate(clearAuthenticated: false);
     }
   }
 
@@ -525,6 +544,7 @@ class _PapyrusState extends State<Papyrus> {
       await _mediaUploadQueue.waitUntilIdle();
       await _mediaUploadQueue.activateScope(null);
       await _powerSyncService.deactivate(clearAuthenticated: false);
+      _authSyncSuspended = false;
       _authRepository = _buildAuthRepository(nextConfig, nextProfileKey);
       _activeProfileKey = nextProfileKey;
       await _authProvider.replaceRepository(_authRepository, bootstrapNewRepository: !_authProvider.isOfflineMode);

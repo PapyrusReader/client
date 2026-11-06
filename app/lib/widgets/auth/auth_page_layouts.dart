@@ -18,6 +18,7 @@ class MobileAuthLayout extends StatelessWidget {
 
   /// Whether to show branding, heading, and subtitle above the form.
   final bool showHeader;
+  final bool announceSubtitle;
 
   const MobileAuthLayout({
     super.key,
@@ -27,6 +28,7 @@ class MobileAuthLayout extends StatelessWidget {
     required this.footer,
     this.bottomActions = const [],
     this.showHeader = true,
+    this.announceSubtitle = false,
   });
 
   @override
@@ -62,9 +64,12 @@ class MobileAuthLayout extends StatelessWidget {
                                 color: theme.colorScheme.onSurface,
                               ),
                             ),
-                            Text(
-                              subtitle,
-                              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                            Semantics(
+                              liveRegion: announceSubtitle,
+                              child: Text(
+                                subtitle,
+                                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                              ),
                             ),
                             const SizedBox(height: Spacing.lg),
                           ],
@@ -99,6 +104,7 @@ class DesktopAuthLayout extends StatefulWidget {
 
   /// Whether to show branding, heading, and subtitle above the form.
   final bool showHeader;
+  final bool announceSubtitle;
 
   const DesktopAuthLayout({
     super.key,
@@ -107,6 +113,7 @@ class DesktopAuthLayout extends StatefulWidget {
     required this.form,
     required this.footer,
     this.showHeader = true,
+    this.announceSubtitle = false,
   });
 
   /// Persists swap state across page navigations within the same session.
@@ -158,9 +165,12 @@ class _DesktopAuthLayoutState extends State<DesktopAuthLayout> {
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    Text(
-                      widget.subtitle,
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    Semantics(
+                      liveRegion: widget.announceSubtitle,
+                      child: Text(
+                        widget.subtitle,
+                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
                     ),
                     const SizedBox(height: Spacing.xl),
                   ],

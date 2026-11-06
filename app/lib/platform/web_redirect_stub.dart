@@ -3,3 +3,11 @@ void redirectTo(String url) {
 }
 
 void clearBrowserQuery() {}
+
+Uri browserAppBaseUri() => Uri.base;
+
+String? takeVerificationToken(String? token) => token;
+
+void rememberOAuthServer(String serverKey) {}
+
+bool consumeOAuthServer(String serverKey) => true;
