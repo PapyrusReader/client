@@ -31,8 +31,7 @@ class AuthApiException implements Exception {
 
 class AuthApiClient {
   static const serverUnavailableMessage = 'Unable to connect. Please try again.';
-  static const verificationUnavailableMessage =
-      'We couldn’t send the verification email. Try again, or contact your server administrator.';
+  static const verificationUnavailableMessage = 'Couldn’t send the verification email. Please try again.';
   static const rateLimitMessage = 'Too many requests. Please try again later.';
 
   final PapyrusApiConfig config;

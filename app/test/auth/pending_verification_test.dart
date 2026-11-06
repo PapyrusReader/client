@@ -315,6 +315,24 @@ void main() {
     });
   }
 
+  test('registration delivery failure reports the failed action and retains retry timing', () async {
+    final repo = repository(
+      (_) async => response(
+        {
+          'error': {'code': 'VERIFICATION_UNAVAILABLE', 'message': 'Please try later', 'details': {}},
+        },
+        503,
+        {'retry-after': '60'},
+      ),
+    );
+    final auth = AuthProvider(await SharedPreferences.getInstance(), repository: repo, bootstrapOnCreate: false);
+    expect(await auth.register(email: 'alice@example.com', password: 'password', displayName: 'Alice'), isFalse);
+    expect(auth.error, 'Registration failed. Please try again.');
+    expect(auth.retryAt!.isAfter(DateTime.now()), isTrue);
+    expect(auth.isSignedIn, isFalse);
+    auth.dispose();
+  });
+
   test('resend parses cooldown and delivery failures preserve retry headers', () async {
     var requests = 0;
     final repo = repository((_) async {

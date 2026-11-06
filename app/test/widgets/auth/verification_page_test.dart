@@ -240,7 +240,7 @@ void main() {
     await tester.tap(find.text('Resend verification email'));
     await tester.pumpAndSettle();
     expect(
-      find.text('We couldn’t send the verification email. Try again, or contact your server administrator.'),
+      find.text('Couldn’t send the verification email. Please try again.'),
       findsOneWidget,
     );
     expect(find.textContaining('Try again in'), findsOneWidget);

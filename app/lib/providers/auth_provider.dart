@@ -207,6 +207,11 @@ class AuthProvider extends ChangeNotifier {
     } catch (error) {
       if (operation == _operation) {
         _recordError(error);
+
+        if (error is AuthApiException && error.code == 'VERIFICATION_UNAVAILABLE') {
+          _error = 'Registration failed. Please try again.';
+        }
+
         _setStatus(_user == null ? AuthStatus.authError : previousStatus);
       }
 

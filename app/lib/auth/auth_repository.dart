@@ -180,7 +180,7 @@ class AuthRepository {
         message: switch (error) {
           'email_required' =>
             'Google did not provide an email address. Register with email, or contact your server operator for an existing account.',
-          'verification_unavailable' => AuthApiClient.verificationUnavailableMessage,
+          'verification_unavailable' => 'Sign-in failed. Please try again.',
           'account_exists' =>
             'An account with this email already exists. Sign in to that account before linking Google.',
           'access_denied' => 'Google sign-in was cancelled. You can try again.',
