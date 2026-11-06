@@ -5,6 +5,7 @@ import UniformTypeIdentifiers
 @main
 @objc class AppDelegate: FlutterAppDelegate, FlutterImplicitEngineDelegate {
   private var folderAccess: PapyrusFolderAccess?
+  private var timerActivity: TimerActivityBridge?
 
   override func application(
     _ application: UIApplication,
@@ -15,6 +16,9 @@ import UniformTypeIdentifiers
 
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
+    if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "PapyrusTimer") {
+      timerActivity = TimerActivityBridge(messenger: registrar.messenger())
+    }
     if let registrar = engineBridge.pluginRegistry.registrar(forPlugin: "PapyrusFolders") {
       folderAccess = PapyrusFolderAccess(messenger: registrar.messenger(), presenter: window?.rootViewController)
     }

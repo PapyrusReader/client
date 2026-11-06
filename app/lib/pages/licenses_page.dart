@@ -1,31 +1,56 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:papyrus/services/license_packages.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/shared/app_motion_control.dart';
 
 class LicensesPage extends StatefulWidget {
-  const LicensesPage({super.key});
+  const LicensesPage({super.key, this.initialLicenses});
+
+  final LicensePackages? initialLicenses;
 
   @override
   State<LicensesPage> createState() => _LicensesPageState();
 }
 
 class _LicensesPageState extends State<LicensesPage> {
-  late Future<Map<String, List<LicenseEntry>>> _licenses = _loadLicenses();
+  late Future<LicensePackages> _licenses = widget.initialLicenses == null
+      ? _loadLicenses()
+      : SynchronousFuture(widget.initialLicenses!);
+  Timer? _loadingTimer;
+  bool _showLoading = false;
   String? _selectedPackage;
 
-  Future<Map<String, List<LicenseEntry>>> _loadLicenses() async {
-    final packages = <String, List<LicenseEntry>>{};
+  @override
+  void dispose() {
+    _loadingTimer?.cancel();
+    super.dispose();
+  }
 
-    await for (final entry in LicenseRegistry.licenses) {
-      for (final package in entry.packages) {
-        (packages[package] ??= []).add(entry);
+  Future<LicensePackages> _loadLicenses() async {
+    Future<void>? minimumFeedback;
+    _showLoading = false;
+    _loadingTimer = Timer(const Duration(milliseconds: 300), () {
+      if (mounted) {
+        minimumFeedback = Future<void>.delayed(const Duration(milliseconds: 500));
+        setState(() => _showLoading = true);
+      }
+    });
+
+    try {
+      return await loadLicensePackages();
+    } finally {
+      _loadingTimer?.cancel();
+
+      // Fast loads stay immediate. Once visible, feedback remains readable.
+      if (minimumFeedback != null) {
+        await minimumFeedback;
       }
     }
-
-    return packages;
   }
 
   @override
@@ -39,7 +64,9 @@ class _LicensesPageState extends State<LicensesPage> {
             if (snapshot.hasError) {
               return Center(
                 child: TextButton(
-                  onPressed: () => setState(() => _licenses = _loadLicenses()),
+                  onPressed: () => setState(() {
+                    _licenses = _loadLicenses();
+                  }),
                   child: const Text('Could not load licenses. Retry'),
                 ),
               );
@@ -48,7 +75,7 @@ class _LicensesPageState extends State<LicensesPage> {
             final packages = snapshot.data;
 
             if (packages == null) {
-              return const Center(child: Text('Loading licenses…'));
+              return _showLoading ? const Center(child: Text('Loading licenses…')) : const SizedBox.shrink();
             }
 
             if (packages.isEmpty) {
@@ -63,7 +90,7 @@ class _LicensesPageState extends State<LicensesPage> {
               builder: (context, constraints) {
                 final wide = constraints.maxWidth >= Breakpoints.tablet;
 
-                final list = ListView.builder(
+                final listView = ListView.builder(
                   key: const PageStorageKey('license-packages'),
                   padding: const EdgeInsets.all(Spacing.md),
                   itemCount: names.length,
@@ -101,6 +128,13 @@ class _LicensesPageState extends State<LicensesPage> {
                       ),
                     );
                   },
+                );
+
+                // ListTile ink paints on its nearest Material, outside the scroll viewport.
+                final list = Material(
+                  type: MaterialType.transparency,
+                  clipBehavior: Clip.hardEdge,
+                  child: listView,
                 );
 
                 if (!wide) {
@@ -141,7 +175,6 @@ class _LicenseScaffold extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             LibraryPageHeader(title: title, leading: const BackButton(), compact: compact),
-            if (compact) const Divider(height: 1),
             Expanded(child: child),
           ],
         ),

@@ -8,10 +8,18 @@ String folderLastChecked(WatchedFolder folder, {bool includeLabel = true}) => fo
     : '${includeLabel ? 'Checked ' : ''}${DateFormat.yMMMd().add_Hm().format(folder.lastScan!.toLocal())}';
 
 class FolderStatusLabel extends StatelessWidget {
-  const FolderStatusLabel({super.key, required this.folder, this.shelfMissing = false});
+  const FolderStatusLabel({
+    super.key,
+    required this.folder,
+    this.shelfMissing = false,
+    this.alignment = Alignment.centerLeft,
+    this.reserveHeight = true,
+  });
 
   final WatchedFolder folder;
   final bool shelfMissing;
+  final AlignmentGeometry alignment;
+  final bool reserveHeight;
 
   @override
   Widget build(BuildContext context) {
@@ -43,24 +51,27 @@ class FolderStatusLabel extends StatelessWidget {
     };
 
     return SizedBox(
-      height: lineHeight * 2,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, size: IconSizes.small, color: color),
-          const SizedBox(width: Spacing.xs),
-          Flexible(
-            child: Text(
-              label,
-              style: style.copyWith(color: color),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              semanticsLabel: folder.status == FolderStatus.importing && progress != null
-                  ? 'Importing books: ${progress.label}'
-                  : null,
+      height: reserveHeight ? lineHeight * 2 : null,
+      child: Align(
+        alignment: alignment,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: IconSizes.small, color: color),
+            const SizedBox(width: Spacing.xs),
+            Flexible(
+              child: Text(
+                label,
+                style: style.copyWith(color: color),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                semanticsLabel: folder.status == FolderStatus.importing && progress != null
+                    ? 'Importing books: ${progress.label}'
+                    : null,
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

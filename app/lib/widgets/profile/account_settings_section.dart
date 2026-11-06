@@ -10,8 +10,9 @@ import 'package:provider/provider.dart';
 /// Account settings section for ProfilePage.
 class AccountSettingsSection extends StatelessWidget {
   final bool isDesktop;
+  final bool showHeader;
 
-  const AccountSettingsSection({super.key, this.isDesktop = false});
+  const AccountSettingsSection({super.key, this.isDesktop = false, this.showHeader = true});
 
   @override
   Widget build(BuildContext context) {
@@ -26,10 +27,11 @@ class AccountSettingsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SettingsSectionHeader(
-          title: 'Account',
-          padding: EdgeInsets.only(bottom: Spacing.md),
-        ),
+        if (showHeader)
+          const SettingsSectionHeader(
+            title: 'Account',
+            padding: EdgeInsets.only(bottom: Spacing.md),
+          ),
         _buildProfileForm(context),
         const SizedBox(height: Spacing.lg),
         const SettingsRow(label: 'Change password', enabled: false, showChevron: false),

@@ -4,39 +4,42 @@ import 'package:flutter/material.dart';
 import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/providers/auth_provider.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/profile/about_settings_section.dart';
 import 'package:papyrus/widgets/profile/accessibility_settings_section.dart';
 import 'package:papyrus/widgets/profile/account_settings_section.dart';
 import 'package:papyrus/widgets/profile/appearance_settings_section.dart';
-import 'package:papyrus/widgets/profile/notifications_settings_section.dart';
-import 'package:papyrus/widgets/profile/privacy_settings_section.dart';
-import 'package:papyrus/widgets/profile/profile_menu_item.dart';
 import 'package:papyrus/widgets/profile/storage_sync_settings_section.dart';
 import 'package:provider/provider.dart';
 
-enum _ProfileSection {
-  account,
-  appearance,
-  storageSync,
-  accessibility,
-  about,
+enum ProfileSection {
+  account('account', 'Account', Icons.person_outline),
+  appearance('appearance', 'Appearance', Icons.palette_outlined),
+  storageSync('storage', 'Storage', Icons.cloud_outlined),
+  accessibility('accessibility', 'Accessibility', Icons.accessibility_outlined),
+  about('about', 'About', Icons.info_outline);
+
+  const ProfileSection(this.path, this.title, this.icon);
+
+  final String path;
+  final String title;
+  final IconData icon;
 }
 
-/// User profile page with account settings, preferences, and app configuration.
-///
-/// Mobile: AppBar with title, inline settings sections.
-/// Desktop: Sidebar nav + content panel (similar to GitHub Settings).
+/// Compact settings index with pushed detail pages, or a wide sidebar and panel.
 class ProfilePage extends StatefulWidget {
-  const ProfilePage({super.key});
+  const ProfilePage({super.key, this.section});
+
+  final ProfileSection? section;
 
   @override
   State<ProfilePage> createState() => _ProfilePageState();
 }
 
 class _ProfilePageState extends State<ProfilePage> {
-  _ProfileSection _selectedSection = _ProfileSection.account;
+  late ProfileSection _selectedSection = widget.section ?? ProfileSection.account;
 
   @override
   Widget build(BuildContext context) {
@@ -47,33 +50,87 @@ class _ProfilePageState extends State<ProfilePage> {
       return _buildDesktopLayout(context);
     }
 
+    if (widget.section != null) {
+      return _buildMobileDetail(context);
+    }
+
     return _buildMobileLayout(context);
   }
 
   Widget _buildMobileLayout(BuildContext context) {
+    final auth = context.watch<AuthProvider>();
+    final preferences = context.watch<PreferencesProvider>();
+
     return Scaffold(
       appBar: AppPageBar(context: context, title: const Text('Settings')),
       body: SafeArea(
         child: ListView(
-          padding: const EdgeInsets.all(Spacing.md),
+          key: const PageStorageKey('settings-index'),
+          padding: const EdgeInsets.symmetric(vertical: Spacing.sm),
           children: [
-            const AccountSettingsSection(isDesktop: false),
-            const AppearanceSettingsSection(isDesktop: false),
-            const NotificationsSettingsSection(isDesktop: false),
-            const StorageSyncSettingsSection(isDesktop: false),
-            StorageSyncSettingsSection.buildMobileAcquisitionSection(context),
-            const PrivacySettingsSection(isDesktop: false),
-            const AccessibilitySettingsSection(isDesktop: false),
-            const AboutSettingsSection(isDesktop: false),
-            const Divider(height: 1),
-            ProfileMenuItem(
-              icon: Icons.logout,
-              label: 'Log out',
-              isDestructive: true,
-              showChevron: false,
+            _buildMobileItem(
+              context,
+              ProfileSection.account,
+              subtitle: auth.isOfflineMode ? 'Offline profile' : auth.profileDisplayName,
+            ),
+            const Divider(height: Spacing.lg),
+            _buildMobileItem(
+              context,
+              ProfileSection.appearance,
+              subtitle: '${AppearanceSettingsSection.getThemeLabel(preferences.themeModePref)} theme, page layout',
+            ),
+            _buildMobileItem(context, ProfileSection.accessibility, subtitle: 'Text size, contrast, motion'),
+            const Divider(height: Spacing.lg),
+            _buildMobileItem(
+              context,
+              ProfileSection.storageSync,
+              subtitle: auth.isOfflineMode ? 'On-device library, backups' : 'Sync, servers, downloads',
+            ),
+            const ListTile(
+              enabled: false,
+              leading: Icon(Icons.notifications_outlined),
+              title: Text('Notifications'),
+              subtitle: Text('Not available yet'),
+            ),
+            const ListTile(
+              enabled: false,
+              leading: Icon(Icons.shield_outlined),
+              title: Text('Privacy'),
+              subtitle: Text('Not available yet'),
+            ),
+            const Divider(height: Spacing.lg),
+            _buildMobileItem(context, ProfileSection.about, subtitle: 'Version, support, licenses'),
+            const Divider(height: Spacing.lg),
+            ListTile(
+              leading: Icon(Icons.logout, color: Theme.of(context).colorScheme.error),
+              title: Text('Log out', style: TextStyle(color: Theme.of(context).colorScheme.error)),
               onTap: () => _showLogoutConfirmation(context),
             ),
-            const SizedBox(height: Spacing.lg),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildMobileItem(BuildContext context, ProfileSection section, {required String subtitle}) {
+    return ListTile(
+      leading: Icon(section.icon),
+      title: Text(section.title),
+      subtitle: Text(subtitle),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: () => context.push('/profile/${section.path}'),
+    );
+  }
+
+  Widget _buildMobileDetail(BuildContext context) {
+    return Scaffold(
+      appBar: AppPageBar(context: context, title: Text(_selectedSection.title), leading: const BackButton()),
+      body: SafeArea(
+        child: ListView(
+          key: PageStorageKey('settings-${_selectedSection.path}'),
+          padding: const EdgeInsets.fromLTRB(Spacing.md, Spacing.sm, Spacing.md, Spacing.lg),
+          children: [
+            _buildSectionContent(context, isDesktop: false),
           ],
         ),
       ),
@@ -112,13 +169,13 @@ class _ProfilePageState extends State<ProfilePage> {
                     context,
                     icon: Icons.person_outline,
                     label: 'Account',
-                    section: _ProfileSection.account,
+                    section: ProfileSection.account,
                   ),
                   _buildNavItem(
                     context,
                     icon: Icons.palette_outlined,
                     label: 'Appearance',
-                    section: _ProfileSection.appearance,
+                    section: ProfileSection.appearance,
                   ),
                   _buildNavItem(
                     context,
@@ -130,7 +187,7 @@ class _ProfilePageState extends State<ProfilePage> {
                     context,
                     icon: Icons.cloud_outlined,
                     label: 'Storage',
-                    section: _ProfileSection.storageSync,
+                    section: ProfileSection.storageSync,
                   ),
                   _buildNavItem(
                     context,
@@ -142,9 +199,9 @@ class _ProfilePageState extends State<ProfilePage> {
                     context,
                     icon: Icons.accessibility_outlined,
                     label: 'Accessibility',
-                    section: _ProfileSection.accessibility,
+                    section: ProfileSection.accessibility,
                   ),
-                  _buildNavItem(context, icon: Icons.info_outline, label: 'About', section: _ProfileSection.about),
+                  _buildNavItem(context, icon: Icons.info_outline, label: 'About', section: ProfileSection.about),
                   const SizedBox(height: Spacing.sm),
                   Divider(height: 1, color: colorScheme.outlineVariant),
                   const SizedBox(height: Spacing.sm),
@@ -169,7 +226,7 @@ class _ProfilePageState extends State<ProfilePage> {
     BuildContext context, {
     required IconData icon,
     required String label,
-    _ProfileSection? section,
+    ProfileSection? section,
     bool enabled = true,
     bool isDestructive = false,
     VoidCallback? onTap,
@@ -232,7 +289,7 @@ class _ProfilePageState extends State<ProfilePage> {
     final textTheme = Theme.of(context).textTheme;
 
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(Spacing.xl),
+      padding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.lg, Spacing.lg),
       child: Align(
         alignment: Alignment.topLeft,
         child: ConstrainedBox(
@@ -250,34 +307,16 @@ class _ProfilePageState extends State<ProfilePage> {
     );
   }
 
-  String get _sectionTitle {
-    switch (_selectedSection) {
-      case _ProfileSection.account:
-        return 'Account';
-      case _ProfileSection.appearance:
-        return 'Appearance';
-      case _ProfileSection.storageSync:
-        return 'Storage';
-      case _ProfileSection.accessibility:
-        return 'Accessibility';
-      case _ProfileSection.about:
-        return 'About';
-    }
-  }
+  String get _sectionTitle => _selectedSection.title;
 
-  Widget _buildSectionContent(BuildContext context) {
-    switch (_selectedSection) {
-      case _ProfileSection.account:
-        return const AccountSettingsSection(isDesktop: true);
-      case _ProfileSection.appearance:
-        return const AppearanceSettingsSection(isDesktop: true);
-      case _ProfileSection.storageSync:
-        return const StorageSyncSettingsSection(isDesktop: true);
-      case _ProfileSection.accessibility:
-        return const AccessibilitySettingsSection(isDesktop: true);
-      case _ProfileSection.about:
-        return const AboutSettingsSection(isDesktop: true);
-    }
+  Widget _buildSectionContent(BuildContext context, {bool isDesktop = true}) {
+    return switch (_selectedSection) {
+      ProfileSection.account => AccountSettingsSection(isDesktop: isDesktop, showHeader: false),
+      ProfileSection.appearance => AppearanceSettingsSection(isDesktop: isDesktop, showHeader: false),
+      ProfileSection.storageSync => StorageSyncSettingsSection(isDesktop: isDesktop, showHeader: false),
+      ProfileSection.accessibility => AccessibilitySettingsSection(isDesktop: isDesktop, showHeader: false),
+      ProfileSection.about => AboutSettingsSection(isDesktop: isDesktop, showHeader: false),
+    };
   }
 
   Future<void> _handleLogout(BuildContext context) async {

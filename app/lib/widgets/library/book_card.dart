@@ -4,6 +4,7 @@ import 'package:papyrus/models/book.dart';
 import 'package:papyrus/providers/book_storage_status_controller.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/themes/card_overlay_colors.dart';
 import 'package:papyrus/utils/book_actions.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/library/acquisition_status_text.dart';
@@ -108,6 +109,7 @@ class _BookCardState extends State<BookCard> {
           margin: EdgeInsets.zero,
           clipBehavior: Clip.antiAlias,
           color: isUnavailable ? colorScheme.surfaceContainerLow : null,
+          shadowColor: colorScheme.brightness == Brightness.dark ? colorScheme.outline : null,
           child: InkWell(
             onTap: effectiveTap,
             child: Column(
@@ -140,7 +142,7 @@ class _BookCardState extends State<BookCard> {
                             child: _CardIconButton(
                               tooltip: widget.isFavorite ? 'Remove from favorites' : 'Add to favorites',
                               icon: widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                              color: widget.isFavorite ? colorScheme.error : Colors.white,
+                              color: widget.isFavorite ? CardOverlayColors.favorite(colorScheme) : Colors.white,
                               onTap: widget.onToggleFavorite != null
                                   ? () => widget.onToggleFavorite!(widget.isFavorite)
                                   : null,
@@ -157,7 +159,7 @@ class _BookCardState extends State<BookCard> {
                                 ? 'Deselect ${widget.book.title}'
                                 : 'Select ${widget.book.title}',
                             icon: widget.isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-                            color: widget.isSelected ? colorScheme.primary : Colors.white,
+                            color: widget.isSelected ? CardOverlayColors.selection(colorScheme) : Colors.white,
                             onTap: widget.onSelectToggle,
                           ),
                         ),
@@ -466,7 +468,7 @@ class _CardIconButton extends StatelessWidget {
         container: true,
         button: true,
         child: Material(
-          color: Colors.black45,
+          color: CardOverlayColors.background,
           borderRadius: BorderRadius.circular(AppRadius.full),
           child: InkWell(
             borderRadius: BorderRadius.circular(AppRadius.full),

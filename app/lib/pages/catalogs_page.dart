@@ -296,14 +296,19 @@ class _CatalogsPageState extends State<CatalogsPage> {
       onRetry: (job) => unawaited(retryOpdsDownload(context, job)),
     );
 
-    if (mobile) {
-      if (widget.catalogId == null) {
-        return LibraryMobileToolbar(
-          onMenuPressed: () => openAppDrawer(context, Scaffold.maybeOf(context)),
-          actions: [downloadsButton],
-        );
-      }
+    if (widget.catalogId == null) {
+      return LibraryCollectionHeader(
+        title: 'Catalogs',
+        onMenuPressed: () => openAppDrawer(context, Scaffold.maybeOf(context)),
+        actions: [
+          downloadsButton,
+          if (!mobile)
+            LibraryAddButton(label: 'Add catalog', onPressed: catalogs.scope == null ? null : () => _edit(catalogs)),
+        ],
+      );
+    }
 
+    if (mobile) {
       return LibraryPageHeader(
         compact: true,
         key: const Key('catalog-mobile-header'),
@@ -318,18 +323,6 @@ class _CatalogsPageState extends State<CatalogsPage> {
               icon: const Icon(Icons.settings_outlined),
             ),
         ],
-      );
-    }
-
-    if (widget.catalogId == null) {
-      return Padding(
-        padding: const EdgeInsets.only(top: Spacing.lg, left: Spacing.lg, right: Spacing.lg),
-        child: LibraryToolbar(
-          actions: [
-            downloadsButton,
-            LibraryAddButton(label: 'Add catalog', onPressed: catalogs.scope == null ? null : () => _edit(catalogs)),
-          ],
-        ),
       );
     }
 

@@ -386,7 +386,7 @@ void main() {
           }
 
           await tester.tap(
-            width < 840 ? find.byTooltip('Add catalog') : find.widgetWithText(FilledButton, 'Add catalog'),
+            width < 840 ? find.byTooltip('Add catalog') : find.byType(LibraryAddButton),
           );
 
           await _settle(tester);

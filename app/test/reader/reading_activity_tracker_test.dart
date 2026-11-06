@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/data/repositories/tracking_repository.dart';
+import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/providers/statistics_provider.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/models/reading_activity.dart';
 import 'package:papyrus/models/reading_goal.dart';
@@ -123,6 +125,40 @@ void main() {
     });
   });
 
+  test('scrolling within a rendered page retains its exposure timer', () async {
+    var now = start;
+    final repository = RecordingRepository();
+    final tracker = ReadingActivityTracker(
+      repository: repository,
+      book: Book(id: 'book', title: 'Book', author: '', addedAt: start),
+      shelfIds: [],
+      deviceId: 'one',
+      onError: (_) {},
+      now: () => now,
+      checkpointInterval: const Duration(days: 1),
+    );
+
+    tracker.onActivity(
+      event(
+        coverage: const [
+          ReaderContentCoverage(key: 'epub:0:100:1000', start: .1, end: .2),
+        ],
+      ),
+    );
+    now = now.add(const Duration(seconds: 6));
+    tracker.onActivity(
+      event(
+        coverage: const [
+          ReaderContentCoverage(key: 'epub:0:100:1000', start: .15, end: .3),
+        ],
+      ),
+    );
+    now = now.add(const Duration(seconds: 4));
+    await tracker.close();
+    expect(repository.records.values.first.coverage, isEmpty);
+    expect(repository.records.values.last.coverage.single.pagesPerUnit, 1);
+  });
+
   test('write retries reuse UUIDs and captured profiles cannot write into another library', () async {
     var now = start;
     final repository = RecordingRepository()..failures = 1;
@@ -151,7 +187,44 @@ void main() {
     expect(repository.records.length, 1);
   });
 
-  test('EPUB metadata calibration is estimated; no metadata still records time', () async {
+  test('chapter coverage preserves calibrated ranges and resets exposure on a turn', () async {
+    for (final pageCount in [null, 200]) {
+      var now = start;
+      final repository = RecordingRepository();
+      final tracker = ReadingActivityTracker(
+        repository: repository,
+        book: Book(id: 'book', title: 'Book', author: '', addedAt: start, pageCount: pageCount),
+        shelfIds: [],
+        deviceId: 'one',
+        onError: (_) {},
+        now: () => now,
+        checkpointInterval: const Duration(days: 1),
+      );
+
+      for (final (from, to, seconds) in [(0.0, .1, 10), (.1, .2, 9), (.2, .3, 10)]) {
+        tracker.onActivity(
+          event(
+            coverage: [
+              ReaderContentCoverage(key: 'epub:0:1000', start: from, end: to, chapterCount: 10),
+            ],
+          ),
+        );
+        now = now.add(Duration(seconds: seconds));
+      }
+
+      await tracker.close();
+      final coverage = repository.records.values.expand((activity) => activity.coverage).toList();
+
+      if (pageCount == null) {
+        expect(coverage, isEmpty);
+      } else {
+        expect(coverage.map((extent) => (extent.start, extent.end)), [(0.0, .1), (.2, .3)]);
+        expect(coverage.every((extent) => extent.estimated && extent.pagesPerUnit == 20), isTrue);
+      }
+    }
+  });
+
+  test('EPUB rendered pages count without metadata and checkpoints do not duplicate them', () async {
     for (final count in [null, 200]) {
       var now = start;
       final repository = RecordingRepository();
@@ -167,19 +240,29 @@ void main() {
       );
 
       tracker.onActivity(
-        event(coverage: const [ReaderContentCoverage(key: 'epub:0:1000', start: .1, end: .3, chapterCount: 10)]),
+        event(
+          coverage: const [
+            ReaderContentCoverage(key: 'epub:0:100:1000', start: .1, end: .3),
+            ReaderContentCoverage(key: 'epub:0:300:1000', start: .3, end: .5),
+          ],
+        ),
       );
 
       now = now.add(const Duration(seconds: 10));
+      await tracker.flush();
+      now = now.add(const Duration(seconds: 10));
       await tracker.close();
-      final activity = repository.records.values.single;
-      expect(activity.seconds, 10);
-      expect(activity.coverage.length, count == null ? 0 : 1);
-
-      if (count != null) {
-        expect(activity.coverage.single.pagesPerUnit, 20);
-        expect(activity.isEstimated, isTrue);
-      }
+      expect(repository.records.values.first.coverage.length, 2);
+      expect(repository.records.values.every((activity) => !activity.isEstimated), isTrue);
+      final store = DataStore()..loadData();
+      addTearDown(store.dispose);
+      await store.commitTracking(activities: repository.records.values.toList());
+      final statistics = StatisticsProvider(now: () => now)..attach(store);
+      addTearDown(statistics.dispose);
+      expect(statistics.totalReadingSeconds, 20);
+      expect(statistics.pagesRead, 2);
+      expect(statistics.hasEstimatedPages, isFalse);
+      expect(statistics.readingTimeData.fold<double>(0, (sum, day) => sum + day.pages), 2);
     }
   });
 }

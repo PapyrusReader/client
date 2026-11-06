@@ -9,8 +9,9 @@ import 'package:provider/provider.dart';
 /// Appearance and theme settings section for ProfilePage.
 class AppearanceSettingsSection extends StatelessWidget {
   final bool isDesktop;
+  final bool showHeader;
 
-  const AppearanceSettingsSection({super.key, this.isDesktop = false});
+  const AppearanceSettingsSection({super.key, this.isDesktop = false, this.showHeader = true});
 
   static String getThemeLabel(String theme) {
     switch (theme) {
@@ -41,8 +42,9 @@ class AppearanceSettingsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SettingsSectionHeader(title: 'Appearance'),
+        if (showHeader) const SettingsSectionHeader(title: 'Appearance'),
         SettingsRow(label: 'Theme', value: getThemeLabel(prefs.themeModePref), onTap: () => _showThemePicker(context)),
+        _buildPageAlignment(context),
       ],
     );
   }
@@ -52,7 +54,25 @@ class AppearanceSettingsSection extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         SettingsCard(title: 'Theme', children: [_buildThemeRadioGroup(context)]),
+        const SizedBox(height: Spacing.lg),
+        SettingsCard(title: 'Page layout', children: [_buildPageAlignment(context)]),
       ],
+    );
+  }
+
+  Widget _buildPageAlignment(BuildContext context) {
+    final prefs = context.watch<PreferencesProvider>();
+
+    return SettingsRow(
+      label: 'Page alignment',
+      value: prefs.pageAlignment == 'center' ? 'Center' : 'Left',
+      onTap: () => showProfilePickerSheet(
+        context,
+        title: 'Page alignment',
+        items: const [('Left', 'left'), ('Center', 'center')],
+        selected: prefs.pageAlignment,
+        onSelected: (value) => prefs.pageAlignment = value,
+      ),
     );
   }
 

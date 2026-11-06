@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/pages/book_edit_page.dart';
+import 'package:papyrus/providers/book_edit_provider.dart';
+import 'package:papyrus/widgets/book_details/book_info_grid.dart';
+import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book_edit/cover_image_picker.dart';
@@ -41,6 +44,29 @@ void main() {
       );
 
       await tester.pumpAndSettle();
+    }
+
+    for (final width in [390.0, 1400.0]) {
+      testWidgets('genre can be edited and cleared at $width', (tester) async {
+        await pumpPage(tester, size: Size(width, 1000));
+        final field = find.ancestor(of: find.text('Genre'), matching: find.byType(TextFormField));
+        await tester.ensureVisible(field);
+        await tester.enterText(field, 'Science fiction');
+        final editor = tester.element(field).read<BookEditProvider>();
+        expect(editor.editedBook?.genre, 'Science fiction');
+        expect(await editor.save(), isTrue);
+        final saved = editor.editedBook!;
+        await tester.enterText(field, '');
+        expect(editor.editedBook?.genre, isNull);
+        await tester.pumpWidget(
+          MaterialApp(
+            home: Scaffold(body: BookInfoGrid(book: saved)),
+          ),
+        );
+        expect(find.text('Genre'), findsOneWidget);
+        expect(find.text('Science fiction'), findsOneWidget);
+        expect(tester.takeException(), isNull);
+      });
     }
 
     testWidgets('desktop uses a left-aligned page header with a persistent Save action', (tester) async {

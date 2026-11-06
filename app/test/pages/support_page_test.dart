@@ -9,13 +9,21 @@ import 'package:http/testing.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/pages/support_page.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
+import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:papyrus/services/support_api_client.dart';
 import 'package:papyrus/themes/app_theme.dart';
 
 import '../helpers/support_file_picker.dart';
 
 void main() {
-  setUp(() {
+  late PreferencesProvider preferences;
+
+  setUp(() async {
+    SharedPreferences.setMockInitialValues({});
+    preferences = PreferencesProvider(await SharedPreferences.getInstance());
+    addTearDown(preferences.dispose);
     PackageInfo.setMockInitialValues(
       appName: 'Papyrus',
       packageName: 'papyrus',
@@ -24,6 +32,45 @@ void main() {
       buildSignature: '',
     );
   });
+
+  for (final width in [390.0, 1280.0]) {
+    testWidgets('page alignment updates without losing the draft at width $width', (tester) async {
+      tester.view.physicalSize = Size(width, 1100);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      final client = SupportApiClient(
+        config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://api.example')),
+        httpClient: MockClient((request) async => http.Response('', 503)),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          home: ChangeNotifierProvider.value(
+            value: preferences,
+            child: SupportPage(client: client),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+      final leftBounds = tester.getRect(find.byType(Form));
+      expect(leftBounds.left, 24);
+      expect(leftBounds.width, width > 688 ? 640 : width - 48);
+      await tester.enterText(find.byType(TextFormField).first, 'Reader issue');
+      preferences.pageAlignment = 'center';
+      await tester.pumpAndSettle();
+      final centeredBounds = tester.getRect(find.byType(Form));
+      expect(centeredBounds.center.dx, width / 2);
+      expect(centeredBounds.width, leftBounds.width);
+      expect(find.text('Reader issue'), findsOneWidget);
+      preferences.pageAlignment = 'left';
+      await tester.pumpAndSettle();
+      expect(tester.getRect(find.byType(Form)), leftBounds);
+      expect(find.text('Reader issue'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('validation, failure recovery, and single successful submission', (tester) async {
     tester.view.physicalSize = const Size(1000, 1100);
@@ -48,7 +95,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.eink,
-        home: SupportPage(client: client),
+        home: ChangeNotifierProvider.value(
+          value: preferences,
+          child: SupportPage(client: client),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -98,7 +148,10 @@ void main() {
           data: MediaQuery.of(context).copyWith(textScaler: const TextScaler.linear(1.5)),
           child: child!,
         ),
-        home: SupportPage(client: client),
+        home: ChangeNotifierProvider.value(
+          value: preferences,
+          child: SupportPage(client: client),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -139,7 +192,10 @@ void main() {
     await tester.pumpWidget(
       MaterialApp(
         theme: AppTheme.dark,
-        home: SupportPage(client: client),
+        home: ChangeNotifierProvider.value(
+          value: preferences,
+          child: SupportPage(client: client),
+        ),
       ),
     );
     await tester.pumpAndSettle();

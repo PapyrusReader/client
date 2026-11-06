@@ -1,6 +1,6 @@
 import 'package:papyrus/models/reading_session.dart';
 
-/// Stable document coverage, independent of the current screen's pagination.
+/// Coverage of an identified reader page, deduplicated across checkpoints.
 class PageCoverage {
   const PageCoverage({
     required this.key,
@@ -145,12 +145,15 @@ List<ReadingActivity> effectiveActivities(Iterable<ReadingActivity> activities) 
   return unique.values.where((value) => value.kind != 'reversal' && !reversed.contains(value.id)).toList();
 }
 
-/// Checkpoints remain immutable records; presentation groups a reader opening.
+/// Checkpoints remain immutable records; presentation groups a reading session.
 List<ReadingActivity> groupReadingActivities(Iterable<ReadingActivity> ledger) {
   final groups = <String, List<ReadingActivity>>{};
 
   for (final entry in ledger) {
-    final key = entry.source == 'reader' && entry.kind == 'reading' && entry.sessionId != null
+    final key =
+        (entry.source == 'reader' || entry.deviceType == 'physical_timer') &&
+            entry.kind == 'reading' &&
+            entry.sessionId != null
         ? '${entry.bookId}:${entry.sessionId}'
         : entry.id;
 
@@ -168,11 +171,11 @@ List<ReadingActivity> groupReadingActivities(Iterable<ReadingActivity> ledger) {
     final last = entries.reduce((left, right) => left.endTime.isAfter(right.endTime) ? left : right);
     var cursor = first.startTime;
     var end = first.endTime;
-    var seconds = 0;
+    var microseconds = 0;
 
     for (final entry in entries.skip(1)) {
       if (entry.startTime.isAfter(end)) {
-        seconds += end.difference(cursor).inSeconds;
+        microseconds += end.difference(cursor).inMicroseconds;
         cursor = entry.startTime;
       }
 
@@ -181,7 +184,7 @@ List<ReadingActivity> groupReadingActivities(Iterable<ReadingActivity> ledger) {
       }
     }
 
-    seconds += end.difference(cursor).inSeconds;
+    microseconds += end.difference(cursor).inMicroseconds;
 
     return ReadingActivity(
       id: first.id,
@@ -197,7 +200,8 @@ List<ReadingActivity> groupReadingActivities(Iterable<ReadingActivity> ledger) {
       source: first.source,
       deviceId: first.deviceId,
       shelfIds: first.shelfIds,
-      recordedSeconds: seconds,
+      recordedSeconds: microseconds ~/ Duration.microsecondsPerSecond,
+      pages: entries.fold(0, (total, activity) => total + activity.pages),
       coverage: entries.expand((activity) => activity.coverage).toList(),
       constituentIds: entries.map((activity) => activity.id).toList(),
     );

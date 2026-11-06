@@ -226,6 +226,9 @@ void main() {
       expect(find.byType(FloatingActionButton), findsNothing);
       final toolbar = find.byType(size.width < 840 ? LibraryMobileToolbar : LibraryToolbar);
       final toolbarPosition = tester.getTopLeft(toolbar);
+      final titleBounds = tester.getRect(find.text('Folders'));
+      expect(titleBounds.left, size.width < 840 ? 72 : 24);
+      expect(titleBounds.center.dy, size.width < 840 ? 32 : 48);
       folders.items.add(WatchedFolder(id: 'folder', grant: grant));
       folders.notifyListeners();
       await tester.pumpAndSettle();
@@ -234,7 +237,12 @@ void main() {
       expect(find.byType(Card), findsNothing);
       expect(find.text('Account upload'), findsNothing);
       expect(tester.getTopLeft(toolbar), toolbarPosition);
+      expect(tester.getRect(find.text('Folders')), titleBounds);
       expect(find.byType(FloatingActionButton), size.width < 840 ? findsOneWidget : findsNothing);
+      folders.items.clear();
+      folders.notifyListeners();
+      await tester.pumpAndSettle();
+      expect(tester.getRect(find.text('Folders')), titleBounds);
       expect(tester.takeException(), isNull);
     });
   }
@@ -257,6 +265,7 @@ void main() {
           id: 'archive',
           grant: const FolderGrant(key: 'archive', identity: 'archive', name: 'Archive', location: '/Archive'),
           status: FolderStatus.accessNeeded,
+          error: 'Reconnect this folder to allow access.',
         ),
       ]);
       await mount(tester, size: size, theme: AppTheme.dark);
@@ -292,16 +301,56 @@ void main() {
         }
       }
 
+      if (size.width < 840) {
+        final row = find.byKey(const ValueKey('folder'));
+
+        for (final (label, value) in [
+          ('Status', 'Up to date'),
+          ('Books', '1'),
+          ('Destination shelf', 'No shelf'),
+          ('Last checked', 'Oct 31, 2026 09:30'),
+        ]) {
+          final labelFinder = find.descendant(of: row, matching: find.text(label));
+          final valueFinder = find.descendant(of: row, matching: find.text(value));
+          final gap = tester.getTopLeft(valueFinder).dy - tester.getBottomLeft(labelFinder).dy;
+          expect(gap, closeTo(4, 1), reason: '$label should use the same label-to-value spacing');
+        }
+      }
+
       await _captureReview(tester, 'folders-${size.width.toInt()}');
       await tester.tap(find.text('Reading inbox'));
       await tester.pumpAndSettle();
       await _captureReview(tester, 'details-${size.width.toInt()}');
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.descendant(of: find.byType(FolderIdentity), matching: find.text('Archive')));
+      await tester.pumpAndSettle();
+      final recoverySheet = find.byType(FolderDetailsSheet);
+      final reconnect = find.descendant(of: recoverySheet, matching: find.widgetWithText(FilledButton, 'Reconnect'));
+      final accessStatus = find.descendant(of: recoverySheet, matching: find.text('Access needed'));
+      final explanation = find.text('Reconnect this folder to allow access.');
+      final messageTop = tester.getTopLeft(accessStatus).dy;
+      final messageBottom = tester.getBottomRight(explanation).dy;
+      expect(tester.getCenter(reconnect).dy, closeTo((messageTop + messageBottom) / 2, 1));
+      expect(tester.getTopLeft(reconnect).dx, greaterThan(tester.getBottomRight(accessStatus).dx));
+      expect(tester.getTopLeft(reconnect).dx, greaterThan(tester.getBottomRight(explanation).dx));
+      await _captureReview(tester, 'reconnect-details-${size.width.toInt()}');
+      await tester.tap(find.text('Close'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Reading inbox'));
+      await tester.pumpAndSettle();
       expect(find.text('Stop watching'), findsNothing);
       expect(find.text('Connection'), findsNothing);
       expect(
-        find.descendant(of: find.byType(FolderDetailsSheet), matching: find.text('Destination shelf')),
+        find.descendant(of: find.byType(FolderDetailsSheet), matching: find.text('Shelf')),
         findsOneWidget,
       );
+      final details = find.byType(FolderDetailsSheet);
+      final shelfLabel = find.descendant(of: details, matching: find.text('Shelf'));
+      final subfoldersLabel = find.descendant(of: details, matching: find.text('Subfolders'));
+      final checkedLabel = find.descendant(of: details, matching: find.text('Last checked'));
+      expect(tester.getTopLeft(shelfLabel).dy, tester.getTopLeft(subfoldersLabel).dy);
+      expect(tester.getTopLeft(shelfLabel).dy, tester.getTopLeft(checkedLabel).dy);
       expect(find.text('Close').hitTestable(), findsOneWidget);
       expect(tester.getSize(find.byType(FolderDetailsSheet)).height, lessThan(size.height * .85));
       final viewBooks = find.descendant(of: find.byType(FolderDetailsSheet), matching: find.text('View 1 book'));
@@ -383,7 +432,7 @@ void main() {
   });
 
   for (final size in [const Size(390, 844), const Size(1024, 800)]) {
-    testWidgets('progress reserves row and sheet space and displays remaining books at $size', (tester) async {
+    testWidgets('progress uses content height and keeps detail actions stable at $size', (tester) async {
       final folder = WatchedFolder(id: 'folder', grant: grant);
       folders.items.addAll([
         folder,
@@ -395,6 +444,7 @@ void main() {
       await mount(tester, size: size, theme: AppTheme.dark);
       final nextRow = find.byKey(const ValueKey('second'));
       final position = tester.getTopLeft(nextRow);
+      final statusHeight = tester.getSize(find.text('Up to date').first).height;
       folder.status = FolderStatus.scanning;
       folders.notifyListeners();
       await tester.pump();
@@ -404,8 +454,10 @@ void main() {
       folder.progress = FolderImportProgress(total: 10000)..processed = 2500;
       folders.notifyListeners();
       await tester.pump();
-      expect(tester.getTopLeft(nextRow), position);
-      expect(find.text('2500/10000\n7500 left'), findsOneWidget);
+      final progressLabel = find.text('2500/10000\n7500 left');
+      expect(progressLabel, findsOneWidget);
+      final addedHeight = size.width < 840 ? tester.getSize(progressLabel).height - statusHeight : 0.0;
+      expect(tester.getTopLeft(nextRow).dy, closeTo(position.dy + addedHeight, 1));
       expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).value, .25);
       await _captureReview(tester, 'import-progress-${size.width.toInt()}');
       folder.status = FolderStatus.upToDate;
@@ -444,12 +496,21 @@ void main() {
     (const Size(820, 900), 1.0),
     (const Size(1200, 900), 1.3),
   ]) {
-    testWidgets('folder row height stays stable across all statuses at $size and scale $scale', (tester) async {
-      final folder = WatchedFolder(id: 'folder', grant: grant, status: FolderStatus.paused);
+    testWidgets('folder actions stay in the header without shifting content at $size and scale $scale', (tester) async {
+      final folder = WatchedFolder(
+        id: 'folder',
+        grant: grant,
+        status: FolderStatus.paused,
+        lastScan: DateTime(2026, 11, 1, 23, 59),
+      );
       folders.items.add(folder);
       await mount(tester, size: size, textScale: scale, theme: AppTheme.dark);
       final row = find.byKey(const ValueKey('folder'));
       final bounds = tester.getRect(row);
+      final identity = find.descendant(of: row, matching: find.byType(FolderIdentity));
+      final identityBounds = tester.getRect(identity);
+      final statusTitle = find.descendant(of: row, matching: find.text('Status'));
+      final statusTitlePosition = size.width < 1200 ? tester.getTopLeft(statusTitle) : null;
 
       for (final status in FolderStatus.values) {
         for (final shelfMissing in [false, true]) {
@@ -461,14 +522,28 @@ void main() {
               : null;
           folders.notifyListeners();
           await tester.pump();
-          expect(tester.getRect(row), bounds, reason: '$status, missing shelf: $shelfMissing');
+          expect(tester.getRect(identity), identityBounds);
+
+          if (size.width >= 1200) {
+            expect(tester.getRect(row), bounds, reason: '$status, missing shelf: $shelfMissing');
+          } else {
+            expect(tester.getTopLeft(statusTitle), statusTitlePosition);
+          }
+
+          final action = find.descendant(of: row, matching: find.byType(FilledButton));
+
+          if (action.evaluate().isNotEmpty && size.width < 1200) {
+            final actionBounds = tester.getRect(action);
+            expect(actionBounds.left, greaterThanOrEqualTo(identityBounds.right));
+            expect(actionBounds.center.dy, closeTo(identityBounds.center.dy, 1));
+          }
+
           expect(tester.takeException(), isNull);
         }
       }
 
       folder.status = FolderStatus.paused;
       folder.shelfId = null;
-      folder.lastScan = null;
       folder.progress = null;
       folders.notifyListeners();
       await tester.pumpAndSettle();

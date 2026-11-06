@@ -1,3 +1,4 @@
+import 'package:papyrus/pages/reading_timer_page.dart';
 import 'package:papyrus/pages/watched_folders_page.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ import 'package:papyrus/pages/profile_page.dart';
 import 'package:papyrus/pages/licenses_page.dart';
 import 'package:papyrus/pages/support_page.dart';
 import 'package:papyrus/services/support_api_client.dart';
+import 'package:papyrus/services/license_packages.dart';
 import 'package:papyrus/pages/register_page.dart';
 import 'package:papyrus/pages/reader_page.dart';
 import 'package:papyrus/pages/search_options_page.dart';
@@ -213,6 +215,11 @@ class AppRouter {
                 pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const NotesPage()),
               ),
               GoRoute(
+                name: 'READING_TIMER',
+                path: 'timer',
+                pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const ReadingTimerPage()),
+              ),
+              GoRoute(
                 name: 'SEARCH_OPTIONS',
                 path: 'search/options',
                 pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const SearchOptionsPage()),
@@ -283,9 +290,20 @@ class AppRouter {
             path: '/profile',
             pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const ProfilePage()),
             routes: [
+              for (final section in ProfileSection.values)
+                GoRoute(
+                  path: section.path,
+                  pageBuilder: (context, state) => NoTransitionPage(
+                    key: state.pageKey,
+                    child: ProfilePage(section: section),
+                  ),
+                ),
               GoRoute(
                 path: 'licenses',
-                pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const LicensesPage()),
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: LicensesPage(initialLicenses: state.extra as LicensePackages?),
+                ),
               ),
               GoRoute(
                 path: 'support',

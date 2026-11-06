@@ -1,7 +1,7 @@
 name: papyrus
 description: "Digital library management application."
 publish_to: 'none'
-version: 0.3.0+7
+version: 0.4.0+8
 
 environment:
   sdk: ^3.9.2
@@ -27,7 +27,7 @@ dependencies:
   papyrus_reader:
     git:
       url: https://github.com/PapyrusReader/reader.git
-      ref: eafa444a5acf0ea51018a88eb76de3d19f76187a
+      ref: fa667ae96c64e2d1d80c06e83d326265673abc75
   epub_pro: ^5.6.0
   syncfusion_flutter_pdf: ^32.2.3
   dart_mobi: ^1.0.2

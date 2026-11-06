@@ -3,16 +3,13 @@ import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/media/media_upload_queue.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/storage_sync_controller.dart';
 import 'package:papyrus/powersync/sync_state.dart';
-import 'package:papyrus/providers/acquisition_availability_provider.dart';
 import 'package:papyrus/providers/auth_provider.dart';
-import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
 import 'package:papyrus/services/book_import_service_stub.dart'
     if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
@@ -22,13 +19,14 @@ import 'package:papyrus/widgets/settings/settings_row.dart';
 import 'package:papyrus/widgets/settings/settings_section.dart';
 import 'package:provider/provider.dart';
 
-/// Storage, synchronization, and acquisition settings section.
+/// Storage and synchronization settings section.
 ///
 /// Supports both mobile ListView presentation and desktop card layout.
 class StorageSyncSettingsSection extends StatelessWidget {
   final bool isDesktop;
+  final bool showHeader;
 
-  const StorageSyncSettingsSection({super.key, this.isDesktop = false});
+  const StorageSyncSettingsSection({super.key, this.isDesktop = false, this.showHeader = true});
 
   @override
   Widget build(BuildContext context) {
@@ -46,17 +44,8 @@ class StorageSyncSettingsSection extends StatelessWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const SettingsSectionHeader(title: 'Storage'),
+          if (showHeader) const SettingsSectionHeader(title: 'Storage'),
           const SettingsRow(label: 'Library', value: 'Stored on this device'),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
-            child: Text(
-              'Nothing is sent to Papyrus servers while offline mode is on.',
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-            ),
-          ),
           SettingsRow(
             label: 'Backup',
             value: 'Export or import a backup',
@@ -70,14 +59,14 @@ class StorageSyncSettingsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SettingsSectionHeader(title: 'Storage'),
+        if (showHeader) const SettingsSectionHeader(title: 'Storage'),
         SettingsRow(
           label: 'Data sync',
           value: controller.dataSyncLabel,
           onTap: () => _showManageSyncServersSheet(context),
         ),
         SettingsRow(label: 'Current status', value: controller.statusLabel),
-        SettingsRow(label: 'File storage', value: controller.fileStorageLabel),
+        _buildStorageUsage(context, controller),
         if (controller.hasFailedMediaUploads)
           SettingsRow(
             label: 'Media uploads',
@@ -111,7 +100,6 @@ class StorageSyncSettingsSection extends StatelessWidget {
           children: [
             _buildInfoRow(context, label: 'Active server', value: controller.dataSyncLabel),
             _buildInfoRow(context, label: 'Status', value: controller.statusLabel),
-            _buildInfoRow(context, label: 'File storage', value: controller.fileStorageLabel),
             if (controller.hasFailedMediaUploads)
               _buildInfoRow(context, label: 'Media uploads', value: controller.failedMediaUploadLabel),
             const SizedBox(height: Spacing.sm),
@@ -122,46 +110,80 @@ class StorageSyncSettingsSection extends StatelessWidget {
                 style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
               ),
             ),
-            const SizedBox(height: Spacing.sm),
-            Wrap(
-              spacing: Spacing.sm,
-              runSpacing: Spacing.sm,
-              alignment: WrapAlignment.start,
-              children: [
-                if (controller.canReconnect)
+            const SizedBox(height: Spacing.md),
+            _buildStorageUsage(context, controller),
+            const SizedBox(height: Spacing.md),
+            OutlinedButtonTheme(
+              data: OutlinedButtonThemeData(
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, ComponentSizes.buttonHeightMobile),
+                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                ).merge(Theme.of(context).outlinedButtonTheme.style),
+              ),
+              child: Wrap(
+                spacing: Spacing.sm,
+                runSpacing: Spacing.sm,
+                alignment: WrapAlignment.start,
+                children: [
+                  if (controller.canReconnect)
+                    OutlinedButton.icon(
+                      onPressed: () => _handleReconnectSync(context),
+                      icon: const Icon(Icons.sync, size: IconSizes.small),
+                      label: const Text('Reconnect'),
+                    ),
                   OutlinedButton.icon(
-                    onPressed: () => _handleReconnectSync(context),
-                    icon: const Icon(Icons.sync, size: IconSizes.small),
-                    label: const Text('Reconnect'),
+                    onPressed: () => _showManageSyncServersSheet(context),
+                    icon: const Icon(Icons.dns_outlined, size: IconSizes.small),
+                    label: const Text('Manage servers'),
                   ),
-                OutlinedButton.icon(
-                  onPressed: () => _showManageSyncServersSheet(context),
-                  icon: const Icon(Icons.dns_outlined, size: IconSizes.small),
-                  label: const Text('Manage servers'),
-                ),
-                if (controller.hasFailedMediaUploads)
-                  OutlinedButton.icon(
-                    onPressed: () => _retryFailedMediaUploads(context),
-                    icon: const Icon(Icons.refresh, size: IconSizes.small),
-                    label: const Text('Retry uploads'),
-                  ),
-                if (controller.canClearAuthenticatedCache)
-                  OutlinedButton.icon(
-                    onPressed: () => _confirmClearAuthenticatedCache(context),
-                    icon: const Icon(Icons.cleaning_services_outlined, size: IconSizes.small),
-                    label: const Text('Clear local copy'),
-                  ),
-              ],
+                  if (controller.hasFailedMediaUploads)
+                    OutlinedButton.icon(
+                      onPressed: () => _retryFailedMediaUploads(context),
+                      icon: const Icon(Icons.refresh, size: IconSizes.small),
+                      label: const Text('Retry uploads'),
+                    ),
+                  if (controller.canClearAuthenticatedCache)
+                    OutlinedButton.icon(
+                      onPressed: () => _confirmClearAuthenticatedCache(context),
+                      icon: const Icon(Icons.cleaning_services_outlined, size: IconSizes.small),
+                      label: const Text('Clear local copy'),
+                    ),
+                ],
+              ),
             ),
           ],
         ),
-        const SizedBox(height: Spacing.lg),
-        SettingsCard(
-          key: const Key('profile-acquisition-card'),
-          title: 'Acquisition',
-          children: [_buildAcquisitionDescription(context), ..._buildAcquisitionSettings(context)],
-        ),
       ],
+    );
+  }
+
+  Widget _buildStorageUsage(BuildContext context, StorageSyncController controller) {
+    final theme = Theme.of(context);
+    final fraction = controller.fileStorageFraction;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.sm),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('File storage', style: theme.textTheme.bodyMedium),
+          if (fraction != null) ...[
+            const SizedBox(height: Spacing.sm),
+            LinearProgressIndicator(
+              value: fraction,
+              minHeight: Spacing.sm,
+              color: theme.colorScheme.primary,
+              backgroundColor: theme.colorScheme.surfaceContainerHighest,
+              semanticsLabel: 'File storage',
+            ),
+          ],
+          const SizedBox(height: Spacing.sm),
+          Text(
+            controller.fileStorageLabel,
+            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+        ],
+      ),
     );
   }
 
@@ -180,7 +202,7 @@ class StorageSyncSettingsSection extends StatelessWidget {
               Text('Your library is stored on this device.', style: textTheme.bodyLarge),
               const SizedBox(height: Spacing.sm),
               Text(
-                'Nothing is sent to Papyrus servers while offline mode is on. Export a backup before changing devices or clearing app data.',
+                'Export a backup before changing devices or clearing app data.',
                 style: mutedStyle,
               ),
             ],
@@ -210,77 +232,6 @@ class StorageSyncSettingsSection extends StatelessWidget {
         ),
       ],
     );
-  }
-
-  static Widget buildMobileAcquisitionSection(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-
-    if (auth.isOfflineMode) {
-      return const SizedBox.shrink();
-    }
-
-    return Column(
-      key: const Key('profile-acquisition-section'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const SettingsSectionHeader(title: 'Acquisition'),
-        _buildAcquisitionDescription(context),
-        ..._buildAcquisitionSettings(context),
-      ],
-    );
-  }
-
-  static Widget _buildAcquisitionDescription(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: Spacing.xs),
-      child: Text(
-        'Search external sources and send releases to your connected clients.',
-        style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-      ),
-    );
-  }
-
-  static List<Widget> _buildAcquisitionSettings(BuildContext context) {
-    final prefs = context.watch<PreferencesProvider>();
-    final availability = context.watch<AcquisitionAvailabilityProvider>();
-    final acquisitionAvailable = availability.state == AcquisitionAvailabilityState.available;
-
-    return [
-      MergeSemantics(
-        child: Semantics(
-          label: 'Enable acquisition',
-          enabled: true,
-          toggled: prefs.acquisitionEnabled,
-          onTap: () => prefs.acquisitionEnabled = !prefs.acquisitionEnabled,
-          child: ExcludeSemantics(
-            child: GestureDetector(
-              behavior: HitTestBehavior.opaque,
-              onTap: () => prefs.acquisitionEnabled = !prefs.acquisitionEnabled,
-              child: SettingsToggleRow(
-                label: 'Enable acquisition',
-                value: prefs.acquisitionEnabled,
-                onChanged: (value) => prefs.acquisitionEnabled = value,
-              ),
-            ),
-          ),
-        ),
-      ),
-      SettingsRow(
-        label: 'Server support',
-        value: _acquisitionAvailabilityLabel(availability.state),
-        showChevron: false,
-      ),
-      if (prefs.acquisitionEnabled && acquisitionAvailable)
-        SettingsRow(label: 'Manage integrations', onTap: () => context.push('/acquisition')),
-    ];
-  }
-
-  static String _acquisitionAvailabilityLabel(AcquisitionAvailabilityState state) {
-    return switch (state) {
-      AcquisitionAvailabilityState.available => 'Available on this server',
-      AcquisitionAvailabilityState.unavailable => 'Unavailable on this server',
-      AcquisitionAvailabilityState.unknown || AcquisitionAvailabilityState.loading => 'Checking server support…',
-    };
   }
 
   StorageSyncController _storageSyncController(BuildContext context) {

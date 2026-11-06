@@ -53,7 +53,8 @@ class PapyrusPowerSyncConnector extends PowerSyncBackendConnector {
       final version = supportsTracking?.call() == false
           ? 0
           : trackingSchemaVersion?.call() ?? currentTrackingSchemaVersion;
-      final deferred = version == currentTrackingSchemaVersion
+      final timerTransaction = transaction.crud.any((entry) => entry.table == 'reading_timers');
+      final deferred = version == currentTrackingSchemaVersion || timerTransaction
           ? <CrudEntry>[]
           : transaction.crud.where((entry) => trackingTableNames.contains(entry.table)).toList();
 

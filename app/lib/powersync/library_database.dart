@@ -1,4 +1,7 @@
 import 'dart:convert';
+import 'package:papyrus/data/repositories/reading_timer_repository.dart';
+import 'package:papyrus/timer/reading_timer.dart';
+import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/powersync/tracking_schema_version.dart';
 import 'package:papyrus/data/repositories/tracking_repository.dart';
 import 'package:papyrus/models/reading_goal.dart';
@@ -13,7 +16,7 @@ import 'package:powersync/powersync.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 
 /// A handle bound to one opened library, invalidated before a profile switch.
-class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository {
+class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository, ReadingTimerRepository {
   final PowerSyncDatabase database;
   final Future<void> Function() onWrite;
   bool active = true;
@@ -314,6 +317,160 @@ class LibraryDatabase implements LibraryMembershipWriter, TrackingRepository {
       'updated_at': date,
     }, previous: force && existing != null ? {'payload': null} : null);
   }
+
+  static const _activeTimerQuery =
+      "SELECT payload FROM reading_timers WHERE status = 'active' "
+      "ORDER BY json_extract(payload, '\$.started_at'), id LIMIT 1";
+
+  Future<void> migrateTimer() => write((tx) async {
+    final legacy = await tx.getOptional('SELECT payload FROM reading_timer WHERE id = ?', ['active']);
+
+    if (legacy == null) {
+      return;
+    }
+
+    final timer = ReadingTimer.fromJson(jsonDecode(legacy['payload'] as String) as Map<String, dynamic>);
+    final existing = await tx.getOptional('SELECT id FROM reading_timers WHERE id = ?', [timer.id]);
+
+    if (existing == null) {
+      await _writeTimer(tx, timer);
+    }
+
+    await tx.execute('DELETE FROM reading_timer WHERE id = ?', ['active']);
+  });
+
+  @override
+  Future<ReadingTimer?> loadTimer() async {
+    checkActive();
+    final row = await database.getOptional(_activeTimerQuery);
+    checkActive();
+    return row == null ? null : ReadingTimer.fromJson(jsonDecode(row['payload'] as String) as Map<String, dynamic>);
+  }
+
+  @override
+  Stream<ReadingTimer?> watchTimer() => database.watch(_activeTimerQuery).map((rows) {
+    checkActive();
+    return rows.isEmpty
+        ? null
+        : ReadingTimer.fromJson(jsonDecode(rows.single['payload'] as String) as Map<String, dynamic>);
+  });
+
+  Future<void> _checkTimer(SqliteWriteContext tx, ReadingTimer? expected) async {
+    final row = await tx.getOptional(_activeTimerQuery);
+    final current = row == null
+        ? null
+        : ReadingTimer.fromJson(jsonDecode(row['payload'] as String) as Map<String, dynamic>);
+
+    if (current?.id != expected?.id || current?.version != expected?.version) {
+      throw StateError('The timer changed on another device or window. Reload it before continuing.');
+    }
+  }
+
+  Future<void> _writeTimer(
+    SqliteWriteContext tx,
+    ReadingTimer timer, {
+    ReadingTimer? previous,
+    String status = 'active',
+  }) => upsertRow(tx, 'reading_timers', {
+    'id': timer.id,
+    'payload': jsonEncode(timer.toJson()),
+    'status': status,
+    'base_version': previous?.version,
+    'created_at': timer.startedAt.toIso8601String(),
+    'updated_at': DateTime.now().toUtc().toIso8601String(),
+  });
+
+  @override
+  Future<void> writeTimer(ReadingTimer timer, {ReadingTimer? previous}) => write((tx) async {
+    await _checkTimer(tx, previous);
+    await _writeTimer(tx, timer, previous: previous);
+  });
+
+  @override
+  Future<void> discardTimer(ReadingTimer timer) => write((tx) async {
+    await _checkTimer(tx, timer);
+    await _writeTimer(tx, timer.stop(DateTime.now().toUtc()), previous: timer, status: 'discarded');
+  });
+
+  Future<void> _timerActivity(SqliteWriteContext tx, Map<String, dynamic> payload) =>
+      upsertRow(tx, 'reading_activities', {
+        'id': payload['id'],
+        'payload': jsonEncode(payload),
+        'created_at': payload['created_at'],
+        'updated_at': payload['created_at'],
+      });
+
+  @override
+  Future<void> finishTimer(ReadingTimer timer, DateTime now, {int? currentPage}) => write((tx) async {
+    await _checkTimer(tx, timer);
+    final row = await tx.getOptional('SELECT * FROM books WHERE id = ?', [timer.bookId]);
+
+    if (row == null) {
+      throw StateError('This book is no longer in the library. Discard this session to start another.');
+    }
+
+    final book = PowerSyncBookMapper.fromRow(Map<String, Object?>.from(row));
+
+    if (currentPage != null && currentPage < 0) {
+      throw ArgumentError('Page must not be negative.');
+    }
+
+    final pages = currentPage != null && currentPage > timer.startPage ? currentPage - timer.startPage : 0;
+    final activities = timer.activities(now, pages: pages);
+
+    if (activities.isEmpty || timer.elapsed(now).inSeconds < 1) {
+      throw StateError('Read for at least a second before saving a session.');
+    }
+
+    await _writeTimer(tx, timer.stop(now, finish: true), previous: timer, status: 'saved');
+
+    for (final activity in activities) {
+      await _timerActivity(tx, activity.toJson());
+    }
+
+    final end = activities.last.endTime;
+    final completed = currentPage != null && book.pageCount != null && currentPage == book.pageCount;
+    final position = currentPage != null && (book.pageCount ?? 0) > 0
+        ? (currentPage / book.pageCount!).clamp(0.0, 1.0)
+        : null;
+
+    var status = book.readingStatus;
+
+    if (completed) {
+      status = LibraryReadingStatus.completed;
+    } else if (status == LibraryReadingStatus.unread) {
+      status = LibraryReadingStatus.inProgress;
+    }
+
+    final updated = book.copyWith(
+      currentPage: currentPage,
+      currentPosition: position,
+      lastReadAt: book.lastReadAt != null && book.lastReadAt!.isAfter(end) ? book.lastReadAt : end,
+      startedAt: book.startedAt ?? timer.startedAt,
+      readingStatus: status,
+      completedAt: completed ? end : null,
+    );
+
+    if (completed && book.readingStatus != LibraryReadingStatus.completed) {
+      await _timerActivity(
+        tx,
+        ReadingActivity(
+          id: timer.id,
+          bookId: timer.bookId,
+          bookTitle: timer.bookTitle,
+          startTime: end,
+          endTime: end,
+          createdAt: now.isBefore(end) ? end : now,
+          kind: 'completion',
+          deviceId: timer.deviceId,
+          deviceType: 'physical_timer',
+          shelfIds: timer.shelfIds,
+        ).toJson(),
+      );
+    }
+
+    await upsertRow(tx, 'books', PowerSyncBookMapper.toRow(updated), previous: PowerSyncBookMapper.toRow(book));
+  });
 
   @override
   Future<void> commitTracking({

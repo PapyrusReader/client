@@ -658,13 +658,16 @@ void main() {
     });
   }
 
-  testWidgets('mobile catalog home keeps menu, Downloads and FAB without a title header', (tester) async {
+  testWidgets('mobile catalog home shows its title alongside menu, Downloads and FAB', (tester) async {
     await _CatalogPageHarness.mount(tester, (_) => _feedResponse('Books'), initialLocation: '/library/catalogs');
     tester.view.physicalSize = const Size(424, 951);
     await _settleNetwork(tester);
     expect(find.byType(FloatingActionButton), findsOneWidget);
     expect(find.widgetWithText(FilledButton, 'Add catalog'), findsNothing);
-    expect(find.text('Catalogs'), findsNothing);
+    expect(find.text('Catalogs'), findsOneWidget);
+    final titleBounds = tester.getRect(find.text('Catalogs'));
+    expect(titleBounds.left, 72);
+    expect(titleBounds.center.dy, 32);
     expect(find.byType(LibraryPageHeader), findsNothing);
     expect(tester.getTopLeft(find.byTooltip('Library sections')).dy, 8);
     expect(tester.getCenter(find.byTooltip('Downloads')).dy, tester.getCenter(find.byTooltip('Library sections')).dy);
@@ -1354,7 +1357,10 @@ void main() {
       expect(find.text('No catalogs yet'), findsOneWidget);
 
       if (width >= 840) {
-        expect(find.text('Catalogs'), findsNothing);
+        expect(find.text('Catalogs'), findsOneWidget);
+        final titleBounds = tester.getRect(find.text('Catalogs'));
+        expect(titleBounds.left, 24);
+        expect(titleBounds.center.dy, 48);
         expect(find.byKey(const Key('catalog-header-divider')), findsNothing);
         expect(find.byType(LibraryToolbar), findsOneWidget);
       }

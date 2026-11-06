@@ -1,7 +1,5 @@
-import 'dart:async';
-import 'dart:ui' show SemanticsAction, Tristate;
-
 import 'package:flutter/material.dart';
+import 'package:papyrus/themes/app_theme.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
@@ -224,9 +222,10 @@ void main() {
         ChangeNotifierProvider<PreferencesProvider>(create: (_) => PreferencesProvider(prefs)),
       ],
       child: MaterialApp(
+        theme: AppTheme.light,
         home: MediaQuery(
           data: MediaQueryData(size: screenSize),
-          child: pageBuilder?.call(const ProfilePage()) ?? const ProfilePage(),
+          child: pageBuilder?.call(const ProfilePage()) ?? const ProfilePage(section: ProfileSection.storageSync),
         ),
       ),
     );
@@ -279,12 +278,11 @@ void main() {
     final service = _FakePowerSyncService(currentMode: LibraryDatabaseMode.guest, currentSyncState: const SyncState());
     await tester.pumpWidget(await buildPage(authProvider: auth, powerSyncService: service));
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage'), 400, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     expect(find.text('Stored on this device'), findsOneWidget);
     expect(find.text('Export or import a backup'), findsOneWidget);
     expect(find.text('Clear local library'), findsOneWidget);
-    expect(find.textContaining('Nothing is sent to Papyrus servers'), findsOneWidget);
+    expect(find.textContaining('Nothing is sent to Papyrus servers'), findsNothing);
     expect(find.text('Guest local'), findsNothing);
     expect(find.text('papyrus-guest.db'), findsNothing);
     expect(find.text('Metadata sync off'), findsNothing);
@@ -306,14 +304,12 @@ void main() {
     expect(find.text('Enable acquisition'), findsNothing);
   });
 
-  testWidgets('authenticated mobile profile separates supported acquisition settings from storage', (tester) async {
+  testWidgets('authenticated mobile storage omits acquisition settings', (tester) async {
     final auth = await buildAuthProvider(signedIn: true);
-
     final service = _FakePowerSyncService(
       currentMode: LibraryDatabaseMode.authenticated,
       currentSyncState: const SyncState(connected: true),
     );
-
     final availability = AcquisitionAvailabilityProvider(loadCapabilities: (_) async => _capabilities(enabled: true));
     await availability.refresh(Uri.parse('https://api.test'));
 
@@ -322,92 +318,9 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('profile-acquisition-section')),
-      400,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pumpAndSettle();
-    final acquisitionSection = find.byKey(const Key('profile-acquisition-section'));
-    expect(find.descendant(of: acquisitionSection, matching: find.text('Data sync')), findsNothing);
-    expect(find.descendant(of: acquisitionSection, matching: find.text('Acquisition')), findsOneWidget);
-
-    expect(
-      find.descendant(
-        of: acquisitionSection,
-        matching: find.text('Search external sources and send releases to your connected clients.'),
-      ),
-      findsOneWidget,
-    );
-
-    expect(find.descendant(of: acquisitionSection, matching: find.text('Available on this server')), findsOneWidget);
-    expect(find.descendant(of: acquisitionSection, matching: find.text('Manage integrations')), findsNothing);
-    final semantics = tester.getSemantics(find.bySemanticsLabel('Enable acquisition'));
-    expect(semantics.label, 'Enable acquisition');
-    expect(semantics.flagsCollection.isEnabled, Tristate.isTrue);
-    expect(semantics.flagsCollection.isToggled, Tristate.isFalse);
-    expect(semantics.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
-    await tester.tap(find.bySemanticsLabel('Enable acquisition'));
-    await tester.pumpAndSettle();
-    expect(tester.getSemantics(find.bySemanticsLabel('Enable acquisition')).flagsCollection.isToggled, Tristate.isTrue);
-    expect(find.descendant(of: acquisitionSection, matching: find.text('Manage integrations')), findsOneWidget);
-  });
-
-  testWidgets('authenticated mobile profile reports pending acquisition availability', (tester) async {
-    final completer = Completer<AcquisitionCapabilities>();
-    final auth = await buildAuthProvider(signedIn: true);
-
-    final service = _FakePowerSyncService(
-      currentMode: LibraryDatabaseMode.authenticated,
-      currentSyncState: const SyncState(connected: true),
-    );
-
-    final availability = AcquisitionAvailabilityProvider(loadCapabilities: (_) => completer.future);
-    final refresh = availability.refresh(Uri.parse('https://api.test'));
-
-    await tester.pumpWidget(
-      await buildPage(authProvider: auth, powerSyncService: service, acquisitionAvailabilityProvider: availability),
-    );
-
-    await tester.pump();
-    await tester.scrollUntilVisible(
-      find.byKey(const Key('profile-acquisition-section')),
-      400,
-      scrollable: find.byType(Scrollable).first,
-    );
-    await tester.pump();
-    expect(find.text('Checking server support…'), findsOneWidget);
-    completer.complete(_capabilities(enabled: true));
-    await refresh;
-    await tester.pumpAndSettle();
-    expect(find.text('Available on this server'), findsOneWidget);
-  });
-
-  testWidgets('authenticated mobile profile hides acquisition management when server is unavailable', (tester) async {
-    final auth = await buildAuthProvider(signedIn: true);
-
-    final service = _FakePowerSyncService(
-      currentMode: LibraryDatabaseMode.authenticated,
-      currentSyncState: const SyncState(connected: true),
-    );
-
-    final availability = AcquisitionAvailabilityProvider(loadCapabilities: (_) async => _capabilities(enabled: false));
-    await availability.refresh(Uri.parse('https://api.test'));
-
-    await tester.pumpWidget(
-      await buildPage(authProvider: auth, powerSyncService: service, acquisitionAvailabilityProvider: availability),
-    );
-
-    await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage'), 400, scrollable: find.byType(Scrollable).first);
-    await tester.pumpAndSettle();
-    final acquisitionSection = find.byKey(const Key('profile-acquisition-section'));
-    expect(acquisitionSection, findsOneWidget);
-    expect(find.text('Enable acquisition'), findsOneWidget);
-    expect(find.text('Unavailable on this server'), findsOneWidget);
-    expect(find.text('Manage integrations'), findsNothing);
-    await tester.tap(find.bySemanticsLabel('Enable acquisition'));
-    await tester.pumpAndSettle();
+    expect(find.text('File storage'), findsOneWidget);
+    expect(find.text('Acquisition'), findsNothing);
+    expect(find.text('Enable acquisition'), findsNothing);
     expect(find.text('Manage integrations'), findsNothing);
   });
 
@@ -424,7 +337,7 @@ void main() {
     await tester.pump();
     expect(find.text('Library storage'), findsOneWidget);
     expect(find.text('Your library is stored on this device.'), findsOneWidget);
-    expect(find.textContaining('Nothing is sent to Papyrus servers'), findsOneWidget);
+    expect(find.textContaining('Nothing is sent to Papyrus servers'), findsNothing);
     expect(find.text('Export backup'), findsOneWidget);
     expect(find.text('Import backup'), findsOneWidget);
     expect(find.text('Clear local library'), findsOneWidget);
@@ -443,6 +356,8 @@ void main() {
   });
 
   testWidgets('authenticated storage sync UI shows data sync and hides implementation details', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(1200, 900));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     final auth = await buildAuthProvider(signedIn: true);
 
     final dataStore = dataStoreWithBooks([
@@ -474,15 +389,23 @@ void main() {
     expect(find.text('Data sync'), findsOneWidget);
     expect(find.text('Official server'), findsWidgets);
     expect(find.text('350 MB used, 674 MB available of 1 GB'), findsOneWidget);
+    expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator)).value, 350 / 1024);
+    final reconnectButton = find.widgetWithText(OutlinedButton, 'Reconnect');
+    final manageButton = find.widgetWithText(OutlinedButton, 'Manage servers');
+    expect(
+      tester.getSize(reconnectButton).width,
+      lessThan(tester.getSize(find.byKey(const Key('profile-data-sync-card'))).width / 2),
+    );
+    expect(tester.getTopLeft(reconnectButton).dy, tester.getTopLeft(manageButton).dy);
     expect(find.text('Connected'), findsWidgets);
     expect(find.text('Reconnect'), findsOneWidget);
     expect(find.text('Manage servers'), findsOneWidget);
     expect(find.byKey(const Key('profile-data-sync-card')), findsOneWidget);
-    expect(find.byKey(const Key('profile-acquisition-card')), findsOneWidget);
-    expect(find.text('Acquisition'), findsOneWidget);
-    expect(find.text('Enable acquisition'), findsOneWidget);
-    expect(find.text('Available on this server'), findsOneWidget);
-    expect(find.text('Search external sources and send releases to your connected clients.'), findsOneWidget);
+    expect(find.byKey(const Key('profile-acquisition-card')), findsNothing);
+    expect(find.text('Acquisition'), findsNothing);
+    expect(find.text('Enable acquisition'), findsNothing);
+    expect(find.text('Available on this server'), findsNothing);
+    expect(find.text('Search external sources and send releases to your connected clients.'), findsNothing);
     expect(find.text('Manage integrations'), findsNothing);
     expect(find.text('Clear local copy'), findsOneWidget);
     expect(find.text('Clear account local cache'), findsNothing);
@@ -499,38 +422,6 @@ void main() {
     await tester.tap(find.text('Reconnect'));
     await tester.pump();
     expect(service.reconnectCalls, 1);
-    await tester.tap(find.bySemanticsLabel('Enable acquisition'));
-    await tester.pumpAndSettle();
-    expect(find.text('Manage integrations'), findsOneWidget);
-  });
-
-  testWidgets('authenticated desktop profile reports unsupported acquisition separately', (tester) async {
-    final auth = await buildAuthProvider(signedIn: true);
-
-    final service = _FakePowerSyncService(
-      currentMode: LibraryDatabaseMode.authenticated,
-      currentSyncState: const SyncState(connected: true),
-    );
-
-    final availability = AcquisitionAvailabilityProvider(loadCapabilities: (_) async => _capabilities(enabled: false));
-    await availability.refresh(Uri.parse('https://api.test'));
-
-    await tester.pumpWidget(
-      await buildPage(
-        authProvider: auth,
-        powerSyncService: service,
-        screenSize: const Size(1200, 900),
-        acquisitionAvailabilityProvider: availability,
-      ),
-    );
-
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Storage').first);
-    await tester.pumpAndSettle();
-    expect(find.byKey(const Key('profile-data-sync-card')), findsOneWidget);
-    expect(find.byKey(const Key('profile-acquisition-card')), findsOneWidget);
-    expect(find.text('Unavailable on this server'), findsOneWidget);
-    expect(find.text('Manage integrations'), findsNothing);
   });
 
   testWidgets('manage servers lists official and custom servers for switching', (tester) async {
@@ -562,7 +453,6 @@ void main() {
     );
 
     await tester.pumpAndSettle();
-    await tester.scrollUntilVisible(find.text('Storage'), 400, scrollable: find.byType(Scrollable).first);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Manage servers'));
     await tester.pumpAndSettle();

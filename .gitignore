@@ -11,3 +11,4 @@ test/data/
 app/pubspec_overrides.yaml
 __pycache__/
 *.pyc
+.impeccable/
