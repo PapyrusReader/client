@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/themes/card_overlay_colors.dart';
 import 'package:papyrus/widgets/library/acquisition_status_text.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
@@ -187,7 +188,7 @@ class _SelectionIconButton extends StatelessWidget {
     final colorScheme = Theme.of(context).colorScheme;
 
     return Material(
-      color: Colors.black45,
+      color: CardOverlayColors.background,
       borderRadius: BorderRadius.circular(AppRadius.full),
       child: InkWell(
         borderRadius: BorderRadius.circular(AppRadius.full),
@@ -197,7 +198,7 @@ class _SelectionIconButton extends StatelessWidget {
           child: Icon(
             selected ? Icons.check_circle : Icons.radio_button_unchecked,
             size: IconSizes.small,
-            color: selected ? colorScheme.primary : Colors.white,
+            color: selected ? CardOverlayColors.selection(colorScheme) : Colors.white,
           ),
         ),
       ),
