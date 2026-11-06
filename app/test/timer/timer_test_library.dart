@@ -17,13 +17,20 @@ class TimerTestRepository implements TrackingRepository, ReadingTimerRepository 
   int? savedPage;
   int? savedSeconds;
   bool failWrite = false;
+  bool failLoad = false;
   int saves = 0;
   Completer<void>? writeGate;
   Completer<ReadingTimer?>? loadGate;
   final changes = StreamController<ReadingTimer?>.broadcast();
 
   @override
-  Future<ReadingTimer?> loadTimer() async => loadGate == null ? timer : await loadGate!.future;
+  Future<ReadingTimer?> loadTimer() async {
+    if (failLoad) {
+      throw StateError('Load failed. Try again.');
+    }
+
+    return loadGate == null ? timer : await loadGate!.future;
+  }
 
   @override
   Stream<ReadingTimer?> watchTimer() async* {

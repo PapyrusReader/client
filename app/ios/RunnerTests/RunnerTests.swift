@@ -49,6 +49,25 @@ class RunnerTests: XCTestCase {
         XCTAssertNil(journal.view(at: later)?.runningSinceMs)
     }
 
+    func testRejectedAcknowledgementDiscardsSuccessorsFromTheOldVersion() throws {
+        var journal = TimerJournal(base: snapshot())
+        try journal.record(sessionId: "native-test", token: "v1", kind: "pause")
+        let pause = journal.actions[0]
+        try journal.record(sessionId: "native-test", token: pause.id, kind: "finish")
+        var remote = snapshot()
+        remote.version = "remote-version"
+        remote.phase = "paused"
+        remote.runningSinceMs = nil
+        remote.recordedMs = 10_000
+        try journal.acknowledge(through: pause.id, snapshot: remote)
+        journal = try TimerJournal.load()
+        XCTAssertTrue(journal.actions.isEmpty)
+        XCTAssertEqual(journal.base, remote)
+        XCTAssertEqual(journal.view()?.phase, "paused")
+        XCTAssertEqual(journal.view()?.recordedMs, 10_000)
+        try TimerJournal().save()
+    }
+
     func testLiveActivityIntentPausesResumesAndFinishesWithoutOpeningApp() async throws {
         guard #available(iOS 17.0, *) else { return }
         try TimerJournal(base: snapshot()).save()
