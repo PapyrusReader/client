@@ -593,13 +593,21 @@ void main() {
     });
   }
 
-  testWidgets('alignment follows the page preference', (tester) async {
+  testWidgets('panel fills page width while controls follow the alignment preference', (tester) async {
     await pump(tester, size: const Size(1600, 900));
     final panel = find.byKey(const ValueKey('reading-session'));
-    expect(tester.getTopLeft(panel).dx, 24);
+    final field = find.byType(SearchableBookField);
+    final border = tester.getRect(panel);
+    final controls = tester.getRect(field);
+    expect(border.left, 24);
+    expect(border.right, 1576);
+    expect(controls.left, border.left + 24);
+    expect(controls.width, 472);
     preferences.pageAlignment = 'center';
     await tester.pumpAndSettle();
-    expect(tester.getCenter(panel).dx, 800);
+    expect(tester.getRect(panel), border);
+    expect(tester.getSize(field).width, controls.width);
+    expect(tester.getCenter(field).dx, border.center.dx);
   });
 
   for (final (name, size, scale, theme) in [
