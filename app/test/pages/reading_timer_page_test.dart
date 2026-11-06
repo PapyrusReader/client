@@ -593,22 +593,22 @@ void main() {
     });
   }
 
-  testWidgets('panel fills page width while controls follow the alignment preference', (tester) async {
+  testWidgets('content fills page height and follows the alignment preference without extra padding', (tester) async {
     await pump(tester, size: const Size(1600, 1200));
     final panel = find.byKey(const ValueKey('reading-session'));
     final field = find.byType(SearchableBookField);
-    final border = tester.getRect(panel);
+    final bounds = tester.getRect(panel);
     final controls = tester.getRect(field);
-    expect(border.left, 24);
-    expect(border.right, 1576);
-    expect(border.bottom, 1176);
-    expect(controls.left, border.left + 24);
+    expect(bounds.left, 24);
+    expect(bounds.right, 1576);
+    expect(bounds.bottom, 1176);
+    expect(controls.left, bounds.left);
     expect(controls.width, 472);
     preferences.pageAlignment = 'center';
     await tester.pumpAndSettle();
-    expect(tester.getRect(panel), border);
+    expect(tester.getRect(panel), bounds);
     expect(tester.getSize(field).width, controls.width);
-    expect(tester.getCenter(find.byKey(const ValueKey('timer-content'))).dx, border.center.dx);
+    expect(tester.getCenter(find.byKey(const ValueKey('timer-content'))).dx, bounds.center.dx);
     expect(tester.getTopLeft(find.text('Recent sessions')).dx, greaterThan(tester.getTopRight(field).dx));
   });
 

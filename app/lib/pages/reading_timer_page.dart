@@ -169,7 +169,6 @@ class _ReadingTimerPageState extends State<ReadingTimerPage> {
     required double minimumHeight,
   }) {
     final theme = Theme.of(context);
-    final shape = theme.cardTheme.shape;
     final session = timer.session;
     final countdown = session == null ? _countdown : session.targetSeconds != null;
     final editable = session == null && timer.available && !timer.busy;
@@ -255,20 +254,9 @@ class _ReadingTimerPageState extends State<ReadingTimerPage> {
       builder: (context, constraints) {
         final wide = constraints.maxWidth >= 960 && MediaQuery.textScalerOf(context).scale(16) <= 24;
 
-        return Container(
+        return ConstrainedBox(
           key: const ValueKey('reading-session'),
           constraints: BoxConstraints(minHeight: minimumHeight),
-          padding: const EdgeInsets.all(Spacing.lg),
-          decoration: ShapeDecoration(
-            shape: shape is OutlinedBorder
-                ? shape.copyWith(
-                    side: BorderSide(color: theme.colorScheme.outlineVariant, width: shape.side.width),
-                  )
-                : RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(AppRadius.lg),
-                    side: BorderSide(color: theme.colorScheme.outlineVariant),
-                  ),
-          ),
           child: Align(
             alignment: centered ? Alignment.topCenter : Alignment.topLeft,
             child: ConstrainedBox(
