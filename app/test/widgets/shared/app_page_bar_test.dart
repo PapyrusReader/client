@@ -44,6 +44,115 @@ void main() {
     }
   }
 
+  for (final theme in [AppTheme.light, AppTheme.dark, AppTheme.eink]) {
+    testWidgets('inline header matches app bar scrolling in ${theme.brightness} ${theme.appBarTheme.shape}', (
+      tester,
+    ) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = const Size(400, 850);
+      addTearDown(tester.view.reset);
+      final scroll = ScrollController();
+      addTearDown(scroll.dispose);
+      final surfaces = <(Color?, double, Color?, Color?, ShapeBorder?)>[];
+
+      for (final inline in [false, true]) {
+        await tester.pumpWidget(const SizedBox.shrink());
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            home: Builder(
+              builder: (context) {
+                final body = ListView(
+                  controller: scroll,
+                  children: const [SizedBox(height: 2000)],
+                );
+
+                return Scaffold(
+                  appBar: inline ? null : AppPageBar(context: context, title: const Text('Title')),
+                  body: inline
+                      ? Column(
+                          children: [
+                            const AppPageToolbar(content: Text('Title')),
+                            Expanded(child: body),
+                          ],
+                        )
+                      : body,
+                );
+              },
+            ),
+          ),
+        );
+
+        scroll.jumpTo(0);
+        await tester.pumpAndSettle();
+        final surface = find
+            .descendant(
+              of: inline ? find.byType(AppPageToolbar) : find.byType(AppBar),
+              matching: find.byType(Material),
+            )
+            .first;
+        final before = tester.widget<Material>(surface);
+        final bounds = tester.getRect(find.byType(AppPageToolbar));
+        scroll.jumpTo(200);
+        await tester.pumpAndSettle();
+        final after = tester.widget<Material>(surface);
+        expect(after.elevation, theme.appBarTheme.scrolledUnderElevation);
+        expect(tester.getRect(find.byType(AppPageToolbar)), bounds);
+        surfaces.add((after.color, after.elevation, after.surfaceTintColor, after.shadowColor, after.shape));
+        scroll.jumpTo(0);
+        await tester.pumpAndSettle();
+        expect(tester.widget<Material>(surface).elevation, before.elevation);
+        expect(tester.takeException(), isNull);
+      }
+
+      expect(surfaces[1], surfaces[0]);
+    });
+  }
+
+  testWidgets('inline header ignores horizontal and nested scrolling', (tester) async {
+    final horizontal = ScrollController();
+    final nested = ScrollController();
+    addTearDown(horizontal.dispose);
+    addTearDown(nested.dispose);
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark,
+        home: Scaffold(
+          body: Column(
+            children: [
+              const AppPageToolbar(content: Text('Title')),
+              SizedBox(
+                height: 100,
+                child: ListView(
+                  controller: horizontal,
+                  scrollDirection: Axis.horizontal,
+                  children: const [SizedBox(width: 2000)],
+                ),
+              ),
+              Expanded(
+                child: ListView(
+                  children: [
+                    SizedBox(
+                      height: 300,
+                      child: ListView(controller: nested, children: const [SizedBox(height: 2000)]),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
+    final surface = find.descendant(of: find.byType(AppPageToolbar), matching: find.byType(Material)).first;
+    horizontal.jumpTo(200);
+    nested.jumpTo(200);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Material>(surface).elevation, 0);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('full screen routes retain automatic close and custom colors', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(400, 850);

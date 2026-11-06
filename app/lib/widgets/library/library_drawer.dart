@@ -110,6 +110,15 @@ class LibraryDrawer extends StatelessWidget {
                       context.go('/library/notes');
                     },
                   ),
+                  _DrawerNavItem(
+                    icon: Icons.timer_outlined,
+                    label: 'Timer',
+                    isSelected: currentPath == '/library/timer',
+                    onTap: () {
+                      Navigator.of(context).pop();
+                      context.go('/library/timer');
+                    },
+                  ),
                 ],
               ),
             ),

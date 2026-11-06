@@ -99,6 +99,12 @@ class AdaptiveAppShell extends StatelessWidget {
             count: dataStore.notes.length,
             selectedIcon: Icons.notes,
           ),
+          const AppShellNavItem(
+            path: '/library/timer',
+            label: 'Timer',
+            icon: Icons.timer_outlined,
+            selectedIcon: Icons.timer,
+          ),
         ],
       ),
       const AppShellNavItem(

@@ -1,3 +1,5 @@
+import 'package:papyrus/models/reading_activity.dart';
+import 'package:papyrus/timer/reading_timer.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:papyrus/services/reading_device_identity.dart';
@@ -33,6 +35,25 @@ void main() {
     expect(store.reversalFor(completion).deviceId, 'installation-one');
     await ReadingDeviceIdentity.initialize(preferences);
     expect(ReadingDeviceIdentity.current, 'installation-one');
+  });
+
+  test('correcting a timer session reverses all paused intervals', () async {
+    final start = DateTime.utc(2026, 11, 3, 12);
+    final now = start.add(const Duration(hours: 1));
+    final book = Book(id: 'book', title: 'Book', author: '', addedAt: start, isPhysical: true);
+    final store = DataStore()..loadData(books: [book]);
+    final provider = GoalsProvider(now: () => now, watchClock: false)..attach(store);
+    addTearDown(provider.dispose);
+    addTearDown(store.dispose);
+    var timer = ReadingTimer.start(book, start, 'device', []);
+    timer = timer.stop(start.add(const Duration(minutes: 10)));
+    timer = timer.resume(start.add(const Duration(minutes: 20)));
+    await store.commitTracking(activities: timer.activities(start.add(const Duration(minutes: 30))));
+    final grouped = groupReadingActivities(store.effectiveReadingActivities).single;
+    await provider.logReading(book: book, end: now, minutes: 15, correcting: grouped);
+    expect(store.effectiveReadingActivities.length, 1);
+    expect(store.effectiveReadingActivities.single.seconds, 900);
+    expect(store.readingActivities.where((activity) => activity.kind == 'reversal').length, 2);
   });
 
   test('correcting duplicate completions only clears status after the last confirmation', () async {

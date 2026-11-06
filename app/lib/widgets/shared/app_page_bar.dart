@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 
 /// Mobile toolbar geometry shared by scaffold app bars and inline page headers.
 /// The containing page or scaffold owns the system safe-area inset.
 class AppPageToolbar extends StatelessWidget {
-  const AppPageToolbar({super.key, this.leading, this.content, this.actions = const []});
+  const AppPageToolbar({super.key, this.leading, this.content, this.actions = const [], this.scrollAware = true});
 
   final Widget? leading;
   final Widget? content;
   final List<Widget> actions;
+  final bool scrollAware;
 
   static const padding = EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm);
 
@@ -25,34 +27,106 @@ class AppPageToolbar extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: padding,
-    child: ConstrainedBox(
-      constraints: BoxConstraints(minHeight: height(context) - padding.vertical),
-      child: IconTheme.merge(
-        data: const IconThemeData(size: IconSizes.navigation),
-        child: Row(
-          children: [
-            if (leading != null) ...[
-              SizedBox.square(dimension: TouchTargets.mobileRecommended, child: leading),
-              const SizedBox(width: Spacing.sm),
-            ],
-            Expanded(child: content ?? const SizedBox.shrink()),
-            for (final action in actions) ...[
-              const SizedBox(width: Spacing.sm),
-              ConstrainedBox(
-                constraints: const BoxConstraints(
-                  minWidth: TouchTargets.mobileRecommended,
-                  minHeight: TouchTargets.mobileRecommended,
+  Widget build(BuildContext context) {
+    final toolbar = Padding(
+      padding: padding,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minHeight: height(context) - padding.vertical),
+        child: IconTheme.merge(
+          data: const IconThemeData(size: IconSizes.navigation),
+          child: Row(
+            children: [
+              if (leading != null) ...[
+                SizedBox.square(dimension: TouchTargets.mobileRecommended, child: leading),
+                const SizedBox(width: Spacing.sm),
+              ],
+              Expanded(child: content ?? const SizedBox.shrink()),
+              for (final action in actions) ...[
+                const SizedBox(width: Spacing.sm),
+                ConstrainedBox(
+                  constraints: const BoxConstraints(
+                    minWidth: TouchTargets.mobileRecommended,
+                    minHeight: TouchTargets.mobileRecommended,
+                  ),
+                  child: action,
                 ),
-                child: action,
-              ),
+              ],
             ],
-          ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+
+    return scrollAware ? _ScrolledHeader(child: toolbar) : toolbar;
+  }
+}
+
+/// Inline headers share the Scaffold's scroll observer with native app bars.
+class _ScrolledHeader extends StatefulWidget {
+  const _ScrolledHeader({required this.child});
+
+  final Widget child;
+
+  @override
+  State<_ScrolledHeader> createState() => _ScrolledHeaderState();
+}
+
+class _ScrolledHeaderState extends State<_ScrolledHeader> {
+  ScrollNotificationObserverState? _observer;
+  bool _scrolledUnder = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _observer?.removeListener(_onScroll);
+    _observer = ScrollNotificationObserver.maybeOf(context);
+    _observer?.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _observer?.removeListener(_onScroll);
+    super.dispose();
+  }
+
+  void _onScroll(ScrollNotification notification) {
+    if (notification is! ScrollUpdateNotification || !defaultScrollNotificationPredicate(notification)) {
+      return;
+    }
+
+    final metrics = notification.metrics;
+    final scrolledUnder = switch (metrics.axisDirection) {
+      AxisDirection.down => metrics.extentBefore > 0,
+      AxisDirection.up => metrics.extentAfter > 0,
+      AxisDirection.left || AxisDirection.right => _scrolledUnder,
+    };
+
+    if (scrolledUnder != _scrolledUnder) {
+      setState(() => _scrolledUnder = scrolledUnder);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final bar = theme.appBarTheme;
+    final states = {if (_scrolledUnder) WidgetState.scrolledUnder};
+    final background =
+        bar.backgroundColor ??
+        (_scrolledUnder && theme.useMaterial3 ? theme.colorScheme.surfaceContainer : theme.colorScheme.surface);
+    final elevation = bar.elevation ?? (theme.useMaterial3 ? 0 : 4);
+
+    return Material(
+      color: WidgetStateProperty.resolveAs(background, states),
+      elevation: _scrolledUnder ? bar.scrolledUnderElevation ?? (theme.useMaterial3 ? 3 : elevation) : elevation,
+      shadowColor: bar.shadowColor ?? (theme.useMaterial3 ? Colors.transparent : theme.shadowColor),
+      surfaceTintColor: bar.surfaceTintColor ?? (theme.useMaterial3 ? theme.colorScheme.surfaceTint : null),
+      shape: bar.shape,
+      animationDuration: AppMotion.duration(context, kThemeChangeDuration),
+      textStyle: DefaultTextStyle.of(context).style,
+      child: widget.child,
+    );
+  }
 }
 
 /// Scaffold app bar using the same mobile toolbar as inline page headers.
@@ -112,7 +186,9 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
           : null,
       centerTitle: compact ? false : null,
       titleSpacing: compact ? 0 : null,
-      title: compact ? AppPageToolbar(leading: navigation, content: title, actions: actions) : title,
+      title: compact
+          ? AppPageToolbar(leading: navigation, content: title, actions: actions, scrollAware: false)
+          : title,
       actions: compact ? null : actions,
     );
   }
