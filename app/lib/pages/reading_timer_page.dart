@@ -197,7 +197,7 @@ class _ReadingTimerPageState extends State<ReadingTimerPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(height: Spacing.lg),
+                const SizedBox(height: Spacing.md),
                 Text(
                   'Duration',
                   style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
@@ -244,7 +244,7 @@ class _ReadingTimerPageState extends State<ReadingTimerPage> {
                 ),
               const SizedBox(height: Spacing.xl),
               _instrument(context, timer, book),
-              const SizedBox(height: Spacing.xl),
+              const SizedBox(height: Spacing.lg),
               settings,
             ],
           ),
