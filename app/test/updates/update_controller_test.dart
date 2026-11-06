@@ -187,6 +187,33 @@ void main() {
     expect(updates.busy, isFalse);
   });
 
+  test('last successful check survives failure and does not claim freshness after restart', () async {
+    var fails = false;
+    final updates = controller(
+      manifest: () async {
+        if (fails) {
+          throw StateError('Offline');
+        }
+
+        return metadata(build: 6);
+      },
+    );
+
+    expect(updates.status, UpdateStatus.unchecked);
+    expect(updates.lastChecked, isNull);
+    await updates.check();
+    expect(updates.status, UpdateStatus.upToDate);
+    final checked = updates.lastChecked;
+    expect(checked, isNotNull);
+    fails = true;
+    await updates.check();
+    expect(updates.status, UpdateStatus.checkFailed);
+    expect(updates.lastChecked, checked);
+    final restarted = controller();
+    expect(restarted.lastChecked, checked);
+    expect(restarted.status, UpdateStatus.unchecked);
+  });
+
   test('invalid release identity fails closed', () {
     for (final data in [
       {...metadata(), 'tag': 'v0.2.0+8'},

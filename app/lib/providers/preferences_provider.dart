@@ -87,7 +87,7 @@ class PreferencesProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Page content alignment. Currently applied only by Statistics.
+  /// Alignment of pages with constrained content widths.
   String get pageAlignment => _prefs.get(_keyPageAlignment) == 'center' ? 'center' : 'left';
 
   set pageAlignment(String value) {

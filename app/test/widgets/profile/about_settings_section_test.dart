@@ -1,8 +1,13 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:papyrus/pages/licenses_page.dart';
+import 'package:papyrus/services/license_packages.dart';
 import 'package:papyrus/widgets/profile/about_settings_section.dart';
 
 void main() {
@@ -83,5 +88,51 @@ void main() {
     await tester.tap(find.text('GitHub repository'));
     await tester.pumpAndSettle();
     expect(find.textContaining('Could not open'), findsOneWidget);
+  });
+
+  testWidgets('opening licenses keeps About visible until the list is ready', (tester) async {
+    final license = Completer<LicenseEntry>();
+    LicenseRegistry.reset();
+    LicenseRegistry.addLicense(() => Stream.fromFuture(license.future));
+    addTearDown(LicenseRegistry.reset);
+    final router = GoRouter(
+      routes: [
+        GoRoute(
+          path: '/',
+          builder: (context, state) => const Scaffold(body: AboutSettingsSection()),
+        ),
+        GoRoute(
+          path: '/profile/licenses',
+          pageBuilder: (context, state) => NoTransitionPage(
+            child: LicensesPage(initialLicenses: state.extra as LicensePackages?),
+          ),
+        ),
+      ],
+    );
+
+    addTearDown(router.dispose);
+    await tester.pumpWidget(MaterialApp.router(routerConfig: router));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Licenses'));
+    await tester.pump(const Duration(milliseconds: 100));
+    expect(find.byType(AboutSettingsSection), findsOneWidget);
+    expect(find.byType(LicensesPage), findsNothing);
+    license.complete(const LicenseEntryWithLineBreaks(['alpha'], 'Alpha license text'));
+
+    for (var frame = 0; frame < 3; frame++) {
+      await tester.pump();
+
+      if (find.byType(LicensesPage).evaluate().isNotEmpty) {
+        expect(find.widgetWithText(ListTile, 'alpha'), findsOneWidget);
+        expect(find.text('Loading licenses…'), findsNothing);
+      }
+    }
+
+    expect(find.byType(LicensesPage), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Licenses'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(ListTile, 'alpha'), findsOneWidget);
   });
 }
