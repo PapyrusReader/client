@@ -9,6 +9,18 @@ import 'package:papyrus/updates/update_platform.dart' as platform;
 import 'package:papyrus/updates/update_release.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+enum UpdateStatus {
+  unchecked,
+  checking,
+  upToDate,
+  available,
+  installing,
+  staged,
+  handedOff,
+  checkFailed,
+  installFailed,
+}
+
 class UpdateController extends ChangeNotifier {
   static const checkFailureMessage = 'Could not check for updates. Try again.';
 
@@ -20,6 +32,7 @@ class UpdateController extends ChangeNotifier {
   final Future<String> Function(UpdateAsset?, void Function(double?)) installer;
   UpdateChannel? channel;
   UpdateRelease? release;
+  UpdateStatus status = UpdateStatus.unchecked;
   bool busy = false;
   bool checking = false;
   bool available = false;
@@ -38,6 +51,11 @@ class UpdateController extends ChangeNotifier {
     this.manifest = fetchManifest,
     this.installer = platform.installUpdate,
   });
+
+  DateTime? get lastChecked {
+    final timestamp = preferences.getInt('updates.lastCheck');
+    return timestamp == null ? null : DateTime.fromMillisecondsSinceEpoch(timestamp);
+  }
 
   bool get automatic => preferences.getBool('updates.automatic') ?? true;
   bool get external => channel == UpdateChannel.apt || channel == UpdateChannel.manual;
@@ -78,6 +96,7 @@ class UpdateController extends ChangeNotifier {
 
     busy = true;
     checking = true;
+    status = UpdateStatus.checking;
     _notify();
 
     try {
@@ -103,12 +122,14 @@ class UpdateController extends ChangeNotifier {
         }
       }
 
+      status = available ? UpdateStatus.available : UpdateStatus.upToDate;
       message = available ? 'A newer version of Papyrus is available.' : 'Papyrus is up to date.';
       await preferences.setInt('updates.lastCheck', DateTime.now().millisecondsSinceEpoch);
     } catch (_) {
       available = false;
       release = null;
       message = checkFailureMessage;
+      status = UpdateStatus.checkFailed;
     } finally {
       checking = false;
       busy = false;
@@ -130,6 +151,7 @@ class UpdateController extends ChangeNotifier {
 
     busy = true;
     progress = null;
+    status = UpdateStatus.installing;
     message = 'Preparing the update…';
     _notify();
 
@@ -152,8 +174,10 @@ class UpdateController extends ChangeNotifier {
       });
 
       staged = channel == UpdateChannel.windows || channel == UpdateChannel.appImage;
+      status = staged ? UpdateStatus.staged : UpdateStatus.handedOff;
     } catch (_) {
       message = 'Could not finish the update. Please try again.';
+      status = UpdateStatus.installFailed;
     } finally {
       busy = false;
       progress = null;

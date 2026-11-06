@@ -4,6 +4,8 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/auth/auth_models.dart';
 import 'package:papyrus/auth/auth_repository.dart';
@@ -18,8 +20,6 @@ import 'package:papyrus/providers/acquisition_availability_provider.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
-import 'package:papyrus/widgets/profile/profile_menu_item.dart';
-import 'package:papyrus/widgets/settings/settings_section.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
 import 'package:powersync/powersync.dart' hide Column;
 import 'package:provider/provider.dart';
@@ -117,6 +117,25 @@ void main() {
     });
 
     Widget buildApp({required Size screenSize, TextScaler textScaler = TextScaler.noScaling}) {
+      final router = GoRouter(
+        initialLocation: '/profile',
+        routes: [
+          GoRoute(
+            path: '/profile',
+            builder: (_, _) => const ProfilePage(),
+            routes: [
+              for (final section in ProfileSection.values)
+                GoRoute(
+                  path: section.path,
+                  builder: (_, _) => ProfilePage(section: section),
+                ),
+            ],
+          ),
+        ],
+      );
+
+      addTearDown(router.dispose);
+
       return MultiProvider(
         providers: [
           ChangeNotifierProvider<AuthProvider>.value(value: authProvider),
@@ -128,95 +147,115 @@ void main() {
           ChangeNotifierProvider<PreferencesProvider>.value(value: prefsProvider),
           ChangeNotifierProvider<AcquisitionAvailabilityProvider>.value(value: availabilityProvider),
         ],
-        child: MaterialApp(
-          home: MediaQuery(
-            data: MediaQueryData(size: screenSize, textScaler: textScaler),
-            child: const ProfilePage(),
+        child: MaterialApp.router(
+          theme: AppTheme.light,
+          routerConfig: router,
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(size: screenSize, textScaler: textScaler),
+            child: child!,
           ),
         ),
       );
     }
 
-    testWidgets('mobile layout renders all sections and displays logout dialog', (tester) async {
+    testWidgets('mobile index opens focused pages and Back restores the index', (tester) async {
       await tester.binding.setSurfaceSize(const Size(400, 900));
       addTearDown(() => tester.binding.setSurfaceSize(null));
       await tester.pumpWidget(buildApp(screenSize: const Size(400, 900)));
       await tester.pumpAndSettle();
       expect(find.text('Settings'), findsOneWidget);
-      expect(find.text('Reader Profile'), findsOneWidget);
-      expect(find.text('reader@example.com'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.widgetWithText(SettingsSectionHeader, 'Account'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Change password'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.widgetWithText(SettingsSectionHeader, 'Appearance'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Theme'), findsOneWidget);
-      expect(find.text('Default font'), findsNothing);
-      expect(find.text('Default view'), findsNothing);
-      expect(find.text('Developer options'), findsNothing);
-      await tester.scrollUntilVisible(
-        find.widgetWithText(SettingsSectionHeader, 'Notifications'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Goal reminders'), findsOneWidget);
-      final reminders = find.widgetWithText(SettingsToggleRow, 'Goal reminders');
-      final remindersValue = prefsProvider.goalReminders;
-      expect(tester.widget<SettingsToggleRow>(reminders).onChanged, isNull);
-      await tester.tap(reminders);
-      expect(prefsProvider.goalReminders, remindersValue);
-      await tester.scrollUntilVisible(
-        find.widgetWithText(SettingsSectionHeader, 'Storage'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Clear local library'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.widgetWithText(SettingsSectionHeader, 'Privacy & data'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Analytics'), findsOneWidget);
-      final analytics = find.widgetWithText(SettingsToggleRow, 'Analytics');
-      final analyticsValue = prefsProvider.analyticsOptIn;
-      expect(tester.widget<SettingsToggleRow>(analytics).onChanged, isNull);
-      await tester.tap(analytics);
-      expect(prefsProvider.analyticsOptIn, analyticsValue);
+      expect(find.byType(TextFormField), findsNothing);
+      expect(find.text('Theme'), findsNothing);
+      expect(find.text('Version'), findsNothing);
 
-      for (final label in ['Privacy policy', 'Export all data', 'Import data', 'Clear local data']) {
-        final row = tester.widget<SettingsRow>(find.widgetWithText(SettingsRow, label));
-        expect(row.enabled, isFalse);
-        expect(row.onTap, isNull);
+      for (final label in ['Notifications', 'Privacy']) {
+        final item = tester.widget<ListTile>(find.widgetWithText(ListTile, label));
+        expect(item.enabled, isFalse);
+        expect(item.onTap, isNull);
       }
-      await tester.scrollUntilVisible(
-        find.widgetWithText(SettingsSectionHeader, 'Accessibility'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Reduce animations'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.widgetWithText(SettingsSectionHeader, 'About'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      expect(find.text('Version'), findsOneWidget);
-      await tester.scrollUntilVisible(
-        find.widgetWithText(ProfileMenuItem, 'Log out'),
-        300,
-        scrollable: find.byType(Scrollable).first,
-      );
-      await tester.tap(find.widgetWithText(ProfileMenuItem, 'Log out'));
+
+      for (final (title, control) in [
+        ('Account', 'Change password'),
+        ('Appearance', 'Theme'),
+        ('Storage', 'Clear local library'),
+        ('Accessibility', 'Reduce animations'),
+        ('About', 'Version'),
+      ]) {
+        await tester.ensureVisible(find.widgetWithText(ListTile, title));
+        await tester.tap(find.widgetWithText(ListTile, title));
+        await tester.pumpAndSettle();
+        expect(find.text(title), findsOneWidget);
+        expect(find.text(control), findsOneWidget);
+        expect(find.widgetWithText(ListTile, 'About'), findsNothing);
+        await tester.tap(find.byType(BackButton));
+        await tester.pumpAndSettle();
+        expect(find.text('Settings'), findsOneWidget);
+      }
+
+      await tester.ensureVisible(find.widgetWithText(ListTile, 'Log out'));
+      await tester.tap(find.widgetWithText(ListTile, 'Log out'));
       await tester.pumpAndSettle();
       expect(find.text('Are you sure you want to log out?'), findsOneWidget);
       await tester.tap(find.text('Cancel'));
       await tester.pumpAndSettle();
-      expect(find.text('Are you sure you want to log out?'), findsNothing);
+      expect(find.text('Settings'), findsOneWidget);
+    });
+
+    testWidgets('mobile appearance persists a choice across Back and reopening', (tester) async {
+      await tester.binding.setSurfaceSize(const Size(400, 900));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(buildApp(screenSize: const Size(400, 900)));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(ListTile, 'Appearance'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(SettingsRow, 'Theme'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('Dark'));
+      await tester.pumpAndSettle();
+      expect(PreferencesProvider(prefs).themeModePref, 'dark');
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Dark theme, page layout'), findsOneWidget);
+      await tester.tap(find.widgetWithText(ListTile, 'Appearance'));
+      await tester.pumpAndSettle();
+      expect(find.text('Dark'), findsOneWidget);
+    });
+
+    testWidgets('narrow mobile with enlarged text retains index scroll position on Back', (tester) async {
+      const size = Size(320, 568);
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(buildApp(screenSize: size, textScaler: TextScaler.linear(2)));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.widgetWithText(ListTile, 'About'), 200);
+      final before = tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels;
+      await tester.tap(find.widgetWithText(ListTile, 'About'));
+      await tester.pumpAndSettle();
+      expect(find.text('Version'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+      await tester.tap(find.byType(BackButton));
+      await tester.pumpAndSettle();
+      expect(tester.state<ScrollableState>(find.byType(Scrollable)).position.pixels, before);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('every detail page opens directly and returns to Settings at 320px with enlarged text', (tester) async {
+      const size = Size(320, 568);
+      await tester.binding.setSurfaceSize(size);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      await tester.pumpWidget(buildApp(screenSize: size, textScaler: TextScaler.linear(2)));
+      await tester.pumpAndSettle();
+      final router = GoRouter.of(tester.element(find.byType(ProfilePage)));
+
+      for (final section in ProfileSection.values) {
+        router.go('/profile/${section.path}');
+        await tester.pumpAndSettle();
+        expect(find.text(section.title), findsOneWidget);
+        expect(tester.takeException(), isNull);
+        await tester.tap(find.byType(BackButton));
+        await tester.pumpAndSettle();
+        expect(router.routeInformationProvider.value.uri.path, '/profile');
+      }
     });
 
     testWidgets('desktop settings scrolls when the pointer is over empty space beside the form', (tester) async {

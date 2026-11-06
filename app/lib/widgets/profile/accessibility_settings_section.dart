@@ -8,8 +8,9 @@ import 'package:provider/provider.dart';
 
 class AccessibilitySettingsSection extends StatelessWidget {
   final bool isDesktop;
+  final bool showHeader;
 
-  const AccessibilitySettingsSection({super.key, this.isDesktop = false});
+  const AccessibilitySettingsSection({super.key, this.isDesktop = false, this.showHeader = true});
 
   static String enlargementLabel(double value) => value == 1 ? 'System default' : '+${((value - 1) * 100).round()}%';
 
@@ -93,7 +94,7 @@ class AccessibilitySettingsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SettingsSectionHeader(title: 'Accessibility'),
+        if (showHeader) const SettingsSectionHeader(title: 'Accessibility'),
         ...children,
       ],
     );

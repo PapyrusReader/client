@@ -164,6 +164,8 @@ class SettingsToggleRow extends StatelessWidget {
           enabled: enabled,
           builder: (focusNode) => InkWell(
             hoverColor: Colors.transparent,
+            splashFactory: NoSplash.splashFactory,
+            highlightColor: Colors.transparent,
             focusNode: focusNode,
             canRequestFocus: enabled,
             onTap: toggle,

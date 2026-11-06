@@ -1,5 +1,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/services/about_links.dart';
 import 'package:papyrus/services/app_info.dart';
 import 'package:papyrus/services/support_api_client.dart';
@@ -146,6 +148,7 @@ class _SupportPageState extends State<SupportPage> {
     final issue = _issue;
     final textTheme = Theme.of(context).textTheme;
     final compact = MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
+    final centered = context.select<PreferencesProvider, bool>((preferences) => preferences.pageAlignment == 'center');
 
     return Scaffold(
       body: SafeArea(
@@ -153,13 +156,17 @@ class _SupportPageState extends State<SupportPage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             LibraryPageHeader(title: 'Support', leading: const BackButton(), compact: compact),
-            if (compact) const Divider(height: 1),
             Expanded(
               child: SingleChildScrollView(
                 controller: _scrollController,
-                padding: const EdgeInsets.all(Spacing.lg),
+                padding: EdgeInsets.fromLTRB(
+                  Spacing.lg,
+                  compact ? Spacing.sm : Spacing.lg,
+                  Spacing.lg,
+                  Spacing.lg,
+                ),
                 child: Align(
-                  alignment: Alignment.topCenter,
+                  alignment: centered ? Alignment.topCenter : AlignmentDirectional.topStart,
                   child: ConstrainedBox(
                     constraints: const BoxConstraints(maxWidth: 640),
                     child: issue != null

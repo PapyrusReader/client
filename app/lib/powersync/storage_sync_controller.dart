@@ -84,6 +84,18 @@ class StorageSyncController {
     return syncSettings.fileStorageLabel(usedBytes: fileStorageUsedBytes);
   }
 
+  double? get fileStorageFraction {
+    final usage = isAuthenticated ? mediaStorageUsage : null;
+    final usedBytes = usage?.usedBytes ?? fileStorageUsedBytes;
+    final quotaBytes = usage?.quotaBytes ?? syncSettings.fileStorageQuotaBytes;
+
+    if (quotaBytes == null || quotaBytes <= 0) {
+      return null;
+    }
+
+    return (usedBytes / quotaBytes).clamp(0.0, 1.0);
+  }
+
   String get statusLabel {
     if (isGuest) {
       return 'Guest local';

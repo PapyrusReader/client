@@ -6,14 +6,16 @@ import 'package:go_router/go_router.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:papyrus/services/about_links.dart';
 import 'package:papyrus/services/app_info.dart';
+import 'package:papyrus/services/license_packages.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
 import 'package:papyrus/widgets/settings/settings_section.dart';
 
 class AboutSettingsSection extends StatefulWidget {
   final bool isDesktop;
+  final bool showHeader;
 
-  const AboutSettingsSection({super.key, this.isDesktop = false});
+  const AboutSettingsSection({super.key, this.isDesktop = false, this.showHeader = true});
 
   @override
   State<AboutSettingsSection> createState() => _AboutSettingsSectionState();
@@ -21,6 +23,33 @@ class AboutSettingsSection extends StatefulWidget {
 
 class _AboutSettingsSectionState extends State<AboutSettingsSection> {
   late final Future<PackageInfo> _packageInfo = loadAppInfo();
+  late final Future<LicensePackages?> _licenses;
+  bool _openingLicenses = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _licenses = loadLicensePackages().then<LicensePackages?>((packages) => packages, onError: (Object _) => null);
+  }
+
+  Future<void> _openLicenses() async {
+    if (_openingLicenses) {
+      return;
+    }
+
+    _openingLicenses = true;
+    final route = ModalRoute.of(context);
+
+    try {
+      final packages = await _licenses;
+
+      if (mounted && (route?.isCurrent ?? true)) {
+        await context.push('/profile/licenses', extra: packages);
+      }
+    } finally {
+      _openingLicenses = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,7 +78,7 @@ class _AboutSettingsSectionState extends State<AboutSettingsSection> {
               value: updates.available ? 'Update available' : 'Check for updates',
               onTap: () => showUpdateSettings(context, updates),
             ),
-          SettingsRow(label: 'Licenses', onTap: () => context.push('/profile/licenses')),
+          SettingsRow(label: 'Licenses', onTap: _openLicenses),
           SettingsRow(label: 'Support', onTap: () => context.push('/profile/support')),
           SettingsRow(
             label: "What's new",
@@ -70,7 +99,7 @@ class _AboutSettingsSectionState extends State<AboutSettingsSection> {
         return Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const SettingsSectionHeader(title: 'About'),
+            if (widget.showHeader) const SettingsSectionHeader(title: 'About'),
             ...rows,
           ],
         );

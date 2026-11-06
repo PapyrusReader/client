@@ -1,4 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
+import 'package:papyrus/media/media_models.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/auth/auth_models.dart';
 import 'package:papyrus/auth/auth_repository.dart';
@@ -90,5 +91,36 @@ void main() {
 
     expect(controller.hasFailedMediaUploads, isTrue);
     expect(controller.failedMediaUploadLabel, '2 failed');
+  });
+
+  test('storage fraction uses server usage and handles capacity limits', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final auth = AuthProvider(prefs, repository: _FakeAuthRepository(), bootstrapOnCreate: false);
+    await auth.bootstrap();
+    final settings = SyncSettingsProvider(
+      prefs,
+      officialConfig: PapyrusApiConfig(serverBaseUri: Uri.parse('https://api.test')),
+    );
+
+    StorageSyncController controller({MediaStorageUsage? usage, int usedBytes = 0}) {
+      return StorageSyncController(
+        authProvider: auth,
+        powerSyncService: _FakePowerSyncService(),
+        syncSettings: settings,
+        syncState: const SyncState(),
+        fileStorageUsedBytes: usedBytes,
+        mediaStorageUsage: usage,
+      );
+    }
+
+    expect(controller(usedBytes: 536870912).fileStorageFraction, 0.5);
+    expect(controller().fileStorageFraction, 0);
+
+    for (final (used, quota, expected) in [(25, 100, 0.25), (120, 100, 1.0), (0, 0, null)]) {
+      final state = controller(
+        usage: MediaStorageUsage(usedBytes: used, quotaBytes: quota, availableBytes: 0),
+      );
+      expect(state.fileStorageFraction, expected);
+    }
   });
 }

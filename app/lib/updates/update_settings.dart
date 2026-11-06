@@ -1,11 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:papyrus/services/about_links.dart';
-import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/pages/app_updates_page.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/updates/update_controller.dart';
 import 'package:papyrus/updates/update_release.dart';
-import 'package:papyrus/widgets/settings/settings_row.dart';
 
 Future<void> showUpdateSettings(BuildContext context, UpdateController controller) async {
   if (controller.viewingSettings) {
@@ -15,90 +13,13 @@ Future<void> showUpdateSettings(BuildContext context, UpdateController controlle
   controller.setViewingSettings(true);
 
   try {
-    await showDialog<void>(
-      context: context,
-      animationStyle: AppMotion.animationStyle(context),
-      builder: (context) => ListenableBuilder(
-        listenable: controller,
-        builder: (context, child) => AlertDialog(
-          title: const Text('App updates'),
-          contentPadding: const EdgeInsets.fromLTRB(Spacing.lg, Spacing.md, Spacing.lg, Spacing.sm),
-          content: SizedBox(
-            width: 420,
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(controller.message),
-                  const SizedBox(height: Spacing.sm),
-                  Theme(
-                    data: Theme.of(context).copyWith(
-                      splashFactory: NoSplash.splashFactory,
-                      highlightColor: Colors.transparent,
-                    ),
-                    child: SettingsToggleRow(
-                      label: 'Check automatically',
-                      value: controller.automatic,
-                      onChanged: controller.setAutomatic,
-                      padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
-                    ),
-                  ),
-                  if (controller.channel == UpdateChannel.apt) ...[
-                    const SizedBox(height: Spacing.md),
-                    const Text(
-                      'Install updates through your system’s software updater. Enable the Papyrus repository once to receive future releases.',
-                    ),
-                    TextButton(
-                      onPressed: () => AboutLinks.open(
-                        context,
-                        Uri.https('github.com', '/PapyrusReader/client/blob/master/docs/INSTALL.md'),
-                      ),
-                      child: const Text('Repository setup'),
-                    ),
-                  ],
-                  if (controller.channel == UpdateChannel.manual) ...[
-                    const SizedBox(height: Spacing.md),
-                    const Text(
-                      'This portable or development build uses manual installation. Install a supported package to receive integrated updates.',
-                    ),
-                    TextButton(
-                      onPressed: () => AboutLinks.open(context, AboutLinks.releases),
-                      child: const Text('Downloads'),
-                    ),
-                  ],
-                  if (controller.available && !controller.external && !controller.staged) ...[
-                    const SizedBox(height: Spacing.md),
-                    Text(switch (controller.channel) {
-                      UpdateChannel.windows => 'The update will install after you close Papyrus normally.',
-                      UpdateChannel.appImage => 'The update takes effect when you close and reopen Papyrus.',
-                      UpdateChannel.web => 'Reload when you have finished reading to use the latest version.',
-                      _ => 'Your device will guide you through installation.',
-                    }),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Close')),
-            if (controller.available && !controller.external && !controller.staged)
-              FilledButton(
-                onPressed: controller.busy ? null : controller.install,
-                child: Text(controller.channel == UpdateChannel.web ? 'Reload' : 'Update'),
-              )
-            else
-              FilledButton(
-                onPressed: controller.busy || controller.staged ? null : controller.check,
-                key: const ValueKey('check-updates'),
-                child: IndexedStack(
-                  index: controller.checking ? 1 : 0,
-                  alignment: Alignment.center,
-                  children: const [Text('Check now'), Text('Checking…')],
-                ),
-              ),
-          ],
-        ),
+    final page = AppUpdatesPage(controller: controller);
+
+    await Navigator.of(context).push<void>(
+      PageRouteBuilder<void>(
+        transitionDuration: Duration.zero,
+        reverseTransitionDuration: Duration.zero,
+        pageBuilder: (_, _, _) => page,
       ),
     );
   } finally {

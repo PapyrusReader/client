@@ -341,9 +341,8 @@ class AppTheme {
 
   static final _switchTheme = SwitchThemeData(
     overlayColor: WidgetStateProperty.resolveWith((states) {
-      if (states.contains(WidgetState.hovered) &&
-          !states.contains(WidgetState.focused) &&
-          !states.contains(WidgetState.pressed)) {
+      if (states.contains(WidgetState.pressed) ||
+          (states.contains(WidgetState.hovered) && !states.contains(WidgetState.focused))) {
         return Colors.transparent;
       }
 

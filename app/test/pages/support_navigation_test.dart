@@ -12,6 +12,7 @@ import 'package:papyrus/opds/opds_catalog_store.dart';
 import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/pages/support_page.dart';
 import 'package:papyrus/providers/sidebar_provider.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/services/support_api_client.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
@@ -57,6 +58,7 @@ void main() {
           final completion = Completer<http.Response>();
           final clients = <_TrackingClient>[];
           var submissions = 0;
+          final preferences = await SharedPreferences.getInstance();
 
           final catalogs = OpdsCatalogs(
             OpdsCatalogStore(await SharedPreferences.getInstance(), secrets: MemorySecrets()),
@@ -110,6 +112,7 @@ void main() {
               providers: [
                 ChangeNotifierProvider(create: (_) => DataStore()),
                 ChangeNotifierProvider(create: (_) => SidebarProvider()),
+                ChangeNotifierProvider(create: (_) => PreferencesProvider(preferences)),
                 ChangeNotifierProvider.value(value: catalogs),
               ],
               child: MaterialApp.router(theme: AppTheme.eink, routerConfig: router),

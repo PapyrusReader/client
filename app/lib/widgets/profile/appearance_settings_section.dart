@@ -9,8 +9,9 @@ import 'package:provider/provider.dart';
 /// Appearance and theme settings section for ProfilePage.
 class AppearanceSettingsSection extends StatelessWidget {
   final bool isDesktop;
+  final bool showHeader;
 
-  const AppearanceSettingsSection({super.key, this.isDesktop = false});
+  const AppearanceSettingsSection({super.key, this.isDesktop = false, this.showHeader = true});
 
   static String getThemeLabel(String theme) {
     switch (theme) {
@@ -41,7 +42,7 @@ class AppearanceSettingsSection extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SettingsSectionHeader(title: 'Appearance'),
+        if (showHeader) const SettingsSectionHeader(title: 'Appearance'),
         SettingsRow(label: 'Theme', value: getThemeLabel(prefs.themeModePref), onTap: () => _showThemePicker(context)),
         _buildPageAlignment(context),
       ],
