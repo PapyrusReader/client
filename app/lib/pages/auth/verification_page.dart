@@ -27,11 +27,14 @@ class VerificationPage extends StatefulWidget {
 class _VerificationPageState extends State<VerificationPage> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
+  final _emailFocus = FocusNode();
   Timer? _timer;
   AuthProvider? _auth;
   String? _serverKey;
   String? _token;
   String? _message;
+  String? _recipient;
+  bool _editingEmail = false;
   bool _busy = false;
   bool _verified = false;
   bool _verificationFailed = false;
@@ -63,7 +66,8 @@ class _VerificationPageState extends State<VerificationPage> {
 
     if (_serverKey == null) {
       _serverKey = auth.serverKey;
-      _email.text = auth.pendingVerification?.email ?? '';
+      _recipient = auth.pendingVerification?.email;
+      _email.text = _recipient ?? '';
 
       if (widget.isLink && !_invalidLink) {
         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -75,6 +79,8 @@ class _VerificationPageState extends State<VerificationPage> {
     } else if (_serverKey != auth.serverKey) {
       _token = null;
       _email.clear();
+      _recipient = null;
+      _editingEmail = false;
       _serverChanged = true;
       _message = null;
     }
@@ -89,6 +95,7 @@ class _VerificationPageState extends State<VerificationPage> {
     }
 
     _timer?.cancel();
+    _emailFocus.dispose();
     _email.dispose();
     super.dispose();
   }
@@ -135,18 +142,21 @@ class _VerificationPageState extends State<VerificationPage> {
     });
   }
 
+  bool get _needsEmail => _recipient == null || _editingEmail || _invalidLink;
+
   Future<void> _resend() async {
     if (_busy || _wrongServer || _secondsUntil(_auth!.resendAt) > 0 || _secondsUntil(_auth!.retryAt) > 0) {
       return;
     }
 
-    if (!validateAndFocusForm(_formKey.currentState!)) {
+    if (_needsEmail && !validateAndFocusForm(_formKey.currentState!)) {
       return;
     }
 
     FocusScope.of(context).unfocus();
     setState(() => _busy = true);
-    final message = await _auth!.resendVerification(_email.text.trim());
+    final recipient = _email.text.trim();
+    final message = await _auth!.resendVerification(recipient);
 
     if (!mounted || _wrongServer) {
       return;
@@ -154,13 +164,150 @@ class _VerificationPageState extends State<VerificationPage> {
 
     setState(() {
       _busy = false;
-      _message = message == null ? null : 'Check your inbox and spam folder for a new link. It may take a few minutes.';
+      _message = message == null ? null : 'New link requested. Check your inbox.';
+
+      if (message != null) {
+        _recipient = recipient;
+        _email.text = recipient;
+        _editingEmail = false;
+        _invalidLink = false;
+      }
     });
   }
 
   void _signIn() {
     _auth!.cancelAuthentication();
     context.go('/login');
+  }
+
+  Widget _buildDeliveryForm(AuthProvider auth, int remaining, int retry) {
+    final theme = Theme.of(context);
+    final needsEmail = _needsEmail;
+    final blocked = _busy || remaining > 0 || retry > 0;
+    final seconds = remaining > retry ? remaining : retry;
+    final actionLabel = switch (seconds) {
+      _ when _busy => 'Requesting link…',
+      > 0 => 'Resend in ${seconds}s',
+      _ => needsEmail ? 'Send verification link' : 'Resend email',
+    };
+    final heading = needsEmail ? 'Request a new link' : 'Check your email';
+    final guidance = _invalidLink
+        ? 'This link cannot be used. Request a new one, or sign in if you have already verified your email.'
+        : 'Enter your email to get a verification link.';
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Semantics(
+          header: true,
+          child: Text(heading, style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w600)),
+        ),
+        const SizedBox(height: Spacing.sm),
+        if (needsEmail) ...[
+          Semantics(
+            liveRegion: true,
+            child: Text(
+              guidance,
+              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+          const SizedBox(height: Spacing.lg),
+          Form(
+            key: _formKey,
+            child: EmailInput(
+              labelText: 'Email address',
+              controller: _email,
+              focusNode: _emailFocus,
+              textInputAction: TextInputAction.done,
+              onEditingComplete: _resend,
+            ),
+          ),
+          const SizedBox(height: Spacing.md),
+        ] else ...[
+          Text(
+            'Open the link sent to',
+            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          ),
+          const SizedBox(height: Spacing.xs),
+          Text(_recipient!, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(
+              onPressed: _busy
+                  ? null
+                  : () => setState(() {
+                      _editingEmail = true;
+                      _message = null;
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                        if (mounted) {
+                          _emailFocus.requestFocus();
+                        }
+                      });
+                    }),
+              child: const Text('Use another email'),
+            ),
+          ),
+          const SizedBox(height: Spacing.lg),
+          Semantics(
+            liveRegion: _message != null,
+            child: Text(
+              _message ?? 'Check your spam folder if it hasn’t arrived.',
+              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ),
+        ],
+        if (auth.error != null &&
+            auth.errorCode != 'VERIFICATION_TOKEN_INVALID' &&
+            auth.errorCode != 'EMAIL_VERIFICATION_REQUIRED') ...[
+          const SizedBox(height: Spacing.sm),
+          Semantics(
+            liveRegion: true,
+            child: Text(auth.error!, style: TextStyle(color: theme.colorScheme.error)),
+          ),
+        ],
+        if (needsEmail)
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(ComponentSizes.buttonHeightMobile)),
+            onPressed: blocked ? null : _resend,
+            child: Text(actionLabel),
+          )
+        else
+          Align(
+            alignment: AlignmentDirectional.centerStart,
+            child: TextButton(onPressed: blocked ? null : _resend, child: Text(actionLabel)),
+          ),
+        const SizedBox(height: Spacing.lg),
+        if (!needsEmail)
+          FilledButton(
+            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(ComponentSizes.buttonHeightMobile)),
+            onPressed: _signIn,
+            child: const Text('Sign in'),
+          )
+        else if (_editingEmail && _recipient != null)
+          TextButton(
+            onPressed: _busy
+                ? null
+                : () => setState(() {
+                    _email.text = _recipient!;
+                    _editingEmail = false;
+                  }),
+            child: const Text('Cancel'),
+          )
+        else
+          TextButton(onPressed: _signIn, child: const Text('Back to sign in')),
+        const SizedBox(height: Spacing.sm),
+        TextButton(onPressed: () => navigateToOffline(context), child: const Text('Continue offline')),
+        if (auth.hasOfflineAccount)
+          TextButton(
+            onPressed: () {
+              auth.cancelAuthentication();
+              context.goNamed('LIBRARY');
+            },
+            child: const Text('Read downloaded books'),
+          ),
+      ],
+    );
   }
 
   @override
@@ -186,94 +333,88 @@ class _VerificationPageState extends State<VerificationPage> {
       subtitle = 'Open the verification link in your email, then return here to sign in.';
     }
 
-    final resendLabel = switch (remaining) {
-      _ when _busy => 'Requesting link…',
-      > 0 => 'Resend in ${remaining}s',
-      _ => 'Resend verification email',
-    };
     const buttonSize = Size.fromHeight(ComponentSizes.buttonHeightMobile);
 
-    final form = Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        if (_wrongServer)
-          const Text(
-            'This link is for a different server. Open it in the Papyrus app for that server.',
-          ),
-        if (_message != null && !_verified) ...[
-          Semantics(liveRegion: true, child: Text(_message!)),
-          const SizedBox(height: Spacing.md),
-        ],
-        if (auth.error != null && !_verified && !_wrongServer && auth.errorCode != 'VERIFICATION_TOKEN_INVALID') ...[
-          Semantics(
-            liveRegion: true,
-            child: Text(auth.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ),
-          const SizedBox(height: Spacing.md),
-        ],
-        if (retry > 0) ...[
-          Text('Try again in ${retry}s.'),
-          const SizedBox(height: Spacing.md),
-        ],
-        if (hasVerificationToken && _verificationFailed && !_busy) ...[
-          FilledButton(
-            style: FilledButton.styleFrom(minimumSize: buttonSize),
-            autofocus: true,
-            onPressed: _busy || retry > 0 ? null : _verify,
-            child: const Text('Try again'),
-          ),
-          const SizedBox(height: Spacing.md),
-        ],
-        if (!_verified && !_wrongServer && !hasVerificationToken) ...[
-          const SizedBox(height: Spacing.md),
-          Form(
-            key: _formKey,
-            child: EmailInput(
-              labelText: 'Email address',
-              controller: _email,
-              textInputAction: TextInputAction.done,
-              onEditingComplete: _resend,
-            ),
-          ),
-          const SizedBox(height: Spacing.md),
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(minimumSize: buttonSize),
-            onPressed: _busy || remaining > 0 || retry > 0 ? null : _resend,
-            child: Text(resendLabel),
-          ),
-          const SizedBox(height: Spacing.lg),
-        ],
-        if (hasVerificationToken)
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(minimumSize: buttonSize),
-            onPressed: _signIn,
-            child: const Text('Back to sign in'),
-          )
-        else
-          FilledButton(
-            style: FilledButton.styleFrom(minimumSize: buttonSize),
-            onPressed: _signIn,
-            child: Text(_verified ? 'Sign in' : 'Back to sign in'),
-          ),
-        const SizedBox(height: Spacing.sm),
-        TextButton(onPressed: () => navigateToOffline(context), child: const Text('Continue offline')),
-        if (auth.hasOfflineAccount)
-          TextButton(
-            onPressed: () {
-              auth.cancelAuthentication();
-              context.goNamed('LIBRARY');
-            },
-            child: const Text('Read downloaded books'),
-          ),
-      ],
-    );
+    final deliveryView = !_verified && !_wrongServer && !hasVerificationToken;
+    final form = deliveryView
+        ? _buildDeliveryForm(auth, remaining, retry)
+        : Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (_wrongServer)
+                const Text(
+                  'This link is for a different server. Open it in the Papyrus app for that server.',
+                ),
+              if (_message != null && !_verified) ...[
+                Semantics(liveRegion: true, child: Text(_message!)),
+                const SizedBox(height: Spacing.md),
+              ],
+              if (auth.error != null &&
+                  !_verified &&
+                  !_wrongServer &&
+                  auth.errorCode != 'VERIFICATION_TOKEN_INVALID') ...[
+                Semantics(
+                  liveRegion: true,
+                  child: Text(auth.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                ),
+                const SizedBox(height: Spacing.md),
+              ],
+              if (retry > 0) ...[
+                Text('Try again in ${retry}s.'),
+                const SizedBox(height: Spacing.md),
+              ],
+              if (hasVerificationToken && _verificationFailed && !_busy) ...[
+                FilledButton(
+                  style: FilledButton.styleFrom(minimumSize: buttonSize),
+                  autofocus: true,
+                  onPressed: _busy || retry > 0 ? null : _verify,
+                  child: const Text('Try again'),
+                ),
+                const SizedBox(height: Spacing.md),
+              ],
+              if (hasVerificationToken)
+                OutlinedButton(
+                  style: OutlinedButton.styleFrom(minimumSize: buttonSize),
+                  onPressed: _signIn,
+                  child: const Text('Back to sign in'),
+                )
+              else
+                FilledButton(
+                  style: FilledButton.styleFrom(minimumSize: buttonSize),
+                  onPressed: _signIn,
+                  child: Text(_verified ? 'Sign in' : 'Back to sign in'),
+                ),
+              const SizedBox(height: Spacing.sm),
+              TextButton(onPressed: () => navigateToOffline(context), child: const Text('Continue offline')),
+              if (auth.hasOfflineAccount)
+                TextButton(
+                  onPressed: () {
+                    auth.cancelAuthentication();
+                    context.goNamed('LIBRARY');
+                  },
+                  child: const Text('Read downloaded books'),
+                ),
+            ],
+          );
 
     return ResponsiveBuilder(
-      mobile: (context) =>
-          MobileAuthLayout(heading: heading, subtitle: subtitle, announceSubtitle: true, form: form, footer: const []),
-      desktop: (context) =>
-          DesktopAuthLayout(heading: heading, subtitle: subtitle, announceSubtitle: true, form: form, footer: const []),
+      mobile: (context) => MobileAuthLayout(
+        heading: heading,
+        subtitle: subtitle,
+        showHeader: !deliveryView,
+        announceSubtitle: true,
+        form: form,
+        footer: const [],
+      ),
+      desktop: (context) => DesktopAuthLayout(
+        heading: heading,
+        subtitle: subtitle,
+        showHeader: !deliveryView,
+        announceSubtitle: true,
+        form: form,
+        footer: const [],
+      ),
     );
   }
 }

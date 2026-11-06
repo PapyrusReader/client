@@ -23,6 +23,8 @@ void main() {
     bool isLink = true,
     Size size = const Size(390, 844),
     double scale = 1,
+    String? pendingEmail,
+    ThemeData? theme,
   }) async {
     tester.view.physicalSize = size;
     tester.view.devicePixelRatio = 1;
@@ -30,9 +32,26 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final auth = AuthProvider(
       await SharedPreferences.getInstance(),
-      repository: repository(handler),
+      repository: repository((request) {
+        if (pendingEmail != null && request.url.path.endsWith('/register')) {
+          return Future.value(
+            response({
+              'status': 'verification_required',
+              'email': pendingEmail,
+              'message': 'Check your email',
+              'resend_after': 0,
+            }, 201),
+          );
+        }
+
+        return handler(request);
+      }),
       bootstrapOnCreate: false,
     );
+    if (pendingEmail != null) {
+      await auth.register(email: pendingEmail, password: 'password', displayName: 'Reader');
+    }
+
     final router = GoRouter(
       initialLocation: '/verify-email',
       routes: [
@@ -56,7 +75,7 @@ void main() {
         value: auth,
         child: MaterialApp.router(
           routerConfig: router,
-          theme: AppTheme.light,
+          theme: theme ?? AppTheme.light,
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
             child: child!,
@@ -125,7 +144,7 @@ void main() {
       }, 400),
       token: 'expired',
     );
-    expect(find.text('Resend verification email'), findsOneWidget);
+    expect(find.text('Send verification link'), findsOneWidget);
     expect(
       tester
           .getSemantics(find.textContaining('This link cannot be used'))
@@ -190,13 +209,25 @@ void main() {
     );
     await tester.enterText(find.byType(TextFormField), 'alice@example.com');
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Resend verification email'));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Send verification link'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Resend verification email'));
+    await tester.tap(find.text('Send verification link'));
     await tester.pumpAndSettle();
     expect(calls, 1);
     expect(find.textContaining('Resend in'), findsOneWidget);
-    expect(tester.widget<OutlinedButton>(find.byType(OutlinedButton)).onPressed, isNull);
+    expect(
+      tester
+          .widget<ButtonStyleButton>(
+            find
+                .ancestor(
+                  of: find.textContaining('Resend in'),
+                  matching: find.byWidgetPredicate((widget) => widget is ButtonStyleButton),
+                )
+                .first,
+          )
+          .onPressed,
+      isNull,
+    );
     expect(tester.takeException(), isNull);
   });
 
@@ -214,12 +245,24 @@ void main() {
     );
     await tester.enterText(find.byType(TextFormField), 'alice@example.com');
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Resend verification email'));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Send verification link'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Resend verification email'));
+    await tester.tap(find.text('Send verification link'));
     await tester.pumpAndSettle();
-    expect(find.textContaining('Try again in'), findsOneWidget);
-    expect(tester.widget<OutlinedButton>(find.byType(OutlinedButton)).onPressed, isNull);
+    expect(find.textContaining('Resend in'), findsOneWidget);
+    expect(
+      tester
+          .widget<ButtonStyleButton>(
+            find
+                .ancestor(
+                  of: find.textContaining('Resend in'),
+                  matching: find.byWidgetPredicate((widget) => widget is ButtonStyleButton),
+                )
+                .first,
+          )
+          .onPressed,
+      isNull,
+    );
   });
 
   testWidgets('resend delivery failure remains visible after an invalid link', (tester) async {
@@ -244,16 +287,94 @@ void main() {
     }, token: 'expired');
     await tester.enterText(find.byType(TextFormField), 'alice@example.com');
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Resend verification email'));
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Send verification link'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Resend verification email'));
+    await tester.tap(find.text('Send verification link'));
     await tester.pumpAndSettle();
     expect(
       find.text('Couldn’t send the verification email. Please try again.'),
       findsOneWidget,
     );
-    expect(find.textContaining('Try again in'), findsOneWidget);
-    expect(tester.widget<OutlinedButton>(find.byType(OutlinedButton)).onPressed, isNull);
+    expect(find.textContaining('Resend in'), findsOneWidget);
+    expect(
+      tester
+          .widget<ButtonStyleButton>(
+            find
+                .ancestor(
+                  of: find.textContaining('Resend in'),
+                  matching: find.byWidgetPredicate((widget) => widget is ButtonStyleButton),
+                )
+                .first,
+          )
+          .onPressed,
+      isNull,
+    );
+  });
+
+  for (final theme in [AppTheme.light, AppTheme.dark, AppTheme.eink]) {
+    testWidgets(
+      'waiting state keeps the address readable and secondary actions compact in ${theme.brightness} / ${theme.colorScheme.primary}',
+      (tester) async {
+        final semantics = tester.ensureSemantics();
+        var calls = 0;
+        const address = 'reader.with.a.long.address@example.com';
+        await mount(
+          tester,
+          (request) async {
+            calls += 1;
+            expect(jsonDecode(request.body), {'email': address});
+            return response({'message': 'Request accepted', 'resend_after': 60});
+          },
+          isLink: false,
+          pendingEmail: address,
+          size: const Size(320, 700),
+          scale: 2,
+          theme: theme,
+        );
+        expect(find.text('Check your email'), findsOneWidget);
+        expect(find.text(address), findsOneWidget);
+        expect(find.byType(TextFormField), findsNothing);
+        expect(find.byType(OutlinedButton), findsNothing);
+        expect(find.widgetWithText(FilledButton, 'Sign in'), findsOneWidget);
+        await tester.ensureVisible(find.widgetWithText(TextButton, 'Resend email'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Resend email'));
+        await tester.pumpAndSettle();
+        expect(calls, 1);
+        expect(find.byType(TextFormField), findsNothing);
+        expect(find.text('New link requested. Check your inbox.'), findsOneWidget);
+        expect(
+          tester
+              .getSemantics(find.text('New link requested. Check your inbox.'))
+              .getSemanticsData()
+              .flagsCollection
+              .isLiveRegion,
+          isTrue,
+        );
+        expect(tester.takeException(), isNull);
+        semantics.dispose();
+      },
+    );
+  }
+
+  testWidgets('requesting another address is explicit and cancelling restores the recipient', (tester) async {
+    await mount(
+      tester,
+      (_) async => fail('Editing must not send a request'),
+      isLink: false,
+      pendingEmail: 'reader@example.com',
+    );
+    await tester.tap(find.text('Use another email'));
+    await tester.pumpAndSettle();
+    expect(find.text('Request a new link'), findsOneWidget);
+    expect(find.byType(TextFormField), findsOneWidget);
+    await tester.enterText(find.byType(TextFormField), 'other@example.com');
+    await tester.ensureVisible(find.text('Cancel'));
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
+    expect(find.text('reader@example.com'), findsOneWidget);
+    expect(find.text('other@example.com'), findsNothing);
+    expect(find.byType(TextFormField), findsNothing);
   });
 
   testWidgets('server change discards the captured token and pending email', (tester) async {
