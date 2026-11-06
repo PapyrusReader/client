@@ -14,6 +14,7 @@ import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 import 'package:papyrus/widgets/shared/searchable_book_field.dart';
 import 'package:papyrus/widgets/timer/reading_timer_clock.dart';
+import 'package:papyrus/widgets/timer/reading_timer_history.dart';
 import 'package:provider/provider.dart';
 
 class ReadingTimerPage extends StatefulWidget {
@@ -113,33 +114,44 @@ class _ReadingTimerPageState extends State<ReadingTimerPage> {
               ],
             ),
             Expanded(
-              child: SingleChildScrollView(
-                padding: EdgeInsets.all(padding),
-                child: Form(
-                  key: _form,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (timer.loading) const AppLinearProgressIndicator(),
-                      if (timer.error != null && !_saveDialogOpen)
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: Spacing.md),
-                          child: Semantics(
-                            liveRegion: true,
-                            child: Wrap(
-                              crossAxisAlignment: WrapCrossAlignment.center,
-                              spacing: Spacing.sm,
-                              children: [
-                                Text(timer.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-                                TextButton(onPressed: timer.busy ? null : timer.reload, child: const Text('Retry')),
-                              ],
+              child: LayoutBuilder(
+                builder: (context, viewport) {
+                  return SingleChildScrollView(
+                    padding: EdgeInsets.all(padding),
+                    child: Form(
+                      key: _form,
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (timer.loading) const AppLinearProgressIndicator(),
+                          if (timer.error != null && !_saveDialogOpen)
+                            Padding(
+                              padding: const EdgeInsets.only(bottom: Spacing.md),
+                              child: Semantics(
+                                liveRegion: true,
+                                child: Wrap(
+                                  crossAxisAlignment: WrapCrossAlignment.center,
+                                  spacing: Spacing.sm,
+                                  children: [
+                                    Text(timer.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+                                    TextButton(onPressed: timer.busy ? null : timer.reload, child: const Text('Retry')),
+                                  ],
+                                ),
+                              ),
                             ),
+                          _session(
+                            context,
+                            timer,
+                            books,
+                            book,
+                            centered: centered,
+                            minimumHeight: (viewport.maxHeight - 2 * padding).clamp(0, double.infinity),
                           ),
-                        ),
-                      _session(context, timer, books, book, centered: centered),
-                    ],
-                  ),
-                ),
+                        ],
+                      ),
+                    ),
+                  );
+                },
               ),
             ),
           ],
@@ -154,6 +166,7 @@ class _ReadingTimerPageState extends State<ReadingTimerPage> {
     List<Book> books,
     Book? book, {
     required bool centered,
+    required double minimumHeight,
   }) {
     final theme = Theme.of(context);
     final shape = theme.cardTheme.shape;
@@ -210,11 +223,41 @@ class _ReadingTimerPageState extends State<ReadingTimerPage> {
       ],
     );
 
+    final controls = Column(
+      key: const ValueKey('timer-controls-column'),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SearchableBookField(
+          key: ValueKey((_library, book?.id)),
+          books: books,
+          value: book?.id,
+          enabled: editable,
+          showDetails: true,
+          onChanged: (id) => setState(() => _bookId = id),
+        ),
+        if (books.isEmpty && session == null)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              onPressed: () => context.go('/library/books'),
+              child: const Text('Go to library'),
+            ),
+          ),
+        const SizedBox(height: Spacing.xl),
+        _instrument(context, timer, book),
+        const SizedBox(height: Spacing.lg),
+        settings,
+      ],
+    );
+
     return LayoutBuilder(
       key: const ValueKey('timer-panel-layout'),
       builder: (context, constraints) {
+        final wide = constraints.maxWidth >= 960 && MediaQuery.textScalerOf(context).scale(16) <= 24;
+
         return Container(
           key: const ValueKey('reading-session'),
+          constraints: BoxConstraints(minHeight: minimumHeight),
           padding: const EdgeInsets.all(Spacing.lg),
           decoration: ShapeDecoration(
             shape: shape is OutlinedBorder
@@ -229,32 +272,27 @@ class _ReadingTimerPageState extends State<ReadingTimerPage> {
           child: Align(
             alignment: centered ? Alignment.topCenter : Alignment.topLeft,
             child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 520 - 2 * Spacing.lg),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SearchableBookField(
-                    key: ValueKey((_library, book?.id)),
-                    books: books,
-                    value: book?.id,
-                    enabled: editable,
-                    showDetails: true,
-                    onChanged: (id) => setState(() => _bookId = id),
-                  ),
-                  if (books.isEmpty && session == null)
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: TextButton(
-                        onPressed: () => context.go('/library/books'),
-                        child: const Text('Go to library'),
-                      ),
+              key: const ValueKey('timer-content'),
+              constraints: BoxConstraints(maxWidth: wide ? 1040 : 520 - 2 * Spacing.lg),
+              child: wide
+                  ? Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(width: 520 - 2 * Spacing.lg, child: controls),
+                        const SizedBox(width: Spacing.xxl),
+                        const Expanded(child: ReadingTimerHistory()),
+                      ],
+                    )
+                  : Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        controls,
+                        const SizedBox(height: Spacing.xl),
+                        const Divider(height: 1),
+                        const SizedBox(height: Spacing.lg),
+                        const ReadingTimerHistory(),
+                      ],
                     ),
-                  const SizedBox(height: Spacing.xl),
-                  _instrument(context, timer, book),
-                  const SizedBox(height: Spacing.lg),
-                  settings,
-                ],
-              ),
             ),
           ),
         );

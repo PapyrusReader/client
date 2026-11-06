@@ -594,20 +594,35 @@ void main() {
   }
 
   testWidgets('panel fills page width while controls follow the alignment preference', (tester) async {
-    await pump(tester, size: const Size(1600, 900));
+    await pump(tester, size: const Size(1600, 1200));
     final panel = find.byKey(const ValueKey('reading-session'));
     final field = find.byType(SearchableBookField);
     final border = tester.getRect(panel);
     final controls = tester.getRect(field);
     expect(border.left, 24);
     expect(border.right, 1576);
+    expect(border.bottom, 1176);
     expect(controls.left, border.left + 24);
     expect(controls.width, 472);
     preferences.pageAlignment = 'center';
     await tester.pumpAndSettle();
     expect(tester.getRect(panel), border);
     expect(tester.getSize(field).width, controls.width);
-    expect(tester.getCenter(field).dx, border.center.dx);
+    expect(tester.getCenter(find.byKey(const ValueKey('timer-content'))).dx, border.center.dx);
+    expect(tester.getTopLeft(find.text('Recent sessions')).dx, greaterThan(tester.getTopRight(field).dx));
+  });
+
+  testWidgets('narrow layout places history after timer settings and scrolls to its bottom', (tester) async {
+    await pump(tester, size: const Size(390, 700));
+    await tap(tester, 'Countdown');
+    expect(
+      tester.getTopLeft(find.text('Recent sessions')).dy,
+      greaterThan(tester.getBottomLeft(find.text('Custom')).dy),
+    );
+    await tester.ensureVisible(find.text('No saved sessions yet.'));
+    await tester.pumpAndSettle();
+    expect(find.text('No saved sessions yet.').hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   for (final (name, size, scale, theme) in [
