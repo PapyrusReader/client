@@ -150,11 +150,6 @@ class _RegisterPageState extends State<RegisterPage> {
         onPressed: () => navigateToLogin(context),
       ),
       AuthSwitchLink(
-        promptText: 'Waiting for a link?',
-        actionText: 'Verify email',
-        onPressed: () => context.push('/verification'),
-      ),
-      AuthSwitchLink(
         promptText: 'No internet?',
         actionText: 'Continue offline',
         onPressed: () => navigateToOffline(context),

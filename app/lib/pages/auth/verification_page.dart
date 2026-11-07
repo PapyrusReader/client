@@ -138,7 +138,7 @@ class _VerificationPageState extends State<VerificationPage> {
     });
   }
 
-  bool get _needsEmail => _recipient == null || _invalidLink;
+  bool get _needsEmail => _recipient == null;
 
   Future<void> _resend() async {
     if (_busy || _wrongServer || _secondsUntil(_auth!.resendAt) > 0 || _secondsUntil(_auth!.retryAt) > 0) {
@@ -186,9 +186,7 @@ class _VerificationPageState extends State<VerificationPage> {
       _ => needsEmail ? 'Send verification link' : 'Resend email',
     };
     final heading = needsEmail ? 'Request a new link' : 'Check your email';
-    final guidance = _invalidLink
-        ? 'This link cannot be used. Request a new one, or sign in if you have already verified your email.'
-        : 'Enter your email to get a verification link.';
+    const guidance = 'Enter your email to get a verification link.';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -219,20 +217,29 @@ class _VerificationPageState extends State<VerificationPage> {
           ),
           const SizedBox(height: Spacing.md),
         ] else ...[
-          Text(
-            'Open the link sent to',
+          Text.rich(
+            TextSpan(
+              children: [
+                const TextSpan(text: 'Open the link sent to '),
+                TextSpan(
+                  text: _recipient!,
+                  style: TextStyle(fontWeight: FontWeight.w600, color: theme.colorScheme.onSurface),
+                ),
+                const TextSpan(text: '. Check your spam folder if it hasn’t arrived.'),
+              ],
+            ),
             style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
           ),
-          const SizedBox(height: Spacing.xs),
-          Text(_recipient!, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-          const SizedBox(height: Spacing.lg),
-          Semantics(
-            liveRegion: _message != null,
-            child: Text(
-              _message ?? 'Check your spam folder if it hasn’t arrived.',
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+          if (_message != null) ...[
+            const SizedBox(height: Spacing.sm),
+            Semantics(
+              liveRegion: true,
+              child: Text(
+                _message!,
+                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              ),
             ),
-          ),
+          ],
         ],
         if (auth.error != null &&
             auth.errorCode != 'VERIFICATION_TOKEN_INVALID' &&
@@ -244,31 +251,19 @@ class _VerificationPageState extends State<VerificationPage> {
           ),
         ],
         const SizedBox(height: Spacing.md),
-        if (needsEmail)
-          FilledButton(
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(ComponentSizes.buttonHeightMobile)),
-            onPressed: blocked ? null : _resend,
-            child: Text(actionLabel),
-          )
-        else
-          OutlinedButton(
-            style: OutlinedButton.styleFrom(
-              minimumSize: const Size.fromHeight(ComponentSizes.buttonHeightMobile),
-              disabledForegroundColor: theme.colorScheme.onSurfaceVariant,
-              side:
-                  theme.outlinedButtonTheme.style?.side?.resolve(const <WidgetState>{}) ??
-                  BorderSide(color: theme.colorScheme.outline),
-            ),
-            onPressed: blocked ? null : _resend,
-            child: Text(actionLabel),
+        FilledButton(
+          style: FilledButton.styleFrom(
+            minimumSize: const Size.fromHeight(ComponentSizes.buttonHeightMobile),
+            disabledForegroundColor: theme.colorScheme.onSurfaceVariant,
           ),
-        const SizedBox(height: Spacing.lg),
+          onPressed: blocked ? null : _resend,
+          child: Text(actionLabel),
+        ),
+        const SizedBox(height: Spacing.sm),
         OutlinedButton(
           onPressed: _signIn,
           child: const Text('Back to sign in'),
         ),
-        const SizedBox(height: Spacing.sm),
-        OutlinedButton(onPressed: () => navigateToOffline(context), child: const Text('Continue offline')),
         if (auth.hasOfflineAccount) ...[
           const SizedBox(height: Spacing.sm),
           OutlinedButton(
@@ -299,8 +294,8 @@ class _VerificationPageState extends State<VerificationPage> {
       heading = _verificationFailed && !_busy ? 'Verification failed' : 'Verifying your email';
       subtitle = _verificationFailed && !_busy ? 'Please try again.' : 'Please wait…';
     } else if (_invalidLink) {
-      heading = 'Request a new link';
-      subtitle = 'This link cannot be used. Request a new one, or sign in if you have already verified your email.';
+      heading = 'Link unavailable';
+      subtitle = 'This link has expired or is no longer valid.';
     } else {
       heading = 'Check your email';
       subtitle = 'Open the verification link in your email, then return here to sign in.';
@@ -308,7 +303,7 @@ class _VerificationPageState extends State<VerificationPage> {
 
     const buttonSize = Size.fromHeight(ComponentSizes.buttonHeightMobile);
 
-    final deliveryView = !_verified && !_wrongServer && !hasVerificationToken;
+    final deliveryView = !_verified && !_invalidLink && !_wrongServer && !hasVerificationToken;
     final form = deliveryView
         ? _buildDeliveryForm(auth, remaining, retry)
         : Column(
@@ -333,7 +328,7 @@ class _VerificationPageState extends State<VerificationPage> {
                 ),
                 const SizedBox(height: Spacing.md),
               ],
-              if (retry > 0) ...[
+              if (retry > 0 && !_invalidLink) ...[
                 Text('Try again in ${retry}s.'),
                 const SizedBox(height: Spacing.md),
               ],
@@ -358,9 +353,11 @@ class _VerificationPageState extends State<VerificationPage> {
                   onPressed: _signIn,
                   child: Text(_verified ? 'Sign in' : 'Back to sign in'),
                 ),
-              const SizedBox(height: Spacing.sm),
-              OutlinedButton(onPressed: () => navigateToOffline(context), child: const Text('Continue offline')),
-              if (auth.hasOfflineAccount) ...[
+              if (!_invalidLink) ...[
+                const SizedBox(height: Spacing.sm),
+                OutlinedButton(onPressed: () => navigateToOffline(context), child: const Text('Continue offline')),
+              ],
+              if (auth.hasOfflineAccount && !_invalidLink) ...[
                 const SizedBox(height: Spacing.sm),
                 OutlinedButton(
                   onPressed: () {
@@ -373,22 +370,34 @@ class _VerificationPageState extends State<VerificationPage> {
             ],
           );
 
-    return ResponsiveBuilder(
-      mobile: (context) => MobileAuthLayout(
-        heading: heading,
-        subtitle: subtitle,
-        showHeader: !deliveryView,
-        announceSubtitle: true,
-        form: form,
-        footer: const [],
+    final theme = Theme.of(context);
+    final buttonShape = theme.filledButtonTheme.style?.shape ?? const WidgetStatePropertyAll(StadiumBorder());
+
+    return OutlinedButtonTheme(
+      data: OutlinedButtonThemeData(
+        style: (theme.outlinedButtonTheme.style ?? const ButtonStyle()).copyWith(shape: buttonShape),
       ),
-      desktop: (context) => DesktopAuthLayout(
-        heading: heading,
-        subtitle: subtitle,
-        showHeader: !deliveryView,
-        announceSubtitle: true,
-        form: form,
-        footer: const [],
+      child: ResponsiveBuilder(
+        mobile: (context) => MobileAuthLayout(
+          heading: heading,
+          headingIcon: _verified ? Icons.check_circle_outline : null,
+          subtitle: subtitle,
+          showHeader: !deliveryView,
+          announceSubtitle: true,
+          headerBottomSpacing: Spacing.md,
+          form: form,
+          footer: const [],
+        ),
+        desktop: (context) => DesktopAuthLayout(
+          heading: heading,
+          headingIcon: _verified ? Icons.check_circle_outline : null,
+          subtitle: subtitle,
+          showHeader: !deliveryView,
+          announceSubtitle: true,
+          headerBottomSpacing: Spacing.md,
+          form: form,
+          footer: const [],
+        ),
       ),
     );
   }

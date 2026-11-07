@@ -120,11 +120,7 @@ class AuthRepository {
       return tokens;
     } catch (error) {
       if (generation == _tokenGeneration) {
-        await clearTokens();
-
-        if (error is AuthApiException && error.code == 'EMAIL_VERIFICATION_REQUIRED') {
-          onVerificationRequired?.call(error);
-        }
+        await _clearRejectedCredentials(error);
       }
 
       rethrow;
@@ -309,6 +305,16 @@ class AuthRepository {
     return _serializeCredentials(tokenStore.clear);
   }
 
+  Future<void> _clearRejectedCredentials(Object error) async {
+    final clearing = clearTokens();
+    final generation = _tokenGeneration;
+    await clearing;
+
+    if (generation == _tokenGeneration && error is AuthApiException && error.code == 'EMAIL_VERIFICATION_REQUIRED') {
+      onVerificationRequired?.call(error);
+    }
+  }
+
   Future<T> withFreshAccessToken<T>(Future<T> Function(String accessToken) action) {
     return _withFreshAccessToken(action);
   }
@@ -387,8 +393,7 @@ class AuthRepository {
       }
     } on AuthApiException catch (error) {
       if (generation == _tokenGeneration && error.code == 'EMAIL_VERIFICATION_REQUIRED') {
-        await clearTokens();
-        onVerificationRequired?.call(error);
+        await _clearRejectedCredentials(error);
       }
 
       rethrow;

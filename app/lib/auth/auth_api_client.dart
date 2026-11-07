@@ -92,7 +92,7 @@ class AuthApiClient {
       return PendingVerification.fromJson(json);
     }
 
-    // During rollout an older server may still issue an unverified session.
+    // Revoke unexpected credentials without installing an authenticated session.
     final accessToken = json['access_token'];
 
     if (accessToken is String && accessToken.isNotEmpty) {
@@ -101,10 +101,6 @@ class AuthApiClient {
       } catch (_) {
         // Never install the rejected session, even when revocation is unavailable.
       }
-    }
-
-    if (json['user'] is Map<String, dynamic> && json['user']['email_verified'] == false) {
-      return PendingVerification(email: email.trim().toLowerCase(), resendAfter: 0);
     }
 
     throw const FormatException('Expected pending registration');

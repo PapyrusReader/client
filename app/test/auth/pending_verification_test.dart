@@ -17,6 +17,8 @@ class MemoryStorage implements RefreshTokenStorage {
   Completer<void>? readGate;
   Completer<void>? writeGate;
   Completer<void>? writeStarted;
+  Completer<void>? deleteGate;
+  Completer<void>? deleteStarted;
 
   @override
   Future<String?> read() async {
@@ -25,7 +27,14 @@ class MemoryStorage implements RefreshTokenStorage {
   }
 
   @override
-  Future<void> delete() async => value = null;
+  Future<void> delete() async {
+    if (deleteStarted?.isCompleted == false) {
+      deleteStarted!.complete();
+    }
+
+    await deleteGate?.future;
+    value = null;
+  }
 
   @override
   Future<void> write(String refreshToken) async {
@@ -165,7 +174,46 @@ void main() {
     });
   }
 
-  test('old-server unverified tokens are revoked before any storage', () async {
+  for (final request in ['refresh', 'sync']) {
+    for (final cancellation in ['signout', 'login']) {
+      test('$request denial during storage deletion cannot override $cancellation', () async {
+        final storage = MemoryStorage();
+        final repo = repository((request) async {
+          if (request.url.path.endsWith('/login')) {
+            final email = jsonDecode(request.body)['email'] as String;
+            return response(tokens(user: email.split('@').first));
+          }
+
+          if (request.url.path.endsWith('/logout')) {
+            return http.Response('', 204);
+          }
+
+          return verificationRequired();
+        }, storage: storage);
+        final auth = AuthProvider(await SharedPreferences.getInstance(), repository: repo, bootstrapOnCreate: false);
+        expect(await auth.login(email: 'alice@example.com', password: 'password'), isTrue);
+        storage.deleteGate = Completer<void>();
+        storage.deleteStarted = Completer<void>();
+        final denied = request == 'refresh'
+            ? expectLater(auth.refresh(), completion(isFalse))
+            : expectLater(repo.createPowerSyncToken(), throwsA(isA<AuthApiException>()));
+        await storage.deleteStarted!.future;
+        final replacement = cancellation == 'signout'
+            ? auth.signOut()
+            : auth.login(email: 'bob@example.com', password: 'password');
+        storage.deleteGate!.complete();
+        await denied;
+        await replacement;
+        expect(auth.pendingVerification, isNull);
+        expect(auth.isSignedIn, cancellation == 'login');
+        expect(auth.user?.userId, cancellation == 'login' ? 'bob' : null);
+        expect(storage.value, cancellation == 'login' ? 'refresh-bob' : null);
+        auth.dispose();
+      });
+    }
+  }
+
+  test('unexpected unverified tokens are revoked before any storage', () async {
     final paths = <String>[];
     final storage = MemoryStorage();
     final repo = repository((request) async {
@@ -179,13 +227,11 @@ void main() {
     );
     expect(paths, ['/custom/api/auth/login', '/custom/api/auth/logout']);
     expect(storage.writes, 0);
-    final pending = await repo.register(
-      email: 'alice@example.com',
-      password: 'password',
-      displayName: 'Alice',
-      clientType: 'web',
+    await expectLater(
+      repo.register(email: 'alice@example.com', password: 'password', displayName: 'Alice', clientType: 'web'),
+      throwsA(isA<FormatException>()),
     );
-    expect(pending.email, 'alice@example.com');
+    expect(paths.last, '/custom/api/auth/logout');
     expect(storage.writes, 0);
   });
 

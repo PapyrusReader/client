@@ -131,7 +131,7 @@ void main() {
     });
   }
 
-  testWidgets('invalid, expired and already-used links offer resend and sign-in', (tester) async {
+  testWidgets('invalid, expired and already-used links show an error without a form', (tester) async {
     final semantics = tester.ensureSemantics();
     final auth = await mount(
       tester,
@@ -144,10 +144,13 @@ void main() {
       }, 400),
       token: 'expired',
     );
-    expect(find.text('Send verification link'), findsOneWidget);
+    expect(find.text('Link unavailable'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing);
+    expect(find.text('Send verification link'), findsNothing);
+    expect(find.text('Continue offline'), findsNothing);
     expect(
       tester
-          .getSemantics(find.textContaining('This link cannot be used'))
+          .getSemantics(find.text('This link has expired or is no longer valid.'))
           .getSemanticsData()
           .flagsCollection
           .isLiveRegion,
@@ -265,31 +268,28 @@ void main() {
     );
   });
 
-  testWidgets('resend delivery failure remains visible after an invalid link', (tester) async {
-    await mount(tester, (request) async {
-      if (request.url.path.endsWith('/verify-email')) {
-        return response({
-          'error': {'code': 'VERIFICATION_TOKEN_INVALID', 'message': 'Invalid link', 'details': {}},
-        }, 400);
-      }
-
-      return response(
-        {
-          'error': {
-            'code': 'VERIFICATION_UNAVAILABLE',
-            'message': 'Verification email is temporarily unavailable. Please try again later.',
-            'details': {},
+  testWidgets('resend delivery failure remains visible while waiting for verification', (tester) async {
+    await mount(
+      tester,
+      (request) async {
+        return response(
+          {
+            'error': {
+              'code': 'VERIFICATION_UNAVAILABLE',
+              'message': 'Verification email is temporarily unavailable. Please try again later.',
+              'details': {},
+            },
           },
-        },
-        503,
-        {'retry-after': '60'},
-      );
-    }, token: 'expired');
-    await tester.enterText(find.byType(TextFormField), 'alice@example.com');
+          503,
+          {'retry-after': '60'},
+        );
+      },
+      isLink: false,
+      pendingEmail: 'alice@example.com',
+    );
+    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Resend email'));
     await tester.pumpAndSettle();
-    await tester.ensureVisible(find.widgetWithText(FilledButton, 'Send verification link'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Send verification link'));
+    await tester.tap(find.text('Resend email'));
     await tester.pumpAndSettle();
     expect(
       find.text('Couldn’t send the verification email. Please try again.'),
@@ -332,14 +332,17 @@ void main() {
           theme: theme,
         );
         expect(find.text('Check your email'), findsOneWidget);
-        expect(find.text(address), findsOneWidget);
+        expect(
+          find.text('Open the link sent to $address. Check your spam folder if it hasn’t arrived.', findRichText: true),
+          findsOneWidget,
+        );
         expect(find.byType(TextFormField), findsNothing);
         expect(find.byType(TextButton), findsNothing);
-        expect(find.byType(FilledButton), findsNothing);
+        expect(find.byType(FilledButton), findsOneWidget);
         expect(find.text('Use another email'), findsNothing);
         expect(find.widgetWithText(OutlinedButton, 'Back to sign in'), findsOneWidget);
-        expect(find.widgetWithText(OutlinedButton, 'Continue offline'), findsOneWidget);
-        await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Resend email'));
+        expect(find.widgetWithText(OutlinedButton, 'Continue offline'), findsNothing);
+        await tester.ensureVisible(find.widgetWithText(FilledButton, 'Resend email'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Resend email'));
         await tester.pumpAndSettle();
@@ -380,14 +383,16 @@ void main() {
     expect(find.text('Email verified'), findsNothing);
   });
 
-  testWidgets('missing link offers offline reading without a verification request', (tester) async {
+  testWidgets('missing link offers a return to sign-in without a verification request', (tester) async {
     final auth = await mount(tester, (_) async => fail('No verification token'));
-    expect(find.text('Request a new link'), findsOneWidget);
-    await tester.ensureVisible(find.text('Continue offline'));
-    await tester.tap(find.text('Continue offline'));
+    expect(find.text('Link unavailable'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing);
+    expect(find.text('Continue offline'), findsNothing);
+    await tester.ensureVisible(find.text('Back to sign in'));
+    await tester.tap(find.text('Back to sign in'));
     await tester.pumpAndSettle();
-    expect(find.text('Library'), findsOneWidget);
-    expect(auth.isOfflineMode, isTrue);
+    expect(find.text('Fresh sign-in'), findsOneWidget);
+    expect(auth.isSignedIn, isFalse);
   });
 
   testWidgets('leaving during automatic verification ignores a late response', (tester) async {
