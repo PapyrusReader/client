@@ -11,6 +11,7 @@ import 'package:papyrus/themes/app_theme.dart';
 import 'package:provider/provider.dart';
 
 import '../helpers/test_helpers.dart';
+import '../auth/pending_verification_test.dart' as verification;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
@@ -310,6 +311,69 @@ void main() {
       });
     }
   }
+
+  testWidgets('registration redirects to guidance without installing an account or changing guest ownership', (
+    tester,
+  ) async {
+    final prefs = await SharedPreferences.getInstance();
+    final storage = verification.MemoryStorage();
+    final repository = verification.repository(
+      (_) async => verification.response({
+        'status': 'verification_required',
+        'email': 'reader@example.com',
+        'message': 'Check email',
+        'resend_after': 60,
+      }, 201),
+      storage: storage,
+    );
+    final auth = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
+    await auth.bootstrap();
+    final appRouter = await _buildRouter(authProvider: auth, prefs: prefs);
+    appRouter.router.go('/register');
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: auth,
+        child: MaterialApp.router(routerConfig: appRouter.router, theme: AppTheme.light),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.enterText(find.widgetWithText(TextFormField, 'Display name'), 'Reader');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Email address'), 'reader@example.com');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Password'), 'valid-password');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Confirm password'), 'valid-password');
+    await tester.ensureVisible(find.widgetWithText(ElevatedButton, 'Continue'));
+    await tester.tap(find.widgetWithText(ElevatedButton, 'Continue'));
+    await tester.pumpAndSettle();
+    expect(appRouter.router.routeInformationProvider.value.uri.path, '/verification');
+    expect(find.text('Check your email'), findsOneWidget);
+    expect(auth.pendingVerification?.email, 'reader@example.com');
+    expect(auth.user, isNull);
+    expect(storage.writes, 0);
+    await tester.pumpWidget(const SizedBox.shrink());
+    appRouter.router.dispose();
+    auth.dispose();
+  });
+
+  test('verification links bypass bootstrap and pending refresh offers guidance with offline return', () async {
+    final prefs = await SharedPreferences.getInstance();
+    var denied = false;
+    final repository = verification.repository(
+      (_) async => denied ? verification.verificationRequired() : verification.response(verification.tokens()),
+    );
+    final auth = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
+    final appRouter = await _buildRouter(authProvider: auth, prefs: prefs);
+    expect(appRouter.redirectForPath('/verify-email?token=opaque'), isNull);
+    await auth.login(email: 'alice@example.com', password: 'password');
+    denied = true;
+    await auth.refresh();
+    expect(appRouter.redirectForPath('/library/books'), '/verification');
+    expect(appRouter.redirectForPath('/verification'), isNull);
+    auth.cancelAuthentication();
+    expect(auth.hasOfflineAccount, isTrue);
+    expect(appRouter.redirectForPath('/library/books'), isNull);
+    expect(appRouter.redirectForPath('/login'), isNull);
+    auth.dispose();
+  });
 
   test('redirects signed-out users away from protected routes', () async {
     final prefs = await SharedPreferences.getInstance();

@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 def prepare(root: Path) -> dict:
-    required = ("index.html", "flutter_bootstrap.js", "main.dart.js", "folder_access.js", "app_updates.js", "book_worker.js", "papyrus_service_worker.js")
+    required = ("index.html", "flutter_bootstrap.js", "main.dart.js", "folder_access.js", "auth_landing.js", "app_updates.js", "book_worker.js", "papyrus_service_worker.js")
 
     for name in required:
         if not (root / name).is_file():

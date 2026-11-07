@@ -13,7 +13,7 @@ class OfflinePackagingTest(unittest.TestCase):
     def test_revision_changes_with_assets_and_worker_but_not_repeated_preparation(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            for name in ("index.html", "flutter_bootstrap.js", "main.dart.js", "folder_access.js", "app_updates.js", "book_worker.js"):
+            for name in ("index.html", "flutter_bootstrap.js", "main.dart.js", "folder_access.js", "auth_landing.js", "app_updates.js", "book_worker.js"):
                 (root / name).write_text(name)
             worker = root / "papyrus_service_worker.js"
             worker.write_text("const applicationRevision = 'unprepared';\n")
@@ -23,6 +23,7 @@ class OfflinePackagingTest(unittest.TestCase):
             self.assertNotIn("main.dart.js.map", first["assets"])
             self.assertNotIn("offline-manifest.json", first["assets"])
             self.assertIn("book_worker.js", first["assets"])
+            self.assertIn("auth_landing.js", first["assets"])
             self.assertIn(first["revision"], worker.read_text())
             (root / "main.dart.js").write_text("updated application")
             second = prepare(root)

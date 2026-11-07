@@ -22,6 +22,7 @@ class PapyrusApiConfig {
 
     return PapyrusApiConfig(
       serverBaseUri: Uri.parse(baseUrl),
+      apiPrefix: const String.fromEnvironment('PAPYRUS_API_PREFIX', defaultValue: '/v1'),
       powerSyncServiceUri: Uri.parse(powerSyncServiceUrl),
     );
   }

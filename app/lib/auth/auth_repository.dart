@@ -17,6 +17,13 @@ class AuthRepository {
 
   Future<AuthTokens>? _refreshOperation;
   int _tokenGeneration = 0;
+  Future<void> _credentialOperation = Future<void>.value();
+  void Function(AuthApiException error)? onVerificationRequired;
+
+  void cancelPendingAuthentication() {
+    _tokenGeneration += 1;
+    _refreshOperation = null;
+  }
 
   AuthRepository({required this.apiClient, required this.tokenStore});
 
@@ -29,7 +36,9 @@ class AuthRepository {
   }
 
   Future<AuthTokens?> bootstrap() async {
+    final generation = _tokenGeneration;
     final refreshToken = await tokenStore.readRefreshToken();
+    _requireGeneration(generation);
 
     if (refreshToken == null) {
       return null;
@@ -38,23 +47,21 @@ class AuthRepository {
     return refresh();
   }
 
-  Future<AuthTokens> register({
+  Future<PendingVerification> register({
     required String email,
     required String password,
     required String displayName,
     required String clientType,
     String? deviceLabel,
-  }) async {
-    final tokens = await apiClient.register(
+  }) {
+    cancelPendingAuthentication();
+    return apiClient.register(
       email: email,
       password: password,
       displayName: displayName,
       clientType: clientType,
       deviceLabel: deviceLabel,
     );
-
-    await _save(tokens);
-    return tokens;
   }
 
   Future<AuthTokens> login({
@@ -63,6 +70,8 @@ class AuthRepository {
     required String clientType,
     String? deviceLabel,
   }) async {
+    final generation = ++_tokenGeneration;
+
     final tokens = await apiClient.login(
       email: email,
       password: password,
@@ -70,13 +79,25 @@ class AuthRepository {
       deviceLabel: deviceLabel,
     );
 
-    await _save(tokens);
+    await _save(tokens, generation);
     return tokens;
   }
 
   Future<AuthTokens> refresh() {
-    _refreshOperation ??= _refresh();
-    return _refreshOperation!;
+    final pending = _refreshOperation;
+
+    if (pending != null) {
+      return pending;
+    }
+
+    final operation = _refresh();
+    _refreshOperation = operation;
+
+    return operation.whenComplete(() {
+      if (identical(_refreshOperation, operation)) {
+        _refreshOperation = null;
+      }
+    });
   }
 
   Future<AuthTokens> _refresh() async {
@@ -95,20 +116,23 @@ class AuthRepository {
         throw const AuthApiException(statusCode: 401, message: 'Session has ended');
       }
 
-      await _save(tokens);
+      await _save(tokens, generation);
       return tokens;
-    } catch (_) {
+    } catch (error) {
       if (generation == _tokenGeneration) {
-        await tokenStore.clear();
+        await clearTokens();
+
+        if (error is AuthApiException && error.code == 'EMAIL_VERIFICATION_REQUIRED') {
+          onVerificationRequired?.call(error);
+        }
       }
 
       rethrow;
-    } finally {
-      _refreshOperation = null;
     }
   }
 
   Future<AuthTokens?> signInWithGoogle({required String clientType, String? deviceLabel}) async {
+    final generation = ++_tokenGeneration;
     await apiClient.ensureServerReachable();
 
     final redirectUri = switch (kIsWeb) {
@@ -117,9 +141,11 @@ class AuthRepository {
       false => nativeOAuthRedirectUri,
     };
 
+    _requireGeneration(generation);
     final startUri = apiClient.googleOAuthStartUri(redirectUri);
 
     if (kIsWeb) {
+      rememberOAuthServer('${apiClient.config.apiBaseUri}');
       redirectTo(startUri.toString());
       return null;
     }
@@ -130,15 +156,37 @@ class AuthRepository {
       options: const FlutterWebAuth2Options(useWebview: false),
     );
 
+    _requireGeneration(generation);
     final callbackUri = Uri.parse(callbackUrl);
     return completeGoogleSignIn(callbackUri, clientType: clientType, deviceLabel: deviceLabel);
   }
 
   Future<AuthTokens> completeGoogleSignIn(Uri callbackUri, {required String clientType, String? deviceLabel}) async {
+    final generation = ++_tokenGeneration;
+
+    if (!consumeOAuthServer('${apiClient.config.apiBaseUri}')) {
+      throw const AuthApiException(
+        statusCode: 400,
+        message: 'The sign-in server changed or the callback expired. Start a new Google sign-in.',
+      );
+    }
+
     final error = callbackUri.queryParameters['error'];
 
     if (error != null && error.isNotEmpty) {
-      throw AuthApiException(statusCode: 400, message: error);
+      throw AuthApiException(
+        statusCode: 400,
+        code: error,
+        message: switch (error) {
+          'email_required' =>
+            'Google did not provide an email address. Register with email, or contact your server operator for an existing account.',
+          'verification_unavailable' => 'Sign-in failed. Please try again.',
+          'account_exists' =>
+            'An account with this email already exists. Sign in to that account before linking Google.',
+          'access_denied' => 'Google sign-in was cancelled. You can try again.',
+          _ => 'Google sign-in could not be completed. Please start a new sign-in.',
+        },
+      );
     }
 
     final code = callbackUri.queryParameters['code'];
@@ -148,7 +196,7 @@ class AuthRepository {
     }
 
     final tokens = await apiClient.exchangeCode(code: code, clientType: clientType, deviceLabel: deviceLabel);
-    await _save(tokens);
+    await _save(tokens, generation);
     return tokens;
   }
 
@@ -171,19 +219,16 @@ class AuthRepository {
       throw const AuthApiException(statusCode: 401, message: 'Session changed. Please sign in again.');
     }
 
-    await _save(tokens);
+    await _save(tokens, generation);
     return tokens;
   }
 
   Future<void> logout() async {
     final accessToken = tokenStore.accessToken;
+    await clearTokens();
 
-    try {
-      if (accessToken != null) {
-        await apiClient.logout(accessToken);
-      }
-    } finally {
-      await tokenStore.clear();
+    if (accessToken != null) {
+      await apiClient.logout(accessToken);
     }
   }
 
@@ -219,7 +264,7 @@ class AuthRepository {
     return apiClient.verifyEmail(token);
   }
 
-  Future<String> resendVerification(String email) {
+  Future<VerificationDelivery> resendVerification(String email) {
     return apiClient.resendVerification(email);
   }
 
@@ -260,8 +305,8 @@ class AuthRepository {
   }
 
   Future<void> clearTokens() {
-    _tokenGeneration += 1;
-    return tokenStore.clear();
+    cancelPendingAuthentication();
+    return _serializeCredentials(tokenStore.clear);
   }
 
   Future<T> withFreshAccessToken<T>(Future<T> Function(String accessToken) action) {
@@ -279,31 +324,78 @@ class AuthRepository {
     return tokens.accessToken;
   }
 
-  Future<void> _save(AuthTokens tokens) {
-    return tokenStore.saveTokens(accessToken: tokens.accessToken, refreshToken: tokens.refreshToken);
+  void _requireGeneration(int generation) {
+    if (generation != _tokenGeneration) {
+      throw const AuthApiException(statusCode: 401, message: 'Session changed. Please sign in again.');
+    }
+  }
+
+  Future<void> _serializeCredentials(Future<void> Function() action) {
+    final operation = _credentialOperation.then((_) => action());
+    _credentialOperation = operation.then<void>((_) {}, onError: (Object error) {});
+    return operation;
+  }
+
+  Future<void> _save(AuthTokens tokens, int generation) async {
+    if (!tokens.user.emailVerified) {
+      try {
+        await apiClient.logout(tokens.accessToken);
+      } catch (_) {
+        // The rejected credentials are never persisted.
+      }
+
+      throw AuthApiException(
+        statusCode: 403,
+        code: 'EMAIL_VERIFICATION_REQUIRED',
+        message: 'Verify your email address before signing in.',
+        pendingVerification: PendingVerification(email: tokens.user.email, resendAfter: 0),
+      );
+    }
+
+    if (tokens.accessToken.isEmpty ||
+        tokens.refreshToken.isEmpty ||
+        tokens.user.userId.isEmpty ||
+        tokens.expiresIn <= 0) {
+      throw const FormatException('Invalid authentication response');
+    }
+
+    await _serializeCredentials(() async {
+      _requireGeneration(generation);
+      await tokenStore.saveTokens(accessToken: tokens.accessToken, refreshToken: tokens.refreshToken);
+
+      if (generation != _tokenGeneration) {
+        await tokenStore.clear();
+        _requireGeneration(generation);
+      }
+    });
   }
 
   Future<T> _withFreshAccessToken<T>(Future<T> Function(String accessToken) action) async {
+    final generation = _tokenGeneration;
+
     try {
-      return await action(await _requireAccessToken());
+      try {
+        return await action(await _requireAccessToken());
+      } on AuthApiException catch (error) {
+        if (error.statusCode != 401) {
+          rethrow;
+        }
+
+        _requireGeneration(generation);
+        final tokens = await refresh();
+        return await action(tokens.accessToken);
+      }
     } on AuthApiException catch (error) {
-      if (error.statusCode != 401) {
-        rethrow;
+      if (generation == _tokenGeneration && error.code == 'EMAIL_VERIFICATION_REQUIRED') {
+        await clearTokens();
+        onVerificationRequired?.call(error);
       }
 
-      final tokens = await refresh();
-      return action(tokens.accessToken);
+      rethrow;
     }
   }
 
   String _webOAuthRedirectUri() {
-    final base = Uri.base;
-
-    return Uri(
-      scheme: base.scheme,
-      host: base.host,
-      port: base.hasPort ? base.port : null,
-      path: '/auth/callback',
-    ).toString();
+    return browserAppBaseUri().resolve('auth/callback').toString();
   }
 }
