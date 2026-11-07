@@ -36,51 +36,38 @@ class SupportAttachment {
   }
 
   static Future<List<SupportAttachment>> pick(int remaining) async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: mediaTypes.keys.toList(),
-      allowMultiple: true,
-      allowCompression: false,
-      withData: false,
-      withReadStream: true,
     );
 
-    if (result == null) {
-      return [];
-    }
-
-    if (result.files.length > remaining) {
+    if (result.length > remaining) {
       throw const FormatException('Attach up to five files.');
     }
 
     final attachments = <SupportAttachment>[];
 
-    for (final file in result.files) {
+    for (final file in result) {
       final contentType = mediaTypes[file.extension?.toLowerCase()];
 
       if (contentType == null) {
         throw const FormatException('Choose a PNG, JPG, GIF, WebP, MP4, MOV, or WebM file.');
       }
 
-      if (file.size <= 0 || file.size > maxBytes) {
+      final size = file.lengthSync();
+
+      if (size != null && (size <= 0 || size > maxBytes)) {
         throw const FormatException('Each attachment must be no larger than 10 MB and cannot be empty.');
       }
 
       final builder = BytesBuilder(copy: false);
-      final stream = file.readStream;
 
-      if (stream != null) {
-        await for (final chunk in stream) {
-          if (builder.length + chunk.length > maxBytes) {
-            throw const FormatException('Each attachment must be no larger than 10 MB.');
-          }
-
-          builder.add(chunk);
+      await for (final chunk in file.readAsByteStream()) {
+        if (builder.length + chunk.length > maxBytes) {
+          throw const FormatException('Each attachment must be no larger than 10 MB.');
         }
-      } else if (file.bytes != null) {
-        builder.add(file.bytes!);
-      } else {
-        throw const FormatException('Could not read the selected file.');
+
+        builder.add(chunk);
       }
 
       if (builder.isEmpty || builder.length > maxBytes) {
