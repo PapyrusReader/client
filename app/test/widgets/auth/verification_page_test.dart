@@ -334,9 +334,12 @@ void main() {
         expect(find.text('Check your email'), findsOneWidget);
         expect(find.text(address), findsOneWidget);
         expect(find.byType(TextFormField), findsNothing);
-        expect(find.byType(OutlinedButton), findsNothing);
-        expect(find.widgetWithText(FilledButton, 'Sign in'), findsOneWidget);
-        await tester.ensureVisible(find.widgetWithText(TextButton, 'Resend email'));
+        expect(find.byType(TextButton), findsNothing);
+        expect(find.byType(FilledButton), findsNothing);
+        expect(find.text('Use another email'), findsNothing);
+        expect(find.widgetWithText(OutlinedButton, 'Back to sign in'), findsOneWidget);
+        expect(find.widgetWithText(OutlinedButton, 'Continue offline'), findsOneWidget);
+        await tester.ensureVisible(find.widgetWithText(OutlinedButton, 'Resend email'));
         await tester.pumpAndSettle();
         await tester.tap(find.text('Resend email'));
         await tester.pumpAndSettle();
@@ -356,26 +359,6 @@ void main() {
       },
     );
   }
-
-  testWidgets('requesting another address is explicit and cancelling restores the recipient', (tester) async {
-    await mount(
-      tester,
-      (_) async => fail('Editing must not send a request'),
-      isLink: false,
-      pendingEmail: 'reader@example.com',
-    );
-    await tester.tap(find.text('Use another email'));
-    await tester.pumpAndSettle();
-    expect(find.text('Request a new link'), findsOneWidget);
-    expect(find.byType(TextFormField), findsOneWidget);
-    await tester.enterText(find.byType(TextFormField), 'other@example.com');
-    await tester.ensureVisible(find.text('Cancel'));
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
-    expect(find.text('reader@example.com'), findsOneWidget);
-    expect(find.text('other@example.com'), findsNothing);
-    expect(find.byType(TextFormField), findsNothing);
-  });
 
   testWidgets('server change discards the captured token and pending email', (tester) async {
     var calls = 0;

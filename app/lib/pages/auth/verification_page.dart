@@ -27,14 +27,12 @@ class VerificationPage extends StatefulWidget {
 class _VerificationPageState extends State<VerificationPage> {
   final _formKey = GlobalKey<FormState>();
   final _email = TextEditingController();
-  final _emailFocus = FocusNode();
   Timer? _timer;
   AuthProvider? _auth;
   String? _serverKey;
   String? _token;
   String? _message;
   String? _recipient;
-  bool _editingEmail = false;
   bool _busy = false;
   bool _verified = false;
   bool _verificationFailed = false;
@@ -80,7 +78,6 @@ class _VerificationPageState extends State<VerificationPage> {
       _token = null;
       _email.clear();
       _recipient = null;
-      _editingEmail = false;
       _serverChanged = true;
       _message = null;
     }
@@ -95,7 +92,6 @@ class _VerificationPageState extends State<VerificationPage> {
     }
 
     _timer?.cancel();
-    _emailFocus.dispose();
     _email.dispose();
     super.dispose();
   }
@@ -142,7 +138,7 @@ class _VerificationPageState extends State<VerificationPage> {
     });
   }
 
-  bool get _needsEmail => _recipient == null || _editingEmail || _invalidLink;
+  bool get _needsEmail => _recipient == null || _invalidLink;
 
   Future<void> _resend() async {
     if (_busy || _wrongServer || _secondsUntil(_auth!.resendAt) > 0 || _secondsUntil(_auth!.retryAt) > 0) {
@@ -169,7 +165,6 @@ class _VerificationPageState extends State<VerificationPage> {
       if (message != null) {
         _recipient = recipient;
         _email.text = recipient;
-        _editingEmail = false;
         _invalidLink = false;
       }
     });
@@ -218,7 +213,6 @@ class _VerificationPageState extends State<VerificationPage> {
             child: EmailInput(
               labelText: 'Email address',
               controller: _email,
-              focusNode: _emailFocus,
               textInputAction: TextInputAction.done,
               onEditingComplete: _resend,
             ),
@@ -231,23 +225,6 @@ class _VerificationPageState extends State<VerificationPage> {
           ),
           const SizedBox(height: Spacing.xs),
           Text(_recipient!, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600)),
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton(
-              onPressed: _busy
-                  ? null
-                  : () => setState(() {
-                      _editingEmail = true;
-                      _message = null;
-                      WidgetsBinding.instance.addPostFrameCallback((_) {
-                        if (mounted) {
-                          _emailFocus.requestFocus();
-                        }
-                      });
-                    }),
-              child: const Text('Use another email'),
-            ),
-          ),
           const SizedBox(height: Spacing.lg),
           Semantics(
             liveRegion: _message != null,
@@ -266,6 +243,7 @@ class _VerificationPageState extends State<VerificationPage> {
             child: Text(auth.error!, style: TextStyle(color: theme.colorScheme.error)),
           ),
         ],
+        const SizedBox(height: Spacing.md),
         if (needsEmail)
           FilledButton(
             style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(ComponentSizes.buttonHeightMobile)),
@@ -273,39 +251,34 @@ class _VerificationPageState extends State<VerificationPage> {
             child: Text(actionLabel),
           )
         else
-          Align(
-            alignment: AlignmentDirectional.centerStart,
-            child: TextButton(onPressed: blocked ? null : _resend, child: Text(actionLabel)),
+          OutlinedButton(
+            style: OutlinedButton.styleFrom(
+              minimumSize: const Size.fromHeight(ComponentSizes.buttonHeightMobile),
+              disabledForegroundColor: theme.colorScheme.onSurfaceVariant,
+              side:
+                  theme.outlinedButtonTheme.style?.side?.resolve(const <WidgetState>{}) ??
+                  BorderSide(color: theme.colorScheme.outline),
+            ),
+            onPressed: blocked ? null : _resend,
+            child: Text(actionLabel),
           ),
         const SizedBox(height: Spacing.lg),
-        if (!needsEmail)
-          FilledButton(
-            style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(ComponentSizes.buttonHeightMobile)),
-            onPressed: _signIn,
-            child: const Text('Sign in'),
-          )
-        else if (_editingEmail && _recipient != null)
-          TextButton(
-            onPressed: _busy
-                ? null
-                : () => setState(() {
-                    _email.text = _recipient!;
-                    _editingEmail = false;
-                  }),
-            child: const Text('Cancel'),
-          )
-        else
-          TextButton(onPressed: _signIn, child: const Text('Back to sign in')),
+        OutlinedButton(
+          onPressed: _signIn,
+          child: const Text('Back to sign in'),
+        ),
         const SizedBox(height: Spacing.sm),
-        TextButton(onPressed: () => navigateToOffline(context), child: const Text('Continue offline')),
-        if (auth.hasOfflineAccount)
-          TextButton(
+        OutlinedButton(onPressed: () => navigateToOffline(context), child: const Text('Continue offline')),
+        if (auth.hasOfflineAccount) ...[
+          const SizedBox(height: Spacing.sm),
+          OutlinedButton(
             onPressed: () {
               auth.cancelAuthentication();
               context.goNamed('LIBRARY');
             },
             child: const Text('Read downloaded books'),
           ),
+        ],
       ],
     );
   }
@@ -386,15 +359,17 @@ class _VerificationPageState extends State<VerificationPage> {
                   child: Text(_verified ? 'Sign in' : 'Back to sign in'),
                 ),
               const SizedBox(height: Spacing.sm),
-              TextButton(onPressed: () => navigateToOffline(context), child: const Text('Continue offline')),
-              if (auth.hasOfflineAccount)
-                TextButton(
+              OutlinedButton(onPressed: () => navigateToOffline(context), child: const Text('Continue offline')),
+              if (auth.hasOfflineAccount) ...[
+                const SizedBox(height: Spacing.sm),
+                OutlinedButton(
                   onPressed: () {
                     auth.cancelAuthentication();
                     context.goNamed('LIBRARY');
                   },
                   child: const Text('Read downloaded books'),
                 ),
+              ],
             ],
           );
 
