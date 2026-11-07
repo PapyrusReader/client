@@ -33,7 +33,9 @@ dependencies:
   dart_mobi: ^1.0.2
   archive: ^4.0.7
   unrar_file:
-    path: ../packages/unrar_file
+    git:
+      url: https://github.com/PapyrusReader/unrar_file.git
+      ref: c3ad6a4ac4c732f081b9262bbf6b95ee2c1f5759
   xml: ^6.6.1
   image: ^4.7.2
   path: ^1.9.1

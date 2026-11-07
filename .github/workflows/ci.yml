@@ -5,7 +5,6 @@ on:
     branches: [development, master, main]
     paths:
       - 'app/**'
-      - 'packages/**'
       - 'tools/generate_icons.py'
       - 'packaging/windows/assets/**'
       - '.github/workflows/**'

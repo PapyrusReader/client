@@ -2,10 +2,10 @@ name: Release configuration checks
 
 on:
   pull_request:
-    paths: ['tools/**', '.github/workflows/**', 'app/pubspec.yaml', 'app/android/**', 'app/lib/updates/**', 'app/linux/**', 'app/windows/**', 'packaging/**', 'packages/**']
+    paths: ['tools/**', '.github/workflows/**', 'app/pubspec.yaml', 'app/android/**', 'app/lib/updates/**', 'app/linux/**', 'app/windows/**', 'packaging/**']
   push:
     branches: [development, master]
-    paths: ['tools/**', '.github/workflows/**', 'app/pubspec.yaml', 'app/android/**', 'app/lib/updates/**', 'app/linux/**', 'app/windows/**', 'packaging/**', 'packages/**']
+    paths: ['tools/**', '.github/workflows/**', 'app/pubspec.yaml', 'app/android/**', 'app/lib/updates/**', 'app/linux/**', 'app/windows/**', 'packaging/**']
 
 permissions:
   contents: read

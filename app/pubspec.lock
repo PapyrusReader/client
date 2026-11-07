@@ -1032,9 +1032,11 @@ packages:
   unrar_file:
     dependency: "direct main"
     description:
-      path: "../packages/unrar_file"
-      relative: true
-    source: path
+      path: "."
+      ref: c3ad6a4ac4c732f081b9262bbf6b95ee2c1f5759
+      resolved-ref: c3ad6a4ac4c732f081b9262bbf6b95ee2c1f5759
+      url: "https://github.com/PapyrusReader/unrar_file.git"
+    source: git
     version: "1.1.0"
   url_launcher:
     dependency: "direct main"

@@ -5,7 +5,6 @@ on:
   pull_request:
     paths:
       - 'app/**'
-      - 'packages/**'
       - 'tools/run_packaged_smoke.py'
       - 'tools/check_packaged_reader.*'
       - 'tools/package_windows.ps1'
