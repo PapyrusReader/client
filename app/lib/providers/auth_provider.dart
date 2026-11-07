@@ -12,6 +12,59 @@ class AuthProvider extends ChangeNotifier {
   final SharedPreferences _prefs;
   final GuestProfileStore _guestProfile;
   Future<bool>? _guestProfileWrite;
+  int _operation = 0;
+  PendingVerification? _pendingVerification;
+  PendingVerification? get pendingVerification => _pendingVerification;
+  DateTime? _resendAt;
+  DateTime? _retryAt;
+  DateTime? get resendAt => _resendAt;
+  DateTime? get retryAt => _retryAt;
+  String? _errorCode;
+  String? get errorCode => _errorCode;
+  String get serverKey => '${_repository.apiClient.config.apiBaseUri}';
+  bool get hasOfflineAccount => _user != null && !isSignedIn;
+
+  void _bindRepository() {
+    final repository = _repository;
+
+    repository.onVerificationRequired = (error) {
+      if (identical(repository, _repository)) {
+        _acceptVerification(error);
+      }
+    };
+  }
+
+  void _acceptVerification(AuthApiException error) {
+    _pendingVerification = error.pendingVerification;
+    _resendAt = DateTime.now().add(Duration(seconds: error.pendingVerification?.resendAfter ?? 0));
+    _error = error.message;
+    _errorCode = error.code;
+    _setStatus(AuthStatus.authError);
+  }
+
+  void cancelAuthentication({bool notify = true}) {
+    _operation += 1;
+    _repository.cancelPendingAuthentication();
+    _pendingRecovery = null;
+    _pendingVerification = null;
+    _resendAt = null;
+    _retryAt = null;
+    _error = null;
+    _errorCode = null;
+    _status = _user == null ? AuthStatus.signedOut : AuthStatus.authError;
+
+    if (notify) {
+      notifyListeners();
+    }
+  }
+
+  @override
+  void dispose() {
+    _operation += 1;
+    _repository.cancelPendingAuthentication();
+    _repository.onVerificationRequired = null;
+    super.dispose();
+  }
 
   static const _keyOfflineMode = 'offline_mode';
 
@@ -62,6 +115,7 @@ class AuthProvider extends ChangeNotifier {
     GuestProfileStore? guestProfileStore,
   }) : _repository = repository,
        _guestProfile = guestProfileStore ?? GuestProfileStore(_prefs) {
+    _bindRepository();
     _isOfflineMode = _prefs.getBool(_keyOfflineMode) ?? false;
 
     if (bootstrapOnCreate) {
@@ -70,7 +124,10 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<void> replaceRepository(AuthRepository repository, {bool bootstrapNewRepository = true}) async {
+    cancelAuthentication();
+    _repository.onVerificationRequired = null;
     _repository = repository;
+    _bindRepository();
     _pendingRecovery = null;
     _user = null;
     _error = null;
@@ -90,30 +147,76 @@ class AuthProvider extends ChangeNotifier {
       return;
     }
 
+    final operation = ++_operation;
     _setStatus(AuthStatus.bootstrapping);
 
     try {
       final tokens = await _repository.bootstrap();
+
+      if (operation != _operation) {
+        return;
+      }
+
       _user = tokens?.user;
       _error = null;
       _setStatus(_user == null ? AuthStatus.signedOut : AuthStatus.signedIn);
     } catch (error) {
+      if (operation != _operation) {
+        return;
+      }
+
       _user = null;
-      _error = null;
-      _setStatus(AuthStatus.signedOut);
+
+      if (error is AuthApiException && error.code == 'EMAIL_VERIFICATION_REQUIRED') {
+        _acceptVerification(error);
+      } else {
+        _error = null;
+        _setStatus(AuthStatus.signedOut);
+      }
     }
   }
 
   Future<bool> register({required String email, required String password, required String displayName}) async {
-    return _runTokenAction(() {
-      return _repository.register(
+    if (_retryAt?.isAfter(DateTime.now()) == true) {
+      return false;
+    }
+
+    final operation = ++_operation;
+    final previousStatus = _status;
+    _error = null;
+    _pendingRecovery = null;
+    _setStatus(AuthStatus.authenticating);
+
+    try {
+      final pending = await _repository.register(
         email: email,
         password: password,
         displayName: displayName,
         clientType: _clientType,
         deviceLabel: _deviceLabel,
       );
-    });
+
+      if (operation != _operation) {
+        return false;
+      }
+
+      _pendingVerification = pending;
+      _resendAt = DateTime.now().add(Duration(seconds: pending.resendAfter));
+      _setStatus(_user == null ? AuthStatus.signedOut : previousStatus);
+      return true;
+    } catch (error) {
+      if (operation == _operation) {
+        _recordError(error);
+
+        if (error is AuthApiException && error.code == 'VERIFICATION_UNAVAILABLE') {
+          _error = 'Registration failed. Please try again.';
+        }
+
+        _setStatus(_user == null ? AuthStatus.authError : previousStatus);
+      }
+
+      return false;
+    }
   }
 
   Future<bool> login({required String email, required String password}) async {
@@ -122,30 +225,8 @@ class AuthProvider extends ChangeNotifier {
     });
   }
 
-  Future<bool> signInWithGoogle() async {
-    _pendingRecovery = null;
-    _setStatus(AuthStatus.authenticating);
-    _error = null;
-
-    try {
-      final tokens = await _repository.signInWithGoogle(clientType: _clientType, deviceLabel: _deviceLabel);
-
-      if (tokens == null) {
-        return false;
-      }
-
-      _user = tokens.user;
-      _isOfflineMode = false;
-      await _prefs.setBool(_keyOfflineMode, false);
-      _setStatus(AuthStatus.signedIn);
-      return true;
-    } catch (error) {
-      _user = null;
-      _pendingRecovery = error is AuthApiException ? error.recoveryAuthorization : null;
-      _error = _messageFor(error);
-      _setStatus(AuthStatus.authError);
-      return false;
-    }
+  Future<bool> signInWithGoogle() {
+    return _runTokenAction(() => _repository.signInWithGoogle(clientType: _clientType, deviceLabel: _deviceLabel));
   }
 
   Future<bool> completeGoogleSignIn(Uri callbackUri) async {
@@ -155,34 +236,60 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> refresh() async {
+    final operation = ++_operation;
     _setStatus(AuthStatus.refreshing);
 
     try {
       final tokens = await _repository.refresh();
+
+      if (operation != _operation) {
+        return false;
+      }
+
       _user = tokens.user;
+      _pendingVerification = null;
       _error = null;
       _setStatus(AuthStatus.signedIn);
       return true;
     } catch (error) {
-      _user = null;
-      _error = _messageFor(error);
-      _setStatus(AuthStatus.signedOut);
+      if (operation != _operation) {
+        return false;
+      }
+
+      if (error is AuthApiException && error.code == 'EMAIL_VERIFICATION_REQUIRED') {
+        _acceptVerification(error);
+      } else {
+        _user = null;
+        _recordError(error);
+        _setStatus(AuthStatus.signedOut);
+      }
+
       return false;
     }
   }
 
   Future<void> signOut() async {
-    _setStatus(AuthStatus.authenticating);
+    cancelAuthentication();
+    final operation = _operation;
+    final repository = _repository;
+    _user = null;
+    _isOfflineMode = false;
+    await _prefs.setBool(_keyOfflineMode, false);
 
-    try {
-      await _repository.logout();
-    } catch (error) {
-      _error = _messageFor(error);
+    if (operation != _operation) {
+      return;
     }
 
-    _user = null;
-    setOfflineMode(false);
     _setStatus(AuthStatus.signedOut);
+
+    try {
+      await repository.logout();
+    } catch (error) {
+      if (operation == _operation) {
+        _recordError(error);
+        notifyListeners();
+      }
+    }
   }
 
   Future<bool> updateProfile({required String displayName, String? avatarUrl, Uint8List? photoBytes}) async {
@@ -313,6 +420,7 @@ class AuthProvider extends ChangeNotifier {
 
   Future<bool> recoverAccount(AccountDeletionAuthorization authorization) async {
     final repository = _repository;
+    final operation = ++_operation;
 
     if (_user != null && _user!.userId != authorization.userId) {
       throw const AuthApiException(statusCode: 403, message: 'The active account has changed.');
@@ -324,13 +432,13 @@ class AuthProvider extends ChangeNotifier {
       deviceLabel: _deviceLabel,
     );
 
-    if (!identical(_repository, repository)) {
+    if (!identical(_repository, repository) || operation != _operation) {
       return false;
     }
 
     await _prefs.setBool(_keyOfflineMode, false);
 
-    if (!identical(_repository, repository)) {
+    if (!identical(_repository, repository) || operation != _operation) {
       return false;
     }
 
@@ -357,18 +465,39 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<String?> resendVerification(String email) {
-    return _runMessageAction(() => _repository.resendVerification(email));
+    if (_resendAt?.isAfter(DateTime.now()) == true) {
+      return Future.value(null);
+    }
+
+    final operation = _operation;
+
+    return _runMessageAction(() async {
+      final delivery = await _repository.resendVerification(email);
+
+      if (operation == _operation) {
+        _pendingVerification = PendingVerification(email: email, resendAfter: delivery.resendAfter);
+        _resendAt = DateTime.now().add(Duration(seconds: delivery.resendAfter));
+      }
+
+      return delivery.message;
+    });
   }
 
   Future<Uint8List> downloadMedia(String assetId) {
+    if (hasOfflineAccount) {
+      return Future.error(StateError('Verify your email and sign in to download uncached media.'));
+    }
+
     return _repository.downloadMedia(assetId);
   }
 
   Future<T> withFreshAccessToken<T>(Future<T> Function(String accessToken) action) async {
+    final repository = _repository;
+
     try {
-      return await _repository.withFreshAccessToken(action);
+      return await repository.withFreshAccessToken(action);
     } catch (error) {
-      if (error is AuthApiException && error.statusCode == 401) {
+      if (identical(repository, _repository) && error is AuthApiException && error.statusCode == 401) {
         _user = null;
         _error = _messageFor(error);
         _setStatus(AuthStatus.signedOut);
@@ -379,6 +508,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   void setOfflineMode(bool value) {
+    cancelAuthentication();
     _isOfflineMode = value;
     _prefs.setBool(_keyOfflineMode, value);
 
@@ -396,40 +526,87 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<bool> _runTokenAction(Future<AuthTokens> Function() action) async {
+  Future<bool> _runTokenAction(Future<AuthTokens?> Function() action) async {
+    if (_retryAt?.isAfter(DateTime.now()) == true) {
+      return false;
+    }
+
+    final operation = ++_operation;
     _pendingRecovery = null;
-    _setStatus(AuthStatus.authenticating);
+    _pendingVerification = null;
     _error = null;
+    _errorCode = null;
+    _setStatus(AuthStatus.authenticating);
 
     try {
       final tokens = await action();
+
+      if (operation != _operation || tokens == null) {
+        return false;
+      }
+
+      if (!tokens.user.emailVerified) {
+        throw const FormatException('Expected verified sign-in');
+      }
+
+      await _prefs.setBool(_keyOfflineMode, false);
+
+      if (operation != _operation) {
+        return false;
+      }
+
       _user = tokens.user;
       _isOfflineMode = false;
-      await _prefs.setBool(_keyOfflineMode, false);
       _setStatus(AuthStatus.signedIn);
       return true;
     } catch (error) {
+      if (operation != _operation) {
+        return false;
+      }
+
       _pendingRecovery = error is AuthApiException ? error.recoveryAuthorization : null;
-      _error = _messageFor(error);
-      _setStatus(AuthStatus.authError);
+
+      if (error is AuthApiException && error.code == 'EMAIL_VERIFICATION_REQUIRED') {
+        _acceptVerification(error);
+      } else {
+        _recordError(error);
+        _setStatus(AuthStatus.authError);
+      }
+
       return false;
     }
   }
 
   Future<String?> _runMessageAction(Future<String> Function() action) async {
-    _pendingRecovery = null;
-    _setStatus(AuthStatus.authenticating);
+    final operation = _operation;
+    final previousStatus = _status;
     _error = null;
+    _errorCode = null;
 
     try {
       final message = await action();
-      _setStatus(_user == null ? AuthStatus.signedOut : AuthStatus.signedIn);
+
+      if (operation != _operation) {
+        return null;
+      }
+
+      _setStatus(_user == null ? AuthStatus.signedOut : previousStatus);
       return message;
     } catch (error) {
-      _error = _messageFor(error);
-      _setStatus(_user == null ? AuthStatus.authError : AuthStatus.signedIn);
+      if (operation == _operation) {
+        _recordError(error);
+        _setStatus(_user == null ? AuthStatus.authError : previousStatus);
+      }
+
       return null;
     }
+  }
+
+  void _recordError(Object error) {
+    _error = _messageFor(error);
+    _errorCode = error is AuthApiException ? error.code : null;
+    final retry = error is AuthApiException ? error.retryAfter : null;
+    _retryAt = retry == null ? null : DateTime.now().add(retry);
   }
 
   String _messageFor(Object error) {

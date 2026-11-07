@@ -1,3 +1,4 @@
+import '../test/support/disposable_sync_accounts.dart';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
@@ -42,8 +43,9 @@ void main() {
     (tester) async {
       final config = PapyrusApiConfig.fromEnvironment();
       final root = await Directory.systemTemp.createTemp('papyrus-timer-sync-');
-      final email = 'timer-${DateTime.now().microsecondsSinceEpoch}@example.com';
-      const password = 'SecureP@ss123';
+      requireDisposableSyncAccounts();
+      const email = syncOwnerEmail;
+      const password = syncPassword;
       final accounts = <AuthRepository>[];
       final services = <PapyrusPowerSyncService>[];
       final stores = <DataStore>[];
@@ -82,20 +84,18 @@ void main() {
 
       try {
         final browserAuth = auth();
-        final owner = await browserAuth.register(
+        final owner = await browserAuth.login(
           email: email,
           password: password,
-          displayName: 'Timer test',
           clientType: 'desktop',
         );
         accounts.add(browserAuth);
         final phoneAuth = auth();
         await phoneAuth.login(email: email, password: password, clientType: 'desktop');
         final otherAuth = auth();
-        final otherOwner = await otherAuth.register(
-          email: 'other-$email',
+        final otherOwner = await otherAuth.login(
+          email: syncOtherEmail,
           password: password,
-          displayName: 'Other',
           clientType: 'desktop',
         );
         accounts.add(otherAuth);

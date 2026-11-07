@@ -43,7 +43,8 @@ class BookImportSession {
     bool retainCommittedBook = false,
   }) {
     final repository = dataStore.requireBookRepository();
-    final authenticated = authProvider.isSignedIn && powerSyncService.mode == LibraryDatabaseMode.authenticated;
+    final accountSelected = authProvider.user != null && !authProvider.isOfflineMode;
+    final authenticated = accountSelected && powerSyncService.mode == LibraryDatabaseMode.authenticated;
     final scope = authenticated ? queue.activeScope : null;
     final userId = authProvider.user?.userId;
 
@@ -52,7 +53,7 @@ class BookImportSession {
     }
 
     if (authProvider.isDeletingGuestAccount ||
-        (authProvider.isSignedIn && (!authenticated || scope?.userId != userId)) ||
+        (accountSelected && (!authenticated || scope?.userId != userId)) ||
         (authProvider.isOfflineMode && powerSyncService.mode != LibraryDatabaseMode.guest)) {
       throw StateError('Wait for the selected library to finish loading before importing.');
     }
@@ -61,7 +62,10 @@ class BookImportSession {
         !authProvider.isDeletingGuestAccount &&
         dataStore.isBookRepositoryCurrent(repository) &&
         authProvider.user?.userId == userId &&
-        (authProvider.isSignedIn && powerSyncService.mode == LibraryDatabaseMode.authenticated) == authenticated &&
+        (authProvider.user != null &&
+                !authProvider.isOfflineMode &&
+                powerSyncService.mode == LibraryDatabaseMode.authenticated) ==
+            authenticated &&
         queue.activeScope == scope;
 
     final service = BookImportCommitService(

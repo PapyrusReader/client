@@ -27,14 +27,15 @@ class _DataStore extends Fake implements DataStore {
 }
 
 class _Auth extends Fake implements AuthProvider {
-  _Auth({this.guest = false});
+  _Auth({this.guest = false, this.verificationRequired = false});
   final bool guest;
+  final bool verificationRequired;
 
   @override
   bool isDeletingGuestAccount = false;
 
   @override
-  bool get isSignedIn => !guest;
+  bool get isSignedIn => !guest && !verificationRequired;
 
   @override
   bool get isOfflineMode => guest;
@@ -105,8 +106,9 @@ BookImportResult _result() => BookImportResult(
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
 
-  for (final guest in [false, true]) {
-    test('captured ${guest ? 'guest' : 'account'} session persists metadata and cover to its destination', () async {
+  for (final mode in ['guest', 'account', 'verification-required']) {
+    final guest = mode == 'guest';
+    test('captured $mode session persists metadata and cover to its destination', () async {
       final repository = InMemoryBookRepository();
       final store = DataStore(bookRepository: repository);
       final queue = MediaUploadQueue(await SharedPreferences.getInstance());
@@ -121,7 +123,7 @@ void main() {
         dataStore: store,
         queue: queue,
         importService: storage,
-        authProvider: _Auth(guest: guest),
+        authProvider: _Auth(guest: guest, verificationRequired: mode == 'verification-required'),
         powerSyncService: _Database(guest ? LibraryDatabaseMode.guest : LibraryDatabaseMode.authenticated),
       );
 

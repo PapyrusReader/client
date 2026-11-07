@@ -50,7 +50,7 @@ class CapturingAuthRepository extends AuthRepository {
   }
 
   @override
-  Future<AuthTokens> register({
+  Future<PendingVerification> register({
     required String email,
     required String password,
     required String displayName,
