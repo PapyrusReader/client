@@ -242,7 +242,7 @@ class ReadingActivityBarChart extends StatelessWidget {
                 enabled: true,
                 touchTooltipData: BarTouchTooltipData(
                   getTooltipColor: (group) => colorScheme.inverseSurface,
-                  tooltipRoundedRadius: AppRadius.md,
+                  tooltipBorderRadius: BorderRadius.circular(AppRadius.md),
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final activity = activities[groupIndex];
 
@@ -372,7 +372,7 @@ class BooksPerMonthChart extends StatelessWidget {
                 enabled: true,
                 touchTooltipData: BarTouchTooltipData(
                   getTooltipColor: (group) => colorScheme.inverseSurface,
-                  tooltipRoundedRadius: AppRadius.md,
+                  tooltipBorderRadius: BorderRadius.circular(AppRadius.md),
                   getTooltipItem: (group, groupIndex, rod, rodIndex) {
                     final stats = displayStats[groupIndex];
 

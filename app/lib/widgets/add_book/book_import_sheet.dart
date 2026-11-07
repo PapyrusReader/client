@@ -40,18 +40,18 @@ class BookImportSheet extends StatefulWidget {
   final ScrollController? scrollController;
 
   static Future<List<SelectedBookFile>> defaultPickFiles() async {
-    final result = await FilePicker.platform.pickFiles(
+    final result = await FilePicker.pickFiles(
       type: FileType.custom,
       allowedExtensions: kIsWeb ? bookImportWebExtensions : bookImportNativeExtensions,
-      allowMultiple: true,
-      withData: true,
     );
 
-    if (result == null) {
-      return const [];
+    final files = <SelectedBookFile>[];
+
+    for (final file in result) {
+      files.add(SelectedBookFile(name: file.name, bytes: await file.readAsBytes()));
     }
 
-    return result.files.map((file) => SelectedBookFile(name: file.name, bytes: file.bytes)).toList();
+    return files;
   }
 
   /// Opens the import flow as a root-level modal bottom sheet.

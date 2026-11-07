@@ -12,24 +12,24 @@ dependencies:
   flutter_web_plugins:
     sdk: flutter
 
-  cupertino_icons: ^1.0.8
-  go_router: ^16.2.1
+  cupertino_icons: ^2.0.0
+  go_router: ^18.1.3
   provider: ^6.1.5+1
   flutter_svg: ^2.0.10+1
   flutter_web_auth_2: ^5.0.2
-  fl_chart: ^0.69.0
-  intl: ^0.19.0
+  fl_chart: ^1.3.0
+  intl: ^0.20.3
   http: ^1.2.0
   http_parser: ^4.0.2
-  file_picker: ^8.0.0+1
+  file_picker: ^13.3.2
   desktop_drop: ^0.8.4
-  cached_network_image: ^3.3.1
+  cached_network_image: ^4.0.6
   papyrus_reader:
     git:
       url: https://github.com/PapyrusReader/reader.git
       ref: a52d0e4f3b78f37234b917cec8ef11cec71a914b
   epub_pro: ^5.6.0
-  syncfusion_flutter_pdf: ^32.2.3
+  syncfusion_flutter_pdf: ^33.2.13
   dart_mobi: ^1.0.2
   archive: ^4.0.7
   unrar_file:
@@ -46,11 +46,11 @@ dependencies:
   web: ^1.1.1
   mobile_scanner: ^7.0.1
   shared_preferences: ^2.5.4
-  flutter_secure_storage: ^10.1.0
+  flutter_secure_storage: ^11.2.0
   uuid: ^4.5.1
   timezone: ^0.11.1
   flutter_timezone: ^5.1.1
-  package_info_plus: ^8.3.1
+  package_info_plus: ^10.2.2
   url_launcher: ^6.3.2
 
 dev_dependencies:

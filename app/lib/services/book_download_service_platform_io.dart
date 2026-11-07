@@ -1,4 +1,3 @@
-import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
@@ -8,21 +7,15 @@ Future<String?> saveBookFileToDevice({
   required String fileName,
   required String extension,
 }) async {
-  final path = await FilePicker.platform.saveFile(
+  final uri = await FilePicker.saveFile(
     dialogTitle: 'Download book',
     fileName: fileName,
-    type: FileType.custom,
-    allowedExtensions: [extension],
-    bytes: Platform.isAndroid || Platform.isIOS ? bytes : null,
+    bytes: bytes,
   );
 
-  if (path == null) {
+  if (uri == null) {
     return null;
   }
 
-  if (!Platform.isAndroid && !Platform.isIOS) {
-    await File(path).writeAsBytes(bytes);
-  }
-
-  return path;
+  return uri.scheme == 'file' ? uri.toFilePath() : uri.toString();
 }

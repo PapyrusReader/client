@@ -198,28 +198,28 @@ class _AccountProfileFormState extends State<AccountProfileForm> {
     });
 
     try {
-      final result = await FilePicker.platform.pickFiles(
+      final file = await FilePicker.pickFile(
         type: FileType.custom,
         allowedExtensions: ['jpg', 'jpeg', 'png'],
-        allowMultiple: false,
-        withData: true,
       );
 
-      if (result == null || !mounted) {
+      if (file == null || !mounted) {
         return;
       }
 
-      final file = result.files.single;
+      final size = file.lengthSync();
 
-      if (file.size > maxProfilePhotoBytes) {
+      if (size != null && size > maxProfilePhotoBytes) {
         throw const FormatException('Choose a photo smaller than 5 MB.');
       }
 
-      if (file.bytes == null) {
-        throw const FormatException('This photo could not be opened. Choose another image.');
+      final contents = await file.readAsBytes();
+
+      if (contents.length > maxProfilePhotoBytes) {
+        throw const FormatException('Choose a photo smaller than 5 MB.');
       }
 
-      final bytes = await compute(prepareProfilePhoto, file.bytes!);
+      final bytes = await compute(prepareProfilePhoto, contents);
 
       if (mounted) {
         setState(() => _photoBytes = bytes);

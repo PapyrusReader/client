@@ -2,6 +2,7 @@ import 'dart:typed_data';
 import 'dart:async';
 
 import 'package:desktop_drop/desktop_drop.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/widgets/add_book/book_import_batch_item.dart';
@@ -14,7 +15,28 @@ import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/shared/expandable_bottom_sheet.dart';
 import 'package:papyrus/widgets/shared/bottom_sheet_handle.dart';
 
+import '../../helpers/support_file_picker.dart';
+
 void main() {
+  test('default picker reads each selected book and preserves selection order', () async {
+    final previousPicker = FilePickerPlatform.instance;
+    final picker = SupportFilePicker();
+    FilePickerPlatform.instance = picker;
+    addTearDown(() => FilePickerPlatform.instance = previousPicker);
+
+    picker.result = [
+      SupportPlatformFile(name: 'first.epub', bytes: Uint8List.fromList([1, 2])),
+      SupportPlatformFile(name: 'second.pdf', readStream: Stream.value([3, 4])),
+    ];
+
+    final files = await BookImportSheet.defaultPickFiles();
+    expect(files.map((file) => file.name), ['first.epub', 'second.pdf']);
+    expect(files.first.bytes, [1, 2]);
+    expect(files.last.bytes, [3, 4]);
+    picker.result = [];
+    expect(await BookImportSheet.defaultPickFiles(), isEmpty);
+  });
+
   testWidgets('mobile footer actions share a row and stay fixed while selecting more files', (tester) async {
     tester.view.devicePixelRatio = 1;
     tester.view.physicalSize = const Size(390, 844);
