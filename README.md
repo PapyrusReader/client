@@ -66,6 +66,13 @@ selection-based reader annotations remain future work.
 
 - Flutter 3.41.2, matching the CI SDK: [installation guide](https://docs.flutter.dev/get-started/install)
 
+### Patched dependencies
+
+`unrar_file` is maintained in the [Papyrus compatibility fork](https://github.com/PapyrusReader/unrar_file)
+and pinned to a full commit SHA in `app/pubspec.yaml`. Its build fixes and upstream
+provenance are documented in that repository's `PAPYRUS_PATCHES.md`. Update the
+manifest and lockfile together after validating metadata tests and Android builds.
+
 ### Installation
 
 > [!IMPORTANT]
