@@ -38,22 +38,23 @@ class GoalCalendar {
 
   static DateTime local(DateTime date, String zone) => tz.TZDateTime.from(date, location(zone));
 
+  // TZDateTime.toUtc() retains timezone-specific equality. Calendar keys need native UTC dates.
   static DateTime midnight(DateTime date, String zone) {
     final day = local(date, zone);
-    return tz.TZDateTime(location(zone), day.year, day.month, day.day).toUtc();
+    return tz.TZDateTime(location(zone), day.year, day.month, day.day).native;
   }
 
   static DateTime nextDay(DateTime date, String zone) {
     final day = local(date, zone);
-    return tz.TZDateTime(location(zone), day.year, day.month, day.day + 1).toUtc();
+    return tz.TZDateTime(location(zone), day.year, day.month, day.day + 1).native;
   }
 
   static DateTime deadline(DateTime civilDate, String zone) =>
-      tz.TZDateTime(location(zone), civilDate.year, civilDate.month, civilDate.day + 1).toUtc();
+      tz.TZDateTime(location(zone), civilDate.year, civilDate.month, civilDate.day + 1).native;
 
   static DateTime dayOffset(DateTime date, int offset, String zone) {
     final day = local(date, zone);
-    return tz.TZDateTime(location(zone), day.year, day.month, day.day + offset).toUtc();
+    return tz.TZDateTime(location(zone), day.year, day.month, day.day + offset).native;
   }
 
   static GoalRange calendarPeriod(GoalPeriod period, DateTime date, String zone) {
@@ -76,7 +77,7 @@ class GoalCalendar {
       GoalPeriod.custom => throw ArgumentError('A deadline needs explicit dates'),
     };
 
-    return GoalRange(start.toUtc(), end.toUtc());
+    return GoalRange(start.native, end.native);
   }
 
   static DateTime effectiveNow(ReadingGoal goal, DateTime now) =>

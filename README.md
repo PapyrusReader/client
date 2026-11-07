@@ -7,7 +7,7 @@
   <p>
     <a href="https://join.slack.com/t/papyrus-crew/shared_invite/zt-4btcyuevl-RVRivB9rreOiri4SQhVxdQ"><img src="https://img.shields.io/badge/Slack-Join%20the%20community-4A154B?logo=slack&logoColor=white" alt="Join the Papyrus community on Slack"/></a>
     <a href="https://github.com/orgs/PapyrusReader/projects/1"><img src="https://img.shields.io/badge/GitHub-Project-blue?logo=github&logoColor=white" alt="GitHub Project"/></a>
-    <a href="https://papyrusreader.github.io/docs/"><img src="https://img.shields.io/badge/Documentation-darkslateblue?logo=gitbook&logoColor=white" alt="Documentation"/></a>
+    <a href="https://docs.papyrus-reader.com/"><img src="https://img.shields.io/badge/Documentation-darkslateblue?logo=gitbook&logoColor=white" alt="Documentation"/></a>
     <a href="https://app.codecov.io/gh/PapyrusReader/client/branch/development"><img src="https://codecov.io/gh/PapyrusReader/client/branch/development/graph/badge.svg" alt="Coverage"/></a>
     <a href="https://github.com/PapyrusReader/client/tree/master?tab=AGPL-3.0-1-ov-file"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="License"/></a>
   </p>
@@ -64,7 +64,7 @@ selection-based reader annotations remain future work.
 
 ### Prerequisites
 
-- Flutter 3.41.2, matching the CI SDK: [installation guide](https://docs.flutter.dev/get-started/install)
+- Flutter 3.47.9, matching the CI SDK: [installation guide](https://docs.flutter.dev/get-started/install)
 
 ### Patched dependencies
 
@@ -127,7 +127,10 @@ For local web auth links, add these entries to `/etc/hosts`:
 
 ## Documentation
 
-See [PapyrusReader/docs](https://github.com/PapyrusReader/docs).
+See [PapyrusReader/docs](https://github.com/PapyrusReader/docs) for the user manual
+and specification. This repository keeps [installation instructions](docs/INSTALL.md),
+[release setup](docs/RELEASING.md) and [Windows acceptance checks](docs/WINDOWS_TESTING.md)
+with the packaging tools that consume them.
 
 ## Technology stack
 
@@ -148,7 +151,7 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 ### Setup
 
 1. Fork and clone the repository
-2. Install dependencies from `app/` using the Flutter version in CI (currently 3.41.2):
+2. Install dependencies from `app/` using the Flutter version in CI (currently 3.47.9):
 
    ```bash
    cd app
@@ -195,8 +198,6 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 | [website](https://github.com/PapyrusReader/website) | Landing page |
 | [docs](https://github.com/PapyrusReader/docs) | Documentation |
 | [papyrus](https://github.com/PapyrusReader/papyrus) | Development workspace |
-
-See [About and support](docs/about-and-support.md) for release notes, licenses, and feedback.
 
 ## Google Play testing builds
 
