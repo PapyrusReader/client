@@ -2,7 +2,7 @@
 
 Android identity is `com.papyrus.reader`; the first uploaded bundle establishes it
 in Play Console. Keep this identity for all subsequent uploads.
-The app name is Papyrus. The pinned Flutter 3.41.2 toolchain targets Android API 36.
+The app name is Papyrus. The pinned Flutter 3.47.9 toolchain targets Android API 36.
 
 ## Branch workflow
 
@@ -101,7 +101,7 @@ an actionable message; they cannot silently use the debug certificate.
    upload key. Keep the same upload key for later releases.
 3. Configure the public API, PowerSync, SMTP and Google OAuth settings using the
    server deployment runbook. Check the endpoints from outside your local network.
-4. Merge the initial `0.0.1+1` version change (or dispatch Release on `master`), download the
+4. Publish the prepared version (or dispatch Release on `master`), download the
    `android-release` artifact, and upload the `*-android-universal.aab` to internal testing.
    The local validation bundle uses a temporary certificate and placeholder
    URLs and must **never** be submitted to Play.
@@ -126,13 +126,9 @@ content rating, target audience, app access instructions/test login, screenshots
 512 px store icon and feature graphic. Declare the actual server/account/book
 file behavior rather than claiming that all data stays on-device.
 
-Papyrus currently supports account creation but has no account-deletion flow.
-Google Play requires account deletion within the app and an external deletion
-request URL for applicable distribution tracks. Implement and validate deletion
-of the user's account and associated data before broader distribution. Publishing
-an invented privacy policy or marking this requirement complete is not part of
-build preparation. Check the Console requirements for your developer account;
-new personal accounts may require closed testing before production access.
+Validate the in-app account-deletion flow and public server `/v1/account-deletion`
+page (or its configured API prefix), including recovery and permanent cleanup. Check
+the linked Play requirements and Console for the intended distribution track.
 
 Official references:
 - [Flutter Android release and signing](https://docs.flutter.dev/deployment/android)
@@ -161,8 +157,8 @@ included, and Microsoft's Authenticode-verified offline WebView2 installer runs
 only when needed. Test a clean Windows x64 machine both with and without WebView2,
 then upgrade and uninstall while retaining a real library. No trusted signing
 service or Microsoft Store submission is configured. Installed Windows and
-AppImage builds include integrated update delivery. See [update delivery](UPDATE_DELIVERY.md)
-for the plan, APT signing configuration and native acceptance checks.
+AppImage builds include integrated update delivery. See [APT signing](#apt-signing)
+and [update acceptance](#update-acceptance) below.
 
 The Windows packaging workflow also runs on app changes and supports manual
 dispatch. It saves a `windows-preview-RUN_ID` artifact of the production entrypoint
@@ -180,10 +176,47 @@ Packaging PR checks need no production credentials. The release packaging jobs
 use the production endpoints, preserve the signed Android bundle alignment
 checks, and only publish after every required build/package job succeeds.
 
+## APT signing
+
+Configure these settings in the client repository's `release` environment:
+
+- Secret `APT_SIGNING_KEY`: ASCII-armored private OpenPGP signing key usable by batch GPG.
+- Variable `APT_SIGNING_FINGERPRINT`: the complete 40-character fingerprint.
+- Variable `APT_UPDATES_ENABLED`: `true`.
+
+Back up the key and keep its identity stable across releases, with a rotation
+procedure before expiry. Once enabled, keep APT enabled: subscriptions follow the
+latest GitHub release. Missing signing material fails publication when enabled.
+The workflow publishes the signed package indexes and keyring with the `.deb`;
+installation instructions are in [INSTALL.md](INSTALL.md).
+
+## Update acceptance
+
+Test an upgrade from the published build to the candidate and verify local books,
+reading positions, settings and profiles survive. Record the source revisions and
+results in the release PR.
+
+- Play: install through internal testing, accept an eligible update, and check
+  cancellation and offline reading.
+- Direct APK: check installation permission, cancellation/retry, and rejection of
+  a package signed with a different key. Only the `direct` flavor may request
+  package-install permission; Play builds must use Play delivery.
+- Windows: follow [Windows acceptance](WINDOWS_TESTING.md), including update on
+  normal shutdown, relaunch, failed installation and portable ZIP fallback.
+- Linux: update a running writable AppImage and reopen it; check read-only and
+  extracted-image fallback. Upgrade a `.deb` through APT and verify a tampered
+  index or package is rejected.
+- Web: leave the old build open during deployment, update outside the reader,
+  and verify local data survives. Check offline behavior and multiple open tabs.
+
+Native timer releases also require the Android special-use foreground-service
+Play declaration and a signed iOS Live Activity extension matching Runner's version.
+
 ## Play service account
 
-See [delivery rollout evidence](DELIVERY_ROLLOUT.md) for completed setup and the
-remaining operational acceptance checks.
+Use these steps when provisioning or replacing the delivery account. Verify each
+release with the workspace release manager and record its delivery evidence in
+the release PR.
 
 1. In the existing Google Cloud project, enable the Google Play Android Developer
    API and create a service account dedicated to this client.
