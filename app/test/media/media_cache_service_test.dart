@@ -2,11 +2,28 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:papyrus/media/media_cache_service.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/models/book.dart';
 
 void main() {
+  test('validating a large cached book leaves the host event loop running', () async {
+    final service = MediaCacheService();
+    final bytes = Uint8List(4 * 1024 * 1024);
+    final book = _book(fileHash: service.sha256Hex(bytes));
+    var ticks = 0;
+    final timer = Timer.periodic(Duration.zero, (_) => ticks++);
+    addTearDown(timer.cancel);
+    final cached = await service.getValidCachedBookFile(book, readLocalBookFile: (_) async => bytes);
+    expect(cached, same(bytes));
+    // Background browser test tabs can throttle timers; their checksum path
+    // still runs here, while foreground browser checks measure actual frames.
+    if (!kIsWeb) {
+      expect(ticks, greaterThan(1));
+    }
+  });
+
   late MediaCacheService service;
 
   setUp(() {

@@ -36,7 +36,7 @@ Many reading applications offer partial solutions but fall short on essential fe
 
 | Category | Features |
 |----------|----------|
-| **Reading** | EPUB/PDF reader with pagination/scrolling, appearance settings and saved positions |
+| **Reading** | EPUB, PDF, MOBI, AZW3, TXT, CBZ and CBR reader with pagination/scrolling and saved positions |
 | **Organization** | Shelves, tags/topics and library filters |
 | **Annotations** | Book-level bookmarks, notes and annotations; reader text selection/export is future work |
 | **Progress** | Saved progress, reading sessions and statistics |
@@ -46,10 +46,15 @@ Many reading applications offer partial solutions but fall short on essential fe
 | **Catalogs** | OPDS 1.2/2.0 browsing, search and imports through the backend relay |
 | **Accessibility** | E-ink, light/dark themes and reader typography controls |
 
-The built-in reader opens EPUB and PDF. Native metadata import also accepts MOBI,
-AZW3, TXT, CBR and CBZ; these formats do not have reading engines yet. The web
-file picker accepts EPUB and PDF. Additional cloud storage providers and
-selection-based reader annotations remain future work.
+The built-in reader and native/web file pickers accept EPUB, PDF, MOBI, AZW3,
+TXT, CBR and CBZ. Text and Kindle books support reflow and typography controls;
+comic archives support page navigation, zoom and scrolling. Files must be
+DRM-free; encrypted archives and fixed-layout EPUBs are unsupported. Web imports
+of TXT, Kindle and comic files initially use the filename as the library title.
+
+Book parsing runs in native isolates or browser workers. Integrity checks use a
+native isolate or Web Crypto, and local book reads are asynchronous. Original
+book files remain unchanged; the client persists the reader's saved position.
 
 ## Supported platforms
 

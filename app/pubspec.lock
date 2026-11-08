@@ -13,10 +13,10 @@ packages:
     dependency: "direct main"
     description:
       name: archive
-      sha256: de5ac590b8155e4e676088d714bd41ea620449a6adc0f7950c5073874b287ddb
+      sha256: a96e8b390886ee8abb49b7bd3ac8df6f451c621619f52a26e815fdcf568959ff
       url: "https://pub.dev"
     source: hosted
-    version: "4.6.0"
+    version: "4.0.9"
   args:
     dependency: transitive
     description:
@@ -33,6 +33,22 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.13.1"
+  barcode:
+    dependency: transitive
+    description:
+      name: barcode
+      sha256: "7b6729c37e3b7f34233e2318d866e8c48ddb46c1f7ad01ff7bb2a8de1da2b9f4"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.2.9"
+  bidi:
+    dependency: transitive
+    description:
+      name: bidi
+      sha256: "77f475165e94b261745cf1032c751e2032b8ed92ccb2bf5716036db79320637d"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.0.13"
   boolean_selector:
     dependency: transitive
     description:
@@ -475,10 +491,10 @@ packages:
     dependency: "direct main"
     description:
       name: image
-      sha256: "89ed75b2f8231fe676808c5564f9590d728024ded7ac782a7ed8474f1c95b72a"
+      sha256: "1976370a4df3091bb0f72409c187ad1f9132a818bc6b95ca59c0bae1c75c688e"
       url: "https://pub.dev"
     source: hosted
-    version: "4.12.0"
+    version: "4.9.2"
   integration_test:
     dependency: "direct dev"
     description: flutter
@@ -524,6 +540,39 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.12.0"
+  kindle_unpack:
+    dependency: transitive
+    description:
+      path: "third_party/kindle_unpack"
+      ref: b4aafafcb4d80afe5f140960ac91dcc251dac70e
+      resolved-ref: b4aafafcb4d80afe5f140960ac91dcc251dac70e
+      url: "https://github.com/PapyrusReader/reader.git"
+    source: git
+    version: "0.2.0"
+  koni_archive_core:
+    dependency: transitive
+    description:
+      name: koni_archive_core
+      sha256: f323296866d6224725839e2b8ef25dfeba5e0c2476877fa7726f4b966a4c7a84
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.0"
+  koni_codecs:
+    dependency: transitive
+    description:
+      name: koni_codecs
+      sha256: "0a0ffa23f62f627bc50db6de79e88a6a41e019d3a21c6a455ac5ae7c1677a8bd"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.0"
+  koni_rar:
+    dependency: transitive
+    description:
+      name: koni_rar
+      sha256: c8f1a5b2f1b9d8f6cfd981c67e8c34298f722806f7288f06faabb40004362f56
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.9.0"
   leak_tracker:
     dependency: transitive
     description:
@@ -672,8 +721,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: a52d0e4f3b78f37234b917cec8ef11cec71a914b
-      resolved-ref: a52d0e4f3b78f37234b917cec8ef11cec71a914b
+      ref: b4aafafcb4d80afe5f140960ac91dcc251dac70e
+      resolved-ref: b4aafafcb4d80afe5f140960ac91dcc251dac70e
       url: "https://github.com/PapyrusReader/reader.git"
     source: git
     version: "0.0.1"
@@ -741,6 +790,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  pdf:
+    dependency: transitive
+    description:
+      name: pdf
+      sha256: e47a275b267873d5944ad5f5ff0dcc7ac2e36c02b3046a0ffac9b72fd362c44b
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.12.0"
   pdfium_dart:
     dependency: transitive
     description:
@@ -853,6 +910,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.7.0"
+  qr:
+    dependency: transitive
+    description:
+      name: qr
+      sha256: "2c0189dca64a3ab08dda7acd7911c89af2374f08eb4eaded3e8ef4609f3b9c8b"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.3"
   record_use:
     dependency: transitive
     description:

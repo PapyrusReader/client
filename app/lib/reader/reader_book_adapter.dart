@@ -14,6 +14,11 @@ final class ReaderBookAdapter {
     return switch (format) {
       BookFormat.epub => ReaderFormat.epub,
       BookFormat.pdf => ReaderFormat.pdf,
+      BookFormat.mobi => ReaderFormat.mobi,
+      BookFormat.azw3 => ReaderFormat.azw3,
+      BookFormat.txt => ReaderFormat.txt,
+      BookFormat.cbr => ReaderFormat.cbr,
+      BookFormat.cbz => ReaderFormat.cbz,
       _ => null,
     };
   }
@@ -29,11 +34,11 @@ final class ReaderBookAdapter {
       final locator = ReaderLocator.fromJson(stored.map((key, value) => MapEntry(key.toString(), value)));
       final format = formatFor(book.fileFormat);
 
-      if (format == ReaderFormat.epub && locator is! EpubReaderLocator) {
+      if (format?.isReflowable == true && locator is! EpubReaderLocator) {
         return null;
       }
 
-      if (format == ReaderFormat.pdf && locator is! PdfReaderLocator) {
+      if (format?.isReflowable == false && locator is! PdfReaderLocator) {
         return null;
       }
 
@@ -47,7 +52,7 @@ final class ReaderBookAdapter {
     final format = formatFor(book.fileFormat);
 
     if (anchor == null) {
-      if (format == ReaderFormat.pdf && pageNumber != null && pageNumber > 0) {
+      if (format?.isReflowable == false && pageNumber != null && pageNumber > 0) {
         return PdfReaderLocator(
           pageIndex: pageNumber - 1,
           pageOffset: 0,
@@ -62,8 +67,8 @@ final class ReaderBookAdapter {
 
     final locator = ReaderLocator.fromJson(anchor);
     final matchesFormat = switch (locator) {
-      EpubReaderLocator() => format == ReaderFormat.epub,
-      PdfReaderLocator() => format == ReaderFormat.pdf,
+      EpubReaderLocator() => format?.isReflowable == true,
+      PdfReaderLocator() => format?.isReflowable == false,
     };
 
     if (!matchesFormat) {

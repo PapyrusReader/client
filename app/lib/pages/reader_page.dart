@@ -252,7 +252,7 @@ class _ReaderPageState extends State<ReaderPage> {
     if (book == null || document == null || preferences == null) {
       return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surface,
-        body: const SafeArea(child: _ReaderLoading()),
+        body: SafeArea(child: _ReaderLoading(onBack: _close)),
       );
     }
 
@@ -398,10 +398,24 @@ class _ReaderPageState extends State<ReaderPage> {
 }
 
 class _ReaderLoading extends StatelessWidget {
-  const _ReaderLoading();
+  const _ReaderLoading({this.onBack});
+
+  final VoidCallback? onBack;
 
   @override
   Widget build(BuildContext context) {
-    return const Center(child: AppCircularProgressIndicator(semanticsLabel: 'Opening book'));
+    const indicator = Center(child: AppCircularProgressIndicator(semanticsLabel: 'Opening book'));
+
+    if (onBack == null) {
+      return indicator;
+    }
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        indicator,
+        PositionedDirectional(top: 0, start: 0, child: BackButton(onPressed: onBack)),
+      ],
+    );
   }
 }
