@@ -26,10 +26,27 @@ void main() {
       expect(page.pageOffset, 0);
     });
 
-    test('maps only EPUB and PDF formats', () {
+    test('maps all importable formats', () {
       expect(ReaderBookAdapter.formatFor(BookFormat.epub), ReaderFormat.epub);
       expect(ReaderBookAdapter.formatFor(BookFormat.pdf), ReaderFormat.pdf);
-      expect(ReaderBookAdapter.formatFor(BookFormat.mobi), isNull);
+      for (final format in BookFormat.values) {
+        expect(ReaderBookAdapter.formatFor(format)?.name, format.name);
+        final book = buildTestBook(fileFormat: format, pageCount: 10);
+        final locator = ReaderBookAdapter.formatFor(format)!.isReflowable
+            ? EpubReaderLocator(spineIndex: 0, textOffset: 20, localProgression: .2, totalProgression: .2)
+            : PdfReaderLocator(pageIndex: 2, pageOffset: .1, totalProgression: .2);
+        expect(ReaderBookAdapter.decodeLocation(book, jsonEncode(locator.toJson())), locator);
+        expect(
+          ReaderBookAdapter.restoreLocator(
+            book.copyWith(
+              customMetadata: {
+                ReaderBookAdapter.locatorMetadataKey: locator.toJson(),
+              },
+            ),
+          ),
+          locator,
+        );
+      }
       expect(ReaderBookAdapter.formatFor(null), isNull);
     });
 

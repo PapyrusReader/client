@@ -20,16 +20,18 @@ import '../helpers/test_helpers.dart';
 
 void main() {
   for (final width in [400.0, 1280.0]) {
-    for (final format in [BookFormat.epub, BookFormat.pdf]) {
+    for (final format in BookFormat.values) {
       testWidgets('saved items open their exact $format location at width $width', (tester) async {
         tester.view.physicalSize = Size(width, 900);
         tester.view.devicePixelRatio = 1;
         addTearDown(tester.view.reset);
         final book = buildTestBook(id: 'saved-location-book', fileFormat: format);
-        final ReaderLocator bookmarkLocator = format == BookFormat.epub
+        final ReaderLocator bookmarkLocator =
+            const [BookFormat.epub, BookFormat.mobi, BookFormat.azw3, BookFormat.txt].contains(format)
             ? EpubReaderLocator(spineIndex: 3, textOffset: 456, localProgression: .25, totalProgression: .4)
             : PdfReaderLocator(pageIndex: 7, pageOffset: .35, totalProgression: .4);
-        final ReaderLocator annotationLocator = format == BookFormat.epub
+        final ReaderLocator annotationLocator =
+            const [BookFormat.epub, BookFormat.mobi, BookFormat.azw3, BookFormat.txt].contains(format)
             ? EpubReaderLocator(spineIndex: 4, textOffset: 789, localProgression: .5, totalProgression: .6)
             : PdfReaderLocator(pageIndex: 12, pageOffset: .65, totalProgression: .6);
         final store = DataStore()
@@ -485,7 +487,7 @@ void main() {
   }
 
   testWidgets('Start reading explains unsupported formats', (tester) async {
-    final book = buildTestBook(id: 'mobi-book', fileFormat: BookFormat.mobi);
+    final book = buildTestBook(id: 'unknown-format-book');
     final dataStore = DataStore()..loadData(books: [book]);
     addTearDown(dataStore.dispose);
 
