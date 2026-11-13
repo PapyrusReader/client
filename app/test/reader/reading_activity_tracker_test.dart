@@ -7,6 +7,7 @@ import 'package:papyrus/models/reading_activity.dart';
 import 'package:papyrus/models/reading_goal.dart';
 import 'package:papyrus/models/goal_period_record.dart';
 import 'package:papyrus/reader/reading_activity_tracker.dart';
+import 'package:papyrus/reader/reader_session.dart';
 import 'package:papyrus_reader/papyrus_reader.dart';
 
 class RecordingRepository implements TrackingRepository {
@@ -56,6 +57,70 @@ void main() {
 
   ReaderActivityEvent event({bool ready = true, bool visible = true, List<ReaderContentCoverage> coverage = pages}) =>
       ReaderActivityEvent(ready: ready, visible: visible, cause: ReaderNavigationCause.viewport, coverage: coverage);
+
+  test('annotation inspection records activity without overwriting the resume location', () async {
+    var now = start;
+    final repository = RecordingRepository();
+    final book = Book(id: 'book', title: 'Book', author: '', addedAt: start, currentPosition: .8);
+    final tracker = ReadingActivityTracker(
+      repository: repository,
+      book: book,
+      shelfIds: [],
+      deviceId: 'one',
+      onError: (_) {},
+      now: () => now,
+      checkpointInterval: const Duration(days: 1),
+    );
+    final session = ReaderSession(
+      book: book,
+      tracker: tracker,
+      preserveLocation: true,
+      saveBook: (_) => fail('Tracking must own persistence'),
+    );
+    final target = PdfReaderLocator(pageIndex: 1, pageOffset: 0, totalProgression: .1);
+    session.updateLocator(target);
+    session.onActivity(
+      ReaderActivityEvent(
+        ready: true,
+        visible: true,
+        cause: ReaderNavigationCause.restore,
+        locator: target,
+        coverage: pages,
+      ),
+    );
+    now = now.add(const Duration(seconds: 20));
+    await session.flush();
+    expect(repository.records, isNotEmpty);
+    expect(repository.patches, isEmpty);
+    final continued = PdfReaderLocator(pageIndex: 2, pageOffset: 0, totalProgression: .2);
+    session.updateLocator(continued);
+    session.onActivity(
+      ReaderActivityEvent(
+        ready: true,
+        visible: true,
+        cause: ReaderNavigationCause.turn,
+        locator: continued,
+        coverage: pages,
+      ),
+    );
+    await session.flush();
+    expect(repository.patches.last['reader_locator'], continued.toJson());
+    session.beginLocationVisit();
+    session.updateLocator(target);
+    session.onActivity(
+      ReaderActivityEvent(
+        ready: true,
+        visible: true,
+        cause: ReaderNavigationCause.jump,
+        locator: target,
+        coverage: pages,
+      ),
+    );
+    now = now.add(const Duration(seconds: 20));
+    await tracker.close();
+    session.dispose();
+    expect(repository.patches.every((patch) => patch['current_position'] == .2), isTrue);
+  });
 
   test('ready foreground time includes no inactivity timeout; panels and lifecycle pause', () async {
     var now = start;

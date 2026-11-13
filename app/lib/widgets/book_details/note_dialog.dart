@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:uuid/uuid.dart';
 import 'package:papyrus/widgets/shared/persistent_save.dart';
+import 'package:papyrus/widgets/shared/expandable_text_form_field.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/note.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -186,19 +187,13 @@ class _BottomSheetNoteState extends State<_BottomSheetNote> with PersistentSave<
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    TextFormField(
+                    ExpandableTextFormField(
                       key: const Key('note-content-field'),
                       controller: _contentController,
-                      decoration: const InputDecoration(
-                        labelText: 'Content',
-                        hintText: 'Write your note...',
-                        border: OutlineInputBorder(),
-                        alignLabelWithHint: true,
-                      ),
-                      textCapitalization: TextCapitalization.sentences,
+                      label: 'Content',
+                      hint: 'Write your note...',
                       minLines: 8,
                       maxLines: 12,
-                      textAlignVertical: TextAlignVertical.top,
                       validator: (value) {
                         if (value == null || value.trim().isEmpty) {
                           return 'Please enter some content';

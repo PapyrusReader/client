@@ -10,10 +10,11 @@ import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus_reader/papyrus_reader.dart';
 
 class ReaderLibraryPanel extends StatelessWidget {
-  const ReaderLibraryPanel({super.key, required this.library, required this.panel});
+  const ReaderLibraryPanel({super.key, required this.library, required this.panel, this.onLocationVisit});
 
   final ReaderLibrary library;
   final ReaderPanelContext panel;
+  final VoidCallback? onLocationVisit;
 
   @override
   Widget build(BuildContext context) => DefaultTabController(
@@ -185,7 +186,13 @@ class ReaderLibraryPanel extends StatelessWidget {
     }
 
     try {
-      panel.navigate?.call(ReaderLocator.fromJson(anchor));
+      final locator = ReaderLocator.fromJson(anchor);
+      final navigate = panel.navigate;
+
+      if (navigate != null) {
+        onLocationVisit?.call();
+        navigate(locator);
+      }
     } on FormatException {
       ScaffoldMessenger.of(
         context,

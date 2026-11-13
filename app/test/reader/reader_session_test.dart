@@ -6,6 +6,77 @@ import 'package:papyrus_reader/papyrus_reader.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
+  for (final format in BookFormat.values) {
+    ReaderLocator location(double progress) {
+      if ([BookFormat.epub, BookFormat.mobi, BookFormat.azw3, BookFormat.txt].contains(format)) {
+        return EpubReaderLocator(
+          spineIndex: 0,
+          textOffset: (progress * 1000).round(),
+          localProgression: progress,
+          totalProgression: progress,
+        );
+      }
+      return PdfReaderLocator(pageIndex: (progress * 10).round(), pageOffset: 0, totalProgression: progress);
+    }
+
+    ReaderActivityEvent activity(ReaderLocator locator, ReaderNavigationCause cause) =>
+        ReaderActivityEvent(ready: true, visible: true, cause: cause, locator: locator);
+
+    test('$format annotation visits preserve resume on close and reflow', () async {
+      final saved = <Book>[];
+      final session = ReaderSession(
+        book: buildTestBook(fileFormat: format, currentPosition: .8),
+        saveBook: saved.add,
+        preserveLocation: true,
+      );
+      for (final cause in [
+        ReaderNavigationCause.restore,
+        ReaderNavigationCause.viewport,
+        ReaderNavigationCause.reflow,
+      ]) {
+        final locator = location(cause == ReaderNavigationCause.reflow ? .21 : .2);
+        session.updateLocator(locator);
+        session.onActivity(activity(locator, cause));
+      }
+      await session.flush();
+      session.dispose();
+      expect(saved, isEmpty);
+    });
+
+    for (final scroll in [false, true]) {
+      test('$format continues saving after ${scroll ? 'scrolling' : 'turning'} from a visit', () async {
+        final saved = <Book>[];
+        final session = ReaderSession(
+          book: buildTestBook(fileFormat: format, currentPosition: .8),
+          saveBook: saved.add,
+          preserveLocation: true,
+        );
+        session.updateLocator(location(.2));
+        session.onActivity(activity(location(.2), ReaderNavigationCause.restore));
+        // A failed/no-op page turn must not adopt the inspected location.
+        session.onActivity(activity(location(.2), ReaderNavigationCause.turn));
+        expect(session.isLocationVisit, isTrue);
+        if (scroll) session.recordScrollIntent();
+        session.updateLocator(location(.3));
+        session.onActivity(
+          activity(location(.3), scroll ? ReaderNavigationCause.viewport : ReaderNavigationCause.turn),
+        );
+        await session.flush();
+        expect(session.isLocationVisit, isFalse);
+        expect(saved.single.currentPosition, .3);
+        session.updateLocator(location(.4));
+        await session.flush();
+        expect(saved.last.currentPosition, .4);
+        session.beginLocationVisit();
+        session.updateLocator(location(.1));
+        session.onActivity(activity(location(.1), ReaderNavigationCause.jump));
+        session.dispose();
+        expect(saved.last.currentPosition, .4);
+        expect(saved, hasLength(2));
+      });
+    }
+  }
+
   test('coalesces rapid locator changes into the latest saved book', () async {
     final saved = <Book>[];
 
