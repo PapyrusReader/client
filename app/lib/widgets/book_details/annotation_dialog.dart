@@ -158,18 +158,24 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
                         maxHeight: ((MediaQuery.sizeOf(context).height - MediaQuery.viewInsetsOf(context).bottom) * .25)
                             .clamp(0, 200),
                       ),
-                      child: Scrollbar(
-                        controller: _quoteScrollController,
-                        thumbVisibility: true,
-                        child: SingleChildScrollView(
-                          key: const Key('annotation-quote-scroll'),
+                      // The quote is inset within the form, so its scrollbar
+                      // must not reserve the screen's system navigation area.
+                      child: MediaQuery.removePadding(
+                        context: context,
+                        removeBottom: true,
+                        child: Scrollbar(
                           controller: _quoteScrollController,
-                          primary: false,
-                          padding: const EdgeInsets.only(right: Spacing.md),
-                          child: SelectableText(
-                            _textController.text,
-                            style: Theme.of(context).textTheme.bodyLarge,
-                            scrollBehavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                          thumbVisibility: true,
+                          child: SingleChildScrollView(
+                            key: const Key('annotation-quote-scroll'),
+                            controller: _quoteScrollController,
+                            primary: false,
+                            padding: const EdgeInsets.only(right: Spacing.md),
+                            child: SelectableText(
+                              _textController.text,
+                              style: Theme.of(context).textTheme.bodyLarge,
+                              scrollBehavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                            ),
                           ),
                         ),
                       ),
