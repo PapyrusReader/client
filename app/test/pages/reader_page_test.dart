@@ -3,12 +3,14 @@ import 'dart:async';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/book_repository.dart';
 import 'package:papyrus/data/repositories/library_repository.dart';
 import 'package:papyrus/models/book.dart';
 import 'package:papyrus/media/media_cache_service.dart';
 import 'package:papyrus/providers/auth_provider.dart';
+import 'package:papyrus/auth/auth_models.dart';
 import 'package:papyrus/services/book_import_service_stub.dart';
 import 'package:papyrus_reader/papyrus_reader.dart';
 import 'package:papyrus/pages/reader_page.dart';
@@ -19,14 +21,16 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
-  for (final format in [BookFormat.epub, BookFormat.pdf]) {
+  for (final format in BookFormat.values) {
     testWidgets('explicit $format location takes precedence over resume position', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final preferences = PreferencesProvider(await SharedPreferences.getInstance());
-      final ReaderLocator target = format == BookFormat.epub
+      final ReaderLocator target =
+          const [BookFormat.epub, BookFormat.mobi, BookFormat.azw3, BookFormat.txt].contains(format)
           ? EpubReaderLocator(spineIndex: 3, textOffset: 456, localProgression: .25, totalProgression: .4)
           : PdfReaderLocator(pageIndex: 7, pageOffset: .35, totalProgression: .4);
-      final ReaderLocator resume = format == BookFormat.epub
+      final ReaderLocator resume =
+          const [BookFormat.epub, BookFormat.mobi, BookFormat.azw3, BookFormat.txt].contains(format)
           ? EpubReaderLocator(spineIndex: 1, textOffset: 0, localProgression: 0, totalProgression: .1)
           : PdfReaderLocator(pageIndex: 1, pageOffset: 0, totalProgression: .1);
       final book = buildTestBook(
@@ -56,6 +60,15 @@ void main() {
       final reader = tester.widget<PapyrusReader>(find.byType(PapyrusReader));
       expect(reader.initialLocator, target);
       expect(reader.onNote, isNull);
+      reader.onLocatorChanged!(target);
+      reader.onActivity!(
+        ReaderActivityEvent(ready: true, visible: true, cause: ReaderNavigationCause.restore, locator: target),
+      );
+      reader.document.onPdfViewChanged?.call(
+        const PdfViewState(pageIndex: 7, zoom: 1.5, centerX: .5, centerY: .5, fitMode: PdfFitMode.custom),
+      );
+      await tester.pump(const Duration(seconds: 1));
+      expect(preferences.pdfView('guest', book.id), isEmpty);
       expect(cache.loads, 1);
       expect(store.getBook(book.id)!.customMetadata!['reader_locator'], resume.toJson());
       final readerContext = tester.element(find.byType(PapyrusReader));
@@ -100,6 +113,23 @@ void main() {
       expect(store.notes.single.bookId, book.id);
       expect(store.notes.single.content, 'Independent of the reading position');
       expect(store.notes.single.location, isNull);
+      final ReaderLocator continued = target is EpubReaderLocator
+          ? EpubReaderLocator(spineIndex: 3, textOffset: 600, localProgression: .5, totalProgression: .5)
+          : PdfReaderLocator(pageIndex: 8, pageOffset: 0, totalProgression: .5);
+      reader.onLocatorChanged!(continued);
+      reader.onActivity!(
+        ReaderActivityEvent(
+          ready: true,
+          visible: true,
+          cause: ReaderNavigationCause.turn,
+          locator: continued,
+        ),
+      );
+      const view = PdfViewState(pageIndex: 8, zoom: 1.5, centerX: .5, centerY: .5, fitMode: PdfFitMode.custom);
+      reader.document.onPdfViewChanged?.call(view);
+      await tester.pump(const Duration(seconds: 1));
+      expect(store.getBook(book.id)!.customMetadata!['reader_locator'], continued.toJson());
+      expect(preferences.pdfView('guest', book.id), view.toJson());
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox.shrink());
     });
@@ -162,7 +192,7 @@ void main() {
       ),
     );
 
-    expect(find.byTooltip('Back'), findsNothing);
+    expect(find.byTooltip('Back'), findsOneWidget);
     expect(find.byType(AppBar), findsNothing);
     final loaderCenter = tester.getCenter(find.byType(CircularProgressIndicator));
     expect(loaderCenter, const Offset(400, 300));
@@ -174,7 +204,7 @@ void main() {
 
     expect(cache.loads, 1, reason: tester.widgetList<Text>(find.byType(Text)).map((text) => text.data).join(' / '));
     expect(find.byType(PapyrusReader), findsOneWidget);
-    expect(find.byTooltip('Back'), findsNothing);
+    expect(find.byTooltip('Back'), findsOneWidget);
     expect(tester.getCenter(find.byType(CircularProgressIndicator)), loaderCenter);
     final before = tester.widget<PapyrusReader>(find.byType(PapyrusReader)).document;
     updateTheme(() => dark = true);
@@ -183,6 +213,59 @@ void main() {
     expect(tester.widget<PapyrusReader>(find.byType(PapyrusReader)).document, same(before));
     expect(cache.loads, 1);
     await tester.pumpWidget(const SizedBox.shrink());
+  });
+
+  testWidgets('Back leaves a pending media load and ignores its late completion', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final preferences = PreferencesProvider(await SharedPreferences.getInstance());
+    final store = DataStore()
+      ..loadData(
+        books: [buildTestBook(id: 'large-book', fileFormat: BookFormat.epub)],
+      );
+    final gate = Completer<void>();
+    final cache = _ReaderMediaCache(gate: gate);
+    final router = GoRouter(
+      initialLocation: '/library',
+      routes: [
+        GoRoute(
+          path: '/library',
+          builder: (context, state) => Scaffold(
+            body: TextButton(onPressed: () => context.push('/reader'), child: const Text('Open book')),
+          ),
+        ),
+        GoRoute(
+          path: '/reader',
+          builder: (_, _) => const ReaderPage(bookId: 'large-book'),
+        ),
+      ],
+    );
+    addTearDown(store.dispose);
+    addTearDown(router.dispose);
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider.value(value: store),
+          ChangeNotifierProvider.value(value: preferences),
+          Provider<MediaCacheService>.value(value: cache),
+          Provider<BookImportService>(create: (_) => BookImportService()),
+          ChangeNotifierProvider<AuthProvider>(create: (_) => _ReaderAuth()),
+        ],
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.tap(find.text('Open book'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(cache.loads, 1);
+    await tester.tap(find.byTooltip('Back'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open book'), findsOneWidget);
+    gate.complete();
+    await tester.pumpAndSettle();
+    expect(find.byType(PapyrusReader), findsNothing);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('profile switch during media loading ends the spinner without opening the old book', (tester) async {
@@ -243,7 +326,7 @@ void main() {
 
     final dataStore = DataStore()
       ..loadData(
-        books: [buildTestBook(id: 'mobi-book', fileFormat: BookFormat.mobi)],
+        books: [buildTestBook(id: 'mobi-book', fileFormat: null)],
       );
 
     addTearDown(dataStore.dispose);
@@ -283,6 +366,9 @@ class _ReaderMediaCache extends MediaCacheService {
 }
 
 class _ReaderAuth extends ChangeNotifier implements AuthProvider {
+  @override
+  PapyrusUser? get user => null;
+
   @override
   Future<Uint8List> downloadMedia(String assetId) async => Uint8List(0);
 

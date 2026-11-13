@@ -35,9 +35,20 @@ class _RegisterPageState extends State<RegisterPage> {
   final _confirmPasswordFocusNode = FocusNode();
 
   bool _isLoading = false;
+  AuthProvider? _auth;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _auth = context.read<AuthProvider?>();
+  }
 
   @override
   void dispose() {
+    if (_isLoading) {
+      _auth?.cancelAuthentication(notify: false);
+    }
+
     _displayNameController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
@@ -78,7 +89,10 @@ class _RegisterPageState extends State<RegisterPage> {
         return;
       }
 
-      context.goNamed('LIBRARY');
+      _passwordController.clear();
+      _confirmPasswordController.clear();
+      _isLoading = false;
+      context.go('/verification');
     } catch (error) {
       if (!mounted) {
         return;
@@ -272,7 +286,12 @@ class _RegisterForm extends StatelessWidget {
               validationDependency: passwordController,
             ),
             const SizedBox(height: Spacing.lg),
-            AuthContinueButton(isLoading: isLoading, onPressed: onRegister, isDesktop: isDesktop),
+            AuthContinueButton(
+              retryAt: context.watch<AuthProvider?>()?.retryAt,
+              isLoading: isLoading,
+              onPressed: onRegister,
+              isDesktop: isDesktop,
+            ),
           ],
         ),
       ),

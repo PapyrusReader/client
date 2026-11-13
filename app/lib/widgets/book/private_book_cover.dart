@@ -137,8 +137,7 @@ class _PrivateBookCoverState extends State<CoverImage> {
       final authProvider = subscribe ? context.watch<AuthProvider>() : context.read<AuthProvider>();
       final user = authProvider.user;
 
-      final needsAccountScope =
-          user != null && !authProvider.isOfflineMode && (_usableMediaId == null || authProvider.isSignedIn);
+      final needsAccountScope = user != null && !authProvider.isOfflineMode;
 
       final syncSettings = needsAccountScope
           ? (subscribe ? context.watch<SyncSettingsProvider>() : context.read<SyncSettingsProvider>())
@@ -159,7 +158,7 @@ class _PrivateBookCoverState extends State<CoverImage> {
     final user = authProvider.user;
 
     if (mediaId != null) {
-      if (!authProvider.isSignedIn || authProvider.isOfflineMode || user == null) {
+      if (authProvider.isOfflineMode || user == null) {
         _clearProviderLoader();
         return;
       }

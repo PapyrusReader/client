@@ -45,11 +45,9 @@ void main() {
     expect(find.text('Original passage'), findsOneWidget);
     expect(find.widgetWithText(TextFormField, '12'), findsNothing);
     expect(find.widgetWithText(TextFormField, 'Chapter'), findsNothing);
-    expect(find.widgetWithText(TextFormField, 'Attached note'), findsOneWidget);
-    final fields = find.byType(TextFormField);
-    await tester.enterText(fields.at(0), 'Edited passage');
-    expect(fields, findsNWidgets(2));
-    await tester.enterText(fields.at(1), '');
+    expect(find.widgetWithText(TextField, 'Attached note'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextField, 'Highlighted text'), 'Edited passage');
+    await tester.enterText(find.widgetWithText(TextField, 'Note (optional)'), '');
     await tester.drag(find.byType(ListView).last, const Offset(0, -300));
     await tester.pumpAndSettle();
     expect(find.text('Highlight color'), findsOneWidget);

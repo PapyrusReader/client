@@ -294,7 +294,7 @@ void main() {
       final bookmark = repository.bookmarks.values.values.single;
       library.editBookmark(hostContext, bookmark);
       await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(TextFormField, 'Note (optional)'), 'Return here');
+      await tester.enterText(find.widgetWithText(TextField, 'Note (optional)'), 'Return here');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(repository.bookmarks.values.values.single.readerLocator, locator.toJson());
@@ -320,7 +320,7 @@ void main() {
       final highlight = library.highlights.single;
       library.editHighlight(hostContext, highlight);
       await tester.pumpAndSettle();
-      await tester.enterText(find.widgetWithText(TextFormField, 'Note (optional)'), 'Edited from the passage');
+      await tester.enterText(find.widgetWithText(TextField, 'Note (optional)'), 'Edited from the passage');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(repository.annotations.values.values.single.note, 'Edited from the passage');

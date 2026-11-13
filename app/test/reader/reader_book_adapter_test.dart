@@ -26,10 +26,27 @@ void main() {
       expect(page.pageOffset, 0);
     });
 
-    test('maps only EPUB and PDF formats', () {
+    test('maps all importable formats', () {
       expect(ReaderBookAdapter.formatFor(BookFormat.epub), ReaderFormat.epub);
       expect(ReaderBookAdapter.formatFor(BookFormat.pdf), ReaderFormat.pdf);
-      expect(ReaderBookAdapter.formatFor(BookFormat.mobi), isNull);
+      for (final format in BookFormat.values) {
+        expect(ReaderBookAdapter.formatFor(format)?.name, format.name);
+        final book = buildTestBook(fileFormat: format, pageCount: 10);
+        final locator = ReaderBookAdapter.formatFor(format)!.isReflowable
+            ? EpubReaderLocator(spineIndex: 0, textOffset: 20, localProgression: .2, totalProgression: .2)
+            : PdfReaderLocator(pageIndex: 2, pageOffset: .1, totalProgression: .2);
+        expect(ReaderBookAdapter.decodeLocation(book, jsonEncode(locator.toJson())), locator);
+        expect(
+          ReaderBookAdapter.restoreLocator(
+            book.copyWith(
+              customMetadata: {
+                ReaderBookAdapter.locatorMetadataKey: locator.toJson(),
+              },
+            ),
+          ),
+          locator,
+        );
+      }
       expect(ReaderBookAdapter.formatFor(null), isNull);
     });
 
@@ -115,6 +132,50 @@ void main() {
       expect(preferences.backgroundColor, colors.surface);
       expect(preferences.foregroundColor, colors.onSurface);
       expect(preferences.brightness, Brightness.dark);
+    });
+
+    test('PDF settings survive reopening without changing EPUB defaults', () async {
+      SharedPreferences.setMockInitialValues({'reading_mode': 'paginated'});
+      final provider = PreferencesProvider(await SharedPreferences.getInstance());
+      const changed = ReaderPreferences(
+        highlightLinks: false,
+        columnMode: ReaderColumnMode.double,
+        layoutMode: ReaderLayoutMode.scroll,
+        brightness: Brightness.dark,
+        backgroundColor: Color(0xff151719),
+        foregroundColor: Color(0xffece7de),
+      );
+      ReaderBookAdapter.persistPreferences(provider, changed, pdf: true);
+      final reopened = PreferencesProvider(await SharedPreferences.getInstance());
+      final colors = ColorScheme.fromSeed(seedColor: Colors.green);
+      final restored = ReaderBookAdapter.preferencesFor(reopened, colors, pdf: true);
+      expect(restored.highlightLinks, isFalse);
+      expect(ReaderBookAdapter.preferencesFor(reopened, colors).highlightLinks, isTrue);
+      expect(restored.columnMode, changed.columnMode);
+      expect(restored.layoutMode, changed.layoutMode);
+      expect(restored.brightness, changed.brightness);
+      expect(restored.backgroundColor, changed.backgroundColor);
+      expect(restored.foregroundColor, changed.foregroundColor);
+      expect(ReaderBookAdapter.preferencesFor(reopened, colors).layoutMode, ReaderLayoutMode.paginated);
+    });
+
+    test('PDF view state remains isolated by server, user and book', () async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = PreferencesProvider(await SharedPreferences.getInstance());
+      final view = PdfViewState(
+        pageIndex: 2,
+        zoom: 1.37,
+        centerX: .4,
+        centerY: .6,
+        fitMode: PdfFitMode.custom,
+      ).toJson();
+      await provider.savePdfView('server-a/user-a', 'book', view);
+      final reopened = PreferencesProvider(await SharedPreferences.getInstance());
+      expect(reopened.pdfView('server-a/user-a', 'book'), view);
+      expect(reopened.pdfView('server-a/user-b', 'book'), isEmpty);
+      expect(reopened.pdfView('server-b/user-a', 'book'), isEmpty);
+      expect(reopened.pdfView('guest', 'book'), isEmpty);
+      expect(reopened.pdfView('server-a/user-a', 'another-book'), isEmpty);
     });
 
     test('persists reader setting changes as application defaults', () async {

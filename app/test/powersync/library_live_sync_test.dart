@@ -1,3 +1,4 @@
+import '../support/disposable_sync_accounts.dart';
 import 'dart:convert';
 import 'dart:io';
 
@@ -80,23 +81,21 @@ void main() {
       final firstAuth = auth();
       final secondAuth = auth();
       final otherAuth = auth();
-      final suffix = const Uuid().v4();
-      final email = 'sync-check-$suffix@example.com';
-      final password = 'SyncCheck-$suffix';
+      requireDisposableSyncAccounts();
+      const email = syncOwnerEmail;
+      const password = syncPassword;
 
-      final owner = await firstAuth.register(
+      final owner = await firstAuth.login(
         email: email,
         password: password,
-        displayName: 'Sync validation',
         clientType: 'desktop',
       );
 
       await secondAuth.login(email: email, password: password, clientType: 'desktop');
 
-      final other = await otherAuth.register(
-        email: 'other-$email',
+      final other = await otherAuth.login(
+        email: syncOtherEmail,
         password: password,
-        displayName: 'Isolation validation',
         clientType: 'desktop',
       );
 

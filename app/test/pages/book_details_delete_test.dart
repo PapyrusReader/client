@@ -224,7 +224,14 @@ void main() {
           ChangeNotifierProvider<DataStore>.value(value: dataStore),
           ChangeNotifierProvider<MediaUploadQueue>.value(value: mediaUploadQueue),
           Provider<BookImportService>.value(value: importService),
-          Provider<MediaCacheService>.value(value: MediaCacheService()),
+          Provider<MediaCacheService>.value(
+            value: MediaCacheService(
+              hashFile: (candidate) async {
+                expect(candidate, bytes);
+                return book.fileHash!;
+              },
+            ),
+          ),
           Provider<BookDownloadService>.value(value: downloadService),
         ],
         child: MaterialApp.router(routerConfig: router),

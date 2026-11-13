@@ -69,6 +69,33 @@ void main() {
     cache.clearLiveImages();
   });
 
+  testWidgets('verification denial preserves account-scoped cached covers without requesting media', (tester) async {
+    final importService = _RecordingBookImportService(Uint8List.fromList(pngBytes));
+    final harness = await _buildProviderHarness(importService: importService);
+    harness.repository.refreshGate = Completer<AuthTokens>();
+    final refreshing = harness.authProvider.refresh();
+    harness.repository.refreshGate!.completeError(
+      const AuthApiException(
+        statusCode: 403,
+        code: 'EMAIL_VERIFICATION_REQUIRED',
+        message: 'Verify your email',
+        pendingVerification: PendingVerification(email: 'reader@example.com', resendAfter: 0),
+      ),
+    );
+    await refreshing;
+    expect(harness.authProvider.hasOfflineAccount, isTrue);
+    await tester.pumpWidget(
+      harness.wrap(const CoverImage(bookId: 'offline-book', mediaId: 'offline-cover', placeholder: SizedBox.shrink())),
+    );
+    await _waitForDecodedCover(tester);
+    expect(importService.cachedCoverReads, 1);
+    expect(find.byType(Image), findsOneWidget);
+    await expectLater(harness.authProvider.downloadMedia('uncached'), throwsStateError);
+    await tester.pumpWidget(const SizedBox.shrink());
+    harness.authProvider.dispose();
+    harness.syncSettings.dispose();
+  });
+
   testWidgets('shows a visible loading state while local cover bytes load', (tester) async {
     final coverBytes = Completer<Uint8List?>();
 

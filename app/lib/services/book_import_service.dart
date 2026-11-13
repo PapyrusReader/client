@@ -144,7 +144,7 @@ class BookImportService {
 
   /// Processes a book file and stores it in OPFS via the web worker.
   ///
-  /// Supports EPUB and PDF files.
+  /// Supports all library book formats.
   /// Throws [UnsupportedError] when called on non-web platforms.
   /// Throws [ArgumentError] for unsupported file formats.
   Future<BookImportResult> importBook(Uint8List bytes, String filename) =>
@@ -162,11 +162,17 @@ class BookImportService {
 
     final ext = filename.toLowerCase().split('.').last;
 
-    if (ext != 'epub' && ext != 'pdf') {
-      throw ArgumentError('Unsupported format: $ext. Only EPUB and PDF are supported.');
+    if (!const ['epub', 'pdf', 'mobi', 'azw3', 'txt', 'cbr', 'cbz'].contains(ext)) {
+      throw ArgumentError('Unsupported format: $ext.');
     }
 
     JSObject? metadata;
+
+    if (ext != 'epub' && ext != 'pdf') {
+      metadata = JSObject();
+      metadata['title'] = p.basenameWithoutExtension(filename).toJS;
+      metadata['author'] = 'Unknown Author'.toJS;
+    }
 
     if (ext == 'pdf') {
       try {

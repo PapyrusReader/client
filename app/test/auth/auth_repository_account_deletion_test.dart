@@ -70,6 +70,7 @@ void main() {
             'expires_in': 3600,
             'user': {
               'user_id': 'user',
+              'email_verified': true,
               'connected_providers': ['google'],
             },
           }),

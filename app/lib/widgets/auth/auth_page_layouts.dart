@@ -5,6 +5,7 @@ import 'package:papyrus/widgets/auth/auth_hero_panel.dart';
 /// Mobile auth layout with a scrolling hero and a form that fills available space.
 class MobileAuthLayout extends StatelessWidget {
   final String heading;
+  final IconData? headingIcon;
   final String subtitle;
 
   /// The form widget (login form, register form, etc.)
@@ -18,15 +19,20 @@ class MobileAuthLayout extends StatelessWidget {
 
   /// Whether to show branding, heading, and subtitle above the form.
   final bool showHeader;
+  final bool announceSubtitle;
+  final double headerBottomSpacing;
 
   const MobileAuthLayout({
     super.key,
     required this.heading,
+    this.headingIcon,
     required this.subtitle,
     required this.form,
     required this.footer,
     this.bottomActions = const [],
     this.showHeader = true,
+    this.announceSubtitle = false,
+    this.headerBottomSpacing = Spacing.lg,
   });
 
   @override
@@ -55,18 +61,22 @@ class MobileAuthLayout extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           if (showHeader) ...[
-                            Text(
-                              heading,
+                            _AuthHeading(
+                              text: heading,
+                              icon: headingIcon,
                               style: theme.textTheme.headlineMedium?.copyWith(
                                 fontWeight: FontWeight.w600,
                                 color: theme.colorScheme.onSurface,
                               ),
                             ),
-                            Text(
-                              subtitle,
-                              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                            Semantics(
+                              liveRegion: announceSubtitle,
+                              child: Text(
+                                subtitle,
+                                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                              ),
                             ),
-                            const SizedBox(height: Spacing.lg),
+                            SizedBox(height: headerBottomSpacing),
                           ],
                           form,
                           ...footer,
@@ -89,6 +99,7 @@ class MobileAuthLayout extends StatelessWidget {
 /// Includes a swap button to flip hero/form positions.
 class DesktopAuthLayout extends StatefulWidget {
   final String heading;
+  final IconData? headingIcon;
   final String subtitle;
 
   /// The form widget (login form, register form, etc.)
@@ -99,14 +110,19 @@ class DesktopAuthLayout extends StatefulWidget {
 
   /// Whether to show branding, heading, and subtitle above the form.
   final bool showHeader;
+  final bool announceSubtitle;
+  final double headerBottomSpacing;
 
   const DesktopAuthLayout({
     super.key,
     required this.heading,
+    this.headingIcon,
     required this.subtitle,
     required this.form,
     required this.footer,
     this.showHeader = true,
+    this.announceSubtitle = false,
+    this.headerBottomSpacing = Spacing.xl,
   });
 
   /// Persists swap state across page navigations within the same session.
@@ -151,18 +167,22 @@ class _DesktopAuthLayoutState extends State<DesktopAuthLayout> {
                   if (widget.showHeader) ...[
                     // const AuthBranding(),
                     const SizedBox(height: Spacing.md),
-                    Text(
-                      widget.heading,
+                    _AuthHeading(
+                      text: widget.heading,
+                      icon: widget.headingIcon,
                       style: theme.textTheme.headlineLarge?.copyWith(
                         fontWeight: FontWeight.w600,
                         color: theme.colorScheme.onSurface,
                       ),
                     ),
-                    Text(
-                      widget.subtitle,
-                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                    Semantics(
+                      liveRegion: widget.announceSubtitle,
+                      child: Text(
+                        widget.subtitle,
+                        style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+                      ),
                     ),
-                    const SizedBox(height: Spacing.xl),
+                    SizedBox(height: widget.headerBottomSpacing),
                   ],
                   widget.form,
                   ...widget.footer,
@@ -248,6 +268,47 @@ class _SwapPanelsButton extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _AuthHeading extends StatelessWidget {
+  final String text;
+  final IconData? icon;
+  final TextStyle? style;
+
+  const _AuthHeading({required this.text, required this.style, this.icon});
+
+  @override
+  Widget build(BuildContext context) {
+    final heading = Text(text, style: style);
+    final textScaler = MediaQuery.textScalerOf(context);
+    final iconSize = textScaler.scale((style?.fontSize ?? 24) + Spacing.xs);
+
+    return Semantics(
+      header: true,
+      child: icon == null
+          ? heading
+          : Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                ExcludeSemantics(
+                  child: Transform.translate(
+                    // Account for the circle inset and the heading font’s optical baseline.
+                    offset: Offset(0, iconSize * 2 / 24 + textScaler.scale(2)),
+                    child: Icon(
+                      icon,
+                      size: iconSize,
+                      applyTextScaling: false,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: Spacing.sm),
+                Expanded(child: heading),
+              ],
+            ),
     );
   }
 }

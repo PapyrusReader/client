@@ -31,9 +31,20 @@ class _LoginPageState extends State<LoginPage> {
   final _passwordFocusNode = FocusNode();
 
   bool _isLoading = false;
+  AuthProvider? _auth;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _auth = context.read<AuthProvider?>();
+  }
 
   @override
   void dispose() {
+    if (_isLoading) {
+      _auth?.cancelAuthentication(notify: false);
+    }
+
     _emailController.dispose();
     _passwordController.dispose();
     _emailFocusNode.dispose();
@@ -65,6 +76,13 @@ class _LoginPageState extends State<LoginPage> {
       }
 
       if (!success) {
+        if (context.read<AuthProvider>().pendingVerification != null) {
+          _passwordController.clear();
+          _isLoading = false;
+          context.go('/verification');
+          return;
+        }
+
         final recovery = context.read<AuthProvider>().takePendingRecovery();
 
         if (recovery != null) {
@@ -78,6 +96,7 @@ class _LoginPageState extends State<LoginPage> {
         return;
       }
 
+      _isLoading = false;
       context.goNamed('LIBRARY');
     } catch (error) {
       if (!mounted) {
@@ -222,7 +241,12 @@ class _LoginForm extends StatelessWidget {
               ),
             ),
             const SizedBox(height: Spacing.sm),
-            AuthContinueButton(isLoading: isLoading, onPressed: onLogin, isDesktop: isDesktop),
+            AuthContinueButton(
+              retryAt: context.watch<AuthProvider?>()?.retryAt,
+              isLoading: isLoading,
+              onPressed: onLogin,
+              isDesktop: isDesktop,
+            ),
           ],
         ),
       ),

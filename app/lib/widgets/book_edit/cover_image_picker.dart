@@ -314,36 +314,45 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
     });
 
     try {
-      final result = await FilePicker.platform.pickFiles(type: FileType.image, allowMultiple: false, withData: true);
+      final file = await FilePicker.pickFile(type: FileType.image);
 
-      if (result != null && result.files.isNotEmpty) {
-        final file = result.files.first;
-
-        if (file.bytes != null) {
-          // Check file size (max 5MB)
-          if (file.bytes!.length > 5 * 1024 * 1024) {
-            setState(() {
-              _error = 'Image must be less than 5MB';
-              _isLoading = false;
-            });
-
-            return;
-          }
-
-          setState(() {
-            _imageBytes = file.bytes;
-            _imageUrl = null;
-            _showUrlInput = false;
-            _isLoading = false;
-          });
-
-          widget.onFileChanged(file.bytes);
-          widget.onUrlChanged(null);
+      if (file == null) {
+        if (mounted) {
+          setState(() => _isLoading = false);
         }
-      } else {
-        setState(() => _isLoading = false);
+
+        return;
       }
+
+      final bytes = await file.readAsBytes();
+
+      if (!mounted) {
+        return;
+      }
+
+      if (bytes.length > 5 * 1024 * 1024) {
+        setState(() {
+          _error = 'Image must be less than 5MB';
+          _isLoading = false;
+        });
+
+        return;
+      }
+
+      setState(() {
+        _imageBytes = bytes;
+        _imageUrl = null;
+        _showUrlInput = false;
+        _isLoading = false;
+      });
+
+      widget.onFileChanged(bytes);
+      widget.onUrlChanged(null);
     } catch (error) {
+      if (!mounted) {
+        return;
+      }
+
       setState(() {
         _error = 'Failed to pick image';
         _isLoading = false;

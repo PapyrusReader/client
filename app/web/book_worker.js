@@ -93,6 +93,13 @@ async function handleProcess(msg) {
     case 'pdf':
       await processPdf(bookId, fileData, msg.metadata);
       break;
+    case 'mobi':
+    case 'azw3':
+    case 'txt':
+    case 'cbr':
+    case 'cbz':
+      await processStoredBook(bookId, fileData, format, msg.metadata);
+      break;
     default:
       postMessage({
         type: 'error',
@@ -213,6 +220,23 @@ async function processPdf(bookId, fileData, metadata) {
   const bytes = new Uint8Array(fileData);
   const fileHash = bufferToHex(await crypto.subtle.digest('SHA-256', fileData));
   await opfsWrite(bookId, 'pdf', bytes);
+  postMessage({
+    type: 'success',
+    action: 'process',
+    bookId,
+    metadata,
+    coverData: null,
+    coverMimeType: null,
+    fileSize: bytes.byteLength,
+    fileHash,
+  });
+}
+
+async function processStoredBook(bookId, fileData, format, metadata) {
+  const bytes = new Uint8Array(fileData);
+  if (bytes.byteLength === 0) throw new Error('The book file is empty');
+  const fileHash = bufferToHex(await crypto.subtle.digest('SHA-256', fileData));
+  await opfsWrite(bookId, format, bytes);
   postMessage({
     type: 'success',
     action: 'process',

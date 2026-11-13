@@ -39,7 +39,7 @@ class NativeDirectoryAccess implements DirectoryAccess {
       return selected == null ? null : FolderGrant.fromJson(Map<String, dynamic>.from(selected));
     }
 
-    final selected = await FilePicker.platform.getDirectoryPath(dialogTitle: 'Choose a book folder');
+    final selected = await FilePicker.getDirectoryPath(dialogTitle: 'Choose a book folder');
 
     if (selected == null) {
       return null;

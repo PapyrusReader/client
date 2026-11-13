@@ -24,6 +24,24 @@ Book _book(String id) {
   return Book(id: id, title: 'Persistent guest book', author: 'Author', addedAt: DateTime.utc(2026, 1, 1));
 }
 
+SyncStatus _syncStatus({required bool hasSynced, Object? downloadError}) {
+  // The SDK exposes its internal status constructor for simulated sync transitions.
+  // ignore: invalid_use_of_internal_member
+  return SyncStatus(
+    connected: false,
+    connecting: false,
+    lastSyncedAt: hasSynced ? DateTime.utc(2026) : null,
+    downloadProgress: null,
+    downloading: false,
+    uploading: false,
+    downloadError: downloadError,
+    uploadError: null,
+    priorityStatusEntries: const [],
+    streamSubscriptions: null,
+    lastAppliedCheckpoint: null,
+  );
+}
+
 void main() {
   late Directory directory;
 
@@ -126,9 +144,12 @@ void main() {
     expect(store.isLoaded, isFalse);
     final database = (first.trackingRepository as LibraryDatabase).database;
 
+    // Stop transport events from replacing the simulated status during the snapshot read.
+    await database.disconnect();
+
     // The SDK exposes setStatus specifically for tests of sync transitions.
     // ignore: invalid_use_of_protected_member, invalid_use_of_internal_member
-    database.setStatus(SyncStatus(hasSynced: true));
+    database.setStatus(_syncStatus(hasSynced: true));
     await store.waitUntilLoaded();
     expect(store.isLoaded, isTrue);
     expect(store.books, isEmpty);
@@ -145,10 +166,13 @@ void main() {
     await first.activateAuthenticated('user-one');
     await first.watchLibrary().firstWhere((snapshot) => !snapshot.isLoaded);
     final database = (first.trackingRepository as LibraryDatabase).database;
+
+    // Stop transport events from replacing the simulated status during the snapshot read.
+    await database.disconnect();
     final failure = StateError('Connection unavailable');
 
     // ignore: invalid_use_of_protected_member, invalid_use_of_internal_member
-    database.setStatus(SyncStatus(hasSynced: false, downloadError: failure));
+    database.setStatus(_syncStatus(hasSynced: false, downloadError: failure));
     await first.watchLibrary().firstWhere((snapshot) => snapshot.loadError != null);
     expect(store.isLoaded, isFalse);
     expect(store.libraryLoadError, same(failure));
@@ -157,7 +181,7 @@ void main() {
     await first.upsert(_book('downloaded-book'));
 
     // ignore: invalid_use_of_protected_member, invalid_use_of_internal_member
-    database.setStatus(SyncStatus(hasSynced: true));
+    database.setStatus(_syncStatus(hasSynced: true));
     await store.waitUntilLoaded();
     expect(store.books.single.id, 'downloaded-book');
     expect(store.libraryLoadError, isNull);
@@ -176,13 +200,16 @@ void main() {
     await first.watchLibrary().firstWhere((snapshot) => !snapshot.isLoaded);
     final database = (first.trackingRepository as LibraryDatabase).database;
 
+    // Stop transport events from replacing the simulated status during the snapshot read.
+    await database.disconnect();
+
     await database.execute(
       'INSERT INTO books (id, title, author, added_at) VALUES (?, ?, ?, ?)',
       ['synced-book', 'Synced book', 'Author', DateTime.utc(2026).toIso8601String()],
     );
 
     // ignore: invalid_use_of_protected_member, invalid_use_of_internal_member
-    database.setStatus(SyncStatus(hasSynced: true));
+    database.setStatus(_syncStatus(hasSynced: true));
     final ready = await first.watchLibrary().firstWhere((snapshot) => snapshot.isLoaded);
     expect(ready.books.single.id, 'synced-book');
     expect(states.where((snapshot) => snapshot.isLoaded && snapshot.books.isEmpty), isEmpty);

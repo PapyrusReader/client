@@ -4,6 +4,8 @@ import 'package:crypto/crypto.dart';
 import 'package:papyrus/media/media_storage_scope.dart';
 import 'package:papyrus/models/book.dart';
 
+import 'book_file_hash.dart';
+
 typedef LocalBookFileReader = Future<Uint8List?> Function(String bookId);
 typedef LocalBookFileWriter = Future<void> Function(String bookId, String extension, Uint8List bytes);
 typedef MediaDownloader = Future<Uint8List> Function(String assetId);
@@ -12,6 +14,9 @@ typedef LocalCoverWriter = Future<void> Function(MediaStorageScope scope, String
 
 /// Coordinates lazy download and platform-local caching for private media.
 class MediaCacheService {
+  MediaCacheService({Future<String> Function(Uint8List) hashFile = hashBookFile}) : _hashFile = hashFile;
+
+  final Future<String> Function(Uint8List) _hashFile;
   final Map<String, Future<Uint8List>> _coverDownloads = {};
 
   /// Returns a cached book file when present and, if the book has a stored
@@ -23,7 +28,7 @@ class MediaCacheService {
       return null;
     }
 
-    return _matchesExpectedHash(cached, book.fileHash) ? cached : null;
+    return await _matchesExpectedHash(cached, book.fileHash) ? cached : null;
   }
 
   /// Returns local book bytes, downloading and caching private server media
@@ -48,7 +53,7 @@ class MediaCacheService {
 
     final downloaded = await downloadMedia(mediaId);
 
-    if (!_matchesExpectedHash(downloaded, book.fileHash)) {
+    if (!await _matchesExpectedHash(downloaded, book.fileHash)) {
       throw StateError('Downloaded book file did not match the expected hash.');
     }
 
@@ -115,12 +120,12 @@ class MediaCacheService {
 
   String sha256Hex(Uint8List bytes) => sha256.convert(bytes).toString();
 
-  bool _matchesExpectedHash(Uint8List bytes, String? expectedHash) {
+  Future<bool> _matchesExpectedHash(Uint8List bytes, String? expectedHash) async {
     if (expectedHash == null || expectedHash.isEmpty) {
       return true;
     }
 
-    return sha256Hex(bytes) == expectedHash;
+    return await _hashFile(bytes) == expectedHash;
   }
 
   String _extensionFor(Book book) {

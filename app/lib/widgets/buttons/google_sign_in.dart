@@ -25,6 +25,16 @@ class GoogleSignInButton extends StatefulWidget {
 
 class _GoogleSignInButtonState extends State<GoogleSignInButton> {
   bool _isSigningIn = false;
+  AuthProvider? _auth;
+
+  @override
+  void dispose() {
+    if (_isSigningIn) {
+      _auth?.cancelAuthentication(notify: false);
+    }
+
+    super.dispose();
+  }
 
   Future<void> _handleSignIn() async {
     if (_isSigningIn) {
@@ -35,16 +45,24 @@ class _GoogleSignInButtonState extends State<GoogleSignInButton> {
 
     try {
       final provider = Provider.of<AuthProvider>(context, listen: false);
+      _auth = provider;
       final result = await provider.signInWithGoogle();
 
       if (!mounted) {
         return;
       }
 
+      _isSigningIn = false;
+
       if (result) {
         widget.onSuccess?.call();
         context.goNamed('LIBRARY');
       } else {
+        if (provider.pendingVerification != null) {
+          context.go('/verification');
+          return;
+        }
+
         final recovery = provider.takePendingRecovery();
 
         if (recovery != null) {

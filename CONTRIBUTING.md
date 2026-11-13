@@ -100,7 +100,12 @@ Address review findings and required checks before merge. A PR's existence does
 not make a requirement implemented or verified. After merge, record acceptance
 evidence and close the completed implementation issue. Review the parent
 requirement's remaining criteria before updating its specification status.
-Create separate issues for deferred follow-up work.
+Create separate issues for deferred follow-up work. Keep implementation diaries,
+rollout results and review screenshots with the issue or PR; generated local
+evidence belongs under ignored `app/build/`. Product behavior belongs in the
+central documentation repository. Keep component documentation limited to setup,
+public integration contracts and operating procedures. Do not add a feature
+summary or a prose copy of code, tests or design tokens for each implementation.
 
 ## Releases and hotfixes
 

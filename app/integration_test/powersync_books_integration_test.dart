@@ -1,3 +1,4 @@
+import '../test/support/disposable_sync_accounts.dart';
 import 'dart:io';
 import 'dart:typed_data';
 
@@ -168,8 +169,9 @@ void main() {
 
   testWidgets('two clients sync books, reconnect offline writes, and isolate users', (tester) async {
     final config = PapyrusApiConfig.fromEnvironment();
-    final email = 'powersync-${DateTime.now().microsecondsSinceEpoch}@example.com';
-    const password = 'SecureP@ss123';
+    requireDisposableSyncAccounts();
+    const email = syncOwnerEmail;
+    const password = syncPassword;
     final root = await Directory.systemTemp.createTemp('papyrus-e2e-');
 
     AuthRepository repository(String label) {
@@ -189,10 +191,9 @@ void main() {
 
     final firstAuth = repository('first');
 
-    final firstTokens = await firstAuth.register(
+    final firstTokens = await firstAuth.login(
       email: email,
       password: password,
-      displayName: 'PowerSync Test',
       clientType: 'desktop',
     );
 
@@ -200,10 +201,9 @@ void main() {
     await secondAuth.login(email: email, password: password, clientType: 'desktop');
     final otherAuth = repository('other');
 
-    final otherTokens = await otherAuth.register(
-      email: 'other-$email',
+    final otherTokens = await otherAuth.login(
+      email: syncOtherEmail,
       password: password,
-      displayName: 'Other User',
       clientType: 'desktop',
     );
 

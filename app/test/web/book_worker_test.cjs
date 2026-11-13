@@ -77,3 +77,24 @@ test('cover worker dispatches scoped storage, promotion, deletion and rejects un
   assert.equal((await send('getCover', {scopeKey: '../bob'})).type, 'error');
   assert.ok(locks.length > 0);
 });
+
+test('remaining book formats retain their bytes, extension and checksum in OPFS', async () => {
+  const root = directory();
+  const responses = [];
+  const context = vm.createContext({
+    self: {}, Uint8Array, crypto: require('node:crypto').webcrypto,
+    postMessage: message => responses.push(message),
+    navigator: {storage: {getDirectory: async () => root}},
+  });
+  vm.runInContext(readFileSync(resolve(__dirname, '../../web/book_worker.js'), 'utf8'), context);
+  for (const format of ['mobi', 'azw3', 'txt', 'cbz', 'cbr']) {
+    const bytes = new Uint8Array([1, 2, 3, 4]);
+    await context.self.onmessage({data: {type: 'process', bookId: format, format, fileData: bytes.buffer, metadata: {title: 'Book'}}});
+    const result = responses.at(-1);
+    assert.equal(result.type, 'success');
+    assert.equal(result.fileHash, require('node:crypto').createHash('sha256').update(bytes).digest('hex'));
+    const books = await root.getDirectoryHandle('books', {create: false});
+    const stored = await books.getFileHandle(`${format}.${format}`, {create: false});
+    assert.deepEqual(new Uint8Array(await (await stored.getFile()).arrayBuffer()), bytes);
+  }
+});

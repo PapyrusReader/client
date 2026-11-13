@@ -100,9 +100,7 @@ class BookImportService {
   /// Returns null if the file does not exist.
   Future<Uint8List?> getBookFile(String bookId) async {
     final booksDir = await _getBooksDirectory();
-    final files = booksDir.listSync();
-
-    for (final entity in files) {
+    await for (final entity in booksDir.list()) {
       if (entity is File && p.basenameWithoutExtension(entity.path) == bookId) {
         return entity.readAsBytes();
       }

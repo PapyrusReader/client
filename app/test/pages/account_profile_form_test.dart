@@ -118,13 +118,15 @@ void main() {
           await tester.ensureVisible(find.widgetWithText(FilledButton, 'Save'));
           expect(find.widgetWithText(FilledButton, 'Save').hitTestable(), findsOneWidget);
           final picker = SupportFilePicker();
-          FilePicker.platform = picker;
+          final previousPicker = FilePickerPlatform.instance;
+          FilePickerPlatform.instance = picker;
+          addTearDown(() => FilePickerPlatform.instance = previousPicker);
           await tester.ensureVisible(find.byTooltip('Change photo'));
           await tester.tap(find.byTooltip('Change photo'));
           await tester.pumpAndSettle();
           expect(repository.savedPhoto, isNull);
           final photo = image.encodePng(image.Image(width: 8, height: 8));
-          picker.result = FilePickerResult([PlatformFile(name: 'photo.png', size: photo.length, bytes: photo)]);
+          picker.result = [SupportPlatformFile(name: 'photo.png', size: photo.length, bytes: photo)];
 
           await tester.runAsync(() async {
             await tester.tap(find.byTooltip('Change photo'));

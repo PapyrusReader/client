@@ -7,7 +7,7 @@
   <p>
     <a href="https://join.slack.com/t/papyrus-crew/shared_invite/zt-4btcyuevl-RVRivB9rreOiri4SQhVxdQ"><img src="https://img.shields.io/badge/Slack-Join%20the%20community-4A154B?logo=slack&logoColor=white" alt="Join the Papyrus community on Slack"/></a>
     <a href="https://github.com/orgs/PapyrusReader/projects/1"><img src="https://img.shields.io/badge/GitHub-Project-blue?logo=github&logoColor=white" alt="GitHub Project"/></a>
-    <a href="https://papyrusreader.github.io/docs/"><img src="https://img.shields.io/badge/Documentation-darkslateblue?logo=gitbook&logoColor=white" alt="Documentation"/></a>
+    <a href="https://docs.papyrus-reader.com/"><img src="https://img.shields.io/badge/Documentation-darkslateblue?logo=gitbook&logoColor=white" alt="Documentation"/></a>
     <a href="https://app.codecov.io/gh/PapyrusReader/client/branch/development"><img src="https://codecov.io/gh/PapyrusReader/client/branch/development/graph/badge.svg" alt="Coverage"/></a>
     <a href="https://github.com/PapyrusReader/client/tree/master?tab=AGPL-3.0-1-ov-file"><img src="https://img.shields.io/badge/License-AGPL--3.0-blue" alt="License"/></a>
   </p>
@@ -36,7 +36,7 @@ Many reading applications offer partial solutions but fall short on essential fe
 
 | Category | Features |
 |----------|----------|
-| **Reading** | EPUB/PDF reader with pagination/scrolling, appearance settings and saved positions |
+| **Reading** | EPUB, PDF, MOBI, AZW3, TXT, CBZ and CBR reader with pagination/scrolling and saved positions |
 | **Organization** | Shelves, tags/topics and library filters |
 | **Annotations** | Book-level bookmarks, notes and annotations; reader text selection/export is future work |
 | **Progress** | Saved progress, reading sessions and statistics |
@@ -46,10 +46,15 @@ Many reading applications offer partial solutions but fall short on essential fe
 | **Catalogs** | OPDS 1.2/2.0 browsing, search and imports through the backend relay |
 | **Accessibility** | E-ink, light/dark themes and reader typography controls |
 
-The built-in reader opens EPUB and PDF. Native metadata import also accepts MOBI,
-AZW3, TXT, CBR and CBZ; these formats do not have reading engines yet. The web
-file picker accepts EPUB and PDF. Additional cloud storage providers and
-selection-based reader annotations remain future work.
+The built-in reader and native/web file pickers accept EPUB, PDF, MOBI, AZW3,
+TXT, CBR and CBZ. Text and Kindle books support reflow and typography controls;
+comic archives support page navigation, zoom and scrolling. Files must be
+DRM-free; encrypted archives and fixed-layout EPUBs are unsupported. Web imports
+of TXT, Kindle and comic files initially use the filename as the library title.
+
+Book parsing runs in native isolates or browser workers. Integrity checks use a
+native isolate or Web Crypto, and local book reads are asynchronous. Original
+book files remain unchanged; the client persists the reader's saved position.
 
 ## Supported platforms
 
@@ -64,7 +69,14 @@ selection-based reader annotations remain future work.
 
 ### Prerequisites
 
-- Flutter 3.41.2, matching the CI SDK: [installation guide](https://docs.flutter.dev/get-started/install)
+- Flutter 3.47.9, matching the CI SDK: [installation guide](https://docs.flutter.dev/get-started/install)
+
+### Patched dependencies
+
+`unrar_file` is maintained in the [Papyrus compatibility fork](https://github.com/PapyrusReader/unrar_file)
+and pinned to a full commit SHA in `app/pubspec.yaml`. Its build fixes and upstream
+provenance are documented in that repository's `PAPYRUS_PATCHES.md`. Update the
+manifest and lockfile together after validating metadata tests and Android builds.
 
 ### Installation
 
@@ -120,7 +132,10 @@ For local web auth links, add these entries to `/etc/hosts`:
 
 ## Documentation
 
-See [PapyrusReader/docs](https://github.com/PapyrusReader/docs).
+See [PapyrusReader/docs](https://github.com/PapyrusReader/docs) for the user manual
+and specification. This repository keeps [installation instructions](docs/INSTALL.md),
+[release setup](docs/RELEASING.md) and [Windows acceptance checks](docs/WINDOWS_TESTING.md)
+with the packaging tools that consume them.
 
 ## Technology stack
 
@@ -141,7 +156,7 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 ### Setup
 
 1. Fork and clone the repository
-2. Install dependencies from `app/` using the Flutter version in CI (currently 3.41.2):
+2. Install dependencies from `app/` using the Flutter version in CI (currently 3.47.9):
 
    ```bash
    cd app
@@ -188,8 +203,6 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 | [website](https://github.com/PapyrusReader/website) | Landing page |
 | [docs](https://github.com/PapyrusReader/docs) | Documentation |
 | [papyrus](https://github.com/PapyrusReader/papyrus) | Development workspace |
-
-See [About and support](docs/about-and-support.md) for release notes, licenses, and feedback.
 
 ## Google Play testing builds
 

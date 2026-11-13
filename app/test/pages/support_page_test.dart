@@ -176,11 +176,13 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final picker = SupportFilePicker();
-    FilePicker.platform = picker;
-    picker.result = FilePickerResult([
-      PlatformFile(name: 'screen.png', size: 3, readStream: Stream.value([1, 2, 3])),
-      PlatformFile(name: 'demo.mp4', size: 2, readStream: Stream.value([4, 5])),
-    ]);
+    final previousPicker = FilePickerPlatform.instance;
+    FilePickerPlatform.instance = picker;
+    addTearDown(() => FilePickerPlatform.instance = previousPicker);
+    picker.result = [
+      SupportPlatformFile(name: 'screen.png', size: 3, readStream: Stream.value([1, 2, 3])),
+      SupportPlatformFile(name: 'demo.mp4', size: 2, readStream: Stream.value([4, 5])),
+    ];
     final client = SupportApiClient(
       config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://api.example')),
       httpClient: MockClient((request) async {
@@ -208,7 +210,7 @@ void main() {
     await tester.tap(find.byTooltip('Remove screen.png'));
     await tester.pumpAndSettle();
     expect(find.text('screen.png'), findsNothing);
-    picker.result = null;
+    picker.result = [];
     await tester.ensureVisible(find.text('Attach images or videos'));
     await tester.tap(find.text('Attach images or videos'));
     await tester.pumpAndSettle();
