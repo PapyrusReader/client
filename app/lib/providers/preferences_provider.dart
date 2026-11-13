@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/book_grid_size.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -162,6 +164,42 @@ class PreferencesProvider extends ChangeNotifier {
   set defaultHighlightColor(String value) {
     _prefs.setString(_keyDefaultHighlightColor, value);
     notifyListeners();
+  }
+
+  Map<String, Object?> get pdfReaderPreferences => _readReaderMap('pdf_reader_preferences');
+
+  set pdfReaderPreferences(Map<String, Object?> value) {
+    final encoded = jsonEncode(value);
+
+    if (_prefs.getString('pdf_reader_preferences') == encoded) {
+      return;
+    }
+
+    _prefs.setString('pdf_reader_preferences', encoded);
+    notifyListeners();
+  }
+
+  Map<String, Object?> pdfView(String scope, String bookId) => _readReaderMap(_pdfViewKey(scope, bookId));
+
+  Future<void> savePdfView(String scope, String bookId, Map<String, Object?> value) async {
+    await _prefs.setString(_pdfViewKey(scope, bookId), jsonEncode(value));
+  }
+
+  String _pdfViewKey(String scope, String bookId) => 'pdf_view:${jsonEncode([scope, bookId])}';
+
+  Map<String, Object?> _readReaderMap(String key) {
+    final value = _prefs.getString(key);
+
+    if (value == null) {
+      return const {};
+    }
+
+    try {
+      final decoded = jsonDecode(value);
+      return decoded is Map<String, Object?> ? decoded : const {};
+    } on FormatException {
+      return const {};
+    }
   }
 
   // -- Library --------------------------------------------------------------

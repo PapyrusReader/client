@@ -4,6 +4,56 @@ import 'package:papyrus/models/annotation.dart';
 import 'package:papyrus/widgets/book_details/annotation_dialog.dart';
 
 void main() {
+  for (final size in [const Size(390, 844), const Size(1200, 900)]) {
+    testWidgets('long selected passage scrolls independently at $size', (tester) async {
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = size;
+      addTearDown(tester.view.reset);
+      final passage = List.generate(50, (index) => 'Selected paragraph $index.').join('\n');
+      Annotation? saved;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(platform: size.width > 600 ? TargetPlatform.macOS : TargetPlatform.android),
+          home: Scaffold(
+            body: Builder(
+              builder: (context) => TextButton(
+                onPressed: () => AnnotationDialog.show(
+                  context,
+                  bookId: 'book',
+                  initialText: passage,
+                  initialLocation: const BookLocation(pageNumber: 12, readerLocator: {'type': 'pdf', 'pageIndex': 11}),
+                  onSave: (annotation) => saved = annotation,
+                ),
+                child: const Text('Annotate'),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Annotate'));
+      await tester.pumpAndSettle();
+      final quote = find.byKey(const Key('annotation-quote-scroll'));
+      expect(find.ancestor(of: quote, matching: find.byType(Scrollbar)), findsOneWidget);
+      expect(find.descendant(of: quote, matching: find.byType(Scrollbar)), findsNothing);
+      final note = find.widgetWithText(TextField, 'Note (optional)');
+      final noteBounds = tester.getRect(note);
+      expect(tester.getSize(quote).height, lessThanOrEqualTo(200));
+      expect(note.hitTestable(), findsOneWidget);
+      final scroll = tester.widget<SingleChildScrollView>(quote).controller!;
+      expect(scroll.position.maxScrollExtent, greaterThan(0));
+      await tester.drag(quote, const Offset(0, -120));
+      await tester.pumpAndSettle();
+      expect(scroll.offset, greaterThan(0));
+      expect(tester.getRect(note), noteBounds);
+      await tester.tap(find.text('Save'));
+      await tester.pumpAndSettle();
+      expect(saved?.selectedText, passage);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
   testWidgets('reader annotation hides location while preserving its saved anchor', (tester) async {
     const location = BookLocation(
       pageNumber: 1,
@@ -35,14 +85,23 @@ void main() {
     await tester.tap(find.text('Annotate'));
     await tester.pumpAndSettle();
     expect(find.text(location.displayLocation), findsNothing);
+    expect(find.widgetWithText(TextFormField, 'Highlighted text'), findsNothing);
+    expect(find.widgetWithText(SelectableText, 'Selected passage'), findsOneWidget);
     expect(find.text('Page number'), findsNothing);
     expect(find.text('Chapter title (optional)'), findsNothing);
-    await tester.enterText(find.widgetWithText(TextFormField, 'Note (optional)'), 'My annotation');
+    await tester.enterText(find.widgetWithText(TextField, 'Note (optional)'), 'My annotation');
+    await tester.tap(find.byTooltip('Edit in full screen'));
+    await tester.pumpAndSettle();
+    expect(saved, isNull);
+    await tester.enterText(find.byKey(const Key('fullscreen-note-field')), 'My expanded annotation');
+    await tester.tap(find.byTooltip('Exit full screen'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextField, 'My expanded annotation'), findsOneWidget);
     await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
     expect(saved?.location, location);
     expect(saved?.selectedText, 'Selected passage');
-    expect(saved?.note, 'My annotation');
+    expect(saved?.note, 'My expanded annotation');
     expect(tester.takeException(), isNull);
   });
 
@@ -83,13 +142,20 @@ void main() {
       await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
       expect(find.text(existing.location.displayLocation), findsNothing);
+      expect(find.widgetWithText(TextFormField, 'Highlighted text'), anchored ? findsNothing : findsOneWidget);
+
+      if (!anchored) {
+        await tester.enterText(find.widgetWithText(TextFormField, 'Highlighted text'), 'Edited physical passage');
+      }
+
       expect(find.text('Page number'), findsNothing);
       expect(find.text('Chapter title (optional)'), findsNothing);
-      await tester.enterText(find.widgetWithText(TextFormField, 'Note (optional)'), 'Updated annotation');
+      await tester.enterText(find.widgetWithText(TextField, 'Note (optional)'), 'Updated annotation');
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(saved!.location, existing.location);
       expect(saved!.note, 'Updated annotation');
+      expect(saved!.selectedText, anchored ? 'Selected passage' : 'Edited physical passage');
       expect(tester.takeException(), isNull);
     });
   }

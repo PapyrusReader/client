@@ -1,8 +1,13 @@
 import 'package:papyrus/services/reading_device_identity.dart';
 import 'dart:async';
+import 'dart:convert';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 import 'package:papyrus/themes/app_accessibility.dart';
 import 'package:papyrus/widgets/shared/app_page_bar.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/reader/reading_activity_tracker.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:go_router/go_router.dart';
@@ -40,9 +45,11 @@ class _ReaderPageState extends State<ReaderPage> {
   ReaderDocument? _document;
   ReaderLocator? _initialLocator;
   ReaderPreferences? _initialPreferences;
+  ReaderPreferences? _lastReaderPreferences;
   ReaderSession? _session;
   String? _error;
   bool _startedLoading = false;
+  final Map<int, Offset> _viewportPointers = {};
   ReadingActivityTracker? _tracker;
   DataStore? _trackingStore;
   Timer? _finishTimer;
@@ -55,6 +62,7 @@ class _ReaderPageState extends State<ReaderPage> {
   @override
   void initState() {
     super.initState();
+    FocusManager.instance.addEarlyKeyEventHandler(_observeScrollKey);
 
     _foreground =
         WidgetsBinding.instance.lifecycleState == null ||
@@ -178,13 +186,28 @@ class _ReaderPageState extends State<ReaderPage> {
 
       final session = ReaderSession(
         book: book,
+        preserveLocation: widget.location != null,
         tracker: tracker,
         saveBook: (updated) => unawaited(dataStore.updateBookAndWait(updated, repository: repository, previous: book)),
       );
 
+      final preferenceStore = context.read<PreferencesProvider>();
+      final auth = context.read<AuthProvider>();
+      final viewScope = auth.user == null ? 'guest' : jsonEncode([auth.serverKey, auth.user!.userId]);
+      PdfViewState? savedView;
+
+      if (widget.location == null) {
+        try {
+          savedView = PdfViewState.fromJson(preferenceStore.pdfView(viewScope, book.id));
+        } on FormatException {
+          savedView = null;
+        }
+      }
+
       final preferences = ReaderBookAdapter.preferencesFor(
         context.read<PreferencesProvider>(),
         Theme.of(context).colorScheme,
+        pdf: format == ReaderFormat.pdf,
       );
 
       setState(() {
@@ -196,10 +219,23 @@ class _ReaderPageState extends State<ReaderPage> {
           title: book.title,
           author: book.author,
           loadBytes: () async => bytes,
+          initialPdfView: savedView,
+          onPdfViewChanged: (view) {
+            if (!session.isLocationVisit && dataStore.isBookRepositoryCurrent(repository)) {
+              unawaited(preferenceStore.savePdfView(viewScope, book!.id, view.toJson()));
+            }
+          },
+          onOpenLink: (uri) async {
+            if (!{'https', 'http', 'mailto'}.contains(uri.scheme.toLowerCase()) ||
+                !await launchUrl(uri, mode: LaunchMode.externalApplication)) {
+              throw StateError('This link could not be opened.');
+            }
+          },
         );
 
         _initialLocator = launchLocator;
         _initialPreferences = preferences;
+        _lastReaderPreferences = preferences;
         _session = session;
       });
     } catch (_) {
@@ -221,6 +257,7 @@ class _ReaderPageState extends State<ReaderPage> {
 
   @override
   void dispose() {
+    FocusManager.instance.removeEarlyKeyEventHandler(_observeScrollKey);
     _trackingStore?.removeListener(_scopeChanged);
     _finishTimer?.cancel();
     _lifecycle.dispose();
@@ -269,15 +306,64 @@ class _ReaderPageState extends State<ReaderPage> {
           initialLocator: _initialLocator,
           initialPreferences: preferences,
           builders: ReaderUiBuilders(
+            viewport: (_, viewport) => Listener(
+              onPointerDown: (event) {
+                _session?.clearScrollIntent();
+                _viewportPointers[event.pointer] = event.position;
+              },
+              onPointerMove: (event) {
+                final start = _viewportPointers[event.pointer];
+
+                if (_viewportPointers.length == 1 &&
+                    start != null &&
+                    (event.position.dy - start.dy).abs() > kTouchSlop) {
+                  _recordScrollIntent();
+                }
+              },
+              onPointerUp: (event) => _viewportPointers.remove(event.pointer),
+              onPointerCancel: (event) => _viewportPointers.remove(event.pointer),
+              onPointerSignal: (event) {
+                if (event is PointerScrollEvent && event.scrollDelta.dy != 0) {
+                  _recordScrollIntent();
+                }
+              },
+              onPointerPanZoomUpdate: (event) {
+                if (event.panDelta.dy != 0 && event.scale == 1) {
+                  _recordScrollIntent();
+                }
+              },
+              child: viewport.viewport,
+            ),
+            searchEmpty: (_) => const EmptyState.compact(
+              icon: Icons.search_off,
+              title: 'No results found',
+              subtitle: 'Try a different word or phrase.',
+            ),
             loading: (context, state) => const _ReaderLoading(),
-            tableOfContents: (context, panel) => ReaderLibraryPanel(library: _library!, panel: panel),
+            tableOfContents: (context, panel) => ReaderLibraryPanel(
+              library: _library!,
+              panel: panel,
+              onLocationVisit: _session!.beginLocationVisit,
+            ),
             toolbarActions: (context, state) => [
-              ReaderBookmarkButton(library: _library!, snapshot: state.snapshot, isBusy: state.isBusy),
-              IconButton(
-                tooltip: 'New note',
-                icon: const Icon(Icons.note_add_outlined),
-                onPressed: state.isBusy || !_library!.isCurrent ? null : () => _library!.addNote(context),
+              ReaderBookmarkButton(
+                library: _library!,
+                snapshot: state.snapshot,
+                isBusy: state.isBusy,
+                inMenu: state.actionsInMenu,
               ),
+              if (state.actionsInMenu)
+                MenuItemButton(
+                  leadingIcon: const Icon(Icons.note_add_outlined),
+                  onPressed: state.isBusy || !_library!.isCurrent ? null : () => _library!.addNote(context),
+                  child: const Text('New note'),
+                )
+              else
+                IconButton(
+                  tooltip: 'New note',
+                  icon: const Icon(Icons.note_add_outlined),
+                  onPressed: state.isBusy || !_library!.isCurrent ? null : () => _library!.addNote(context),
+                ),
             ],
             compactPanelRoute: (_, panel) =>
                 buildReaderPanelRoute(context, panel, bookTitle: book.title, showTitle: false),
@@ -285,7 +371,17 @@ class _ReaderPageState extends State<ReaderPage> {
           onLocatorChanged: _session!.updateLocator,
           onActivity: _onActivity,
           onPreferencesChanged: (updated) {
-            ReaderBookAdapter.persistPreferences(context.read<PreferencesProvider>(), updated);
+            if (_lastReaderPreferences == updated) {
+              return;
+            }
+
+            _lastReaderPreferences = updated;
+
+            ReaderBookAdapter.persistPreferences(
+              context.read<PreferencesProvider>(),
+              updated,
+              pdf: document.format == ReaderFormat.pdf,
+            );
           },
           onBack: _close,
         ),
@@ -293,10 +389,41 @@ class _ReaderPageState extends State<ReaderPage> {
     );
   }
 
-  void _onActivity(ReaderActivityEvent event) {
-    _tracker?.onActivity(event);
+  KeyEventResult _observeScrollKey(KeyEvent event) {
+    if (!mounted ||
+        event is KeyUpEvent ||
+        ModalRoute.of(context)?.isCurrent != true ||
+        !const [
+          LogicalKeyboardKey.arrowUp,
+          LogicalKeyboardKey.arrowDown,
+          LogicalKeyboardKey.pageUp,
+          LogicalKeyboardKey.pageDown,
+          LogicalKeyboardKey.space,
+        ].contains(event.logicalKey)) {
+      return KeyEventResult.ignored;
+    }
 
-    if (!event.atEnd || !event.visible || !event.ready) {
+    final focusContext = FocusManager.instance.primaryFocus?.context;
+
+    if (focusContext?.widget is! EditableText && focusContext?.findAncestorWidgetOfExactType<EditableText>() == null) {
+      _recordScrollIntent();
+    }
+
+    return KeyEventResult.ignored;
+  }
+
+  void _recordScrollIntent() {
+    if (_controller.preferences.layoutMode == ReaderLayoutMode.scroll &&
+        !HardwareKeyboard.instance.isControlPressed &&
+        !HardwareKeyboard.instance.isMetaPressed) {
+      _session?.recordScrollIntent();
+    }
+  }
+
+  void _onActivity(ReaderActivityEvent event) {
+    _session?.onActivity(event);
+
+    if (_session?.isLocationVisit == true || !event.atEnd || !event.visible || !event.ready) {
       _finishTimer?.cancel();
       _finishTimer = null;
 

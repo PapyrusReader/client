@@ -46,7 +46,7 @@ class ReadingActivityTracker {
   bool get _active =>
       !_disposed && _foreground && _event?.ready == true && _event?.visible == true && repository.isCurrent;
 
-  void onActivity(ReaderActivityEvent event) {
+  void onActivity(ReaderActivityEvent event, {bool savePosition = true}) {
     final wasActive = _active;
     final now = _now().toUtc();
     final key = jsonEncode(event.coverage.map((item) => [item.key, item.start, item.end, item.chapterCount]).toList());
@@ -67,7 +67,7 @@ class ReadingActivityTracker {
       _updateExposures(now);
     }
 
-    if (event.locator != null) {
+    if (savePosition && event.locator != null) {
       updateLocator(event.locator!);
     }
 

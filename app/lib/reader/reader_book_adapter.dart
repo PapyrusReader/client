@@ -113,7 +113,13 @@ final class ReaderBookAdapter {
     );
   }
 
-  static ReaderPreferences preferencesFor(PreferencesProvider preferences, ColorScheme colors) {
+  static ReaderPreferences preferencesFor(PreferencesProvider preferences, ColorScheme colors, {bool pdf = false}) {
+    final saved = pdf ? preferences.pdfReaderPreferences : const <String, Object?>{};
+    final columns = ReaderColumnMode.values.where((mode) => mode.name == saved['columns']).firstOrNull;
+    final background = saved['background'];
+    final foreground = saved['foreground'];
+    final dark = saved['dark'];
+
     return ReaderPreferences(
       fontFamily: preferences.defaultFont,
       fontSize: preferences.defaultFontSize,
@@ -127,15 +133,32 @@ final class ReaderBookAdapter {
         'large' => 40,
         _ => 24,
       }),
-      backgroundColor: colors.surface,
-      foregroundColor: colors.onSurface,
-      brightness: colors.brightness,
-      layoutMode: preferences.readingMode == 'scroll' ? ReaderLayoutMode.scroll : ReaderLayoutMode.paginated,
+      backgroundColor: background is int ? Color(background) : colors.surface,
+      foregroundColor: foreground is int ? Color(foreground) : colors.onSurface,
+      brightness: dark is bool ? (dark ? Brightness.dark : Brightness.light) : colors.brightness,
+      columnMode: columns ?? ReaderColumnMode.single,
+      layoutMode: (pdf ? saved['readingMode'] : preferences.readingMode) == 'scroll'
+          ? ReaderLayoutMode.scroll
+          : ReaderLayoutMode.paginated,
       pageTurnAnimation: preferences.pageTurnAnimation,
+      highlightLinks: saved['highlightLinks'] != false,
     );
   }
 
-  static void persistPreferences(PreferencesProvider target, ReaderPreferences preferences) {
+  static void persistPreferences(PreferencesProvider target, ReaderPreferences preferences, {bool pdf = false}) {
+    if (pdf) {
+      target.pdfReaderPreferences = {
+        'columns': preferences.columnMode.name,
+        'highlightLinks': preferences.highlightLinks,
+        'background': preferences.backgroundColor.toARGB32(),
+        'foreground': preferences.foregroundColor.toARGB32(),
+        'dark': preferences.brightness == Brightness.dark,
+        'readingMode': preferences.layoutMode == ReaderLayoutMode.scroll ? 'scroll' : 'paginated',
+      };
+
+      return;
+    }
+
     final fontFamily = preferences.fontFamily;
 
     if (fontFamily != null && target.defaultFont != fontFamily) {

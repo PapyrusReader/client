@@ -134,6 +134,50 @@ void main() {
       expect(preferences.brightness, Brightness.dark);
     });
 
+    test('PDF settings survive reopening without changing EPUB defaults', () async {
+      SharedPreferences.setMockInitialValues({'reading_mode': 'paginated'});
+      final provider = PreferencesProvider(await SharedPreferences.getInstance());
+      const changed = ReaderPreferences(
+        highlightLinks: false,
+        columnMode: ReaderColumnMode.double,
+        layoutMode: ReaderLayoutMode.scroll,
+        brightness: Brightness.dark,
+        backgroundColor: Color(0xff151719),
+        foregroundColor: Color(0xffece7de),
+      );
+      ReaderBookAdapter.persistPreferences(provider, changed, pdf: true);
+      final reopened = PreferencesProvider(await SharedPreferences.getInstance());
+      final colors = ColorScheme.fromSeed(seedColor: Colors.green);
+      final restored = ReaderBookAdapter.preferencesFor(reopened, colors, pdf: true);
+      expect(restored.highlightLinks, isFalse);
+      expect(ReaderBookAdapter.preferencesFor(reopened, colors).highlightLinks, isTrue);
+      expect(restored.columnMode, changed.columnMode);
+      expect(restored.layoutMode, changed.layoutMode);
+      expect(restored.brightness, changed.brightness);
+      expect(restored.backgroundColor, changed.backgroundColor);
+      expect(restored.foregroundColor, changed.foregroundColor);
+      expect(ReaderBookAdapter.preferencesFor(reopened, colors).layoutMode, ReaderLayoutMode.paginated);
+    });
+
+    test('PDF view state remains isolated by server, user and book', () async {
+      SharedPreferences.setMockInitialValues({});
+      final provider = PreferencesProvider(await SharedPreferences.getInstance());
+      final view = PdfViewState(
+        pageIndex: 2,
+        zoom: 1.37,
+        centerX: .4,
+        centerY: .6,
+        fitMode: PdfFitMode.custom,
+      ).toJson();
+      await provider.savePdfView('server-a/user-a', 'book', view);
+      final reopened = PreferencesProvider(await SharedPreferences.getInstance());
+      expect(reopened.pdfView('server-a/user-a', 'book'), view);
+      expect(reopened.pdfView('server-a/user-b', 'book'), isEmpty);
+      expect(reopened.pdfView('server-b/user-a', 'book'), isEmpty);
+      expect(reopened.pdfView('guest', 'book'), isEmpty);
+      expect(reopened.pdfView('server-a/user-a', 'another-book'), isEmpty);
+    });
+
     test('persists reader setting changes as application defaults', () async {
       SharedPreferences.setMockInitialValues({});
       final provider = PreferencesProvider(await SharedPreferences.getInstance());

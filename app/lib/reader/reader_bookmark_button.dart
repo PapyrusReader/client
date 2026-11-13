@@ -9,12 +9,14 @@ class ReaderBookmarkButton extends StatefulWidget {
     required this.snapshot,
     this.isBusy = false,
     this.floating = false,
+    this.inMenu = false,
   });
 
   final ReaderLibrary library;
   final ReaderSnapshot snapshot;
   final bool isBusy;
   final bool floating;
+  final bool inMenu;
 
   @override
   State<ReaderBookmarkButton> createState() => _ReaderBookmarkButtonState();
@@ -52,6 +54,14 @@ class _ReaderBookmarkButtonState extends State<ReaderBookmarkButton> {
         saved ? Icons.bookmark : Icons.bookmark_add_outlined,
         color: saved ? Theme.of(context).colorScheme.primary : null,
       );
+
+      if (widget.inMenu) {
+        return MenuItemButton(
+          leadingIcon: icon,
+          onPressed: enabled ? _toggle : null,
+          child: Text(label),
+        );
+      }
 
       return Semantics(
         selected: saved,

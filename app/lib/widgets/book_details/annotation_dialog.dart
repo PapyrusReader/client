@@ -3,6 +3,7 @@ import 'dart:async';
 
 import 'package:uuid/uuid.dart';
 import 'package:papyrus/widgets/shared/persistent_save.dart';
+import 'package:papyrus/widgets/shared/expandable_text_form_field.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:papyrus/models/annotation.dart';
@@ -57,6 +58,7 @@ class AnnotationDialog extends StatefulWidget {
 
 class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave<AnnotationDialog> {
   final _formKey = GlobalKey<FormState>();
+  late final _quoteScrollController = ScrollController();
   late final TextEditingController _textController;
   late final TextEditingController _pageController;
   late final TextEditingController _chapterController;
@@ -80,6 +82,7 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
 
   @override
   void dispose() {
+    _quoteScrollController.dispose();
     _textController.dispose();
     _pageController.dispose();
     _chapterController.dispose();
@@ -136,105 +139,132 @@ class _AnnotationDialogState extends State<AnnotationDialog> with PersistentSave
         onCancel: isSaving ? null : () => Navigator.of(context).pop(),
         onSave: isSaving ? null : _save,
       ),
-      body: Form(
-        key: _formKey,
-        child: ListView(
-          shrinkWrap: true,
-          padding: const EdgeInsets.all(Spacing.md),
-          children: [
-            // Highlighted text
-            TextFormField(
-              controller: _textController,
-              readOnly: _isAnchored,
-              decoration: const InputDecoration(
-                labelText: 'Highlighted text',
-                hintText: 'Enter the passage you highlighted...',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-              textCapitalization: TextCapitalization.sentences,
-              maxLines: 4,
-              autofocus: !_isEditing,
-              validator: (value) {
-                if (value == null || value.trim().isEmpty) {
-                  return 'Please enter the highlighted text';
-                }
-
-                return null;
-              },
-            ),
-            const SizedBox(height: Spacing.md),
-
-            if (!_isEditing && !_isAnchored) ...[
-              TextFormField(
-                controller: _pageController,
-                keyboardType: TextInputType.number,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(labelText: 'Page number', border: OutlineInputBorder()),
-                validator: (value) {
-                  if (value == null || value.trim().isEmpty) {
-                    return 'Please enter a page number';
-                  }
-
-                  final page = int.tryParse(value);
-
-                  if (page == null || page < 1) {
-                    return 'Enter a valid page number';
-                  }
-
-                  return null;
-                },
-              ),
-              const SizedBox(height: Spacing.md),
-
-              TextFormField(
-                controller: _chapterController,
-                decoration: const InputDecoration(labelText: 'Chapter title (optional)', border: OutlineInputBorder()),
-                textCapitalization: TextCapitalization.sentences,
-              ),
-              const SizedBox(height: Spacing.md),
-            ],
-
-            // Note (optional)
-            TextFormField(
-              controller: _noteController,
-              decoration: const InputDecoration(
-                labelText: 'Note (optional)',
-                hintText: 'Add your thoughts about this passage...',
-                border: OutlineInputBorder(),
-                alignLabelWithHint: true,
-              ),
-              textCapitalization: TextCapitalization.sentences,
-              maxLines: 3,
-            ),
-
-            const SizedBox(height: Spacing.md),
-
-            // Highlight color
-            Text('Highlight color', style: Theme.of(context).textTheme.titleSmall),
-            const SizedBox(height: Spacing.sm),
-            Wrap(
-              spacing: Spacing.sm,
-              children: HighlightColor.values.map((color) {
-                final isSelected = color == _selectedColor;
-
-                return GestureDetector(
-                  key: Key('annotation-color-${color.name}'),
-                  onTap: () => setState(() => _selectedColor = color),
-                  child: Container(
-                    width: 36,
-                    height: 36,
-                    decoration: BoxDecoration(
-                      color: color.color,
-                      shape: BoxShape.circle,
-                      border: isSelected ? Border.all(color: color.accentColor, width: 2) : null,
+      body: ScrollConfiguration(
+        behavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+        child: Form(
+          key: _formKey,
+          child: ListView(
+            shrinkWrap: true,
+            padding: const EdgeInsets.all(Spacing.md),
+            children: [
+              if (_isAnchored)
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text('Highlighted text', style: Theme.of(context).textTheme.titleSmall),
+                    const SizedBox(height: Spacing.sm),
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: ((MediaQuery.sizeOf(context).height - MediaQuery.viewInsetsOf(context).bottom) * .25)
+                            .clamp(0, 200),
+                      ),
+                      child: Scrollbar(
+                        controller: _quoteScrollController,
+                        thumbVisibility: true,
+                        child: SingleChildScrollView(
+                          key: const Key('annotation-quote-scroll'),
+                          controller: _quoteScrollController,
+                          primary: false,
+                          padding: const EdgeInsets.only(right: Spacing.md),
+                          child: SelectableText(
+                            _textController.text,
+                            style: Theme.of(context).textTheme.bodyLarge,
+                            scrollBehavior: ScrollConfiguration.of(context).copyWith(scrollbars: false),
+                          ),
+                        ),
+                      ),
                     ),
-                    child: isSelected ? Icon(Icons.check, color: color.accentColor, size: IconSizes.small) : null,
+                  ],
+                )
+              else
+                TextFormField(
+                  controller: _textController,
+                  decoration: const InputDecoration(
+                    labelText: 'Highlighted text',
+                    hintText: 'Enter the passage you highlighted...',
+                    border: OutlineInputBorder(),
+                    alignLabelWithHint: true,
                   ),
-                );
-              }).toList(),
-            ),
-          ],
+                  textCapitalization: TextCapitalization.sentences,
+                  maxLines: 4,
+                  autofocus: !_isEditing,
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter the highlighted text';
+                    }
+
+                    return null;
+                  },
+                ),
+              const SizedBox(height: Spacing.md),
+
+              if (!_isEditing && !_isAnchored) ...[
+                TextFormField(
+                  controller: _pageController,
+                  keyboardType: TextInputType.number,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(labelText: 'Page number', border: OutlineInputBorder()),
+                  validator: (value) {
+                    if (value == null || value.trim().isEmpty) {
+                      return 'Please enter a page number';
+                    }
+
+                    final page = int.tryParse(value);
+
+                    if (page == null || page < 1) {
+                      return 'Enter a valid page number';
+                    }
+
+                    return null;
+                  },
+                ),
+                const SizedBox(height: Spacing.md),
+
+                TextFormField(
+                  controller: _chapterController,
+                  decoration: const InputDecoration(
+                    labelText: 'Chapter title (optional)',
+                    border: OutlineInputBorder(),
+                  ),
+                  textCapitalization: TextCapitalization.sentences,
+                ),
+                const SizedBox(height: Spacing.md),
+              ],
+
+              ExpandableTextFormField(
+                controller: _noteController,
+                label: 'Note (optional)',
+                hint: 'Add your thoughts about this passage...',
+              ),
+
+              const SizedBox(height: Spacing.md),
+
+              // Highlight color
+              Text('Highlight color', style: Theme.of(context).textTheme.titleSmall),
+              const SizedBox(height: Spacing.sm),
+              Wrap(
+                spacing: Spacing.sm,
+                children: HighlightColor.values.map((color) {
+                  final isSelected = color == _selectedColor;
+
+                  return GestureDetector(
+                    key: Key('annotation-color-${color.name}'),
+                    onTap: () => setState(() => _selectedColor = color),
+                    child: Container(
+                      width: 36,
+                      height: 36,
+                      decoration: BoxDecoration(
+                        color: color.color,
+                        shape: BoxShape.circle,
+                        border: isSelected ? Border.all(color: color.accentColor, width: 2) : null,
+                      ),
+                      child: isSelected ? Icon(Icons.check, color: color.accentColor, size: IconSizes.small) : null,
+                    ),
+                  );
+                }).toList(),
+              ),
+            ],
+          ),
         ),
       ),
     );
