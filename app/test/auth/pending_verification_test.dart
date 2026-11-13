@@ -10,6 +10,28 @@ import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+// ignore: depend_on_referenced_packages
+import 'package:shared_preferences_platform_interface/shared_preferences_platform_interface.dart';
+
+class _DelayedPreferences extends InMemorySharedPreferencesStore {
+  _DelayedPreferences() : super.empty();
+
+  Completer<void>? gate;
+  final started = Completer<void>();
+
+  @override
+  Future<bool> setValue(String valueType, String key, Object value) async {
+    final pending = gate;
+    gate = null;
+
+    if (pending != null) {
+      started.complete();
+      await pending.future;
+    }
+
+    return super.setValue(valueType, key, value);
+  }
+}
 
 class MemoryStorage implements RefreshTokenStorage {
   String? value;
@@ -83,6 +105,91 @@ AuthRepository repository(
 
 void main() {
   setUp(() => SharedPreferences.setMockInitialValues({}));
+
+  for (final switchServer in [false, true]) {
+    test(
+      'logout during a delayed preferences write preserves the new ${switchServer ? 'server' : 'session'}',
+      () async {
+        final platform = _DelayedPreferences();
+        SharedPreferencesStorePlatform.instance = platform;
+        final storage = MemoryStorage();
+
+        Future<http.Response> handle(http.Request request) async {
+          if (request.url.path.endsWith('/logout')) {
+            return http.Response('', 204);
+          }
+
+          final email = jsonDecode(request.body)['email'] as String;
+          return response(tokens(user: email.split('@').first));
+        }
+
+        final repo = repository(handle, storage: storage);
+        final auth = AuthProvider(await SharedPreferences.getInstance(), repository: repo, bootstrapOnCreate: false);
+        addTearDown(auth.dispose);
+        expect(await auth.login(email: 'alice@example.com', password: 'password'), isTrue);
+        final releaseWrite = Completer<void>();
+        platform.gate = releaseWrite;
+        final logout = auth.signOut();
+        await platform.started.future;
+        final newStorage = switchServer ? MemoryStorage() : storage;
+
+        if (switchServer) {
+          await auth.replaceRepository(
+            repository(handle, storage: newStorage, server: 'two'),
+            bootstrapNewRepository: false,
+          );
+        }
+
+        expect(await auth.login(email: 'bob@example.com', password: 'password'), isTrue);
+        releaseWrite.complete();
+        await logout;
+        expect(auth.isSignedIn, isTrue);
+        expect(auth.user?.userId, 'bob');
+        expect(newStorage.value, 'refresh-bob');
+
+        if (switchServer) {
+          expect(storage.value, isNull);
+          expect(await repo.bootstrap(), isNull);
+        }
+      },
+    );
+  }
+
+  test('late authorization failure cannot sign out a newer session on the same server', () async {
+    final storage = MemoryStorage();
+    final repo = repository((request) async {
+      if (request.url.path.endsWith('/logout')) {
+        return http.Response('', 204);
+      }
+
+      expect(request.url.path.endsWith('/login'), isTrue);
+      final email = jsonDecode(request.body)['email'] as String;
+      return response(tokens(user: email.split('@').first));
+    }, storage: storage);
+
+    final auth = AuthProvider(await SharedPreferences.getInstance(), repository: repo, bootstrapOnCreate: false);
+    addTearDown(auth.dispose);
+    expect(await auth.login(email: 'alice@example.com', password: 'password'), isTrue);
+    final started = Completer<void>();
+    final result = Completer<String>();
+
+    final request = auth.withFreshAccessToken((token) {
+      expect(token, 'access-alice');
+      started.complete();
+      return result.future;
+    });
+
+    final rejected = expectLater(request, throwsA(isA<AuthApiException>()));
+    await started.future;
+    await auth.signOut();
+    expect(await auth.login(email: 'bob@example.com', password: 'password'), isTrue);
+    result.completeError(const AuthApiException(statusCode: 401, message: 'Old session expired'));
+    await rejected;
+    expect(auth.isSignedIn, isTrue);
+    expect(auth.user?.userId, 'bob');
+    expect(auth.error, isNull);
+    expect(storage.value, 'refresh-bob');
+  });
 
   test('cancelled bootstrap cannot refresh after a delayed secure-storage read', () async {
     final storage = MemoryStorage()
