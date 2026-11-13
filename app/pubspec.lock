@@ -544,8 +544,8 @@ packages:
     dependency: transitive
     description:
       path: "third_party/kindle_unpack"
-      ref: "2750338591a34275cdd8f6f23c40b316aea65c0a"
-      resolved-ref: "2750338591a34275cdd8f6f23c40b316aea65c0a"
+      ref: "2456b81131f83b802115066cdf65be6ac73d4699"
+      resolved-ref: "2456b81131f83b802115066cdf65be6ac73d4699"
       url: "https://github.com/PapyrusReader/reader.git"
     source: git
     version: "0.2.0"
@@ -721,8 +721,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "2750338591a34275cdd8f6f23c40b316aea65c0a"
-      resolved-ref: "2750338591a34275cdd8f6f23c40b316aea65c0a"
+      ref: "2456b81131f83b802115066cdf65be6ac73d4699"
+      resolved-ref: "2456b81131f83b802115066cdf65be6ac73d4699"
       url: "https://github.com/PapyrusReader/reader.git"
     source: git
     version: "0.0.1"

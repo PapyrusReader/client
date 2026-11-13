@@ -274,16 +274,16 @@ class AuthProvider extends ChangeNotifier {
     final repository = _repository;
     _user = null;
     _isOfflineMode = false;
-    await _prefs.setBool(_keyOfflineMode, false);
 
-    if (operation != _operation) {
-      return;
-    }
+    final cleanup = Future.wait([
+      repository.logout(),
+      _prefs.setBool(_keyOfflineMode, false),
+    ]);
 
     _setStatus(AuthStatus.signedOut);
 
     try {
-      await repository.logout();
+      await cleanup;
     } catch (error) {
       if (operation == _operation) {
         _recordError(error);
@@ -493,11 +493,15 @@ class AuthProvider extends ChangeNotifier {
 
   Future<T> withFreshAccessToken<T>(Future<T> Function(String accessToken) action) async {
     final repository = _repository;
+    final operation = _operation;
 
     try {
       return await repository.withFreshAccessToken(action);
     } catch (error) {
-      if (identical(repository, _repository) && error is AuthApiException && error.statusCode == 401) {
+      if (operation == _operation &&
+          identical(repository, _repository) &&
+          error is AuthApiException &&
+          error.statusCode == 401) {
         _user = null;
         _error = _messageFor(error);
         _setStatus(AuthStatus.signedOut);
