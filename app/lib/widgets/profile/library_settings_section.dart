@@ -59,11 +59,6 @@ class LibrarySettingsSection extends StatelessWidget {
           onTap: () => _showSortOrderPicker(context),
         ),
         SettingsRow(
-          label: 'Metadata source',
-          value: prefs.metadataSource,
-          onTap: () => _showMetadataSourcePicker(context),
-        ),
-        SettingsRow(
           label: 'Export format',
           value: prefs.annotationExportFormat,
           onTap: () => _showExportFormatPicker(context),
@@ -109,14 +104,6 @@ class LibrarySettingsSection extends StatelessWidget {
         SettingsCard(
           title: 'Data',
           children: [
-            _buildSegmentedField<String>(
-              context,
-              label: 'Metadata source',
-              value: prefs.metadataSource,
-              options: const {'Open Library': 'Open Library', 'Google Books': 'Google Books'},
-              onChanged: (value) => prefs.metadataSource = value,
-            ),
-            const SizedBox(height: Spacing.md),
             _buildDropdownField(
               context,
               label: 'Annotation export format',
@@ -222,18 +209,6 @@ class LibrarySettingsSection extends StatelessWidget {
       ],
       selected: prefs.defaultSortOrder,
       onSelected: (value) => prefs.defaultSortOrder = value,
-    );
-  }
-
-  void _showMetadataSourcePicker(BuildContext context) {
-    final prefs = context.read<PreferencesProvider>();
-
-    showProfilePickerSheet(
-      context,
-      title: 'Metadata source',
-      items: const [('Open Library', 'Open Library'), ('Google Books', 'Google Books')],
-      selected: prefs.metadataSource,
-      onSelected: (value) => prefs.metadataSource = value,
     );
   }
 

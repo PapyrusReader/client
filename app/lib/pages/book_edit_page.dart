@@ -1,3 +1,4 @@
+import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:go_router/go_router.dart';
@@ -11,9 +12,11 @@ import 'package:papyrus/powersync/powersync_service.dart';
 import 'package:papyrus/powersync/sync_state.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/book_edit_provider.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/services/book_import_service_stub.dart'
     if (dart.library.js_interop) 'package:papyrus/services/book_import_service.dart';
 import 'package:papyrus/services/metadata_service.dart';
+import 'package:papyrus/themes/card_shadow.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/image_utils.dart';
 import 'package:papyrus/widgets/book_edit/cover_image_picker.dart';
@@ -24,7 +27,7 @@ import 'package:papyrus/widgets/book_form/responsive_form_row.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
-import 'package:papyrus/widgets/shared/app_motion_control.dart';
+import 'package:papyrus/widgets/settings/settings_row.dart';
 
 /// Page for editing book metadata.
 class BookEditPage extends StatefulWidget {
@@ -48,6 +51,7 @@ class _BookEditPageState extends State<BookEditPage> {
 
   late BookEditProvider _provider;
   final _formKey = GlobalKey<FormState>();
+  final _metadataResultsKey = GlobalKey();
 
   // Text controllers
   final _titleController = TextEditingController();
@@ -73,7 +77,7 @@ class _BookEditPageState extends State<BookEditPage> {
   @override
   void initState() {
     super.initState();
-    _provider = BookEditProvider();
+    _provider = BookEditProvider(metadataService: context.read<MetadataService?>());
   }
 
   @override
@@ -345,10 +349,6 @@ class _BookEditPageState extends State<BookEditPage> {
       _buildPublicationSection(),
       _buildIdentifiersSection(),
       _buildSeriesSection(),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.xs),
-        child: _buildPhysicalBookSection(context, provider),
-      ),
       if (!skipMetadata)
         _buildFormSection(title: 'Fetch metadata', children: [_buildMetadataSection(context, provider)]),
     ];
@@ -392,6 +392,8 @@ class _BookEditPageState extends State<BookEditPage> {
         ),
         const SizedBox(height: Spacing.md),
         _buildRatingRow(context, provider),
+        const SizedBox(height: Spacing.sm),
+        _buildPhysicalBookSection(context, provider),
       ],
     );
   }
@@ -477,7 +479,7 @@ class _BookEditPageState extends State<BookEditPage> {
   Widget _buildFormSection({
     required String title,
     required List<Widget> children,
-    EdgeInsetsGeometry padding = const EdgeInsets.all(Spacing.md),
+    EdgeInsetsGeometry padding = const EdgeInsets.fromLTRB(Spacing.md, Spacing.xs, Spacing.md, Spacing.md),
   }) {
     return Padding(
       padding: padding.add(const EdgeInsets.only(bottom: Spacing.xs)),
@@ -531,16 +533,11 @@ class _BookEditPageState extends State<BookEditPage> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        AppMotionControl(
+        SettingsToggleRow(
+          label: 'Physical book',
           value: isPhysical,
-          builder: (focusNode) => SwitchListTile(
-            hoverColor: Colors.transparent,
-            focusNode: focusNode,
-            title: const Text('Physical book'),
-            value: isPhysical,
-            onChanged: (value) => _provider.updateIsPhysical(value),
-            contentPadding: EdgeInsets.zero,
-          ),
+          onChanged: _provider.updateIsPhysical,
+          padding: EdgeInsets.zero,
         ),
         if (isPhysical) ...[
           const SizedBox(height: Spacing.sm),
@@ -583,20 +580,6 @@ class _BookEditPageState extends State<BookEditPage> {
   Widget _buildMetadataSection(BuildContext context, BookEditProvider provider) {
     final colorScheme = Theme.of(context).colorScheme;
 
-    final sourceSelector = SegmentedButton<MetadataSource>(
-      segments: const [
-        ButtonSegment(value: MetadataSource.openLibrary, label: Text('Open Library')),
-        ButtonSegment(value: MetadataSource.googleBooks, label: Text('Google Books')),
-      ],
-      selected: {provider.selectedSource},
-      showSelectedIcon: false,
-      onSelectionChanged: (selection) {
-        provider.setMetadataSource(selection.first);
-      },
-      direction: MediaQuery.textScalerOf(context).scale(14) > 20 ? Axis.vertical : Axis.horizontal,
-      style: const ButtonStyle(minimumSize: WidgetStatePropertyAll(Size(48, 48))),
-    );
-
     final searchField = TextFormField(
       controller: _metadataSearchController,
       decoration: InputDecoration(
@@ -619,19 +602,9 @@ class _BookEditPageState extends State<BookEditPage> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         searchField,
-        const SizedBox(height: Spacing.md),
-        Wrap(
-          spacing: Spacing.md,
-          runSpacing: Spacing.sm,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            Text('Source', style: Theme.of(context).textTheme.bodySmall),
-            sourceSelector,
-          ],
-        ),
 
         // Error message
-        if (provider.fetchState == MetadataFetchState.error) ...[
+        if (provider.fetchState == MetadataFetchState.error && provider.fetchedResults.isEmpty) ...[
           const SizedBox(height: Spacing.md),
           Container(
             padding: const EdgeInsets.all(Spacing.md),
@@ -657,20 +630,88 @@ class _BookEditPageState extends State<BookEditPage> {
         // Results
         if (provider.fetchedResults.isNotEmpty) ...[
           const SizedBox(height: Spacing.md),
-          Text('${provider.fetchedResults.length} result(s)', style: Theme.of(context).textTheme.bodySmall),
+          Text(
+            _metadataResultsLabel(provider),
+            key: _metadataResultsKey,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
           const SizedBox(height: Spacing.sm),
           ...provider.fetchedResults.map((result) => _buildResultCard(context, result, provider)),
+          Wrap(
+            alignment: WrapAlignment.spaceBetween,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            spacing: Spacing.sm,
+            runSpacing: Spacing.xs,
+            children: [
+              TextButton.icon(
+                onPressed: !provider.isFetching && provider.hasPreviousMetadataPage
+                    ? () => _changeMetadataPage(provider, provider.metadataPage - 1)
+                    : null,
+                icon: const Icon(Icons.chevron_left),
+                label: const Text('Previous'),
+              ),
+              Semantics(
+                liveRegion: true,
+                child: Text(provider.isFetching ? 'Loading…' : 'Page ${provider.metadataPage}'),
+              ),
+              TextButton.icon(
+                onPressed: !provider.isFetching && provider.hasNextMetadataPage
+                    ? () => _changeMetadataPage(provider, provider.metadataPage + 1)
+                    : null,
+                icon: const Icon(Icons.chevron_right),
+                label: const Text('Next'),
+                iconAlignment: IconAlignment.end,
+              ),
+            ],
+          ),
+          if (provider.fetchError case final error?) ...[
+            const SizedBox(height: Spacing.sm),
+            Semantics(
+              liveRegion: true,
+              child: Text(error, style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.error)),
+            ),
+          ],
         ],
       ],
     );
+  }
+
+  String _metadataResultsLabel(BookEditProvider provider) {
+    final range = '${provider.metadataResultStart}–${provider.metadataResultEnd}';
+    final total = provider.metadataTotalResults;
+    return total == null ? 'Results $range' : 'Results $range of $total';
+  }
+
+  Future<void> _changeMetadataPage(BookEditProvider provider, int page) async {
+    await provider.loadMetadataPage(page);
+
+    if (!mounted || provider.metadataPage != page || provider.fetchState != MetadataFetchState.success) {
+      return;
+    }
+
+    await WidgetsBinding.instance.endOfFrame;
+
+    if (!mounted) {
+      return;
+    }
+
+    final resultsContext = _metadataResultsKey.currentContext;
+
+    if (resultsContext != null && resultsContext.mounted) {
+      await Scrollable.ensureVisible(
+        resultsContext,
+        duration: AppMotion.duration(context, const Duration(milliseconds: 150)),
+      );
+    }
   }
 
   Widget _buildResultCard(BuildContext context, BookMetadataResult result, BookEditProvider provider) {
     final colorScheme = Theme.of(context).colorScheme;
     final textTheme = Theme.of(context).textTheme;
 
-    return Card(
-      margin: const EdgeInsets.only(bottom: Spacing.sm),
+    final card = Card(
+      margin: EdgeInsets.zero,
+      elevation: 0,
       child: InkWell(
         onTap: () => _applyMetadata(provider, result),
         borderRadius: BorderRadius.circular(12),
@@ -690,11 +731,10 @@ class _BookEditPageState extends State<BookEditPage> {
                 child: result.coverUrl != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(4),
-                        child: Image.network(
-                          result.coverUrl!,
+                        child: CoverImage(
+                          imageUrl: result.coverUrl!,
                           fit: BoxFit.cover,
-                          errorBuilder: (_, e, s) =>
-                              Icon(Icons.menu_book, size: 20, color: colorScheme.onSurfaceVariant),
+                          placeholder: Icon(Icons.menu_book, size: 20, color: colorScheme.onSurfaceVariant),
                         ),
                       )
                     : Icon(Icons.menu_book, size: 20, color: colorScheme.onSurfaceVariant),
@@ -721,22 +761,16 @@ class _BookEditPageState extends State<BookEditPage> {
                       ),
                     ],
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: colorScheme.secondaryContainer,
-                            borderRadius: BorderRadius.circular(4),
-                          ),
-                          child: Text(
-                            result.sourceLabel,
-                            style: textTheme.labelSmall?.copyWith(color: colorScheme.onSecondaryContainer),
-                          ),
-                        ),
-                        const Spacer(),
-                        Text('Tap to apply', style: textTheme.labelSmall?.copyWith(color: colorScheme.primary)),
-                      ],
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: colorScheme.secondaryContainer,
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      child: Text(
+                        result.sourceLabel,
+                        style: textTheme.labelSmall?.copyWith(color: colorScheme.onSecondaryContainer),
+                      ),
                     ),
                   ],
                 ),
@@ -745,6 +779,12 @@ class _BookEditPageState extends State<BookEditPage> {
           ),
         ),
       ),
+    );
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: Spacing.sm),
+      decoration: CardShadow.decoration(context),
+      child: card,
     );
   }
 
@@ -757,10 +797,14 @@ class _BookEditPageState extends State<BookEditPage> {
 
     final cleanQuery = query.replaceAll(RegExp(r'[-\s]'), '');
 
+    final source = context.read<PreferencesProvider>().metadataSource == 'Google Books'
+        ? MetadataSource.googleBooks
+        : MetadataSource.openLibrary;
+
     if (RegExp(r'^[0-9X]{10,13}$').hasMatch(cleanQuery)) {
-      provider.searchMetadataByIsbn(query);
+      provider.searchMetadataByIsbn(query, source: source);
     } else {
-      provider.searchMetadata(query);
+      provider.searchMetadata(query, source: source);
     }
   }
 
@@ -788,11 +832,6 @@ class _BookEditPageState extends State<BookEditPage> {
         _coAuthors = List.from(book.coAuthors);
       });
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      snackBarAnimationStyle: AppMotion.animationStyle(context),
-      SnackBar(content: Text('Applied metadata from ${result.sourceLabel}'), behavior: SnackBarBehavior.floating),
-    );
   }
 
   Future<bool> _showDiscardDialog() async {
@@ -910,11 +949,6 @@ class _BookEditPageState extends State<BookEditPage> {
     if (!mounted || !context.mounted) {
       return;
     }
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      snackBarAnimationStyle: AppMotion.animationStyle(context),
-      const SnackBar(content: Text('Book updated'), behavior: SnackBarBehavior.floating),
-    );
 
     _navigateToBookDetails(context);
   }

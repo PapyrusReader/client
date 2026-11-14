@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/themes/card_overlay_colors.dart';
+import 'package:papyrus/themes/card_shadow.dart';
 import 'package:papyrus/widgets/library/acquisition_status_text.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
@@ -45,7 +46,7 @@ class _AcquisitionPlaceholderCardState extends State<AcquisitionPlaceholderCard>
     final semanticLabel = <String>[widget.job.title, status, ?details].join('. ');
     final hasInteraction = effectiveTap != null || effectiveLongPress != null;
 
-    return Semantics(
+    final card = Semantics(
       key: ValueKey('acquisition-placeholder-card-${widget.job.id}'),
       container: true,
       label: semanticLabel,
@@ -64,6 +65,7 @@ class _AcquisitionPlaceholderCardState extends State<AcquisitionPlaceholderCard>
                 child: Card(
                   // The collection owns page gutters and spacing between cards.
                   margin: EdgeInsets.zero,
+                  elevation: 0,
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     onTap: effectiveTap,
@@ -174,6 +176,8 @@ class _AcquisitionPlaceholderCardState extends State<AcquisitionPlaceholderCard>
         ],
       ),
     );
+
+    return DecoratedBox(decoration: CardShadow.decoration(context), child: card);
   }
 }
 

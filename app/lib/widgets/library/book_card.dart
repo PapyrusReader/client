@@ -5,6 +5,7 @@ import 'package:papyrus/providers/book_storage_status_controller.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/themes/card_overlay_colors.dart';
+import 'package:papyrus/themes/card_shadow.dart';
 import 'package:papyrus/utils/book_actions.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/library/acquisition_status_text.dart';
@@ -107,9 +108,9 @@ class _BookCardState extends State<BookCard> {
         child: Card(
           // The collection owns page gutters and spacing between cards.
           margin: EdgeInsets.zero,
+          elevation: 0,
           clipBehavior: Clip.antiAlias,
           color: isUnavailable ? colorScheme.surfaceContainerLow : null,
-          shadowColor: colorScheme.brightness == Brightness.dark ? colorScheme.outline : null,
           child: InkWell(
             onTap: effectiveTap,
             child: Column(
@@ -326,7 +327,10 @@ class _BookCardState extends State<BookCard> {
     final card = Focus(
       canRequestFocus: false,
       onFocusChange: (focused) => setState(() => _hasFocus = focused),
-      child: visualCard,
+      child: DecoratedBox(
+        decoration: CardShadow.decoration(context),
+        child: visualCard,
+      ),
     );
 
     final job = widget.acquisitionJob;

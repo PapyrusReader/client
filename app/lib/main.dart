@@ -1,3 +1,4 @@
+import 'package:papyrus/services/metadata_service.dart';
 import 'package:papyrus/services/reading_timer_notifications.dart';
 import 'package:papyrus/providers/reading_timer_provider.dart';
 import 'package:papyrus/folders/directory_access_factory.dart';
@@ -647,6 +648,40 @@ class _PapyrusState extends State<Papyrus> {
     }
   }
 
+  MetadataServer _metadataServer() {
+    final profileKey = _activeProfileKey;
+    final config = _syncSettingsProvider.activeApiConfig;
+
+    void requireActiveProfile() {
+      if (_switchingSyncProfile ||
+          profileKey != _activeProfileKey ||
+          profileKey != _syncSettingsProvider.activeProfileKey) {
+        throw const MetadataSearchException('The active server changed. Please search again.');
+      }
+    }
+
+    requireActiveProfile();
+
+    if (!_authProvider.isSignedIn) {
+      return MetadataServer(config: config);
+    }
+
+    return MetadataServer(
+      config: config,
+      authorize: (request) async {
+        requireActiveProfile();
+
+        final response = await _authProvider.withFreshAccessToken((token) {
+          requireActiveProfile();
+          return request(token);
+        });
+
+        requireActiveProfile();
+        return response;
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -660,6 +695,10 @@ class _PapyrusState extends State<Papyrus> {
         ChangeNotifierProvider.value(value: _bookStorageStatusController),
         Provider.value(value: _powerSyncService),
         Provider.value(value: _bookImportService),
+        Provider(
+          create: (_) => MetadataService(server: _metadataServer),
+          dispose: (_, service) => service.close(),
+        ),
         Provider(
           create: (_) => GuestAccountDeletionService(
             auth: _authProvider,

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:papyrus/themes/card_shadow.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 
@@ -44,9 +45,7 @@ class CoverImagePreview extends StatelessWidget {
       height: dimensions.height,
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(AppRadius.lg),
-        boxShadow: [
-          BoxShadow(color: colorScheme.shadow.withValues(alpha: 0.15), blurRadius: 8, offset: const Offset(0, 4)),
-        ],
+        boxShadow: CardShadow.shadows(context),
       ),
       child: ClipRRect(borderRadius: BorderRadius.circular(AppRadius.lg), child: _buildImage(context, colorScheme)),
     );

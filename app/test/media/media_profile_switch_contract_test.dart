@@ -3,6 +3,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/widgets.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
+import 'package:papyrus/services/metadata_service.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/auth/auth_models.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
@@ -115,6 +118,27 @@ class _Repository extends FakeAuthRepository {
   }
 }
 
+class _MetadataRepository extends _Repository {
+  _MetadataRepository(super.userId);
+
+  final token = Completer<String>();
+  final tokenRequested = Completer<void>();
+  bool delayToken = false;
+
+  @override
+  Future<T> withFreshAccessToken<T>(Future<T> Function(String accessToken) action) async {
+    if (!delayToken) {
+      return action('access');
+    }
+
+    if (!tokenRequested.isCompleted) {
+      tokenRequested.complete();
+    }
+
+    return action(await token.future);
+  }
+}
+
 class _Importer extends BookImportService {
   final reads = <MediaStorageScope>[];
   final promotions = <MediaStorageScope>[];
@@ -136,6 +160,65 @@ class _Importer extends BookImportService {
 }
 
 void main() {
+  testWidgets('metadata never sends a delayed token after switching servers', (tester) async {
+    SharedPreferences.setMockInitialValues({
+      'sync_custom_servers': jsonEncode([
+        {'id': 'other', 'url': 'https://other.test', 'label': 'Other', 'data_sync_url': 'https://sync.other.test'},
+      ]),
+    });
+
+    final prefs = await SharedPreferences.getInstance();
+    final database = _Database()..activation.complete();
+    final uploads = MediaUploadQueue(prefs);
+    final oldRepository = _MetadataRepository('alice');
+    final newRepository = _Repository('bob');
+    final requests = <http.Request>[];
+
+    final client = MockClient((request) async {
+      requests.add(request);
+      return http.Response('{"results":[]}', 200);
+    });
+
+    late MetadataService metadata;
+    late SyncSettingsProvider settings;
+
+    await http.runWithClient(
+      () => tester.pumpWidget(
+        Papyrus.withServices(
+          prefs: prefs,
+          repositoryFactory: (_, profile) => profile == 'official' ? oldRepository : newRepository,
+          database: database,
+          uploads: uploads,
+          importer: _Importer(),
+          child: Builder(
+            builder: (context) {
+              metadata = context.read<MetadataService>();
+              settings = context.read<SyncSettingsProvider>();
+              return const SizedBox.shrink();
+            },
+          ),
+        ),
+      ),
+      () => client,
+    );
+
+    await tester.pump();
+    oldRepository.delayToken = true;
+    final search = metadata.search('Alice', MetadataSource.googleBooks);
+    final rejected = expectLater(search, throwsA(isA<MetadataSearchException>()));
+    expect(oldRepository.tokenRequested.isCompleted, isTrue);
+    settings.selectServer('other');
+    await tester.pump();
+    oldRepository.token.complete('old-server-token');
+    await tester.pump();
+    await rejected;
+    expect(requests.where((request) => request.url.path.contains('/metadata/')), isEmpty);
+    expect(requests.where((request) => request.headers['authorization'] == 'Bearer old-server-token'), isEmpty);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    uploads.dispose();
+  });
+
   testWidgets('verification denial disconnects the account without clearing storage, and fresh sign-in reconnects', (
     tester,
   ) async {

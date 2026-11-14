@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
+import 'package:papyrus/themes/card_shadow.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
@@ -187,7 +188,7 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
           borderRadius: BorderRadius.circular(AppRadius.lg),
           // Desktop previews occupy the same image bounds as Book details.
           border: widget.isDesktop ? null : Border.all(color: colorScheme.outlineVariant),
-          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 8, offset: const Offset(0, 4))],
+          boxShadow: CardShadow.shadows(context),
         ),
         child: ClipRRect(borderRadius: BorderRadius.circular(AppRadius.lg), child: _buildCoverImage(context)),
       ),
@@ -238,17 +239,10 @@ class _CoverImagePickerState extends State<CoverImagePicker> {
       return Stack(
         fit: StackFit.expand,
         children: [
-          Image.network(
-            _imageUrl!,
+          CoverImage(
+            imageUrl: _imageUrl!,
             fit: BoxFit.cover,
-            errorBuilder: (_, e, s) => _buildPlaceholder(context),
-            loadingBuilder: (context, child, loadingProgress) {
-              if (loadingProgress == null) {
-                return child;
-              }
-
-              return const Center(child: AppCircularProgressIndicator());
-            },
+            placeholder: _buildPlaceholder(context),
           ),
           Positioned(top: 8, right: 8, child: _buildRemoveButton(context)),
         ],
