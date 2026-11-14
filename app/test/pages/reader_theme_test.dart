@@ -89,8 +89,16 @@ void main() {
           await tester.tap(option);
           await tester.pumpAndSettle();
           expect(controller.preferences.layoutMode, ReaderLayoutMode.scroll);
+
           // Page appearance changes must not recolor the app's controls.
-          await tester.tap(find.text(reading == Brightness.light ? 'Night' : 'Light'));
+          await controller.updatePreferences(
+            controller.preferences.copyWith(
+              brightness: reading == Brightness.light ? Brightness.dark : Brightness.light,
+              backgroundColor: reading == Brightness.light ? const Color(0xff151719) : const Color(0xffffffff),
+              foregroundColor: reading == Brightness.light ? const Color(0xffece7de) : const Color(0xff1b1b1b),
+            ),
+          );
+
           await tester.pumpAndSettle();
           await tester.tap(find.text('Single').first);
           await tester.pumpAndSettle();
