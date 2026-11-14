@@ -302,8 +302,15 @@ void _expectCardParity(WidgetTester tester, ThemeData theme) {
   expect(placeholderCard.shape, bookCard.shape);
   expect(placeholderMaterial.shape, bookMaterial.shape);
   expect(placeholderMaterial.elevation, bookMaterial.elevation);
-  expect(bookMaterial.elevation, theme.cardTheme.elevation);
-  expect(placeholderMaterial.elevation, theme.cardTheme.elevation);
+  expect(bookMaterial.elevation, 0);
+  expect(placeholderMaterial.elevation, 0);
+  final bookShadow = tester.widget<DecoratedBox>(
+    find.descendant(of: bookRoot, matching: find.byType(DecoratedBox)).first,
+  );
+  final placeholderShadow = tester.widget<DecoratedBox>(
+    find.descendant(of: placeholderRoot, matching: find.byType(DecoratedBox)).first,
+  );
+  expect(placeholderShadow.decoration, bookShadow.decoration);
   expect(placeholderMaterial.clipBehavior, bookMaterial.clipBehavior);
   expect(bookMargin.padding, EdgeInsets.zero);
   expect(placeholderMargin.padding, EdgeInsets.zero);

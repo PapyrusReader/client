@@ -1,5 +1,7 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:papyrus/auth/auth_api_client.dart';
+import 'package:papyrus/auth/papyrus_api_config.dart';
 
 /// Source for fetching book metadata.
 enum MetadataSource { openLibrary, googleBooks }
@@ -51,94 +53,131 @@ class BookMetadataResult {
   }
 }
 
+class MetadataSearchPage {
+  final List<BookMetadataResult> results;
+  final int? totalResults;
+
+  const MetadataSearchPage({required this.results, this.totalResults});
+}
+
+class MetadataSearchException implements Exception {
+  const MetadataSearchException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+typedef MetadataAuthorization = Future<http.Response> Function(Future<http.Response> Function(String token) request);
+
+class MetadataServer {
+  const MetadataServer({required this.config, this.authorize});
+
+  final PapyrusApiConfig config;
+  final MetadataAuthorization? authorize;
+}
+
 /// Service for fetching book metadata from external APIs.
 class MetadataService {
+  static const pageSize = 10;
   final http.Client _client;
+  final MetadataServer Function() _server;
 
-  MetadataService({http.Client? client}) : _client = client ?? http.Client();
+  MetadataService({http.Client? client, MetadataServer Function()? server})
+    : _client = client ?? http.Client(),
+      _server = server ?? (() => MetadataServer(config: PapyrusApiConfig.fromEnvironment()));
 
-  static Uri _openLibrarySearchUri(String query, {int limit = 10}) {
-    return Uri.parse('https://openlibrary.org/search.json?q=${Uri.encodeComponent(query)}&limit=$limit');
-  }
-
-  static Uri _openLibraryIsbnUri(String isbn, {int limit = 5}) {
-    return Uri.parse('https://openlibrary.org/search.json?isbn=$isbn&limit=$limit');
-  }
-
-  static Uri _googleBooksSearchUri(String query, {int limit = 10}) {
-    return Uri.parse('https://www.googleapis.com/books/v1/volumes?q=${Uri.encodeComponent(query)}&maxResults=$limit');
-  }
-
-  static Uri _googleBooksIsbnUri(String isbn, {int limit = 5}) {
-    return Uri.parse('https://www.googleapis.com/books/v1/volumes?q=isbn:$isbn&maxResults=$limit');
-  }
+  void close() => _client.close();
 
   static String _openLibraryCoverUrl(Object coverId) {
     return 'https://covers.openlibrary.org/b/id/$coverId-L.jpg';
   }
 
-  /// Search for books by query (title, author, or general search).
-  Future<List<BookMetadataResult>> search(String query, MetadataSource source) async {
-    if (query.trim().isEmpty) {
-      return [];
-    }
-
-    switch (source) {
-      case MetadataSource.openLibrary:
-        return _searchOpenLibrary(query);
-      case MetadataSource.googleBooks:
-        return _searchGoogleBooks(query);
-    }
+  Future<MetadataSearchPage> search(String query, MetadataSource source, {int page = 1}) {
+    return _search(query.trim(), source, page: page, isIsbn: false);
   }
 
-  /// Search for a book by ISBN.
-  Future<List<BookMetadataResult>> searchByIsbn(String isbn, MetadataSource source) async {
-    final cleanIsbn = isbn.replaceAll(RegExp(r'[-\s]'), '');
-
-    if (cleanIsbn.isEmpty) {
-      return [];
-    }
-
-    switch (source) {
-      case MetadataSource.openLibrary:
-        return _searchOpenLibraryByIsbn(cleanIsbn);
-      case MetadataSource.googleBooks:
-        return _searchGoogleBooksByIsbn(cleanIsbn);
-    }
+  Future<MetadataSearchPage> searchByIsbn(String isbn, MetadataSource source, {int page = 1}) {
+    return _search(isbn.replaceAll(RegExp(r'[-\s]'), ''), source, page: page, isIsbn: true);
   }
 
-  Future<List<BookMetadataResult>> _searchOpenLibrary(String query) async {
-    try {
-      final uri = _openLibrarySearchUri(query);
-      final response = await _client.get(uri);
+  Future<MetadataSearchPage> _search(
+    String query,
+    MetadataSource source, {
+    required int page,
+    required bool isIsbn,
+  }) async {
+    if (page < 1) {
+      throw RangeError.range(page, 1, null, 'page');
+    }
 
-      if (response.statusCode != 200) {
-        return [];
+    if (query.isEmpty) {
+      return const MetadataSearchPage(results: [], totalResults: 0);
+    }
+
+    if (source == MetadataSource.googleBooks) {
+      return _searchGoogleBooks(query, page: page, isIsbn: isIsbn);
+    }
+
+    final uri = Uri.https('openlibrary.org', '/search.json', {
+      isIsbn ? 'isbn' : 'q': query,
+      'limit': '$pageSize',
+      'offset': '${(page - 1) * pageSize}',
+    });
+
+    final response = await _client.get(uri).timeout(const Duration(seconds: 20));
+
+    if (response.statusCode != 200) {
+      throw http.ClientException('Metadata search failed (${response.statusCode})', uri);
+    }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final items = data['docs'] as List<dynamic>? ?? [];
+    final count = data['numFound'] ?? data['num_found'];
+    final results = items.map((item) => _parseOpenLibraryDoc(item as Map<String, dynamic>)).toList();
+    return MetadataSearchPage(results: results, totalResults: count is int && count >= 0 ? count : null);
+  }
+
+  Future<MetadataSearchPage> _searchGoogleBooks(String query, {required int page, required bool isIsbn}) async {
+    final server = _server();
+    final authorize = server.authorize;
+    final path = authorize == null ? '/metadata/google-books' : '/metadata/google-books/authenticated';
+    final uri = server.config.endpoint(path, {'q': query, 'page': '$page', 'isbn': '$isIsbn'});
+
+    Future<http.Response> request(String token) async {
+      final response = await _client.get(uri, headers: {'Authorization': 'Bearer $token'});
+
+      if (response.statusCode == 401) {
+        throw const AuthApiException(statusCode: 401, message: 'Sign in again to search Google Books.');
       }
 
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final docs = data['docs'] as List<dynamic>? ?? [];
-      return docs.map((document) => _parseOpenLibraryDoc(document)).toList();
-    } catch (error) {
-      return [];
+      return response;
     }
-  }
 
-  Future<List<BookMetadataResult>> _searchOpenLibraryByIsbn(String isbn) async {
-    try {
-      final uri = _openLibraryIsbnUri(isbn);
-      final response = await _client.get(uri);
+    final response = await (authorize == null ? _client.get(uri) : authorize(request)).timeout(
+      const Duration(seconds: 20),
+    );
 
-      if (response.statusCode != 200) {
-        return [];
-      }
+    if (response.statusCode != 200) {
+      final message = switch (response.statusCode) {
+        429 => 'Too many metadata searches. Please try again later.',
+        503 => 'Google Books is unavailable on this server. Try Open Library or retry later.',
+        404 => 'This server does not support Google Books searches yet. Try Open Library.',
+        401 || 403 => 'Sign in again to search Google Books.',
+        _ => 'Could not fetch Google Books metadata. Please try again.',
+      };
 
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final docs = data['docs'] as List<dynamic>? ?? [];
-      return docs.map((document) => _parseOpenLibraryDoc(document)).toList();
-    } catch (error) {
-      return [];
+      throw MetadataSearchException(message);
     }
+
+    final data = jsonDecode(response.body) as Map<String, dynamic>;
+    final items = data['results'] as List<dynamic>;
+
+    return MetadataSearchPage(
+      results: items.map((item) => _parseGoogleBooksResult(item as Map<String, dynamic>)).toList(),
+      totalResults: data['total_results'] as int?,
+    );
   }
 
   BookMetadataResult _parseOpenLibraryDoc(Map<String, dynamic> document) {
@@ -181,79 +220,20 @@ class MetadataService {
     );
   }
 
-  Future<List<BookMetadataResult>> _searchGoogleBooks(String query) async {
-    try {
-      final uri = _googleBooksSearchUri(query);
-      final response = await _client.get(uri);
-
-      if (response.statusCode != 200) {
-        return [];
-      }
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final items = data['items'] as List<dynamic>? ?? [];
-      return items.map((item) => _parseGoogleBooksItem(item)).toList();
-    } catch (error) {
-      return [];
-    }
-  }
-
-  Future<List<BookMetadataResult>> _searchGoogleBooksByIsbn(String isbn) async {
-    try {
-      final uri = _googleBooksIsbnUri(isbn);
-      final response = await _client.get(uri);
-
-      if (response.statusCode != 200) {
-        return [];
-      }
-
-      final data = jsonDecode(response.body) as Map<String, dynamic>;
-      final items = data['items'] as List<dynamic>? ?? [];
-      return items.map((item) => _parseGoogleBooksItem(item)).toList();
-    } catch (error) {
-      return [];
-    }
-  }
-
-  BookMetadataResult _parseGoogleBooksItem(Map<String, dynamic> item) {
-    final volumeInfo = item['volumeInfo'] as Map<String, dynamic>? ?? {};
-    String? coverUrl;
-    final imageLinks = volumeInfo['imageLinks'] as Map<String, dynamic>?;
-
-    if (imageLinks != null) {
-      coverUrl =
-          imageLinks['large'] as String? ?? imageLinks['medium'] as String? ?? imageLinks['thumbnail'] as String?;
-      coverUrl = coverUrl?.replaceFirst('http://', 'https://');
-    }
-
-    String? isbn;
-    String? isbn13;
-    final identifiers = volumeInfo['industryIdentifiers'] as List<dynamic>? ?? [];
-
-    for (final id in identifiers) {
-      final type = id['type'] as String?;
-      final identifier = id['identifier'] as String?;
-
-      if (type == 'ISBN_10') {
-        isbn = identifier;
-      } else if (type == 'ISBN_13') {
-        isbn13 = identifier;
-      }
-    }
-
+  BookMetadataResult _parseGoogleBooksResult(Map<String, dynamic> item) {
     return BookMetadataResult(
       source: MetadataSource.googleBooks,
-      title: volumeInfo['title'] as String?,
-      subtitle: volumeInfo['subtitle'] as String?,
-      authors: (volumeInfo['authors'] as List<dynamic>?)?.cast<String>(),
-      publisher: volumeInfo['publisher'] as String?,
-      publishedDate: volumeInfo['publishedDate'] as String?,
-      description: volumeInfo['description'] as String?,
-      coverUrl: coverUrl,
-      language: volumeInfo['language'] as String?,
-      isbn: isbn,
-      isbn13: isbn13,
-      pageCount: volumeInfo['pageCount'] as int?,
+      title: item['title'] as String?,
+      subtitle: item['subtitle'] as String?,
+      authors: (item['authors'] as List<dynamic>?)?.cast<String>(),
+      publisher: item['publisher'] as String?,
+      publishedDate: item['published_date'] as String?,
+      description: item['description'] as String?,
+      coverUrl: item['cover_url'] as String?,
+      language: item['language'] as String?,
+      isbn: item['isbn'] as String?,
+      isbn13: item['isbn13'] as String?,
+      pageCount: item['page_count'] as int?,
     );
   }
 }

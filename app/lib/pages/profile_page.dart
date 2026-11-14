@@ -11,12 +11,14 @@ import 'package:papyrus/widgets/profile/about_settings_section.dart';
 import 'package:papyrus/widgets/profile/accessibility_settings_section.dart';
 import 'package:papyrus/widgets/profile/account_settings_section.dart';
 import 'package:papyrus/widgets/profile/appearance_settings_section.dart';
+import 'package:papyrus/widgets/profile/metadata_settings_section.dart';
 import 'package:papyrus/widgets/profile/storage_sync_settings_section.dart';
 import 'package:provider/provider.dart';
 
 enum ProfileSection {
   account('account', 'Account', Icons.person_outline),
   appearance('appearance', 'Appearance', Icons.palette_outlined),
+  library('library', 'Library', Icons.local_library_outlined),
   storageSync('storage', 'Storage', Icons.cloud_outlined),
   accessibility('accessibility', 'Accessibility', Icons.accessibility_outlined),
   about('about', 'About', Icons.info_outline);
@@ -81,6 +83,7 @@ class _ProfilePageState extends State<ProfilePage> {
             ),
             _buildMobileItem(context, ProfileSection.accessibility, subtitle: 'Text size, contrast, motion'),
             const Divider(height: Spacing.lg),
+            _buildMobileItem(context, ProfileSection.library, subtitle: preferences.metadataSource),
             _buildMobileItem(
               context,
               ProfileSection.storageSync,
@@ -176,6 +179,12 @@ class _ProfilePageState extends State<ProfilePage> {
                     icon: Icons.palette_outlined,
                     label: 'Appearance',
                     section: ProfileSection.appearance,
+                  ),
+                  _buildNavItem(
+                    context,
+                    icon: Icons.local_library_outlined,
+                    label: 'Library',
+                    section: ProfileSection.library,
                   ),
                   _buildNavItem(
                     context,
@@ -313,6 +322,7 @@ class _ProfilePageState extends State<ProfilePage> {
     return switch (_selectedSection) {
       ProfileSection.account => AccountSettingsSection(isDesktop: isDesktop, showHeader: false),
       ProfileSection.appearance => AppearanceSettingsSection(isDesktop: isDesktop, showHeader: false),
+      ProfileSection.library => MetadataSettingsSection(isDesktop: isDesktop),
       ProfileSection.storageSync => StorageSyncSettingsSection(isDesktop: isDesktop, showHeader: false),
       ProfileSection.accessibility => AccessibilitySettingsSection(isDesktop: isDesktop, showHeader: false),
       ProfileSection.about => AboutSettingsSection(isDesktop: isDesktop, showHeader: false),

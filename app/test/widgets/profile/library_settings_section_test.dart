@@ -35,7 +35,6 @@ void main() {
       expect(find.text('Library'), findsOneWidget);
       expect(find.text('Default view'), findsOneWidget);
       expect(find.text('Default sort'), findsOneWidget);
-      expect(find.text('Metadata source'), findsOneWidget);
       expect(find.text('Export format'), findsOneWidget);
     });
 
@@ -45,7 +44,6 @@ void main() {
       expect(find.text('Default view mode'), findsOneWidget);
       expect(find.text('Default sort order'), findsOneWidget);
       expect(find.text('Data'), findsOneWidget);
-      expect(find.text('Metadata source'), findsOneWidget);
       expect(find.text('Annotation export format'), findsOneWidget);
     });
   });

@@ -177,6 +177,7 @@ void main() {
       for (final (title, control) in [
         ('Account', 'Change password'),
         ('Appearance', 'Theme'),
+        ('Library', 'Search source'),
         ('Storage', 'Clear local library'),
         ('Accessibility', 'Reduce animations'),
         ('About', 'Version'),
@@ -220,6 +221,50 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Dark'), findsOneWidget);
     });
+
+    for (final screenSize in [const Size(400, 900), const Size(1280, 900)]) {
+      testWidgets('metadata source persists across reopening Settings at ${screenSize.width}px', (tester) async {
+        await tester.binding.setSurfaceSize(screenSize);
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+        await tester.pumpWidget(buildApp(screenSize: screenSize));
+        await tester.pumpAndSettle();
+        final isDesktop = screenSize.width > 1000;
+
+        Future<void> openLibrary() async {
+          final item = isDesktop ? find.widgetWithText(InkWell, 'Library') : find.widgetWithText(ListTile, 'Library');
+          await tester.ensureVisible(item);
+          await tester.tap(item);
+          await tester.pumpAndSettle();
+        }
+
+        await openLibrary();
+        await tester.tap(find.widgetWithText(SettingsRow, 'Search source'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Google Books'));
+        await tester.pumpAndSettle();
+        await prefs.reload();
+        final restored = PreferencesProvider(prefs);
+        expect(restored.metadataSource, 'Google Books');
+        restored.dispose();
+
+        if (isDesktop) {
+          await tester.tap(find.widgetWithText(InkWell, 'Appearance'));
+        } else {
+          await tester.tap(find.byType(BackButton));
+        }
+
+        await tester.pumpAndSettle();
+        await openLibrary();
+        expect(tester.widget<SettingsRow>(find.widgetWithText(SettingsRow, 'Search source')).value, 'Google Books');
+        await tester.tap(find.widgetWithText(SettingsRow, 'Search source'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('Open Library'));
+        await tester.pumpAndSettle();
+        await prefs.reload();
+        expect(prefsProvider.metadataSource, 'Open Library');
+        expect(tester.takeException(), isNull);
+      });
+    }
 
     testWidgets('narrow mobile with enlarged text retains index scroll position on Back', (tester) async {
       const size = Size(320, 568);
@@ -304,6 +349,7 @@ void main() {
         final labels = [
           'Account',
           'Appearance',
+          'Library',
           'Storage',
           'Accessibility',
           'About',
@@ -359,7 +405,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('System default'), findsOneWidget);
 
-      for (final label in ['Reading', 'Library', 'Developer options']) {
+      for (final label in ['Reading', 'Developer options']) {
         expect(find.text(label), findsNothing);
       }
 

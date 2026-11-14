@@ -94,13 +94,27 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
   DateTime? _lentAt;
   Uint8List? _coverImageBytes;
 
-  final _metadataService = MetadataService();
+  late final MetadataService _metadataService;
+  bool _ownsMetadataService = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final service = context.read<MetadataService?>();
+    _ownsMetadataService = service == null;
+    _metadataService = service ?? MetadataService();
+  }
+
   _IsbnLookupState _lookupState = _IsbnLookupState.idle;
   String? _lookupMessage;
   String? _coverUrl;
 
   @override
   void dispose() {
+    if (_ownsMetadataService) {
+      _metadataService.close();
+    }
+
     _titleController.dispose();
     _authorController.dispose();
     _subtitleController.dispose();
@@ -141,12 +155,17 @@ class _PhysicalBookContentState extends State<_PhysicalBookContent> {
     });
 
     try {
-      // Try Open Library first
-      var results = await _metadataService.searchByIsbn(isbn.trim(), MetadataSource.openLibrary);
+      List<BookMetadataResult> results;
+
+      try {
+        results = (await _metadataService.searchByIsbn(isbn.trim(), MetadataSource.openLibrary)).results;
+      } catch (error) {
+        results = [];
+      }
 
       // Fall back to Google Books
       if (results.isEmpty) {
-        results = await _metadataService.searchByIsbn(isbn.trim(), MetadataSource.googleBooks);
+        results = (await _metadataService.searchByIsbn(isbn.trim(), MetadataSource.googleBooks)).results;
       }
 
       if (!mounted) {

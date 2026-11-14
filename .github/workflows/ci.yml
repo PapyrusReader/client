@@ -157,6 +157,9 @@ jobs:
           flutter test --platform chrome --file-reporter json:build/test-results/browser.json \
             test/services/book_cover_storage_web_test.dart test/platform/book_import_drop_registration_web_test.dart
 
+      - name: Check public covers without CORS headers
+        run: python3 ../tools/test_public_covers.py
+
       - name: Summarize browser test durations
         if: ${{ !cancelled() && hashFiles('app/build/test-results/browser.json') != '' }}
         run: python3 ../.github/scripts/summarize_test_timing.py build/test-results/browser.json >> "$GITHUB_STEP_SUMMARY"
