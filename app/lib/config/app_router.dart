@@ -38,9 +38,12 @@ import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
+import 'package:papyrus/updates/update_controller.dart';
+import 'package:papyrus/updates/update_settings.dart';
 
 class AppRouter {
   final AuthProvider authProvider;
+  final UpdateController updateController;
   final PreferencesProvider preferencesProvider;
   final SyncSettingsProvider syncSettingsProvider;
   final AcquisitionAvailabilityProvider acquisitionAvailabilityProvider;
@@ -49,6 +52,7 @@ class AppRouter {
 
   AppRouter({
     required this.authProvider,
+    required this.updateController,
     required this.preferencesProvider,
     required this.syncSettingsProvider,
     required this.acquisitionAvailabilityProvider,
@@ -67,7 +71,7 @@ class AppRouter {
       syncSettingsProvider,
       acquisitionAvailabilityProvider,
     ]),
-    routes: [
+    routes: _withUpdateNotice([
       GoRoute(
         path: '/verify-email',
         pageBuilder: (context, state) => NoTransitionPage(
@@ -337,11 +341,21 @@ class AppRouter {
             ),
         ],
       ),
-    ],
+    ]),
     redirect: (BuildContext context, GoRouterState state) {
       return redirectForPath(state.uri.toString());
     },
   );
+
+  List<RouteBase> _withUpdateNotice(List<RouteBase> routes) => [
+    ShellRoute(
+      pageBuilder: (context, state, child) => NoTransitionPage(
+        key: state.pageKey,
+        child: UpdateNotice(controller: updateController, router: router, child: child),
+      ),
+      routes: routes,
+    ),
+  ];
 
   String? redirectForPath(String destination) {
     var uri = Uri.parse(destination);

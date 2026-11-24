@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:papyrus/services/app_info.dart';
@@ -21,7 +22,7 @@ enum UpdateStatus {
   installFailed,
 }
 
-class UpdateController extends ChangeNotifier {
+class UpdateController extends ChangeNotifier with WidgetsBindingObserver {
   static const checkFailureMessage = 'Could not check for updates. Try again.';
 
   final SharedPreferences preferences;
@@ -42,6 +43,14 @@ class UpdateController extends ChangeNotifier {
   String message = 'Check for a newer version of Papyrus.';
   Timer? _timer;
   bool _disposed = false;
+  bool _started = false;
+  bool _noticeVisible = false;
+  int _noticeRevision = 0;
+  int? _currentBuild;
+  int? _offeredBuild;
+  int? _dismissedBuild;
+  Future<void>? _initialization;
+  final bool backgroundEnabled;
 
   UpdateController({
     required this.preferences,
@@ -50,6 +59,7 @@ class UpdateController extends ChangeNotifier {
     this.playCheck = platform.checkPlayUpdate,
     this.manifest = fetchManifest,
     this.installer = platform.installUpdate,
+    this.backgroundEnabled = kReleaseMode,
   });
 
   DateTime? get lastChecked {
@@ -57,18 +67,134 @@ class UpdateController extends ChangeNotifier {
     return timestamp == null ? null : DateTime.fromMillisecondsSinceEpoch(timestamp);
   }
 
+  bool get supported => channel != UpdateChannel.web && (channel != null || !kIsWeb);
   bool get automatic => preferences.getBool('updates.automatic') ?? true;
   bool get external => channel == UpdateChannel.apt || channel == UpdateChannel.manual;
+  bool get skipped => _offeredBuild != null && preferences.getInt('updates.skippedBuild') == _offeredBuild;
+  bool get showNotice => supported && available && _noticeVisible;
+
+  void dismissNotice() {
+    _noticeVisible = false;
+    _noticeRevision++;
+    _dismissedBuild = _offeredBuild;
+    _notify();
+  }
+
+  Future<void> setSkipVersion(bool value) async {
+    final build = _offeredBuild;
+
+    if (!available || build == null || busy || staged) {
+      return;
+    }
+
+    if (value) {
+      await preferences.setInt('updates.skippedBuild', build);
+    } else {
+      await preferences.remove('updates.skippedBuild');
+    }
+
+    _notify();
+  }
 
   void setViewingSettings(bool value) {
+    if (value && !viewingSettings) {
+      _noticeRevision++;
+    }
+
     viewingSettings = value;
     _notify();
   }
 
   void start() {
-    if (kReleaseMode) {
-      unawaited(_backgroundCheck());
+    if (_started || _disposed || !supported) {
+      return;
+    }
+
+    _started = true;
+    WidgetsBinding.instance.addObserver(this);
+    unawaited(_start());
+  }
+
+  Future<void> _start() async {
+    final noticeRevision = _noticeRevision;
+    await initialize();
+
+    if (_disposed || !supported) {
+      return;
+    }
+
+    _offerNotice(noticeRevision);
+    _notify();
+
+    if (!backgroundEnabled) {
+      return;
+    }
+
+    await _backgroundCheck(startup: true);
+
+    if (!_disposed) {
       _timer = Timer.periodic(const Duration(hours: 1), (_) => unawaited(_backgroundCheck()));
+    }
+  }
+
+  Future<void> initialize() => _initialization ??= _restore();
+
+  Future<void> _restore() async {
+    try {
+      channel = await channelProvider();
+
+      if (!supported) {
+        return;
+      }
+
+      final info = await appInfo();
+      final currentBuild = int.parse(info.buildNumber);
+      _currentBuild = currentBuild;
+      final cached = preferences.getString('updates.known');
+
+      if (cached == null) {
+        return;
+      }
+
+      final data = jsonDecode(cached) as Map<String, dynamic>;
+      if (currentBuild < 1 || data['channel'] != channel!.name || (data['build'] as int) <= currentBuild) {
+        await preferences.remove('updates.known');
+        return;
+      }
+
+      if (channel != UpdateChannel.play) {
+        release = UpdateRelease.fromJson(data['release'] as Map<String, dynamic>);
+
+        if (release!.buildNumber != data['build']) {
+          throw const FormatException('Invalid cached update');
+        }
+
+        if (!external) {
+          release!.asset(_assetKey);
+        }
+      }
+
+      _offeredBuild = data['build'] as int;
+      available = true;
+      status = UpdateStatus.available;
+      message = 'A newer version of Papyrus is available.';
+    } catch (_) {
+      release = null;
+      await preferences.remove('updates.known');
+    } finally {
+      _notify();
+    }
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && backgroundEnabled && supported) {
+      // Returning from an installer or permission screen must refresh eligibility.
+      if (status == UpdateStatus.handedOff) {
+        unawaited(check());
+      } else {
+        unawaited(_backgroundCheck());
+      }
     }
   }
 
@@ -77,20 +203,34 @@ class UpdateController extends ChangeNotifier {
     _notify();
   }
 
-  Future<void> _backgroundCheck() async {
+  Future<void> _backgroundCheck({bool startup = false}) async {
     final lastCheck = preferences.getInt('updates.lastCheck') ?? 0;
+    final checkedBuild = preferences.getInt('updates.checkedBuild');
+    final elapsed = DateTime.now().millisecondsSinceEpoch - lastCheck;
+    final recentlyChecked =
+        checkedBuild != null &&
+        checkedBuild == _currentBuild &&
+        elapsed >= 0 &&
+        elapsed < const Duration(days: 1).inMilliseconds;
 
-    if (viewingSettings ||
-        !automatic ||
-        DateTime.now().millisecondsSinceEpoch - lastCheck < const Duration(days: 1).inMilliseconds) {
+    if (!supported || viewingSettings || !automatic || (!startup && recentlyChecked)) {
       return;
     }
 
-    await check();
+    await check(notifyUser: true);
   }
 
-  Future<void> check() async {
-    if (busy || staged || _disposed) {
+  void _offerNotice(int revision) {
+    if (revision == _noticeRevision && !viewingSettings && available && !skipped && _offeredBuild != _dismissedBuild) {
+      _noticeVisible = true;
+    }
+  }
+
+  Future<void> check({bool notifyUser = false}) async {
+    final noticeRevision = _noticeRevision;
+    await initialize();
+
+    if (!supported || busy || staged || _disposed) {
       return;
     }
 
@@ -102,8 +242,9 @@ class UpdateController extends ChangeNotifier {
     try {
       channel = await channelProvider();
       final info = await appInfo();
-      final compiledBuild = const int.fromEnvironment('PAPYRUS_BUILD_NUMBER');
-      final currentBuild = kIsWeb && compiledBuild > 0 ? compiledBuild : int.tryParse(info.buildNumber);
+      final currentBuild = int.tryParse(info.buildNumber);
+      int? offeredBuild;
+      Map<String, dynamic>? offeredRelease;
 
       if (currentBuild == null || currentBuild < 1) {
         throw const FormatException('Installed build number is unavailable');
@@ -112,22 +253,46 @@ class UpdateController extends ChangeNotifier {
       if (channel == UpdateChannel.play) {
         final build = await playCheck();
         available = build != null && build > currentBuild;
+        offeredBuild = build;
       } else {
         final data = await manifest();
-        release = UpdateRelease.fromJson({...data, 'assets': data['assets'] ?? <String, dynamic>{}});
-        available = release!.buildNumber > currentBuild;
+        offeredRelease = {...data, 'assets': data['assets'] ?? <String, dynamic>{}};
+        final candidate = UpdateRelease.fromJson(offeredRelease);
 
-        if (available && !external && channel != UpdateChannel.web) {
-          release!.asset(_assetKey);
+        if (candidate.buildNumber > currentBuild && !external) {
+          candidate.asset(_assetKey);
         }
+
+        release = candidate;
+        offeredBuild = candidate.buildNumber;
+        available = release!.buildNumber > currentBuild;
+      }
+
+      _offeredBuild = available ? offeredBuild : null;
+
+      if (available) {
+        await preferences.setString(
+          'updates.known',
+          jsonEncode({
+            'channel': channel!.name,
+            'build': offeredBuild,
+            'release': ?offeredRelease,
+          }),
+        );
+      } else {
+        _noticeVisible = false;
+        await preferences.remove('updates.known');
+      }
+
+      if (notifyUser) {
+        _offerNotice(noticeRevision);
       }
 
       status = available ? UpdateStatus.available : UpdateStatus.upToDate;
       message = available ? 'A newer version of Papyrus is available.' : 'Papyrus is up to date.';
+      await preferences.setInt('updates.checkedBuild', currentBuild);
       await preferences.setInt('updates.lastCheck', DateTime.now().millisecondsSinceEpoch);
     } catch (_) {
-      available = false;
-      release = null;
       message = checkFailureMessage;
       status = UpdateStatus.checkFailed;
     } finally {
@@ -145,7 +310,7 @@ class UpdateController extends ChangeNotifier {
   };
 
   Future<void> install() async {
-    if (busy || !available || staged || external || _disposed) {
+    if (!supported || busy || !available || staged || external || _disposed) {
       return;
     }
 
@@ -156,7 +321,7 @@ class UpdateController extends ChangeNotifier {
     _notify();
 
     try {
-      final asset = channel == UpdateChannel.play || channel == UpdateChannel.web ? null : release!.asset(_assetKey);
+      final asset = channel == UpdateChannel.play ? null : release!.asset(_assetKey);
 
       var previousPercent = -1;
 
@@ -169,12 +334,21 @@ class UpdateController extends ChangeNotifier {
 
         previousPercent = percent;
         progress = value;
-        message = value == null ? 'Downloading update…' : 'Downloading update: ${(value * 100).floor()}%';
+
+        if (value == 1 && channel == UpdateChannel.windows) {
+          message = 'Installing…';
+        } else {
+          message = value == null ? 'Downloading update…' : 'Downloading update: ${(value * 100).floor()}%';
+        }
+
         _notify();
       });
 
       staged = channel == UpdateChannel.windows || channel == UpdateChannel.appImage;
       status = staged ? UpdateStatus.staged : UpdateStatus.handedOff;
+    } on UpdateInstallException catch (error) {
+      message = error.message;
+      status = UpdateStatus.installFailed;
     } catch (_) {
       message = 'Could not finish the update. Please try again.';
       status = UpdateStatus.installFailed;
@@ -195,6 +369,11 @@ class UpdateController extends ChangeNotifier {
   void dispose() {
     _disposed = true;
     _timer?.cancel();
+
+    if (_started) {
+      WidgetsBinding.instance.removeObserver(this);
+    }
+
     super.dispose();
   }
 

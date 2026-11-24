@@ -27,15 +27,19 @@ switch sources without first exporting any local-only books and data.
 
 Open https://app.papyrus-reader.com. Web releases deploy automatically after
 GitHub publication. `/release.json` identifies the running release. Browser
-storage, offline libraries and accounts are not cleared by deployment.
+storage, offline libraries and accounts are not cleared by deployment. No native
+update notification is shown on web. Close all Papyrus tabs and reopen the site
+to let a downloaded offline web release activate.
 
 ## Windows x64
 
 Download `papyrus-vVERSION+BUILD-windows-x64-setup.exe` and run it as your normal
 user. It installs under your user profile, adds a Start menu shortcut and can
-upgrade an existing installation. For future releases, use About → App updates. Once downloaded, close Papyrus
-normally to install the update and reopen the app. Older builds need one manual
-upgrade to acquire the updater.
+upgrade an existing installation. For future releases, use About → App updates.
+Papyrus downloads and verifies the installer, then opens Windows Setup. Follow
+Setup and close Papyrus when it asks. Cancelled or failed installations remain
+available to retry. Older builds with the previous updater need a manual upgrade
+using the installer from the release page.
 Setup offers an optional desktop shortcut, unchecked on a fresh installation.
 
 The installer is unsigned: Windows may show an unknown-publisher/SmartScreen

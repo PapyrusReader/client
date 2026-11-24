@@ -20,6 +20,7 @@ import 'package:papyrus/auth/auth_repository.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/config/app_router.dart';
+import 'package:papyrus/updates/update_controller.dart';
 import 'package:papyrus/pages/login_page.dart';
 import 'package:papyrus/pages/welcome_page.dart';
 import 'package:papyrus/providers/acquisition_availability_provider.dart';
@@ -248,6 +249,7 @@ void main() {
         );
 
         final appRouter = AppRouter(
+          updateController: _updates(prefs),
           authProvider: auth,
           preferencesProvider: preferences,
           syncSettingsProvider: sync,
@@ -440,6 +442,7 @@ void main() {
     await provider.bootstrap();
 
     final appRouter = AppRouter(
+      updateController: _updates(prefs),
       authProvider: provider,
       preferencesProvider: preferences,
       syncSettingsProvider: syncSettings,
@@ -458,6 +461,7 @@ Future<AppRouter> _buildRouter({required AuthProvider authProvider, required Sha
   final syncSettings = _syncSettings(prefs);
 
   return AppRouter(
+    updateController: _updates(prefs),
     authProvider: authProvider,
     preferencesProvider: PreferencesProvider(prefs),
     syncSettingsProvider: syncSettings,
@@ -494,4 +498,10 @@ AuthTokens _tokens() {
       lastLoginAt: null,
     ),
   );
+}
+
+UpdateController _updates(SharedPreferences prefs) {
+  final updates = UpdateController(preferences: prefs);
+  addTearDown(updates.dispose);
+  return updates;
 }
