@@ -1,4 +1,7 @@
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/widgets.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -54,7 +57,7 @@ void main() {
           'https://github.com/PapyrusReader/client/releases/download/v0.2.0+7/papyrus-v0.2.0+7-windows-x64-setup.exe',
         );
         progress(0.5);
-        return 'Close Papyrus to update';
+        return 'Restart Papyrus to finish updating.';
       },
     );
 
@@ -92,7 +95,7 @@ void main() {
     expect(updates.staged, isFalse);
   });
 
-  test('offline and invalid metadata remain retryable', () async {
+  test('failed checks remain retryable', () async {
     var attempts = 0;
     final updates = controller(
       manifest: () async {
@@ -137,15 +140,6 @@ void main() {
     expect(updates.available, isTrue);
     expect(updates.external, isTrue);
     expect(installed, isFalse);
-  });
-
-  test('failed installation can retry without clearing update', () async {
-    final updates = controller(installer: (_, _) async => throw StateError('disk full'));
-    await updates.check();
-    await updates.install();
-    expect(updates.busy, isFalse);
-    expect(updates.available, isTrue);
-    expect(updates.staged, isFalse);
   });
 
   test('automatic preference persists and a check in flight cannot duplicate', () async {
@@ -212,6 +206,313 @@ void main() {
     final restarted = controller();
     expect(restarted.lastChecked, checked);
     expect(restarted.status, UpdateStatus.unchecked);
+  });
+
+  test('startup restores the notice before a fresh check and retains it offline', () async {
+    await controller().check();
+    var requests = 0;
+    final response = Completer<Map<String, dynamic>>();
+    final restarted = UpdateController(
+      preferences: preferences,
+      appInfo: () async => info,
+      channelProvider: () async => UpdateChannel.windows,
+      backgroundEnabled: true,
+      manifest: () {
+        requests++;
+        return response.future;
+      },
+    );
+
+    addTearDown(restarted.dispose);
+    restarted.start();
+    restarted.start();
+    await Future<void>.delayed(Duration.zero);
+    expect(restarted.showNotice, isTrue);
+    expect(requests, 1);
+    response.completeError(StateError('Offline'));
+    await Future<void>.delayed(Duration.zero);
+    expect(restarted.status, UpdateStatus.checkFailed);
+    expect(restarted.showNotice, isTrue);
+    await restarted.setAutomatic(false);
+    expect(restarted.showNotice, isTrue);
+  });
+
+  test('startup checks despite a recent check; resume within the session is throttled', () async {
+    await preferences.setInt('updates.lastCheck', DateTime.now().millisecondsSinceEpoch);
+    await preferences.setInt('updates.checkedBuild', 6);
+    var requests = 0;
+    final restarted = UpdateController(
+      preferences: preferences,
+      appInfo: () async => info,
+      channelProvider: () async => UpdateChannel.windows,
+      backgroundEnabled: true,
+      manifest: () async {
+        requests++;
+        return metadata();
+      },
+    );
+
+    addTearDown(restarted.dispose);
+    restarted.start();
+    await Future<void>.delayed(Duration.zero);
+    expect(requests, 1);
+    expect(restarted.showNotice, isTrue);
+    restarted.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await Future<void>.delayed(Duration.zero);
+    expect(requests, 1);
+  });
+
+  test('a withdrawn update clears availability and the persisted notice', () async {
+    var build = 7;
+    final updates = controller(manifest: () async => metadata(build: build));
+    await updates.check();
+    expect(updates.available, isTrue);
+    build = 6;
+    await updates.check();
+    expect(updates.available, isFalse);
+    expect(preferences.getString('updates.known'), isNull);
+  });
+
+  test('dismissal lasts for the session, including refresh, but not a new launch', () async {
+    final updates = controller();
+    await updates.check(notifyUser: true);
+    expect(updates.showNotice, isTrue);
+    updates.dismissNotice();
+    expect(updates.available, isTrue);
+    expect(updates.showNotice, isFalse);
+    await updates.check(notifyUser: true);
+    expect(updates.showNotice, isFalse);
+    final restarted = controller();
+    restarted.start();
+    await Future<void>.delayed(Duration.zero);
+    expect(restarted.showNotice, isTrue);
+  });
+
+  for (final channel in [UpdateChannel.windows, UpdateChannel.play]) {
+    test('skip changes future notices but not the current $channel banner', () async {
+      var offeredBuild = 7;
+      final updates = controller(
+        channel: channel,
+        manifest: () async => metadata(build: offeredBuild),
+        play: () async => offeredBuild,
+      );
+
+      await updates.check(notifyUser: true);
+      await updates.setSkipVersion(true);
+      expect(updates.showNotice, isTrue);
+      await updates.setSkipVersion(false);
+      expect(updates.showNotice, isTrue);
+      await updates.setSkipVersion(true);
+      updates.dismissNotice();
+      expect(updates.showNotice, isFalse);
+      final restarted = controller(channel: channel);
+      restarted.start();
+      await Future<void>.delayed(Duration.zero);
+      expect(restarted.available, isTrue);
+      expect(restarted.skipped, isTrue);
+      expect(restarted.showNotice, isFalse);
+      restarted.setViewingSettings(true);
+      await restarted.setSkipVersion(false);
+      expect(restarted.showNotice, isFalse);
+      await restarted.setSkipVersion(true);
+      offeredBuild = 8;
+      await updates.check(notifyUser: true);
+      expect(updates.skipped, isFalse);
+      expect(updates.showNotice, isTrue);
+      expect(updates.available, isTrue);
+    });
+  }
+
+  test('manual discovery is cached without raising a banner until the next launch', () async {
+    final updates = controller();
+    await updates.check();
+    expect(updates.available, isTrue);
+    expect(updates.showNotice, isFalse);
+    final restarted = controller();
+    restarted.start();
+    await Future<void>.delayed(Duration.zero);
+    expect(restarted.showNotice, isTrue);
+  });
+
+  for (final closeDialog in [false, true]) {
+    test('automatic result does not raise a banner after opening settings; closed=$closeDialog', () async {
+      final response = Completer<Map<String, dynamic>>();
+      final updates = controller(manifest: () => response.future);
+      final check = updates.check(notifyUser: true);
+      await Future<void>.delayed(Duration.zero);
+      updates.setViewingSettings(true);
+
+      if (closeDialog) {
+        updates.dismissNotice();
+        updates.setViewingSettings(false);
+      }
+
+      response.complete(metadata());
+      await check;
+      expect(updates.available, isTrue);
+      expect(updates.showNotice, isFalse);
+    });
+  }
+
+  test('startup respects disabled automatic checks', () async {
+    await preferences.setBool('updates.automatic', false);
+    var requests = 0;
+    final updates = UpdateController(
+      preferences: preferences,
+      appInfo: () async => info,
+      channelProvider: () async => UpdateChannel.windows,
+      backgroundEnabled: true,
+      manifest: () async {
+        requests++;
+        return metadata();
+      },
+    );
+
+    addTearDown(updates.dispose);
+    updates.start();
+    await Future<void>.delayed(Duration.zero);
+    expect(requests, 0);
+    expect(updates.showNotice, isFalse);
+  });
+
+  test('installed update and changed distribution clear cached availability', () async {
+    await controller().check();
+    final saved = preferences.getString('updates.known')!;
+
+    for (final (build, channel) in [('7', UpdateChannel.windows), ('6', UpdateChannel.apk)]) {
+      await preferences.setString('updates.known', saved);
+      final restarted = UpdateController(
+        preferences: preferences,
+        appInfo: () async =>
+            PackageInfo(appName: 'Papyrus', packageName: 'papyrus', version: '0.2.0', buildNumber: build),
+        channelProvider: () async => channel,
+      );
+
+      addTearDown(restarted.dispose);
+      await restarted.initialize();
+      expect(restarted.available, isFalse);
+      expect(preferences.getString('updates.known'), isNull);
+    }
+  });
+
+  test('corrupt cached metadata is ignored and can be checked again', () async {
+    await preferences.setString(
+      'updates.known',
+      jsonEncode({
+        'channel': 'windows',
+        'build': 7,
+        'release': metadata(build: 8),
+      }),
+    );
+    final updates = controller();
+    await updates.initialize();
+    expect(updates.available, isFalse);
+    expect(preferences.getString('updates.known'), isNull);
+    await updates.check();
+    expect(updates.available, isTrue);
+  });
+
+  test('web never checks the feed or invokes an installer', () async {
+    var requests = 0;
+    final updates = controller(
+      channel: UpdateChannel.web,
+      manifest: () async {
+        requests++;
+        return metadata();
+      },
+      installer: (_, _) async {
+        requests++;
+        return 'Reload';
+      },
+    );
+
+    await updates.check();
+    await updates.install();
+    expect(updates.supported, isFalse);
+    expect(updates.available, isFalse);
+    expect(updates.status, UpdateStatus.unchecked);
+    expect(requests, 0);
+  });
+
+  for (final (channel, key, suffix) in [
+    (UpdateChannel.apk, 'android_apk', 'android-universal.apk'),
+    (UpdateChannel.appImage, 'appimage', 'linux-x64.AppImage'),
+  ]) {
+    test('$channel downloads only its own verified package', () async {
+      final data = metadata();
+      (data['assets'] as Map)[key] = {'name': 'papyrus-v0.2.0+7-$suffix', 'sha256': 'b' * 64};
+      final updates = controller(
+        channel: channel,
+        manifest: () async => data,
+        installer: (asset, _) async {
+          expect(asset!.name, endsWith(suffix));
+          expect(asset.sha256, 'b' * 64);
+          return 'Ready';
+        },
+      );
+
+      await updates.check();
+      await updates.install();
+      expect(updates.status, channel == UpdateChannel.appImage ? UpdateStatus.staged : UpdateStatus.handedOff);
+    });
+  }
+
+  test('manual packages never run an installer', () async {
+    final updates = controller(
+      channel: UpdateChannel.manual,
+      installer: (_, _) async => throw StateError('Must not install'),
+    );
+    await updates.check();
+    await updates.install();
+    expect(updates.status, UpdateStatus.available);
+    expect(updates.external, isTrue);
+  });
+
+  test('Windows is not ready while Setup runs; cancellation stays retryable', () async {
+    final setup = Completer<String>();
+    var attempts = 0;
+    final updates = controller(
+      installer: (_, progress) {
+        progress(1);
+        return attempts++ == 0 ? setup.future : Future.value('Restart Papyrus to finish updating.');
+      },
+    );
+    await updates.check();
+    final installation = updates.install();
+    expect(updates.status, UpdateStatus.installing);
+    expect(updates.staged, isFalse);
+    expect(updates.message, 'Installing…');
+    setup.completeError(const UpdateInstallException('Windows Setup was cancelled.'));
+    await installation;
+    expect(updates.status, UpdateStatus.installFailed);
+    expect(updates.available, isTrue);
+    expect(updates.staged, isFalse);
+    expect(updates.message, 'Windows Setup was cancelled.');
+    expect(updates.busy, isFalse);
+    await updates.install();
+    expect(attempts, 2);
+    expect(updates.status, UpdateStatus.staged);
+  });
+
+  test('returning from Android installer rechecks eligibility despite daily throttle', () async {
+    var eligible = true;
+    final updates = UpdateController(
+      preferences: preferences,
+      appInfo: () async => info,
+      channelProvider: () async => UpdateChannel.play,
+      playCheck: () async => eligible ? 7 : null,
+      installer: (_, _) async => 'Follow Play',
+      backgroundEnabled: true,
+    );
+
+    addTearDown(updates.dispose);
+    await updates.check();
+    await updates.install();
+    eligible = false;
+    updates.didChangeAppLifecycleState(AppLifecycleState.resumed);
+    await Future<void>.delayed(Duration.zero);
+    expect(updates.available, isFalse);
+    expect(updates.status, UpdateStatus.upToDate);
   });
 
   test('invalid release identity fails closed', () {

@@ -5,7 +5,6 @@ import 'package:papyrus/folders/directory_access_factory.dart';
 import 'package:papyrus/folders/folder_import_target.dart';
 import 'package:papyrus/folders/watched_folders.dart';
 import 'package:papyrus/updates/update_controller.dart';
-import 'package:papyrus/updates/update_settings.dart';
 import 'package:papyrus/services/reading_device_identity.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -343,6 +342,7 @@ class _PapyrusState extends State<Papyrus> {
     unawaited(_dataStore.attachBookRepository(_powerSyncService));
 
     _appRouter = AppRouter(
+      updateController: _updateController,
       authProvider: _authProvider,
       preferencesProvider: _preferencesProvider,
       syncSettingsProvider: _syncSettingsProvider,
@@ -760,7 +760,7 @@ class _PapyrusState extends State<Papyrus> {
                     : kThemeAnimationDuration,
                 builder: (context, child) => AppAccessibilityScope(
                   preferences: preferencesProvider,
-                  child: UpdateNotice(controller: _updateController, router: _appRouter.router, child: child!),
+                  child: child!,
                 ),
                 routerConfig: _appRouter.router,
               );

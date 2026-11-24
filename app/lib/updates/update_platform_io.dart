@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:papyrus/updates/update_download.dart';
 import 'package:papyrus/updates/update_appimage.dart';
 import 'package:papyrus/updates/update_release.dart';
+import 'package:papyrus/updates/update_windows.dart';
 import 'package:path/path.dart' as path;
 import 'package:path_provider/path_provider.dart';
 
@@ -66,38 +67,9 @@ Future<String> installUpdate(UpdateAsset? asset, void Function(double?) progress
   }
 
   if (channel == UpdateChannel.windows) {
-    final script = File(path.join(staging.path, 'install.ps1'));
-    await script.writeAsString(await rootBundle.loadString('assets/updates/install_windows.ps1'));
-    final powershell = path.join(
-      Platform.environment['SystemRoot'] ?? r'C:\Windows',
-      'System32',
-      'WindowsPowerShell',
-      'v1.0',
-      'powershell.exe',
-    );
-
-    await Process.start(
-      powershell,
-      [
-        '-NoProfile',
-        '-NonInteractive',
-        '-ExecutionPolicy',
-        'Bypass',
-        '-File',
-        script.path,
-        '-ParentId',
-        '$pid',
-        '-Installer',
-        file.path,
-        '-Checksum',
-        asset.sha256,
-        '-InstallDirectory',
-        path.dirname(Platform.resolvedExecutable),
-      ],
-      mode: ProcessStartMode.detached,
-    );
-
-    return 'Update ready. Close Papyrus normally to install it. Papyrus will reopen when the update finishes.';
+    progress(1);
+    await installWindowsUpdate(file, path.dirname(Platform.resolvedExecutable));
+    return 'Restart Papyrus to finish updating.';
   }
 
   if (channel == UpdateChannel.appImage) {
@@ -106,7 +78,7 @@ Future<String> installUpdate(UpdateAsset? asset, void Function(double?) progress
     await replaceAppImage(target, file);
     await staging.delete(recursive: true);
 
-    return 'Update installed. Close and reopen Papyrus when you have finished reading.';
+    return 'Restart Papyrus to finish updating.';
   }
 
   throw StateError('This installation uses external updates');
