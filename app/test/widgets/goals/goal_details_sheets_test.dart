@@ -52,8 +52,7 @@ void main() {
       final provider = GoalsProvider(now: () => now, watchClock: false)..attach(store);
       addTearDown(provider.dispose);
       addTearDown(store.dispose);
-      expect(goalCount(provider.progress(goal)), '30 sec / 30m');
-      expect(goalRemaining(provider.progress(goal)), '29m 30s to go');
+      expect(goalCount(provider.progress(goal)), '30 sec of 30m');
 
       await tester.pumpWidget(
         MaterialApp(
@@ -71,16 +70,21 @@ void main() {
 
       await tester.tap(find.text('Open'));
       await tester.pumpAndSettle();
-      expect(find.text('30 sec / 30m'), findsOneWidget);
-      expect(find.text('0 / 30 minutes'), findsNothing);
-      expect(find.text('29m 30s to go'), findsOneWidget);
+      expect(find.text('30 sec of 30m'), findsOneWidget);
+      expect(find.text('0 of 30 minutes'), findsNothing);
+      expect(find.textContaining('to go'), findsNothing);
+      expect(find.text('30 sec'), findsOneWidget);
+      expect(find.text('30 min'), findsNothing);
+      await tester.tap(find.widgetWithText(ExpansionTile, book.title));
+      await tester.pumpAndSettle();
       expect(find.text('30 sec for this goal'), findsNWidgets(3));
-      expect(find.text('30 min · Manual'), findsNWidgets(3));
+      expect(find.text('30 min'), findsNWidgets(3));
       expect(find.textContaining('Overlapping time is counted once.'), findsOneWidget);
       final readingBar = tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator));
+      expect(readingBar.semanticsLabel, contains('30 sec of 30m'));
       expect(readingBar.value, closeTo(1 / 60, .00001));
-      await tester.ensureVisible(find.text('30 min · Manual').first);
-      await tester.tap(find.text('30 min · Manual').first);
+      await tester.ensureVisible(find.text('30 min').first);
+      await tester.tap(find.text('30 min').first);
       await tester.pumpAndSettle();
       expect(find.text('30m'), findsOneWidget);
       expect(find.text('Correct entry'), findsOneWidget);
@@ -88,6 +92,129 @@ void main() {
       expect(tester.takeException(), isNull);
     });
   }
+
+  testWidgets('overnight session shows the time credited on each date', (tester) async {
+    final midnight = DateTime.utc(2026, 11, 25);
+    final now = midnight.add(const Duration(hours: 1));
+
+    final goal = ReadingGoal(
+      id: 'weekly-time',
+      type: GoalType.minutes,
+      targetValue: 30,
+      period: GoalPeriod.weekly,
+      startDate: midnight.subtract(const Duration(days: 2)),
+      endDate: midnight.add(const Duration(days: 5)),
+      timezone: 'UTC',
+    );
+
+    final store = DataStore()..loadData(readingGoals: [goal]);
+    addTearDown(store.dispose);
+
+    await store.commitTracking(
+      activities: [
+        ReadingActivity(
+          id: 'overnight',
+          bookId: 'book',
+          bookTitle: 'Night reading',
+          startTime: midnight.subtract(const Duration(minutes: 7)),
+          endTime: midnight.add(const Duration(minutes: 3)),
+          createdAt: now,
+        ),
+      ],
+    );
+
+    final provider = GoalsProvider(now: () => now, watchClock: false)..attach(store);
+    addTearDown(provider.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GoalDetailsSheet(goal: goal, provider: provider),
+        ),
+      ),
+    );
+
+    await tester.pumpAndSettle();
+    final rows = find.widgetWithText(ExpansionTile, 'Night reading');
+    expect(rows, findsNWidgets(2));
+
+    for (final (index, minutes) in [3, 7].indexed) {
+      final row = rows.at(index);
+      await tester.ensureVisible(row);
+      await tester.tap(row);
+      await tester.pumpAndSettle();
+      final credited = find.descendant(of: row, matching: find.text('${minutes}m for this goal'));
+      expect(credited, findsOneWidget);
+      expect(find.descendant(of: row, matching: find.text('10 min')), findsOneWidget);
+    }
+  });
+
+  testWidgets('page goal details hide time-only books and show new page contributions as they arrive', (tester) async {
+    final now = DateTime.utc(2026, 11, 25, 12);
+    final goal = ReadingGoal(
+      id: 'pages',
+      type: GoalType.pages,
+      targetValue: 10,
+      period: GoalPeriod.daily,
+      startDate: DateTime.utc(2026, 11, 25),
+      endDate: DateTime.utc(2026, 11, 26),
+    );
+
+    ReadingActivity reading(String book, int pages) => ReadingActivity(
+      id: book,
+      bookId: book,
+      bookTitle: book,
+      startTime: now.subtract(const Duration(seconds: 10)),
+      endTime: now,
+      createdAt: now,
+      pages: pages,
+    );
+
+    final store = DataStore()..loadData(readingGoals: [goal]);
+    addTearDown(store.dispose);
+    await store.commitTracking(activities: [reading('Time only', 0)]);
+    final provider = GoalsProvider(now: () => now, watchClock: false)..attach(store);
+    addTearDown(provider.dispose);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: GoalDetailsSheet(goal: goal, provider: provider),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    final panel = find.byType(Card);
+    final icon = find.descendant(of: panel, matching: find.byIcon(Icons.auto_stories_outlined));
+    final message = find.descendant(of: panel, matching: find.text('No pages counted yet'));
+    expect(tester.getCenter(icon).dx, closeTo(tester.getCenter(panel).dx, 1));
+    expect(tester.getCenter(message).dx, closeTo(tester.getCenter(panel).dx, 1));
+    expect(tester.getBottomLeft(icon).dy, lessThan(tester.getTopLeft(message).dy));
+    expect(find.text('Time only'), findsNothing);
+
+    await store.commitTracking(activities: [reading('One page', 1)]);
+    await tester.pumpAndSettle();
+    expect(find.text('One page'), findsOneWidget);
+    expect(find.text('1 page'), findsOneWidget);
+    expect(find.text('Time only'), findsNothing);
+    expect(panel, findsNothing);
+    expect(store.readingActivities, hasLength(2));
+
+    final crossing = reading('Second book', 13);
+    final later = reading('Third book', 3);
+    await store.commitTracking(activities: [crossing, later]);
+    await tester.pumpAndSettle();
+    expect(find.text('10 of 10 pages'), findsOneWidget);
+    expect(find.text('9 pages'), findsOneWidget);
+    expect(find.text('Third book'), findsNothing);
+    expect(store.activityTotals(goal.startDate, goal.endDate).pages, 17);
+
+    await store.commitTracking(activities: [store.reversalFor(crossing)]);
+    await tester.pumpAndSettle();
+    expect(find.text('4 of 10 pages'), findsOneWidget);
+    expect(find.text('Second book'), findsNothing);
+    expect(find.text('Third book'), findsOneWidget);
+  });
 
   testWidgets('editing a metric previews replacement and retains the original goal', (tester) async {
     tester.view.devicePixelRatio = 1;
@@ -251,9 +378,9 @@ void main() {
       expect(find.byType(Card), findsNothing);
       expect(find.text('Counted activity'), findsNothing);
       expect(find.text('Calendar settings'), findsNothing);
-      expect(find.text('Reading activity'), findsOneWidget);
+      expect(find.text('Reading activity'), findsNothing);
       expect(find.text('Read 1 book this month'), findsOneWidget);
-      expect(find.text('1 / 1 book'), findsOneWidget);
+      expect(find.text('1 of 1 book'), findsOneWidget);
       expect(find.text('Target reached'), findsOneWidget);
       expect(find.text('Whole library'), findsNothing);
       expect(find.text(book.title), findsWidgets);

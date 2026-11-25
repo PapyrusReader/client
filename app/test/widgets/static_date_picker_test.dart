@@ -5,6 +5,13 @@ import 'package:papyrus/widgets/shared/app_date_picker.dart';
 import 'package:papyrus/widgets/shared/app_drawer.dart';
 
 void main() {
+  test('range labels distinguish a single day, a date span and the same date in different years', () {
+    final start = DateTime(2025, 11, 25);
+    expect(formatDateRangeLabel(start, start), 'Nov 25');
+    expect(formatDateRangeLabel(start, DateTime(2025, 12, 1)), 'Nov 25 – Dec 1');
+    expect(formatDateRangeLabel(start, DateTime(2026, 11, 25)), 'Nov 25, 2025 – Nov 25, 2026');
+  });
+
   testWidgets('e-ink calendar changes months and years instantly and saves a date', (tester) async {
     DateTime? result;
 

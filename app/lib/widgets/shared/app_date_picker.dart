@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/static_date_picker.dart';
+
+String formatDateRangeLabel(DateTime start, DateTime end) {
+  final format = start.year == end.year ? DateFormat.MMMd() : DateFormat.yMMMd();
+  final first = format.format(start);
+  return DateUtils.isSameDay(start, end) ? first : '$first – ${format.format(end)}';
+}
 
 /// Uses instant calendar controls as well as an instant route when motion is disabled.
 Future<DateTime?> showAppDatePicker({
