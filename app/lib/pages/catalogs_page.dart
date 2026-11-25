@@ -206,20 +206,20 @@ class _CatalogsPageState extends State<CatalogsPage> {
     final catalogs = context.watch<OpdsCatalogs>();
     _scheduleLoad(catalogs);
     final catalog = widget.catalogId == null ? null : catalogs.find(widget.catalogId!);
+    final desktop = MediaQuery.sizeOf(context).width >= Breakpoints.desktopSmall;
+
+    final showEmptyState =
+        widget.catalogId == null && catalogs.scope != null && catalogs.error == null && catalogs.catalogs.isEmpty;
 
     return SafeArea(
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final compact = constraints.maxWidth < Breakpoints.tablet;
-          final mobileHome = widget.catalogId == null && MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
+          final gutter = constraints.maxWidth < Breakpoints.tablet ? Spacing.md : Spacing.lg;
 
           final body = Padding(
-            padding: EdgeInsets.fromLTRB(
-              compact ? Spacing.md : Spacing.lg,
-              compact ? Spacing.md : Spacing.lg,
-              compact ? Spacing.md : Spacing.lg,
-              0,
-            ),
+            padding: showEmptyState
+                ? EdgeInsets.only(top: desktop ? Spacing.md : 0)
+                : EdgeInsets.fromLTRB(gutter, gutter, gutter, 0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -246,9 +246,15 @@ class _CatalogsPageState extends State<CatalogsPage> {
                     ),
                   ),
                 Expanded(
-                  child: catalog == null
-                      ? _catalogList(catalogs)
-                      : AnimatedBuilder(animation: _browser, builder: (_, _) => _feedView(catalog)),
+                  child: showEmptyState
+                      ? _empty(
+                          'No catalogs yet',
+                          detail: 'Connect an OPDS catalog to explore its collection and add books to your library.',
+                          action: 'Add catalog',
+                          actionIcon: Icons.add,
+                          onAction: () => _edit(catalogs),
+                        )
+                      : _catalogContent(catalogs, catalog),
                 ),
               ],
             ),
@@ -257,12 +263,12 @@ class _CatalogsPageState extends State<CatalogsPage> {
           final content = Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _header(catalogs, catalog),
+              _header(catalogs, catalog, showAddButton: !showEmptyState),
               Expanded(child: body),
             ],
           );
 
-          if (!mobileHome) {
+          if (desktop || widget.catalogId != null || showEmptyState) {
             return content;
           }
 
@@ -286,7 +292,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
     );
   }
 
-  Widget _header(OpdsCatalogs catalogs, OpdsCatalog? catalog) {
+  Widget _header(OpdsCatalogs catalogs, OpdsCatalog? catalog, {required bool showAddButton}) {
     final mobile = MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
     final downloads = context.watch<OpdsDownloads>();
 
@@ -302,7 +308,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
         onMenuPressed: () => openAppDrawer(context, Scaffold.maybeOf(context)),
         actions: [
           downloadsButton,
-          if (!mobile)
+          if (!mobile && showAddButton)
             LibraryAddButton(label: 'Add catalog', onPressed: catalogs.scope == null ? null : () => _edit(catalogs)),
         ],
       );
@@ -342,7 +348,11 @@ class _CatalogsPageState extends State<CatalogsPage> {
     );
   }
 
-  Widget _catalogList(OpdsCatalogs catalogs) {
+  Widget _catalogContent(OpdsCatalogs catalogs, OpdsCatalog? catalog) {
+    if (catalog != null) {
+      return AnimatedBuilder(animation: _browser, builder: (_, _) => _feedView(catalog));
+    }
+
     if (catalogs.error != null) {
       return _empty(
         'Could not load catalogs',
@@ -363,16 +373,6 @@ class _CatalogsPageState extends State<CatalogsPage> {
         detail: 'This catalog is not saved for the active account.',
         action: 'All catalogs',
         onAction: () => context.go('/library/catalogs'),
-      );
-    }
-
-    if (catalogs.catalogs.isEmpty) {
-      return _empty(
-        'No catalogs yet',
-        detail: 'Connect an OPDS catalog to explore its collection and add books to your library.',
-        action: 'Add catalog',
-        actionIcon: Icons.add,
-        onAction: () => _edit(catalogs),
       );
     }
 
