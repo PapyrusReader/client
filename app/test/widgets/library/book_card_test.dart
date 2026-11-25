@@ -579,11 +579,11 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('forwards the book id and fits the full image in the cover frame', (tester) async {
+    testWidgets('forwards the book id and fills the cover frame', (tester) async {
       await tester.pumpWidget(buildCard());
       final cover = tester.widget<CoverImage>(find.byType(CoverImage));
       expect(cover.bookId, testBook.id);
-      expect(cover.fit, BoxFit.contain);
+      expect(cover.fit, BoxFit.cover);
     });
 
     testWidgets('renders Card widget', (tester) async {

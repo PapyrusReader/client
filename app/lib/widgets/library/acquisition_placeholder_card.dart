@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/themes/card_overlay_colors.dart';
-import 'package:papyrus/themes/card_shadow.dart';
 import 'package:papyrus/widgets/library/acquisition_status_text.dart';
 import 'package:papyrus/widgets/library/collection_grid_layout.dart';
+import 'package:papyrus/widgets/library/collection_grid_card.dart';
 import 'package:papyrus/widgets/library/collection_grid_card_body.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
@@ -52,7 +52,7 @@ class _AcquisitionPlaceholderCardState extends State<AcquisitionPlaceholderCard>
     final semanticLabel = <String>[widget.job.title, status, ?details].join('. ');
     final hasInteraction = effectiveTap != null || effectiveLongPress != null;
 
-    final card = Semantics(
+    return Semantics(
       key: ValueKey('acquisition-placeholder-card-${widget.job.id}'),
       container: true,
       label: semanticLabel,
@@ -68,11 +68,7 @@ class _AcquisitionPlaceholderCardState extends State<AcquisitionPlaceholderCard>
               onExit: (_) => setState(() => _isHovered = false),
               child: GestureDetector(
                 onLongPress: effectiveLongPress,
-                child: Card(
-                  // The collection owns page gutters and spacing between cards.
-                  margin: EdgeInsets.zero,
-                  elevation: 0,
-                  clipBehavior: Clip.antiAlias,
+                child: CollectionGridCard(
                   child: InkWell(
                     onTap: effectiveTap,
                     onFocusChange: (focused) => setState(() => _titleFocused = focused),
@@ -151,8 +147,6 @@ class _AcquisitionPlaceholderCardState extends State<AcquisitionPlaceholderCard>
         ],
       ),
     );
-
-    return DecoratedBox(decoration: CardShadow.decoration(context), child: card);
   }
 }
 

@@ -125,7 +125,7 @@ void main() {
 
           expect(row.length, option.columns);
           expect(row.last.right, closeTo(toolbar.right, .001));
-          final spacing = collectionGridLayout(layout.pageWidth - gutter * 2, itemWidth: option.preferredWidth).spacing;
+          final spacing = layout.pageWidth - gutter * 2 >= Breakpoints.tablet ? 12 : 6;
 
           for (var i = 1; i < row.length; i++) {
             expect(row[i].left - row[i - 1].right, closeTo(spacing, .001));

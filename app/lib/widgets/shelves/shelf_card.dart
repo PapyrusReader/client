@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:papyrus/models/shelf.dart' show CoverPreview, Shelf;
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/library/collection_cover_preview.dart';
+import 'package:papyrus/widgets/library/collection_grid_card.dart';
 import 'package:papyrus/widgets/library/collection_grid_card_body.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
@@ -58,11 +59,7 @@ class _ShelfCardState extends State<ShelfCard> {
     final colorScheme = Theme.of(context).colorScheme;
     final shelfColor = widget.shelf.color ?? colorScheme.primary;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      elevation: AppElevation.level1,
-      shadowColor: colorScheme.brightness == Brightness.dark ? colorScheme.outline : null,
+    return CollectionGridCard(
       child: InkWell(
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,

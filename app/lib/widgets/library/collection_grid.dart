@@ -61,8 +61,12 @@ class CollectionGrid extends StatelessWidget {
   Widget build(BuildContext context) {
     return LayoutBuilder(
       builder: (context, constraints) {
-        final layout = collectionGridLayout(constraints.maxWidth - padding.horizontal, itemWidth: preferredWidth);
-        final compact = layout.itemWidth < CollectionGridSize.regularMinimum;
+        final width = constraints.maxWidth - padding.horizontal;
+        final layout = collectionGridLayout(width, itemWidth: preferredWidth);
+        // Keep the established column count and base height as the horizontal gaps shrink.
+        final columnSpacing = layout.spacing * 0.75;
+        final itemWidth = (width - columnSpacing * (layout.crossAxisCount - 1)) / layout.crossAxisCount;
+        final compact = itemWidth < CollectionGridSize.regularMinimum;
         final dimensions = _itemDimensions(context, layout, compact: compact, hasTransferDetails: hasTransferDetails);
         final metrics = (compact: compact, transferDetailsLineHeight: dimensions.transferDetailsLineHeight);
 
@@ -78,7 +82,7 @@ class CollectionGrid extends StatelessWidget {
               mainAxisExtent: dimensions.height,
               crossAxisCount: layout.crossAxisCount,
               mainAxisSpacing: layout.spacing,
-              crossAxisSpacing: layout.spacing,
+              crossAxisSpacing: columnSpacing,
               childAspectRatio: layout.childAspectRatio,
             ),
             itemCount: itemCount,

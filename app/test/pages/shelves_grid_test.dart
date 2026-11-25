@@ -200,7 +200,8 @@ void main() {
           provider.gridDensity.width = option.preferredWidth;
           await tester.pumpAndSettle();
           final grid = tester.widget<GridView>(find.byType(GridView));
-          expect((grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount).crossAxisCount, option.columns);
+          final delegate = grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
+          expect(delegate.crossAxisCount, option.columns);
           final cards = find.descendant(of: find.byType(ShelfCard), matching: find.byType(Card));
           final first = tester.getRect(cards.first);
           expect(first.left, closeTo(contentLeft, .001));
@@ -214,7 +215,8 @@ void main() {
 
           expect(row.length, option.columns);
           expect(row.last.right, closeTo(layout.screen.width - gutter, .001));
-          final spacing = collectionGridLayout(layout.width - gutter * 2, itemWidth: option.preferredWidth).spacing;
+          final spacing = layout.width - gutter * 2 >= Breakpoints.tablet ? 12 : 6;
+          expect(delegate.crossAxisSpacing, spacing);
 
           for (var i = 1; i < row.length; i++) {
             expect(row[i].left - row[i - 1].right, closeTo(spacing, .001));
@@ -389,7 +391,7 @@ void main() {
       await tester.pumpAndSettle();
       final previews = tester.widgetList<CoverImage>(find.byType(CoverImage));
       expect(previews, hasLength(covers));
-      expect(previews.map((preview) => preview.fit), everyElement(BoxFit.contain));
+      expect(previews.map((preview) => preview.fit), everyElement(BoxFit.cover));
       expect(tester.takeException(), isNull, reason: '$covers-cover mosaic');
     }
   });
