@@ -4,7 +4,7 @@ import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/library/collection_grid_layout.dart';
 
-/// Fits whole covers in library previews and adapts missing-cover artwork to the tile.
+/// Fills library preview tiles and adapts missing-cover artwork to the tile.
 class CollectionCoverPreview extends StatelessWidget {
   const CollectionCoverPreview({
     super.key,
@@ -60,13 +60,13 @@ class CollectionCoverPreview extends StatelessWidget {
       },
     );
 
-    return ColoredBox(
+    return Container(
+      constraints: const BoxConstraints.expand(),
       color: colors.surfaceContainerHighest,
       child: CoverImage(
         bookId: bookId,
         imageUrl: imageUrl,
         mediaId: mediaId,
-        fit: BoxFit.contain,
         placeholder: placeholder,
       ),
     );

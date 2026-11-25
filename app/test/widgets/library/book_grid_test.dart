@@ -10,6 +10,7 @@ import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
+import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/library/acquisition_placeholder_card.dart';
 import 'package:papyrus/widgets/library/book_card.dart';
@@ -400,7 +401,7 @@ void main() {
       expect(tester.getTopLeft(find.text('Downloading 42%')).dy, bylineOffset);
     });
 
-    testWidgets('book cards keep the same aspect ratio across mobile column counts', (tester) async {
+    testWidgets('tighter column gaps widen book cards at the same row height', (tester) async {
       const screenSize = Size(384, 900);
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = screenSize;
@@ -416,12 +417,17 @@ void main() {
         ),
       );
 
-      for (final option in collectionGridSizeOptions(screenSize.width - 32)) {
+      final contentWidth = screenSize.width - 32;
+
+      for (final option in collectionGridSizeOptions(contentWidth)) {
         provider.gridDensity.width = option.preferredWidth;
         await tester.pumpAndSettle();
+        final layout = collectionGridLayout(contentWidth, itemWidth: option.preferredWidth);
+        final size = tester.getSize(_bookCard('book-1'));
+        expect(size.height, closeTo(layout.itemWidth / layout.childAspectRatio, .001));
         expect(
-          tester.getSize(_bookCard('book-1')).aspectRatio,
-          closeTo(0.55, .001),
+          size.width * option.columns + 6 * (option.columns - 1),
+          closeTo(contentWidth, .001),
           reason: '${option.columns} columns',
         );
       }
@@ -474,10 +480,11 @@ void main() {
           expect(sliderData.label, 'Columns');
           expect(sliderData.value, label);
           expect(find.text('${option.columns}'), findsOneWidget);
-          final layout = collectionGridLayout(width - 32, itemWidth: provider.gridDensity.width);
+          expect(delegate.crossAxisSpacing, width - 32 >= Breakpoints.tablet ? 12 : 6);
 
           expect(
-            tester.getSize(_bookCard('book-1')).width * option.columns + layout.spacing * (option.columns - 1),
+            tester.getSize(_bookCard('book-1')).width * option.columns +
+                delegate.crossAxisSpacing * (option.columns - 1),
             closeTo(width - 32, .001),
           );
         }
@@ -546,15 +553,16 @@ void main() {
           }
 
           expect(actual.width, lessThanOrEqualTo(width - 32));
-          final layout = collectionGridLayout(width - 32, itemWidth: provider.gridDensity.width);
-          expect(actual.width * option.columns + layout.spacing * (option.columns - 1), closeTo(width - 32, .001));
+          final grid = tester.widget<GridView>(find.byType(GridView));
+          final spacing = (grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount).crossAxisSpacing;
+          expect(actual.width * option.columns + spacing * (option.columns - 1), closeTo(width - 32, .001));
           expect(tester.getTopLeft(_bookCard('book-1')).dx, 16);
 
           if (option.columns > 1) {
             expect(
               tester.getTopLeft(find.byType(AcquisitionPlaceholderCard)).dx -
                   tester.getBottomRight(_bookCard('book-1')).dx,
-              closeTo(layout.spacing, .001),
+              closeTo(spacing, .001),
             );
           }
 

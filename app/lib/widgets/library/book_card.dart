@@ -5,12 +5,12 @@ import 'package:papyrus/providers/book_storage_status_controller.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/themes/card_overlay_colors.dart';
-import 'package:papyrus/themes/card_shadow.dart';
 import 'package:papyrus/utils/book_actions.dart';
 import 'package:papyrus/widgets/library/collection_cover_preview.dart';
 import 'package:papyrus/widgets/library/acquisition_status_text.dart';
 import 'package:papyrus/widgets/library/book_account_status_badge.dart';
 import 'package:papyrus/widgets/library/collection_grid_layout.dart';
+import 'package:papyrus/widgets/library/collection_grid_card.dart';
 import 'package:papyrus/widgets/library/collection_grid_card_body.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
@@ -121,11 +121,7 @@ class _BookCardState extends State<BookCard> {
                   onRemoveFromShelf: widget.onRemoveFromShelf,
                 );
               },
-        child: Card(
-          // The collection owns page gutters and spacing between cards.
-          margin: EdgeInsets.zero,
-          elevation: 0,
-          clipBehavior: Clip.antiAlias,
+        child: CollectionGridCard(
           color: isUnavailable ? colorScheme.surfaceContainerLow : null,
           child: InkWell(
             onTap: effectiveTap,
@@ -300,10 +296,7 @@ class _BookCardState extends State<BookCard> {
     final card = Focus(
       canRequestFocus: false,
       onFocusChange: (focused) => setState(() => _hasFocus = focused),
-      child: DecoratedBox(
-        decoration: CardShadow.decoration(context),
-        child: visualCard,
-      ),
+      child: visualCard,
     );
 
     if (job == null) {
