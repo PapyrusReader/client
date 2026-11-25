@@ -4,6 +4,8 @@ import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/themes/card_overlay_colors.dart';
 import 'package:papyrus/themes/card_shadow.dart';
 import 'package:papyrus/widgets/library/acquisition_status_text.dart';
+import 'package:papyrus/widgets/library/collection_grid_layout.dart';
+import 'package:papyrus/widgets/library/collection_grid_card_body.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
@@ -15,6 +17,7 @@ class AcquisitionPlaceholderCard extends StatefulWidget {
   final VoidCallback? onSelectToggle;
   final VoidCallback? onEnterSelectionMode;
   final bool compact;
+  final double? transferDetailsLineHeight;
 
   const AcquisitionPlaceholderCard({
     super.key,
@@ -25,6 +28,7 @@ class AcquisitionPlaceholderCard extends StatefulWidget {
     this.onSelectToggle,
     this.onEnterSelectionMode,
     this.compact = false,
+    this.transferDetailsLineHeight,
   });
 
   @override
@@ -33,12 +37,14 @@ class AcquisitionPlaceholderCard extends StatefulWidget {
 
 class _AcquisitionPlaceholderCardState extends State<AcquisitionPlaceholderCard> {
   bool _isHovered = false;
+  bool _titleFocused = false;
 
   bool get _isDesktop => MediaQuery.sizeOf(context).width >= Breakpoints.desktopSmall;
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final status = acquisitionStatusLabel(widget.job);
     final details = acquisitionTransferDetails(widget.job);
     final effectiveTap = widget.isSelectionMode ? widget.onSelectToggle : widget.onTap;
@@ -69,91 +75,60 @@ class _AcquisitionPlaceholderCardState extends State<AcquisitionPlaceholderCard>
                   clipBehavior: Clip.antiAlias,
                   child: InkWell(
                     onTap: effectiveTap,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Expanded(
-                          child: Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              ColoredBox(
-                                color: colorScheme.surfaceContainerHighest,
-                                child: Icon(
-                                  Icons.menu_book_outlined,
-                                  size: widget.compact ? IconSizes.medium : IconSizes.display,
-                                  color: colorScheme.onSurfaceVariant.withValues(alpha: 0.55),
-                                ),
-                              ),
-                              if (widget.isSelectionMode && widget.isSelected)
-                                Container(color: colorScheme.primary.withValues(alpha: 0.15)),
-                              if (widget.isSelectionMode)
-                                Positioned(
-                                  top: Spacing.xs,
-                                  right: Spacing.xs,
-                                  child: _SelectionIconButton(
-                                    selected: widget.isSelected,
-                                    onTap: widget.onSelectToggle,
-                                  ),
-                                )
-                              else if (_isDesktop)
-                                Positioned(
-                                  top: Spacing.xs,
-                                  right: Spacing.xs,
-                                  child: AnimatedOpacity(
-                                    key: ValueKey(AppMotion.disabled(context)),
-                                    opacity: _isHovered ? 1 : 0,
-                                    duration: AppMotion.duration(context, const Duration(milliseconds: 150)),
-                                    child: _SelectionIconButton(selected: false, onTap: widget.onEnterSelectionMode),
-                                  ),
-                                ),
-                            ],
+                    onFocusChange: (focused) => setState(() => _titleFocused = focused),
+                    child: CollectionGridCardBody(
+                      title: widget.job.title,
+                      subtitle: status,
+                      compact: widget.compact,
+                      titleFocused: _titleFocused,
+                      subtitleStyle: widget.job.requiresAttention
+                          ? TextStyle(color: colorScheme.error, fontWeight: FontWeight.w600)
+                          : null,
+                      transferDetails: details,
+                      transferDetailsLineHeight: widget.transferDetailsLineHeight,
+                      progress: widget.job.progress == null
+                          ? null
+                          : AppLinearProgressIndicator(
+                              value: widget.job.progress,
+                              backgroundColor: colorScheme.surfaceContainerHighest,
+                              color: widget.job.requiresAttention ? colorScheme.error : colorScheme.primary,
+                              minHeight: collectionGridProgressHeight,
+                            ),
+                      preview: Stack(
+                        fit: StackFit.expand,
+                        children: [
+                          ColoredBox(
+                            color: colorScheme.surfaceContainerHighest,
+                            child: Icon(
+                              Icons.menu_book_outlined,
+                              size: widget.compact ? IconSizes.medium : IconSizes.display,
+                              color: colorScheme.onSurfaceVariant.withValues(alpha: 0.55),
+                            ),
                           ),
-                        ),
-                        if (widget.job.progress case final progress?)
-                          AppLinearProgressIndicator(
-                            value: progress,
-                            backgroundColor: colorScheme.surfaceContainerHighest,
-                            color: widget.job.requiresAttention ? colorScheme.error : colorScheme.primary,
-                            minHeight: 3,
-                          ),
-                        Padding(
-                          padding: EdgeInsets.all(widget.compact ? Spacing.xs : Spacing.sm),
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                widget.job.title,
-                                style: Theme.of(context).textTheme.titleSmall,
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
+                          if (widget.isSelectionMode && widget.isSelected)
+                            Container(color: colorScheme.primary.withValues(alpha: 0.15)),
+                          if (widget.isSelectionMode)
+                            Positioned(
+                              top: Spacing.xs,
+                              right: Spacing.xs,
+                              child: _SelectionIconButton(
+                                selected: widget.isSelected,
+                                onTap: widget.onSelectToggle,
                               ),
-                              const SizedBox(height: 2),
-                              Text(
-                                status,
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: widget.job.requiresAttention
-                                      ? colorScheme.error
-                                      : colorScheme.onSurfaceVariant,
-                                  fontWeight: widget.job.requiresAttention ? FontWeight.w600 : null,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            )
+                          else if (_isDesktop)
+                            Positioned(
+                              top: Spacing.xs,
+                              right: Spacing.xs,
+                              child: AnimatedOpacity(
+                                key: ValueKey(AppMotion.disabled(context)),
+                                opacity: _isHovered ? 1 : 0,
+                                duration: AppMotion.duration(context, const Duration(milliseconds: 150)),
+                                child: _SelectionIconButton(selected: false, onTap: widget.onEnterSelectionMode),
                               ),
-                              if (details != null) ...[
-                                const SizedBox(height: 2),
-                                Text(
-                                  details,
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                ),
-                              ],
-                            ],
-                          ),
-                        ),
-                      ],
+                            ),
+                        ],
+                      ),
                     ),
                   ),
                 ),

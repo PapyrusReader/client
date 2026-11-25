@@ -4,14 +4,14 @@ import 'package:papyrus/utils/book_actions.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/models/book.dart';
-import 'package:papyrus/models/book_grid_size.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/providers/book_storage_status_controller.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/library/acquisition_placeholder_card.dart';
+import 'package:papyrus/widgets/library/acquisition_status_text.dart';
 import 'package:papyrus/widgets/library/book_card.dart';
-import 'package:papyrus/widgets/library/book_grid_layout.dart';
+import 'package:papyrus/widgets/library/collection_grid.dart';
 import 'package:provider/provider.dart';
 
 class BookGrid extends StatelessWidget {
@@ -40,37 +40,13 @@ class BookGrid extends StatelessWidget {
     this.onAcquisitionSelectionToggle,
   });
 
-  BookGridLayout _resolveGridLayout({
-    required double width,
-    required LibraryViewMode viewMode,
-    required double itemWidth,
-  }) {
-    if (viewMode == LibraryViewMode.list) {
+  @override
+  Widget build(BuildContext context) {
+    if (libraryViewMode == LibraryViewMode.list) {
       throw ArgumentError('List mode does not use a grid layout');
     }
 
-    return bookGridLayout(width, itemWidth: itemWidth);
-  }
-
-  @override
-  Widget build(BuildContext context) {
     final libraryProvider = context.watch<LibraryProvider>();
-    final textTheme = Theme.of(context).textTheme;
-    final textScaler = MediaQuery.textScalerOf(context);
-    // Reserve space for scaled metadata and the two-line cover placeholder.
-    // Otherwise the smallest fitted covers can overflow with larger text.
-
-    final additionalTextHeight =
-        [
-          (style: textTheme.titleSmall, lines: 2),
-          (style: textTheme.bodySmall, lines: 3),
-          (style: textTheme.labelSmall, lines: 1),
-        ].fold(0.0, (height, entry) {
-          final fontSize = entry.style?.fontSize ?? 14;
-          final increase = (textScaler.scale(fontSize) - fontSize).clamp(0.0, double.infinity);
-          return height + increase * (entry.style?.height ?? 1) * entry.lines;
-        });
-
     final storageStatusController = context.watch<BookStorageStatusController?>();
     final bookIds = books.map((book) => book.id).toSet();
     final placeholderJobsByBookId = <String, AcquisitionJob>{};
@@ -112,107 +88,74 @@ class BookGrid extends StatelessWidget {
       orphanJobs.add(job);
     }
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final gridPadding = padding ?? const EdgeInsets.only(left: Spacing.md, right: Spacing.md, bottom: Spacing.md);
+    final hasTransferDetails = linkedJobsByBookId.values
+        .followedBy(orphanJobs)
+        .any((job) => acquisitionTransferDetails(job) != null);
 
-        final layout = _resolveGridLayout(
-          width: constraints.maxWidth - gridPadding.horizontal,
-          viewMode: libraryViewMode,
-          itemWidth: libraryProvider.gridItemWidth,
-        );
+    return CollectionGrid(
+      preferredWidth: libraryProvider.gridDensity.width,
+      padding: padding ?? const EdgeInsets.only(left: Spacing.md, right: Spacing.md, bottom: Spacing.md),
+      itemCount: books.length + orphanJobs.length,
+      hasTransferDetails: hasTransferDetails,
+      itemBuilder: (context, index, metrics) {
+        if (index >= books.length) {
+          final job = orphanJobs[index - books.length];
+          final canSelect = job.status != AcquisitionJobStatus.completed;
 
-        final compact = layout.itemWidth < BookGridSize.regularMinimum;
-        double lineHeight(TextStyle? style) => (style?.fontSize ?? 14) * (style?.height ?? 1);
-        // Small covers still need room for titles, authors and download details.
+          return AcquisitionPlaceholderCard(
+            compact: metrics.compact,
+            transferDetailsLineHeight: metrics.transferDetailsLineHeight,
+            job: job,
+            onTap: onAcquisitionTap == null ? null : () => onAcquisitionTap!(job),
+            isSelectionMode: canSelect && selectedAcquisitionJobIds.isNotEmpty,
+            isSelected: selectedAcquisitionJobIds.contains(job.id),
+            onSelectToggle: !canSelect || onAcquisitionSelectionToggle == null
+                ? null
+                : () => onAcquisitionSelectionToggle!(job),
+            onEnterSelectionMode: !canSelect || onAcquisitionSelectionToggle == null
+                ? null
+                : () => onAcquisitionSelectionToggle!(job),
+          );
+        }
 
-        final compactMetadataHeight =
-            lineHeight(textTheme.titleSmall) * 2 +
-            lineHeight(textTheme.bodySmall) +
-            lineHeight(textTheme.labelSmall) +
-            Spacing.xs * 2 +
-            7;
+        final book = books[index];
+        final job = linkedJobsByBookId[book.id];
+        final isFavorite = libraryProvider.isBookFavorite(book.id, book.isFavorite);
 
-        final itemHeight = compact
-            ? layout.itemWidth * 1.5 + compactMetadataHeight + additionalTextHeight
-            : layout.itemWidth / layout.childAspectRatio + additionalTextHeight;
+        if (job == null) {
+          unawaited(storageStatusController?.ensureDeviceStatus(book));
+        }
 
-        return MediaQuery.removePadding(
-          context: context,
-          removeTop: true,
-          child: GridView.builder(
-            padding: gridPadding,
-            // Flutter 3.41 compatibility; replaced by scrollCacheExtent in 3.42+.
-            // ignore: deprecated_member_use
-            cacheExtent: 200,
-            gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-              mainAxisExtent: itemHeight,
-              crossAxisCount: layout.crossAxisCount,
-              mainAxisSpacing: layout.spacing,
-              crossAxisSpacing: layout.spacing,
-              childAspectRatio: layout.childAspectRatio,
-            ),
-            itemCount: books.length + orphanJobs.length,
-            itemBuilder: (context, index) {
-              if (index >= books.length) {
-                final job = orphanJobs[index - books.length];
-                final canSelect = job.status != AcquisitionJobStatus.completed;
-
-                return AcquisitionPlaceholderCard(
-                  compact: compact,
-                  job: job,
-                  onTap: onAcquisitionTap == null ? null : () => onAcquisitionTap!(job),
-                  isSelectionMode: canSelect && selectedAcquisitionJobIds.isNotEmpty,
-                  isSelected: selectedAcquisitionJobIds.contains(job.id),
-                  onSelectToggle: !canSelect || onAcquisitionSelectionToggle == null
-                      ? null
-                      : () => onAcquisitionSelectionToggle!(job),
-                  onEnterSelectionMode: !canSelect || onAcquisitionSelectionToggle == null
-                      ? null
-                      : () => onAcquisitionSelectionToggle!(job),
-                );
-              }
-
-              final book = books[index];
-              final job = linkedJobsByBookId[book.id];
-              final isFavorite = libraryProvider.isBookFavorite(book.id, book.isFavorite);
-
-              if (job == null) {
-                unawaited(storageStatusController?.ensureDeviceStatus(book));
-              }
-
-              return BookCard(
-                compact: compact,
-                book: book,
-                onRemoveFromShelf: onRemoveFromShelf == null ? null : () => onRemoveFromShelf!(book),
-                isFavorite: isFavorite,
-                onToggleFavorite: job == null ? (current) => toggleBookFavorite(context, book.id, current) : null,
-                onTap: switch (job) {
-                  final job? when onAcquisitionTap != null => () => onAcquisitionTap!(job),
-                  _? => null,
-                  null when onBookTap != null => () => onBookTap!(book),
-                  null => null,
-                },
-                isSelectionMode: job != null ? selectedAcquisitionJobIds.isNotEmpty : libraryProvider.isSelectionMode,
-                isSelected: job != null
-                    ? selectedAcquisitionJobIds.contains(job.id)
-                    : libraryProvider.isBookSelected(book.id),
-                onSelectToggle: switch (job) {
-                  final job? when onAcquisitionSelectionToggle != null => () => onAcquisitionSelectionToggle!(job),
-                  _? => null,
-                  null => () => libraryProvider.toggleBookSelection(book.id),
-                },
-                onEnterSelectionMode: switch (job) {
-                  final job? when onAcquisitionSelectionToggle != null => () => onAcquisitionSelectionToggle!(job),
-                  _? => null,
-                  null => () => libraryProvider.enterSelectionMode(book.id),
-                },
-                acquisitionJob: job,
-                accountStatus: job == null ? storageStatusController?.accountStatus(book) : null,
-                deviceStatus: job == null ? storageStatusController?.deviceStatus(book) : null,
-              );
-            },
-          ),
+        return BookCard(
+          compact: metrics.compact,
+          transferDetailsLineHeight: metrics.transferDetailsLineHeight,
+          book: book,
+          onRemoveFromShelf: onRemoveFromShelf == null ? null : () => onRemoveFromShelf!(book),
+          isFavorite: isFavorite,
+          onToggleFavorite: job == null ? (current) => toggleBookFavorite(context, book.id, current) : null,
+          onTap: switch (job) {
+            final job? when onAcquisitionTap != null => () => onAcquisitionTap!(job),
+            _? => null,
+            null when onBookTap != null => () => onBookTap!(book),
+            null => null,
+          },
+          isSelectionMode: job != null ? selectedAcquisitionJobIds.isNotEmpty : libraryProvider.isSelectionMode,
+          isSelected: job != null
+              ? selectedAcquisitionJobIds.contains(job.id)
+              : libraryProvider.isBookSelected(book.id),
+          onSelectToggle: switch (job) {
+            final job? when onAcquisitionSelectionToggle != null => () => onAcquisitionSelectionToggle!(job),
+            _? => null,
+            null => () => libraryProvider.toggleBookSelection(book.id),
+          },
+          onEnterSelectionMode: switch (job) {
+            final job? when onAcquisitionSelectionToggle != null => () => onAcquisitionSelectionToggle!(job),
+            _? => null,
+            null => () => libraryProvider.enterSelectionMode(book.id),
+          },
+          acquisitionJob: job,
+          accountStatus: job == null ? storageStatusController?.accountStatus(book) : null,
+          deviceStatus: job == null ? storageStatusController?.deviceStatus(book) : null,
         );
       },
     );

@@ -2,7 +2,8 @@ import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/providers/shelves_provider.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
-import 'package:papyrus/widgets/library/library_view_sheet.dart';
+import 'package:papyrus/widgets/library/collection_filter_row.dart';
+import 'package:papyrus/widgets/library/collection_view_sheet.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
@@ -181,10 +182,7 @@ class ShelvesFilterChips extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) =>
-      LayoutBuilder(builder: (context, constraints) => _buildChips(context, constraints));
-
-  Widget _buildChips(BuildContext context, BoxConstraints constraints) {
+  Widget build(BuildContext context) {
     final isEink = _isEinkTheme(Theme.of(context));
     final provider = context.watch<ShelvesProvider>();
     final selectedContents = _optionFor(_contentsOptions, provider.contentsFilter);
@@ -260,15 +258,7 @@ class ShelvesFilterChips extends StatelessWidget {
           icon: provider.viewMode == LibraryViewMode.grid ? Icons.grid_view : Icons.view_list,
           isSelected: provider.viewMode != LibraryViewMode.grid,
           tooltip: 'Change view mode',
-          onPressed: () => showGridViewSheet(
-            context,
-            state: provider,
-            viewMode: () => provider.viewMode,
-            gridItemWidth: () => provider.gridItemWidth,
-            setViewMode: provider.setViewMode,
-            setGridItemWidth: provider.setGridItemWidth,
-            availableWidth: constraints.maxWidth - 2 * (horizontalPadding ?? Spacing.md),
-          ),
+          onPressed: () => showCollectionViewSheet(context, provider),
         ),
       ),
     ];
@@ -284,56 +274,13 @@ class ShelvesFilterChips extends StatelessWidget {
       return activeComparison != 0 ? activeComparison : left.defaultOrder.compareTo(right.defaultOrder);
     });
 
-    final orderKey = [...chips.map((chip) => chip.id), if (provider.hasActiveShelfControls) 'clear-all'].join('-');
-
-    return SizedBox(
+    return CollectionFilterRow(
+      chips: [for (final chip in chips) (id: chip.id, child: chip.child)],
       height: TouchTargets.mobileRecommended,
-      child: AnimatedSwitcher(
-        key: ValueKey(AppMotion.disabled(context)),
-        duration: AppMotion.duration(context, AnimationDurations.standard),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (child, animation) {
-          final offsetAnimation = Tween<Offset>(begin: const Offset(0.03, 0), end: Offset.zero).animate(animation);
-
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(position: offsetAnimation, child: child),
-          );
-        },
-        layoutBuilder: (currentChild, previousChildren) {
-          return Stack(alignment: Alignment.centerLeft, children: [...previousChildren, ?currentChild]);
-        },
-        child: ListView.separated(
-          key: ValueKey(orderKey),
-          scrollDirection: Axis.horizontal,
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding ?? 16),
-          itemCount: chips.length + (provider.hasActiveShelfControls ? 1 : 0),
-          separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (context, index) {
-            if (index < chips.length) {
-              final chip = chips[index];
-              return KeyedSubtree(key: ValueKey(chip.id), child: chip.child);
-            }
-
-            return Align(
-              alignment: Alignment.center,
-              child: TextButton(
-                key: const ValueKey('clear-all'),
-                onPressed: provider.clearShelfControls,
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  minimumSize: const Size(0, TouchTargets.mobileMin),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                  shape: isEink ? const RoundedRectangleBorder(borderRadius: BorderRadius.zero) : null,
-                ),
-                child: const Text('Clear all'),
-              ),
-            );
-          },
-        ),
-      ),
+      gridAvailableWidth: provider.gridAvailableWidth,
+      horizontalPadding: horizontalPadding,
+      onClear: provider.hasActiveShelfControls ? provider.clearShelfControls : null,
+      clearButtonShape: isEink ? const RoundedRectangleBorder() : null,
     );
   }
 

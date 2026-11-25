@@ -4,8 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/shelf.dart';
 import 'package:papyrus/providers/shelves_provider.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
-import 'package:papyrus/widgets/library/book_grid_layout.dart';
+import 'package:papyrus/widgets/library/collection_grid.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/widgets/library/library_drawer.dart';
@@ -38,7 +39,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
   @override
   void initState() {
     super.initState();
-    _provider = ShelvesProvider();
+    _provider = ShelvesProvider(preferences: context.read<PreferencesProvider?>());
   }
 
   @override
@@ -175,46 +176,33 @@ class _ShelvesPageState extends State<ShelvesPage> {
       return _buildShelfList(context, shelves);
     }
 
-    return _buildShelfGrid(context, shelves, provider.gridItemWidth);
+    return _buildShelfGrid(context, shelves, provider.gridDensity.width);
   }
 
   double _bottomClearance(BuildContext context) =>
       MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall ? Spacing.fabClearance : 0;
 
   Widget _buildShelfGrid(BuildContext context, List<Shelf> shelves, double itemWidth) {
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final horizontalPadding = libraryPageHorizontalPadding(context);
-        final layout = bookGridLayout(constraints.maxWidth - horizontalPadding * 2, itemWidth: itemWidth);
-        final textTheme = Theme.of(context).textTheme;
-        final scaler = MediaQuery.textScalerOf(context);
-        double lineHeight(TextStyle? style) => scaler.scale(style?.fontSize ?? 14) * (style?.height ?? 1);
-        final metadataHeight = lineHeight(textTheme.titleSmall) + lineHeight(textTheme.bodySmall) + Spacing.sm * 2 + 2;
+    final horizontalPadding = libraryPageHorizontalPadding(context);
 
-        return GridView.builder(
-          padding: EdgeInsets.fromLTRB(
-            horizontalPadding,
-            Spacing.sm,
-            horizontalPadding,
-            Spacing.md + _bottomClearance(context),
-          ),
-          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: layout.crossAxisCount,
-            mainAxisSpacing: layout.spacing,
-            crossAxisSpacing: layout.spacing,
-            mainAxisExtent: layout.itemWidth * 1.5 + metadataHeight,
-          ),
-          itemCount: shelves.length,
-          itemBuilder: (context, index) {
-            final shelf = shelves[index];
+    return CollectionGrid(
+      preferredWidth: itemWidth,
+      padding: EdgeInsets.fromLTRB(
+        horizontalPadding,
+        Spacing.sm,
+        horizontalPadding,
+        Spacing.md + _bottomClearance(context),
+      ),
+      itemCount: shelves.length,
+      itemBuilder: (context, index, metrics) {
+        final shelf = shelves[index];
 
-            return ShelfCard(
-              shelf: shelf,
-              onTap: () => _showShelfDetail(context, shelf),
-              onMoreTap: () => _showShelfOptions(context, shelf),
-              onLongPress: () => _showShelfOptions(context, shelf),
-            );
-          },
+        return ShelfCard(
+          shelf: shelf,
+          compact: metrics.compact,
+          onTap: () => _showShelfDetail(context, shelf),
+          onMoreTap: () => _showShelfOptions(context, shelf),
+          onLongPress: () => _showShelfOptions(context, shelf),
         );
       },
     );

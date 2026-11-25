@@ -12,7 +12,7 @@ import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/library/acquisition_placeholder_card.dart';
 import 'package:papyrus/widgets/library/acquisition_placeholder_list_item.dart';
 import 'package:papyrus/widgets/library/book_card.dart';
-import 'package:papyrus/widgets/library/book_grid_layout.dart';
+import 'package:papyrus/widgets/library/collection_grid_layout.dart';
 import 'package:papyrus/widgets/library/book_list_item.dart';
 import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/library/library_filter_chips.dart';
@@ -104,8 +104,8 @@ void main() {
 
         // Check the painted covers, not just the grid slots: themed Card margins
         // previously made slot-only geometry tests pass despite visible drift.
-        for (final option in bookGridSizeOptions(layout.pageWidth - gutter * 2)) {
-          provider.setGridItemWidth(option.preferredWidth);
+        for (final option in collectionGridSizeOptions(layout.pageWidth - gutter * 2)) {
+          provider.gridDensity.width = option.preferredWidth;
           await tester.pumpAndSettle();
           final covers = find.descendant(of: find.byType(BookCard), matching: find.byType(CoverImage));
           final first = tester.getRect(covers.first);
@@ -125,7 +125,7 @@ void main() {
 
           expect(row.length, option.columns);
           expect(row.last.right, closeTo(toolbar.right, .001));
-          final spacing = bookGridLayout(layout.pageWidth - gutter * 2, itemWidth: option.preferredWidth).spacing;
+          final spacing = collectionGridLayout(layout.pageWidth - gutter * 2, itemWidth: option.preferredWidth).spacing;
 
           for (var i = 1; i < row.length; i++) {
             expect(row[i].left - row[i - 1].right, closeTo(spacing, .001));

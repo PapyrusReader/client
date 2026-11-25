@@ -1,19 +1,142 @@
+import 'dart:ui' show SemanticsAction;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/pages/shelves_page.dart';
 import 'package:papyrus/models/shelf.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
+import 'package:papyrus/providers/library_provider.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/shelves_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/library/book_grid_layout.dart';
+import 'package:papyrus/widgets/book/private_book_cover.dart';
+import 'package:papyrus/widgets/library/book_card.dart';
+import 'package:papyrus/widgets/library/book_grid.dart';
+import 'package:papyrus/widgets/library/collection_filter_row.dart';
+import 'package:papyrus/widgets/library/collection_grid_layout.dart';
 import 'package:papyrus/widgets/shelves/shelf_card.dart';
 import 'package:papyrus/widgets/shelves/shelves_filter_chips.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/test_helpers.dart';
 
 void main() {
+  testWidgets('the open Shelves view sheet follows the grid across a window resize', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1200, 800);
+    addTearDown(tester.view.reset);
+    final store = createTestDataStore();
+    final library = LibraryProvider();
+
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      library.dispose();
+      store.dispose();
+    });
+
+    await tester.pumpWidget(
+      MultiProvider(
+        providers: [
+          ChangeNotifierProvider<DataStore>.value(value: store),
+          ChangeNotifierProvider<LibraryProvider>.value(value: library),
+        ],
+        child: const MaterialApp(home: ShelvesPage()),
+      ),
+    );
+
+    await tester.tap(find.byTooltip('Change view mode'));
+    await tester.pumpAndSettle();
+    final slider = find.byType(Slider);
+    final wideDivisions = tester.widget<Slider>(slider).divisions!;
+    tester.view.physicalSize = const Size(400, 800);
+    await tester.pumpAndSettle();
+    expect(tester.widget<Slider>(slider).divisions, lessThan(wideDivisions));
+    expect(tester.widget<Slider>(slider).divisions, collectionGridSizeOptions(400 - 32).length - 1);
+
+    final grid = tester.widget<GridView>(find.byType(GridView));
+    final columns = (grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount).crossAxisCount;
+    expect(tester.getSemantics(slider).getSemanticsData().value, '$columns columns');
+  });
+
+  testWidgets('Clear all leads the shelf filters and resets them', (tester) async {
+    const screen = Size(390, 740);
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = screen;
+    addTearDown(tester.view.reset);
+    final store = createTestDataStore();
+
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      store.dispose();
+    });
+
+    await tester.pumpWidget(createTestPage(dataStore: store, screenSize: screen, page: const ShelvesPage()));
+    final provider = tester.element(find.byType(ShelvesFilterChips)).read<ShelvesProvider>();
+    final clearAll = find.widgetWithText(TextButton, 'Clear all');
+    expect(clearAll, findsNothing);
+    provider.setContentsFilter(ShelfContentsFilter.empty);
+    await tester.pumpAndSettle();
+    expect(tester.getRect(clearAll).left, lessThan(tester.getRect(find.text('Grid')).left));
+    expect(find.descendant(of: clearAll, matching: find.byIcon(Icons.filter_alt_off_outlined)), findsOneWidget);
+    await tester.tap(clearAll);
+    await tester.pumpAndSettle();
+    expect(provider.contentsFilter, ShelfContentsFilter.all);
+    expect(clearAll, findsNothing);
+  });
+
+  testWidgets('the same density renders equal card sizes and each collection resizes independently', (tester) async {
+    const screen = Size(768, 900);
+    const collectionWidth = 384.0;
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = screen;
+    addTearDown(tester.view.reset);
+    final library = LibraryProvider();
+    final store = createTestDataStore();
+
+    addTearDown(() async {
+      await tester.pumpWidget(const SizedBox.shrink());
+      library.dispose();
+      store.dispose();
+    });
+
+    await tester.pumpWidget(
+      createTestPage(
+        dataStore: store,
+        libraryProvider: library,
+        screenSize: screen,
+        page: Row(
+          children: [
+            SizedBox(
+              width: collectionWidth,
+              child: BookGrid(books: store.books, libraryViewMode: LibraryViewMode.grid),
+            ),
+            const SizedBox(width: collectionWidth, child: ShelvesPage()),
+          ],
+        ),
+      ),
+    );
+
+    final shelves = tester.element(find.byType(ShelvesFilterChips)).read<ShelvesProvider>();
+    final options = collectionGridSizeOptions(collectionWidth - Spacing.md * 2);
+    final book = find.byType(BookCard).first;
+    final shelf = find.byType(ShelfCard).first;
+
+    for (final option in options) {
+      final previousShelfSize = tester.getSize(shelf);
+      library.gridDensity.width = option.preferredWidth;
+      await tester.pumpAndSettle();
+      expect(tester.getSize(shelf), previousShelfSize);
+      shelves.gridDensity.width = option.preferredWidth;
+      await tester.pumpAndSettle();
+      expect(tester.getSize(shelf), tester.getSize(book), reason: '${option.columns} columns');
+      expect(tester.widget<ShelfCard>(shelf).compact, tester.widget<BookCard>(book).compact);
+    }
+  });
+
   for (final theme in [AppTheme.dark, AppTheme.eink]) {
     for (final layout in [
       (screen: const Size(320, 1100), width: 320.0, scale: 1.0),
@@ -60,17 +183,21 @@ void main() {
         final provider = tester.element(find.byType(ShelvesFilterChips)).read<ShelvesProvider>();
         provider.setContentsFilter(ShelfContentsFilter.empty);
         await tester.pumpAndSettle();
-        expect(tester.getRect(find.text('Grid')).left, lessThan(tester.getRect(find.text('Empty')).left));
+        final filterRow = find.byType(CollectionFilterRow);
+        expect(tester.widget<CollectionFilterRow>(filterRow).chips.take(2).map((chip) => chip.id), [
+          'view',
+          'contents',
+        ]);
         final gutter = layout.screen.width >= Breakpoints.desktopSmall ? Spacing.lg : Spacing.md;
         final contentLeft = layout.screen.width - layout.width + gutter;
-        final options = bookGridSizeOptions(layout.width - gutter * 2);
+        final options = collectionGridSizeOptions(layout.width - gutter * 2);
 
         if (layout.screen.width < Breakpoints.desktopSmall) {
           expect(options.last.columns, 4);
         }
 
         for (final option in options) {
-          provider.setGridItemWidth(option.preferredWidth);
+          provider.gridDensity.width = option.preferredWidth;
           await tester.pumpAndSettle();
           final grid = tester.widget<GridView>(find.byType(GridView));
           expect((grid.gridDelegate as SliverGridDelegateWithFixedCrossAxisCount).crossAxisCount, option.columns);
@@ -87,7 +214,7 @@ void main() {
 
           expect(row.length, option.columns);
           expect(row.last.right, closeTo(layout.screen.width - gutter, .001));
-          final spacing = bookGridLayout(layout.width - gutter * 2, itemWidth: option.preferredWidth).spacing;
+          final spacing = collectionGridLayout(layout.width - gutter * 2, itemWidth: option.preferredWidth).spacing;
 
           for (var i = 1; i < row.length; i++) {
             expect(row[i].left - row[i - 1].right, closeTo(spacing, .001));
@@ -108,7 +235,10 @@ void main() {
 
         provider.setViewMode(LibraryViewMode.list);
         await tester.pumpAndSettle();
-        expect(tester.getRect(find.text('List')).left, lessThan(tester.getRect(find.text('Empty')).left));
+        expect(tester.widget<CollectionFilterRow>(filterRow).chips.take(2).map((chip) => chip.id), [
+          'view',
+          'contents',
+        ]);
         final firstShelf = find.byType(ShelfCard).first;
         final icon = find.descendant(of: firstShelf, matching: find.byType(Container)).first;
         expect(tester.getRect(icon).left, contentLeft);
@@ -140,16 +270,23 @@ void main() {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = Size(layout.screen, 1000);
       addTearDown(tester.view.reset);
+      SharedPreferences.setMockInitialValues({'library_grid_item_width': 200.0});
+      final preferences = PreferencesProvider(await SharedPreferences.getInstance());
+      final library = LibraryProvider(preferences: preferences);
       final store = createTestDataStore();
 
       addTearDown(() async {
         await tester.pumpWidget(const SizedBox.shrink());
+        library.dispose();
+        preferences.dispose();
         store.dispose();
       });
 
       await tester.pumpWidget(
         createTestPage(
           dataStore: store,
+          libraryProvider: library,
+          additionalProviders: [ChangeNotifierProvider.value(value: preferences)],
           screenSize: Size(layout.screen, 1000),
           page: Align(
             alignment: Alignment.topLeft,
@@ -159,7 +296,13 @@ void main() {
       );
 
       await tester.pumpAndSettle();
-      final provider = tester.element(find.byType(ShelvesFilterChips)).read<ShelvesProvider>();
+      final chipsContext = tester.element(find.byType(ShelvesFilterChips));
+      final provider = chipsContext.read<ShelvesProvider>();
+      final books = chipsContext.read<LibraryProvider>();
+      final gutter = layout.screen >= Breakpoints.desktopSmall ? Spacing.lg : Spacing.md;
+      final options = collectionGridSizeOptions(width - gutter * 2);
+      provider.gridDensity.width = options.last.preferredWidth;
+      await tester.pumpAndSettle();
 
       await tester.scrollUntilVisible(
         find.byTooltip('Change view mode'),
@@ -173,14 +316,22 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Small grid'), findsNothing);
       expect(find.text('Large grid'), findsNothing);
-      final gutter = layout.screen >= Breakpoints.desktopSmall ? Spacing.lg : Spacing.md;
-      final options = bookGridSizeOptions(width - gutter * 2);
+      final slider = find.byType(Slider);
+      final sliderSemantics = tester.getSemantics(slider);
+      expect(tester.widget<Slider>(slider).divisions, options.length - 1);
+      sliderSemantics.owner!.performAction(sliderSemantics.id, SemanticsAction.focus);
+      await tester.pumpAndSettle();
 
-      for (final option in options) {
+      for (final (index, option) in options.reversed.indexed) {
+        if (index > 0) {
+          await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+          await tester.pumpAndSettle();
+        }
+
         final label = '${option.columns} ${option.columns == 1 ? 'column' : 'columns'}';
-        await tester.tap(find.widgetWithText(ChoiceChip, label));
-        await tester.pumpAndSettle();
-        expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label)).selected, isTrue);
+        expect(tester.getSemantics(slider).getSemanticsData().value, label);
+        expect(provider.gridDensity.width, option.preferredWidth);
+        expect(books.gridDensity.width, 200);
 
         expect(
           (tester.widget<GridView>(find.byType(GridView)).gridDelegate as SliverGridDelegateWithFixedCrossAxisCount)
@@ -189,14 +340,15 @@ void main() {
         );
       }
 
-      final density = provider.gridItemWidth;
+      final density = provider.gridDensity.width;
       await tester.tap(find.text('List').last);
       await tester.pumpAndSettle();
       expect(provider.viewMode, LibraryViewMode.list);
+      expect(books.viewMode, LibraryViewMode.grid);
       expect(find.text('Columns'), findsNothing);
       await tester.tap(find.text('Grid').last);
       await tester.pumpAndSettle();
-      expect(provider.gridItemWidth, density);
+      expect(provider.gridDensity.width, density);
       expect(find.text('Columns'), findsOneWidget);
       await tester.tap(find.text('Done'));
       await tester.pumpAndSettle();
@@ -235,6 +387,9 @@ void main() {
       );
 
       await tester.pumpAndSettle();
+      final previews = tester.widgetList<CoverImage>(find.byType(CoverImage));
+      expect(previews, hasLength(covers));
+      expect(previews.map((preview) => preview.fit), everyElement(BoxFit.contain));
       expect(tester.takeException(), isNull, reason: '$covers-cover mosaic');
     }
   });
