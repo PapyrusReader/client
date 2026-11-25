@@ -421,6 +421,25 @@ void main() {
     expect(appRouter.router.namedLocation('BOOK_READER', pathParameters: {'bookId': 'book-1'}), '/library/read/book-1');
   });
 
+  test('admin deep links require an active admin session on the selected server', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final repository = FakeAuthRepository();
+    final auth = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
+    final router = await _buildRouter(authProvider: auth, prefs: prefs);
+    await auth.bootstrap();
+    expect(router.redirectForPath('/admin/users'), '/');
+
+    repository.bootstrapResult = _tokens();
+    await auth.bootstrap();
+    expect(router.redirectForPath('/admin/users'), '/profile');
+
+    repository.bootstrapResult = _tokens(isAdmin: true);
+    await auth.bootstrap();
+    expect(router.redirectForPath('/admin/users'), isNull);
+    auth.setOfflineMode(true);
+    expect(router.redirectForPath('/admin/users'), '/profile');
+  });
+
   test('acquisition route requires explicit opt-in', () async {
     final prefs = await SharedPreferences.getInstance();
     final repository = FakeAuthRepository()..bootstrapResult = _tokens();
@@ -482,13 +501,14 @@ SyncSettingsProvider _syncSettings(SharedPreferences prefs) {
   return SyncSettingsProvider(prefs, officialConfig: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test')));
 }
 
-AuthTokens _tokens() {
+AuthTokens _tokens({bool isAdmin = false}) {
   return AuthTokens(
     accessToken: 'access-token',
     refreshToken: 'refresh-token',
     tokenType: 'Bearer',
     expiresIn: 3600,
     user: PapyrusUser(
+      isAdmin: isAdmin,
       userId: '11111111-1111-1111-1111-111111111111',
       email: 'reader@example.com',
       displayName: 'Reader',

@@ -264,7 +264,7 @@ class _PapyrusState extends State<Papyrus> {
     _updateController = UpdateController(preferences: widget.prefs)..start();
     _mediaUploadQueue = widget._uploads ?? MediaUploadQueue(widget.prefs, onWorkAvailable: _processMediaUploads);
     _bookImportService = widget._importer ?? BookImportService();
-    _authProvider = AuthProvider(widget.prefs, repository: _authRepository);
+    _authProvider = AuthProvider(widget.prefs, repository: _authRepository, profileKey: _activeProfileKey);
     _acquisitionAvailabilityProvider = AcquisitionAvailabilityProvider(authProvider: _authProvider);
 
     _acquisitionDownloadsComposition = AcquisitionDownloadsComposition(
@@ -548,7 +548,11 @@ class _PapyrusState extends State<Papyrus> {
       _authSyncSuspended = false;
       _authRepository = _buildAuthRepository(nextConfig, nextProfileKey);
       _activeProfileKey = nextProfileKey;
-      await _authProvider.replaceRepository(_authRepository, bootstrapNewRepository: !_authProvider.isOfflineMode);
+      await _authProvider.replaceRepository(
+        _authRepository,
+        profileKey: nextProfileKey,
+        bootstrapNewRepository: !_authProvider.isOfflineMode,
+      );
       unawaited(_refreshMediaUsage());
     } finally {
       _switchingSyncProfile = false;

@@ -3,6 +3,7 @@ import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 import 'package:http_parser/http_parser.dart';
+import 'package:papyrus/admin/user_directory.dart';
 import 'package:papyrus/auth/auth_models.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/upload_cooldowns.dart';
@@ -244,6 +245,11 @@ class AuthApiClient {
     await _withUploadCooldown('/sync/powersync-upload', accessToken, () async {
       await _postJson(config.endpoint('/sync/powersync-upload'), accessToken: accessToken, body: {'batch': batch});
     });
+  }
+
+  Future<UserDirectory> adminUsers(String accessToken, int page) async {
+    final uri = config.endpoint('/admin/users', {'page': '$page', 'limit': '20'});
+    return UserDirectory.fromJson(await _getJson(uri, accessToken: accessToken));
   }
 
   Future<MediaStorageUsage> fetchMediaUsage(String accessToken) async {

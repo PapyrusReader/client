@@ -18,6 +18,7 @@ import 'package:papyrus/pages/catalogs_page.dart';
 import 'package:papyrus/pages/catalog_book_page.dart';
 import 'package:papyrus/pages/forgot_password_page.dart';
 import 'package:papyrus/pages/login_page.dart';
+import 'package:papyrus/pages/admin_users_page.dart';
 import 'package:papyrus/pages/profile_page.dart';
 import 'package:papyrus/pages/licenses_page.dart';
 import 'package:papyrus/pages/support_page.dart';
@@ -311,6 +312,10 @@ class AppRouter {
             path: '/acquisition',
             pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const AcquisitionPage()),
           ),
+          GoRoute(
+            path: '/admin/users',
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const AdminUsersPage()),
+          ),
           // Profile
           GoRoute(
             name: 'PROFILE',
@@ -417,6 +422,10 @@ class AppRouter {
     if (!authProvider.hasOfflineAccount &&
         (location == '/' || location == '/login' || location == '/register' || location == '/reset-password')) {
       return '/library/books';
+    }
+
+    if (location == '/admin/users' && !authProvider.canAdminister(syncSettingsProvider)) {
+      return '/profile';
     }
 
     final acquisitionAvailable = acquisitionAvailabilityProvider.isAvailableFor(
