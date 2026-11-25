@@ -1,6 +1,7 @@
 import 'dart:ui' show PointerDeviceKind, SemanticsAction, Tristate;
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
@@ -93,6 +94,86 @@ void main() {
     testWidgets('displays book author', (tester) async {
       await tester.pumpWidget(buildCard());
       expect(find.text('J.R.R. Tolkien'), findsOneWidget);
+    });
+
+    testWidgets('compact card uses a single title line and exposes the full title to accessibility', (tester) async {
+      final book = testBook.copyWith(title: 'The Hobbit, or There and Back Again');
+
+      await tester.pumpWidget(
+        buildCard(book: book, compact: true, cardSize: const Size(82, 150), theme: AppTheme.dark),
+      );
+
+      final title = find.text(book.title);
+      final titleWidget = tester.widget<Text>(title);
+      expect(titleWidget.style?.fontSize, lessThan(AppTheme.dark.textTheme.titleSmall!.fontSize!));
+      expect(titleWidget.maxLines, 1);
+      expect(titleWidget.overflow, TextOverflow.ellipsis);
+      expect(tester.renderObject<RenderParagraph>(title).didExceedMaxLines, isTrue);
+      expect(tester.getSemantics(title).label, contains(book.title));
+      expect(find.text(book.author), findsOneWidget);
+    });
+
+    testWidgets('a truncated issue title preserves its issue number', (tester) async {
+      final book = testBook.copyWith(title: 'A quarterly publication with a long name #42');
+
+      await tester.pumpWidget(
+        buildCard(book: book, compact: true, cardSize: const Size(82, 150), theme: AppTheme.dark),
+      );
+
+      final issue = find.textContaining('… #42');
+      expect(issue, findsOneWidget);
+      expect(tester.getSemantics(issue).label, contains(book.title));
+    });
+
+    testWidgets('a regular card reveals its truncated title on hover and keyboard focus', (tester) async {
+      final book = testBook.copyWith(title: 'The Hobbit, or There and Back Again');
+
+      await tester.pumpWidget(
+        buildCard(
+          book: book,
+          theme: AppTheme.dark,
+          cardSize: const Size(150, 270),
+          screenSize: const Size(1200, 800),
+          onTap: () {},
+        ),
+      );
+
+      final gridTitle = find.text(book.title).last;
+      expect(tester.widget<Text>(gridTitle).maxLines, 1);
+      final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await pointer.addPointer(location: tester.getCenter(gridTitle));
+      await tester.pumpAndSettle();
+      expect(find.text(book.title), findsNWidgets(3));
+      await pointer.removePointer();
+      await tester.pumpAndSettle();
+      expect(find.text(book.title), findsNWidgets(2));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.tab);
+      await tester.pumpAndSettle();
+      expect(find.text(book.title), findsNWidgets(3));
+
+      await tester.sendKeyEvent(LogicalKeyboardKey.escape);
+      await tester.pumpAndSettle();
+      expect(find.text(book.title), findsNWidgets(2));
+    });
+
+    testWidgets('the truncated title tooltip opens and closes without animation in e-ink', (tester) async {
+      final book = testBook.copyWith(title: 'The Hobbit, or There and Back Again');
+
+      await tester.pumpWidget(
+        buildCard(book: book, compact: true, cardSize: const Size(82, 160), theme: AppTheme.eink, onTap: () {}),
+      );
+
+      final title = find.text(book.title);
+      final tooltip = find.ancestor(of: title, matching: find.byType(RawTooltip));
+      expect(tester.widget<RawTooltip>(tooltip).animationStyle, AnimationStyle.noAnimation);
+      final pointer = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await pointer.addPointer(location: tester.getCenter(title));
+      await tester.pump();
+      expect(title, findsNWidgets(2));
+      await pointer.removePointer();
+      await tester.pump();
+      expect(title, findsOneWidget);
     });
 
     testWidgets('displays format badge', (tester) async {
@@ -234,6 +315,10 @@ void main() {
       expect(find.byIcon(Icons.more_vert), findsNothing);
       await tester.pumpWidget(buildCard(screenSize: const Size(900, 800)));
       expect(find.byIcon(Icons.more_vert), findsOneWidget);
+      expect(find.byTooltip('More options'), findsOneWidget);
+      expect(find.byTooltip('Select'), findsOneWidget);
+      expect(find.semantics.byLabel('More options for The Hobbit'), findsOne);
+      expect(find.semantics.byLabel('Select The Hobbit'), findsOne);
     });
 
     testWidgets('fits a narrow linked card without the format badge', (tester) async {
@@ -479,9 +564,26 @@ void main() {
       expect(find.byIcon(Icons.menu_book), findsOneWidget);
     });
 
-    testWidgets('forwards the book id to the cover renderer', (tester) async {
+    testWidgets('the missing-cover preview leaves room for card controls at enlarged text', (tester) async {
+      await tester.pumpWidget(
+        buildCard(
+          cardSize: const Size(125, 225),
+          theme: AppTheme.eink,
+          textScaler: const TextScaler.linear(2),
+        ),
+      );
+
+      expect(find.byIcon(Icons.menu_book), findsOneWidget);
+      expect(find.text(testBook.title), findsOneWidget);
+      expect(find.byTooltip('Add to favorites'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('forwards the book id and fits the full image in the cover frame', (tester) async {
       await tester.pumpWidget(buildCard());
-      expect(tester.widget<CoverImage>(find.byType(CoverImage)).bookId, testBook.id);
+      final cover = tester.widget<CoverImage>(find.byType(CoverImage));
+      expect(cover.bookId, testBook.id);
+      expect(cover.fit, BoxFit.contain);
     });
 
     testWidgets('renders Card widget', (tester) async {

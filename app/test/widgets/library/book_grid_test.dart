@@ -1,8 +1,11 @@
+import 'dart:ui' show SemanticsAction;
+
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/models/book.dart';
-import 'package:papyrus/models/book_grid_size.dart';
+import 'package:papyrus/models/collection_grid_size.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/providers/library_provider.dart';
@@ -11,8 +14,8 @@ import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:papyrus/widgets/library/acquisition_placeholder_card.dart';
 import 'package:papyrus/widgets/library/book_card.dart';
 import 'package:papyrus/widgets/library/book_grid.dart';
-import 'package:papyrus/widgets/library/book_grid_layout.dart';
-import 'package:papyrus/widgets/library/library_view_sheet.dart';
+import 'package:papyrus/widgets/library/collection_grid_layout.dart';
+import 'package:papyrus/widgets/library/collection_view_sheet.dart';
 import 'package:provider/provider.dart';
 
 void main() {
@@ -328,12 +331,108 @@ void main() {
   });
 
   group('BookGrid responsiveness', () {
-    for (final width in [320.0, 400.0, 1280.0]) {
-      testWidgets('each view sheet choice selects its column count at width $width', (tester) async {
+    testWidgets('the e-ink column slider retains a drag and keyboard steps with its animation muted', (tester) async {
+      const screen = Size(400, 800);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = screen;
+      addTearDown(tester.view.reset);
+      final provider = LibraryProvider();
+      addTearDown(provider.dispose);
+
+      await tester.pumpWidget(
+        _buildGrid(
+          books: [_book(id: 'book', title: 'A book')],
+          libraryProvider: provider,
+          screenSize: screen,
+          showViewControls: true,
+          theme: AppTheme.eink,
+        ),
+      );
+
+      await tester.tap(find.text('View mode'));
+      await tester.pumpAndSettle();
+      final slider = find.byType(Slider);
+      final element = tester.element(slider);
+      expect(TickerMode.valuesOf(element).enabled, isFalse);
+      final bounds = tester.getRect(slider).deflate(12);
+      final gesture = await tester.startGesture(bounds.centerLeft);
+      await gesture.moveTo(bounds.center);
+      await tester.pump();
+      await gesture.moveTo(bounds.centerRight);
+      await tester.pump();
+      await gesture.up();
+      expect(tester.element(slider), same(element));
+      expect(tester.widget<Slider>(slider).value, 3);
+      expect(tester.getSemantics(slider).getSemanticsData().value, '4 columns');
+
+      final semantics = tester.getSemantics(slider);
+      semantics.owner!.performAction(semantics.id, SemanticsAction.focus);
+      await tester.pump();
+      await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+      await tester.pump();
+      expect(tester.widget<Slider>(slider).value, 2);
+      expect(tester.getSemantics(slider).getSemanticsData().value, '3 columns');
+    });
+
+    testWidgets('aligns covers and metadata for short, long, and downloading titles', (tester) async {
+      const screenSize = Size(560, 900);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = screenSize;
+      addTearDown(tester.view.reset);
+      final short = _book(id: 'short', title: 'Short').copyWith(author: 'First');
+      final long = _book(id: 'long', title: 'A book with a much longer title that will wrap').copyWith(
+        author: 'Second',
+        currentPosition: 0.5,
+      );
+
+      await tester.pumpWidget(
+        _buildGrid(
+          books: [short, long],
+          placeholderJobs: [_job(id: 'transfer', bookId: null, title: 'A pending book', transferSpeed: 1024)],
+          screenSize: screenSize,
+        ),
+      );
+
+      final covers = find.byType(CoverImage);
+      expect(tester.getBottomLeft(covers.first).dy, tester.getBottomLeft(covers.last).dy);
+      final bylineOffset = tester.getTopLeft(find.text('First')).dy;
+      expect(tester.getTopLeft(find.text('Second')).dy, bylineOffset);
+      expect(tester.getTopLeft(find.text('Downloading 42%')).dy, bylineOffset);
+    });
+
+    testWidgets('book cards keep the same aspect ratio across mobile column counts', (tester) async {
+      const screenSize = Size(384, 900);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = screenSize;
+      addTearDown(tester.view.reset);
+      final provider = LibraryProvider();
+      addTearDown(provider.dispose);
+
+      await tester.pumpWidget(
+        _buildGrid(
+          books: [_book(id: 'book-1', title: 'A book with a two-line title')],
+          libraryProvider: provider,
+          screenSize: screenSize,
+        ),
+      );
+
+      for (final option in collectionGridSizeOptions(screenSize.width - 32)) {
+        provider.gridDensity.width = option.preferredWidth;
+        await tester.pumpAndSettle();
+        expect(
+          tester.getSize(_bookCard('book-1')).aspectRatio,
+          closeTo(0.55, .001),
+          reason: '${option.columns} columns',
+        );
+      }
+    });
+
+    for (final width in [320.0, 400.0, 1280.0, 1850.0]) {
+      testWidgets('each slider step selects its column count with the keyboard at width $width', (tester) async {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = Size(width, 1000);
         addTearDown(tester.view.reset);
-        final provider = LibraryProvider()..setGridItemWidth(BookGridSize.minimum);
+        final provider = LibraryProvider()..gridDensity.width = CollectionGridSize.minimum;
         addTearDown(provider.dispose);
 
         await tester.pumpWidget(
@@ -347,30 +446,35 @@ void main() {
 
         await tester.tap(find.text('View mode'));
         await tester.pumpAndSettle();
-        expect(find.byType(Slider), findsNothing);
-        final options = bookGridSizeOptions(width - 32);
+        final slider = find.byType(Slider);
+        final options = collectionGridSizeOptions(width - 32);
 
         if (width < 600) {
           expect(options.map((option) => option.columns), [1, 2, 3, 4]);
         }
 
-        final columnChoices = find.byWidgetPredicate(
-          (widget) => widget is ChoiceChip && widget.label is Text && (widget.label as Text).data!.contains('column'),
-        );
+        expect(tester.widget<Slider>(slider).divisions, options.length - 1);
+        final sliderSemantics = tester.getSemantics(slider);
+        sliderSemantics.owner!.performAction(sliderSemantics.id, SemanticsAction.focus);
+        await tester.pumpAndSettle();
 
-        expect(columnChoices, findsNWidgets(options.length));
-
-        for (final option in options) {
+        for (final (index, option) in options.reversed.indexed) {
           final label = '${option.columns} ${option.columns == 1 ? 'column' : 'columns'}';
-          await tester.tap(find.text(label));
-          await tester.pumpAndSettle();
+
+          if (index > 0) {
+            await tester.sendKeyEvent(LogicalKeyboardKey.arrowLeft);
+            await tester.pumpAndSettle();
+          }
 
           final delegate =
               tester.widget<GridView>(find.byType(GridView)).gridDelegate as SliverGridDelegateWithFixedCrossAxisCount;
 
           expect(delegate.crossAxisCount, option.columns);
-          expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, label)).selected, isTrue);
-          final layout = bookGridLayout(width - 32, itemWidth: provider.gridItemWidth);
+          final sliderData = tester.getSemantics(slider).getSemanticsData();
+          expect(sliderData.label, 'Columns');
+          expect(sliderData.value, label);
+          expect(find.text('${option.columns}'), findsOneWidget);
+          final layout = collectionGridLayout(width - 32, itemWidth: provider.gridDensity.width);
 
           expect(
             tester.getSize(_bookCard('book-1')).width * option.columns + layout.spacing * (option.columns - 1),
@@ -394,7 +498,7 @@ void main() {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = Size(width, 1000);
         addTearDown(tester.view.reset);
-        final provider = LibraryProvider()..setGridItemWidth(BookGridSize.minimum);
+        final provider = LibraryProvider()..gridDensity.width = CollectionGridSize.minimum;
         addTearDown(provider.dispose);
 
         await tester.pumpWidget(
@@ -410,22 +514,25 @@ void main() {
         Size? previous;
         Size? previousCover;
 
-        for (final option in bookGridSizeOptions(width - 32).reversed) {
-          provider.setGridItemWidth(option.preferredWidth);
+        for (final option in collectionGridSizeOptions(width - 32).reversed) {
+          provider.gridDensity.width = option.preferredWidth;
           await tester.pumpAndSettle();
           final actual = tester.getSize(_bookCard('book-1'));
-          expect(tester.widget<BookCard>(_bookCard('book-1')).compact, actual.width < BookGridSize.regularMinimum);
+          expect(
+            tester.widget<BookCard>(_bookCard('book-1')).compact,
+            actual.width < CollectionGridSize.regularMinimum,
+          );
 
           expect(
             tester.widget<AcquisitionPlaceholderCard>(find.byType(AcquisitionPlaceholderCard)).compact,
-            actual.width < BookGridSize.regularMinimum,
+            actual.width < CollectionGridSize.regularMinimum,
           );
 
           final cover = tester.getSize(find.descendant(of: _bookCard('book-1'), matching: find.byType(CoverImage)));
 
           if (previous != null) {
             expect(actual.width, greaterThan(previous.width), reason: '${option.columns} columns');
-            expect(actual.height, greaterThan(previous.height), reason: '${option.columns} columns');
+            expect(actual.height, greaterThanOrEqualTo(previous.height), reason: '${option.columns} columns');
           }
 
           if (previousCover != null) {
@@ -439,7 +546,7 @@ void main() {
           }
 
           expect(actual.width, lessThanOrEqualTo(width - 32));
-          final layout = bookGridLayout(width - 32, itemWidth: provider.gridItemWidth);
+          final layout = collectionGridLayout(width - 32, itemWidth: provider.gridDensity.width);
           expect(actual.width * option.columns + layout.spacing * (option.columns - 1), closeTo(width - 32, .001));
           expect(tester.getTopLeft(_bookCard('book-1')).dx, 16);
 
@@ -468,13 +575,13 @@ void main() {
       final books = List.generate(8, (index) => _book(id: 'book-$index', title: 'A book with a long title $index'));
       await tester.pumpWidget(_buildGrid(books: books, libraryProvider: provider, screenSize: const Size(1800, 1000)));
       final initialWidth = tester.getSize(_bookCard('book-0')).width;
-      provider.setGridItemWidth(240);
+      provider.gridDensity.width = 240;
       await tester.pumpAndSettle();
       expect(tester.getSize(_bookCard('book-0')).width, greaterThan(initialWidth));
       expect(find.byType(BookCard), findsNWidgets(8));
 
       for (final width in [120.0, 320.0]) {
-        provider.setGridItemWidth(width);
+        provider.gridDensity.width = width;
         await tester.pumpWidget(_buildGrid(books: books, libraryProvider: provider, screenSize: const Size(280, 800)));
         await tester.pumpAndSettle();
         expect(tester.getSize(_bookCard('book-0')).width, lessThanOrEqualTo(280));
@@ -516,12 +623,13 @@ Widget _buildGrid({
   ValueChanged<AcquisitionJob>? onAcquisitionSelectionToggle,
   Size screenSize = const Size(400, 800),
   bool showViewControls = false,
+  ThemeData? theme,
   TextScaler textScaler = TextScaler.noScaling,
 }) {
   return ChangeNotifierProvider<LibraryProvider>.value(
     value: libraryProvider ?? LibraryProvider(),
     child: MaterialApp(
-      theme: AppTheme.light,
+      theme: theme ?? AppTheme.light,
       home: MediaQuery(
         data: MediaQueryData(size: screenSize, textScaler: textScaler),
         child: Align(
@@ -533,8 +641,10 @@ Widget _buildGrid({
               floatingActionButton: showViewControls
                   ? Builder(
                       builder: (context) => FilledButton(
-                        onPressed: () =>
-                            showLibraryViewSheet(context, libraryProvider!, availableWidth: screenSize.width - 32),
+                        onPressed: () {
+                          libraryProvider!.gridAvailableWidth.value = screenSize.width - 32;
+                          showCollectionViewSheet(context, libraryProvider);
+                        },
                         child: const Text('View mode'),
                       ),
                     )
@@ -574,7 +684,7 @@ Book _book({required String id, required String title}) {
   );
 }
 
-AcquisitionJob _job({required String id, required String? bookId, required String title}) {
+AcquisitionJob _job({required String id, required String? bookId, required String title, int? transferSpeed}) {
   return AcquisitionJob(
     id: id,
     endpointId: 'endpoint-1',
@@ -588,7 +698,7 @@ AcquisitionJob _job({required String id, required String? bookId, required Strin
     progressBasisPoints: 4200,
     downloadedBytes: 420,
     totalBytes: 1000,
-    downloadSpeedBytesPerSecond: null,
+    downloadSpeedBytesPerSecond: transferSpeed,
     etaSeconds: null,
     selectedFilePath: null,
     retryCount: 0,

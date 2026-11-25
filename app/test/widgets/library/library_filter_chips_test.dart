@@ -10,7 +10,7 @@ import 'package:papyrus/providers/enums/library_sort_option.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/widgets/library/library_filter_chips.dart';
-import 'package:papyrus/widgets/library/book_grid_layout.dart';
+import 'package:papyrus/widgets/library/collection_grid_layout.dart';
 
 import '../../helpers/test_helpers.dart';
 
@@ -81,7 +81,8 @@ void main() {
     testWidgets('renders the current filter, sort, and view categories', (tester) async {
       await pumpChips(tester);
       expect(find.text('Status'), findsOneWidget);
-      expect(find.text(LibrarySortOption.dateAddedNewest.label), findsOneWidget);
+      expect(find.text(LibrarySortOption.lastRead.label), findsOneWidget);
+      expect(find.text('Clear all'), findsNothing);
       expect(find.text('Favorites'), findsOneWidget);
       expect(find.text('Author'), findsOneWidget);
       expect(find.text('Language'), findsOneWidget);
@@ -214,34 +215,41 @@ void main() {
       expect(libraryProvider.viewMode, LibraryViewMode.list);
     });
 
-    testWidgets('column choices retain the selected density across list view', (tester) async {
+    testWidgets('dragging the column slider updates density and retains it across list view', (tester) async {
       await pumpChips(tester);
       await tester.tap(find.text(LibraryViewMode.grid.label));
       await tester.pumpAndSettle();
-      expect(find.byType(Slider), findsNothing);
-      await tester.tap(find.text('6 columns'));
+      final slider = find.byType(Slider);
+      final initialSize = libraryProvider.gridDensity.width;
+      final bounds = tester.getRect(slider);
+      await tester.drag(slider, Offset(bounds.width / 2 - Spacing.sm, 0));
       await tester.pumpAndSettle();
-      final selectedSize = libraryProvider.gridItemWidth;
-      expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '6 columns')).selected, isTrue);
+      final selectedSize = libraryProvider.gridDensity.width;
+      final selectedStep = tester.widget<Slider>(slider);
+      expect(selectedSize, lessThan(initialSize));
+      expect(selectedStep.value, selectedStep.max);
       await tester.tap(find.text('List').last);
       await tester.pumpAndSettle();
-      expect(find.text('Columns'), findsNothing);
+      expect(slider, findsNothing);
       await tester.tap(find.text('Grid').last);
       await tester.pumpAndSettle();
-      expect(libraryProvider.gridItemWidth, selectedSize);
-      expect(tester.widget<ChoiceChip>(find.widgetWithText(ChoiceChip, '6 columns')).selected, isTrue);
+      expect(libraryProvider.gridDensity.width, selectedSize);
+      expect(tester.widget<Slider>(slider).value, selectedStep.value);
     });
 
     for (final layout in [
       (screenWidth: 1800.0, contentWidth: 500.0, padding: 24.0, scale: 1.0),
       (screenWidth: 400.0, contentWidth: 400.0, padding: 16.0, scale: 2.0),
+      (screenWidth: 1800.0, contentWidth: 150.0, padding: 24.0, scale: 1.0),
     ]) {
-      testWidgets('column choices use content width ${layout.contentWidth} at text scale ${layout.scale}', (
+      testWidgets('column slider uses content width ${layout.contentWidth} at text scale ${layout.scale}', (
         tester,
       ) async {
         tester.view.devicePixelRatio = 1;
         tester.view.physicalSize = Size(layout.screenWidth, 1000);
         addTearDown(tester.view.reset);
+        tester.platformDispatcher.textScaleFactorTestValue = layout.scale;
+        addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
 
         await tester.pumpWidget(
           createTestApp(
@@ -266,30 +274,62 @@ void main() {
         await tester.tap(find.text('Grid'));
         await tester.pumpAndSettle();
         expect(find.text('View mode'), findsOneWidget);
-        final options = bookGridSizeOptions(layout.contentWidth - 2 * layout.padding);
+        final options = collectionGridSizeOptions(layout.contentWidth - 2 * layout.padding);
 
-        final choices = tester
-            .widgetList<ChoiceChip>(find.byType(ChoiceChip))
-            .where((chip) => (chip.label as Text).data!.contains('column'));
-
-        expect(choices.map((chip) => (chip.label as Text).data), [
-          for (final option in options) '${option.columns} ${option.columns == 1 ? 'column' : 'columns'}',
-        ]);
-
+        final slider = tester.widget<Slider>(find.byType(Slider));
+        expect(slider.max, options.length - 1);
+        expect(slider.divisions, options.length > 1 ? options.length - 1 : null);
+        expect(slider.onChanged, options.length > 1 ? isNotNull : isNull);
         expect(tester.takeException(), isNull);
       });
     }
 
-    testWidgets('Clear all resets filters, sort, and view', (tester) async {
+    testWidgets('the open Books view sheet follows its grid pane width', (tester) async {
+      const screen = Size(1200, 800);
+      tester.view.devicePixelRatio = 1;
+      tester.view.physicalSize = screen;
+      addTearDown(tester.view.reset);
+      final paneWidth = ValueNotifier(900.0);
+      addTearDown(paneWidth.dispose);
+
+      await tester.pumpWidget(
+        createTestApp(
+          libraryProvider: libraryProvider,
+          screenSize: screen,
+          child: ValueListenableBuilder(
+            valueListenable: paneWidth,
+            child: const LibraryFilterChips(horizontalPadding: 24),
+            builder: (context, width, child) => Align(
+              alignment: Alignment.topLeft,
+              child: SizedBox(width: width, child: child),
+            ),
+          ),
+        ),
+      );
+
+      await tester.tap(find.text('Grid'));
+      await tester.pumpAndSettle();
+      final slider = find.byType(Slider);
+      expect(tester.widget<Slider>(slider).divisions, collectionGridSizeOptions(900 - 48).length - 1);
+      paneWidth.value = 400;
+      await tester.pumpAndSettle();
+      expect(tester.widget<Slider>(slider).divisions, collectionGridSizeOptions(400 - 48).length - 1);
+    });
+
+    testWidgets('Clear all leads the row and resets filters, sort, and view', (tester) async {
       libraryProvider.setStatusFilters({LibraryReadingStatus.inProgress});
-      libraryProvider.setSortOption(LibrarySortOption.titleAZ);
+      libraryProvider.setSortOption(LibrarySortOption.dateAddedNewest);
       libraryProvider.setViewMode(LibraryViewMode.list);
       await pumpChips(tester);
-      await tester.tap(find.text('Clear all'));
+      final clearAll = find.widgetWithText(TextButton, 'Clear all');
+      expect(tester.getRect(clearAll).left, lessThan(tester.getRect(find.text('List')).left));
+      expect(find.descendant(of: clearAll, matching: find.byIcon(Icons.filter_alt_off_outlined)), findsOneWidget);
+      await tester.tap(clearAll);
       await tester.pumpAndSettle();
       expect(libraryProvider.filters.isEmpty, isTrue);
-      expect(libraryProvider.sortOption, LibrarySortOption.dateAddedNewest);
+      expect(libraryProvider.sortOption, LibrarySortOption.lastRead);
       expect(libraryProvider.viewMode, LibraryViewMode.grid);
+      expect(find.text('Clear all'), findsNothing);
     });
   });
 }

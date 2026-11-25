@@ -2,9 +2,11 @@ import 'package:uuid/uuid.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/data/repositories/library_repository.dart';
+import 'package:papyrus/models/collection_grid_size.dart';
 import 'package:papyrus/models/shelf.dart';
-import 'package:papyrus/models/book_grid_size.dart';
+import 'package:papyrus/providers/collection_grid_density.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
 
 /// Filter options for shelf occupancy.
 enum ShelfContentsFilter { all, withBooks, empty }
@@ -17,7 +19,16 @@ enum ShelfSortOption { name, bookCount, dateCreated, dateModified }
 
 /// Provider for shelves page state management.
 /// Uses DataStore as the single source of truth.
-class ShelvesProvider extends ChangeNotifier {
+class ShelvesProvider extends ChangeNotifier implements CollectionViewControls {
+  ShelvesProvider({PreferencesProvider? preferences})
+    : gridDensity = CollectionGridDensity(section: CollectionGridSection.shelves, preferences: preferences) {
+    gridDensity.addListener(notifyListeners);
+  }
+
+  @override
+  final CollectionGridDensity gridDensity;
+  @override
+  final gridAvailableWidth = ValueNotifier(0.0);
   DataStore? _dataStore;
 
   // Loading state
@@ -26,7 +37,6 @@ class ShelvesProvider extends ChangeNotifier {
 
   // Shelf collection controls
   LibraryViewMode _viewMode = LibraryViewMode.grid;
-  double _gridItemWidth = BookGridSize.defaultWidth;
   ShelfContentsFilter _contentsFilter = ShelfContentsFilter.all;
   ShelfTypeFilter _typeFilter = ShelfTypeFilter.all;
 
@@ -62,27 +72,18 @@ class ShelvesProvider extends ChangeNotifier {
   @override
   void dispose() {
     _dataStore?.removeListener(_onDataStoreChanged);
+    gridAvailableWidth.dispose();
+    gridDensity.dispose();
     super.dispose();
   }
 
   bool get isLoading => _isLoading;
   String? get error => _error;
 
+  @override
   LibraryViewMode get viewMode => _viewMode;
   ShelfContentsFilter get contentsFilter => _contentsFilter;
   ShelfTypeFilter get typeFilter => _typeFilter;
-  double get gridItemWidth => _gridItemWidth;
-
-  void setGridItemWidth(double width) {
-    final normalized = BookGridSize.normalize(width);
-
-    if (_gridItemWidth == normalized) {
-      return;
-    }
-
-    _gridItemWidth = normalized;
-    notifyListeners();
-  }
 
   bool get isListView => _viewMode == LibraryViewMode.list;
 
@@ -185,6 +186,7 @@ class ShelvesProvider extends ChangeNotifier {
   }
 
   /// Sets the view mode.
+  @override
   void setViewMode(LibraryViewMode mode) {
     if (_viewMode != mode) {
       _viewMode = mode;

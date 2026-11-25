@@ -5,6 +5,7 @@ import 'package:papyrus/providers/enums/library_sort_option.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/providers/library_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
+import 'package:papyrus/providers/shelves_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/test_helpers.dart';
@@ -63,11 +64,18 @@ void main() {
     group('initial state', () {
       test('uses the default view, sort, search, and filters', () {
         expect(provider.viewMode, LibraryViewMode.grid);
-        expect(provider.sortOption, LibrarySortOption.dateAddedNewest);
+        expect(provider.sortOption, LibrarySortOption.lastRead);
         expect(provider.searchQuery, isEmpty);
         expect(provider.filters.isEmpty, isTrue);
         expect(provider.activeFilterCount, 0);
       });
+    });
+
+    test('sorts by most recently read by default, with unread books last', () {
+      final unread = buildTestBook(id: 'a-unread').copyWith(clearLastReadAt: true);
+      final earlier = unread.copyWith(id: 'b-earlier', lastReadAt: DateTime(2026, 1));
+      final latest = unread.copyWith(id: 'c-latest', lastReadAt: DateTime(2026, 2));
+      expect(provider.sortBooks([unread, earlier, latest]), [latest, earlier, unread]);
     });
 
     group('sorting ties', () {
@@ -89,6 +97,7 @@ void main() {
         final first = oldest.copyWith(id: 'a', addedAt: DateTime(2026, 2));
         final second = first.copyWith(id: 'b', isFavorite: true);
         final books = [second, oldest, first];
+        provider.setSortOption(LibrarySortOption.dateAddedNewest);
         expect(provider.sortBooks(books).map((book) => book.id), ['a', 'b', 'z']);
         provider.setSortOption(LibrarySortOption.dateAddedOldest);
         expect(provider.sortBooks(books).map((book) => book.id), ['z', 'a', 'b']);
@@ -96,41 +105,56 @@ void main() {
     });
 
     group('view mode', () {
-      test('remembers grid size across providers and shares it with shelf contents', () async {
-        SharedPreferences.setMockInitialValues({});
+      test('saves independent grid densities for Books and Shelves', () async {
+        SharedPreferences.setMockInitialValues({'library_grid_item_width': 200.0});
         final prefs = await SharedPreferences.getInstance();
         final preferences = PreferencesProvider(prefs);
         final library = LibraryProvider(preferences: preferences);
+        final shelves = ShelvesProvider(preferences: preferences);
         final shelf = LibraryProvider(favoriteDelegate: library);
-        final restored = LibraryProvider(preferences: PreferencesProvider(prefs));
-        addTearDown(library.dispose);
-        addTearDown(shelf.dispose);
-        addTearDown(restored.dispose);
         addTearDown(preferences.dispose);
+        addTearDown(library.dispose);
+        addTearDown(shelves.dispose);
+        addTearDown(shelf.dispose);
 
-        for (final width in [240.0, 80.0]) {
-          shelf.setGridItemWidth(width);
-          expect(library.gridItemWidth, width);
-          library.setViewMode(LibraryViewMode.list);
-          library.resetQuickFilters();
-          expect(library.gridItemWidth, width);
-          expect(restored.gridItemWidth, width);
-        }
+        expect(library.gridDensity.width, 200);
+        expect(shelf.gridDensity.width, 200);
+        expect(shelves.gridDensity.width, 160);
+
+        shelves.gridDensity.width = 80;
+        expect(library.gridDensity.width, 200);
+        expect(shelf.gridDensity.width, 200);
+        shelf.gridDensity.width = 240;
+        expect(library.gridDensity.width, 240);
+        expect(shelves.gridDensity.width, 80);
+        library.setViewMode(LibraryViewMode.list);
+        library.resetQuickFilters();
+        expect(library.gridDensity.width, 240);
+
+        await prefs.reload();
+        final restoredPreferences = PreferencesProvider(prefs);
+        final restoredBooks = LibraryProvider(preferences: restoredPreferences);
+        final restoredShelves = ShelvesProvider(preferences: restoredPreferences);
+        addTearDown(restoredPreferences.dispose);
+        addTearDown(restoredBooks.dispose);
+        addTearDown(restoredShelves.dispose);
+        expect(restoredBooks.gridDensity.width, 240);
+        expect(restoredShelves.gridDensity.width, 80);
       });
 
       test('bounds and snaps grid size, ignoring unchanged values', () {
         var notifications = 0;
         provider.addListener(() => notifications++);
-        provider.setGridItemWidth(160);
+        provider.gridDensity.width = 160;
         expect(notifications, 0);
-        provider.setGridItemWidth(173);
-        expect(provider.gridItemWidth, 180);
-        provider.setGridItemWidth(-1);
-        expect(provider.gridItemWidth, 60);
-        provider.setGridItemWidth(1000);
-        expect(provider.gridItemWidth, 320);
-        provider.setGridItemWidth(double.nan);
-        expect(provider.gridItemWidth, 160);
+        provider.gridDensity.width = 173;
+        expect(provider.gridDensity.width, 180);
+        provider.gridDensity.width = -1;
+        expect(provider.gridDensity.width, 60);
+        provider.gridDensity.width = 1000;
+        expect(provider.gridDensity.width, 320);
+        provider.gridDensity.width = double.nan;
+        expect(provider.gridDensity.width, 160);
       });
 
       test('sets each view mode explicitly', () {
@@ -198,7 +222,7 @@ void main() {
         provider.setViewMode(LibraryViewMode.list);
         provider.resetQuickFilters();
         expect(provider.filters.isEmpty, isTrue);
-        expect(provider.sortOption, LibrarySortOption.dateAddedNewest);
+        expect(provider.sortOption, LibrarySortOption.lastRead);
         expect(provider.viewMode, LibraryViewMode.grid);
       });
     });

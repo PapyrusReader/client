@@ -1,5 +1,7 @@
+enum CollectionGridSection { books, shelves }
+
 /// Preferred cover width, in logical pixels. The grid adapts to available space.
-abstract final class BookGridSize {
+abstract final class CollectionGridSize {
   static const double minimum = 60;
   static const double regularMinimum = 120;
   static const double maximum = 320;

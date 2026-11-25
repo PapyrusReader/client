@@ -1,19 +1,27 @@
 import 'package:flutter/foundation.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/book.dart';
-import 'package:papyrus/models/book_grid_size.dart';
+import 'package:papyrus/models/collection_grid_size.dart';
 import 'package:papyrus/models/library_filters.dart';
+import 'package:papyrus/providers/collection_grid_density.dart';
 import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/providers/enums/library_sort_option.dart';
 import 'package:papyrus/providers/enums/library_view_mode.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/utils/book_language.dart';
 
-class LibraryProvider extends ChangeNotifier {
+class LibraryProvider extends ChangeNotifier implements CollectionViewControls {
+  static const defaultSortOption = LibrarySortOption.lastRead;
+
   final bool selectionOnly;
   final LibraryProvider? _favoriteDelegate;
   final DataStore? _dataStore;
-  final PreferencesProvider? _preferences;
+  final bool _ownsGridDensity;
+
+  @override
+  final CollectionGridDensity gridDensity;
+  @override
+  final gridAvailableWidth = ValueNotifier(0.0);
 
   LibraryProvider({
     LibraryProvider? favoriteDelegate,
@@ -22,17 +30,22 @@ class LibraryProvider extends ChangeNotifier {
     this.selectionOnly = false,
   }) : _favoriteDelegate = favoriteDelegate,
        _dataStore = dataStore,
-       _preferences = preferences {
+       _ownsGridDensity = preferences != null || favoriteDelegate == null,
+       gridDensity = preferences == null && favoriteDelegate != null
+           ? favoriteDelegate.gridDensity
+           : CollectionGridDensity(section: CollectionGridSection.books, preferences: preferences) {
     _favoriteDelegate?.addListener(_onFavoriteDelegateChanged);
     _dataStore?.addListener(_onFavoriteDelegateChanged);
-    _preferences?.addListener(_onFavoriteDelegateChanged);
+
+    if (_ownsGridDensity) {
+      gridDensity.addListener(notifyListeners);
+    }
   }
 
   String _searchQuery = '';
   LibraryFilters _filters = LibraryFilters();
   LibraryViewMode _viewMode = LibraryViewMode.grid;
-  double _gridItemWidth = BookGridSize.defaultWidth;
-  LibrarySortOption _sortOption = LibrarySortOption.dateAddedNewest;
+  LibrarySortOption _sortOption = defaultSortOption;
 
   // Selection mode state
   bool _isSelectionMode = false;
@@ -52,26 +65,8 @@ class LibraryProvider extends ChangeNotifier {
   int get selectedCount => _selectedBookIds.length;
 
   /// Current view mode (grid or list).
+  @override
   LibraryViewMode get viewMode => _viewMode;
-
-  double get gridItemWidth => _preferences?.gridItemWidth ?? _favoriteDelegate?.gridItemWidth ?? _gridItemWidth;
-
-  void setGridItemWidth(double width) {
-    final normalized = BookGridSize.normalize(width);
-
-    if (gridItemWidth == normalized) {
-      return;
-    }
-
-    if (_preferences != null) {
-      _preferences.gridItemWidth = normalized;
-    } else if (_favoriteDelegate != null) {
-      _favoriteDelegate.setGridItemWidth(normalized);
-    } else {
-      _gridItemWidth = normalized;
-      notifyListeners();
-    }
-  }
 
   /// Current sort option.
   LibrarySortOption get sortOption => _sortOption;
@@ -97,6 +92,7 @@ class LibraryProvider extends ChangeNotifier {
 
   FavoriteFilter get favoriteFilter => _filters.favoriteFilter;
 
+  @override
   void setViewMode(LibraryViewMode mode) {
     if (_viewMode == mode) {
       return;
@@ -157,15 +153,14 @@ class LibraryProvider extends ChangeNotifier {
   }
 
   void resetQuickFilters() {
-    final hasChanges =
-        !_filters.isEmpty || _sortOption != LibrarySortOption.dateAddedNewest || _viewMode != LibraryViewMode.grid;
+    final hasChanges = !_filters.isEmpty || _sortOption != defaultSortOption || _viewMode != LibraryViewMode.grid;
 
     if (!hasChanges) {
       return;
     }
 
     _filters = LibraryFilters();
-    _sortOption = LibrarySortOption.dateAddedNewest;
+    _sortOption = defaultSortOption;
     _viewMode = LibraryViewMode.grid;
     notifyListeners();
   }
@@ -482,9 +477,14 @@ class LibraryProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    gridAvailableWidth.dispose();
     _favoriteDelegate?.removeListener(_onFavoriteDelegateChanged);
     _dataStore?.removeListener(_onFavoriteDelegateChanged);
-    _preferences?.removeListener(_onFavoriteDelegateChanged);
+
+    if (_ownsGridDensity) {
+      gridDensity.dispose();
+    }
+
     super.dispose();
   }
 }
