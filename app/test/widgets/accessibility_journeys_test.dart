@@ -13,7 +13,7 @@ import 'package:papyrus/widgets/input/email_input.dart';
 import 'package:papyrus/widgets/input/name_input.dart';
 import 'package:papyrus/widgets/input/password_input.dart';
 import 'package:papyrus/widgets/input/search_field.dart';
-import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
+import 'package:papyrus/utils/navigation_utils.dart';
 import 'package:papyrus/widgets/shell/mobile_bottom_nav.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 

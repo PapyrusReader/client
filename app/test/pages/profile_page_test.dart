@@ -39,9 +39,7 @@ class _MemoryStorage implements RefreshTokenStorage {
 }
 
 class _MockAuthRepo extends AuthRepository {
-  final bool isAdmin;
-
-  _MockAuthRepo({this.isAdmin = false})
+  _MockAuthRepo()
     : super(
         apiClient: AuthApiClient(config: PapyrusApiConfig(serverBaseUri: Uri.parse('https://api.test'))),
         tokenStore: TokenStore(_MemoryStorage()),
@@ -57,7 +55,6 @@ class _MockAuthRepo extends AuthRepository {
       userId: '11111111-1111-1111-1111-111111111111',
       email: 'reader@example.com',
       displayName: 'Reader Profile',
-      isAdmin: isAdmin,
       avatarUrl: null,
       emailVerified: true,
       createdAt: null,
@@ -124,10 +121,6 @@ void main() {
         initialLocation: '/profile',
         routes: [
           GoRoute(
-            path: '/admin/users',
-            builder: (_, _) => const Scaffold(body: Text('User directory')),
-          ),
-          GoRoute(
             path: '/profile',
             builder: (_, _) => const ProfilePage(),
             routes: [
@@ -163,23 +156,6 @@ void main() {
           ),
         ),
       );
-    }
-
-    for (final width in [400.0, 1200.0]) {
-      testWidgets('Settings links to the user directory only for admins at ${width}px', (tester) async {
-        tester.view.devicePixelRatio = 1;
-        tester.view.physicalSize = Size(width, 900);
-        addTearDown(tester.view.reset);
-        await tester.pumpWidget(buildApp(screenSize: Size(width, 900)));
-        await tester.pumpAndSettle();
-        expect(find.text('Administration'), findsNothing);
-        await authProvider.replaceRepository(_MockAuthRepo(isAdmin: true));
-        await tester.pumpAndSettle();
-        await tester.ensureVisible(find.text('Administration'));
-        await tester.tap(find.text('Administration'));
-        await tester.pumpAndSettle();
-        expect(find.text('User directory'), findsOneWidget);
-      });
     }
 
     testWidgets('mobile index opens focused pages and Back restores the index', (tester) async {

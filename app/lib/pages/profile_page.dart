@@ -5,7 +5,6 @@ import 'package:papyrus/widgets/shared/app_page_bar.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
-import 'package:papyrus/providers/sync_settings_provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/profile/about_settings_section.dart';
@@ -103,14 +102,6 @@ class _ProfilePageState extends State<ProfilePage> {
               subtitle: Text('Not available yet'),
             ),
             const Divider(height: Spacing.lg),
-            if (_showAdministration(context))
-              ListTile(
-                leading: const Icon(Icons.admin_panel_settings_outlined),
-                title: const Text('Administration'),
-                subtitle: const Text('Users and library storage'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => context.push('/admin/users'),
-              ),
             _buildMobileItem(context, ProfileSection.about, subtitle: 'Version, support, licenses'),
             const Divider(height: Spacing.lg),
             ListTile(
@@ -122,11 +113,6 @@ class _ProfilePageState extends State<ProfilePage> {
         ),
       ),
     );
-  }
-
-  bool _showAdministration(BuildContext context) {
-    final auth = context.watch<AuthProvider>();
-    return auth.user?.isAdmin == true && auth.canAdminister(context.watch<SyncSettingsProvider>());
   }
 
   Widget _buildMobileItem(BuildContext context, ProfileSection section, {required String subtitle}) {
@@ -224,13 +210,6 @@ class _ProfilePageState extends State<ProfilePage> {
                     label: 'Accessibility',
                     section: ProfileSection.accessibility,
                   ),
-                  if (_showAdministration(context))
-                    _buildNavItem(
-                      context,
-                      icon: Icons.admin_panel_settings_outlined,
-                      label: 'Administration',
-                      onTap: () => context.push('/admin/users'),
-                    ),
                   _buildNavItem(context, icon: Icons.info_outline, label: 'About', section: ProfileSection.about),
                   const SizedBox(height: Spacing.sm),
                   Divider(height: 1, color: colorScheme.outlineVariant),

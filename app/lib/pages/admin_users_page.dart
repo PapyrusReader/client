@@ -25,7 +25,10 @@ class AdminUsersPage extends StatelessWidget {
       appBar: AppPageBar(
         context: context,
         title: const Text('Users'),
-        leading: BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/profile')),
+        automaticallyImplyLeading: false,
+        leading: MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall
+            ? BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/library/books'))
+            : null,
       ),
       body: SafeArea(
         child: _Directory(

@@ -5,7 +5,6 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:papyrus/providers/sidebar_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/utils/navigation_utils.dart';
-import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
 import 'package:papyrus/widgets/shell/nav_item_count.dart';
 import 'package:provider/provider.dart';
 
@@ -115,7 +114,7 @@ class DesktopSidebar extends StatelessWidget {
     final sidebarProvider = context.read<SidebarProvider>();
 
     if (hasChildren && !isCollapsed) {
-      return _buildExpandableNavItem(context, item, isCollapsed);
+      return _buildExpandableNavItem(context, item);
     }
 
     return Semantics(
@@ -131,9 +130,11 @@ class DesktopSidebar extends StatelessWidget {
             borderRadius: BorderRadius.circular(AppRadius.md),
             onTap: () {
               if (hasChildren && isCollapsed) {
-                // When collapsed with children, expand sidebar and navigate
-                sidebarProvider.setCollapsed(false);
-                sidebarProvider.setLibraryExpanded(true);
+                sidebarProvider.toggleSection(item.path);
+
+                if (item.path != '/library') {
+                  return;
+                }
               }
 
               onNavigate(item.path);
@@ -178,65 +179,64 @@ class DesktopSidebar extends StatelessWidget {
     );
   }
 
-  Widget _buildExpandableNavItem(BuildContext context, AppShellNavItem item, bool isCollapsed) {
+  Widget _buildExpandableNavItem(BuildContext context, AppShellNavItem item) {
     final sidebarProvider = context.watch<SidebarProvider>();
-    final isExpanded = item.path == '/library' && sidebarProvider.isLibraryExpanded;
+    final isExpanded = sidebarProvider.isSectionExpanded(item.path);
     final isSelected = isNavItemSelected(currentPath, item);
     final hasSelectedBackground = isSelected && !isExpanded;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Parent item
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
-          child: Material(
-            color: Colors.transparent,
-            borderRadius: BorderRadius.circular(AppRadius.md),
-            child: InkWell(
+        Semantics(
+          button: true,
+          expanded: isExpanded,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: Spacing.sm, vertical: 2),
+            child: Material(
+              color: Colors.transparent,
               borderRadius: BorderRadius.circular(AppRadius.md),
-              onTap: () {
-                if (item.path == '/library') {
-                  sidebarProvider.toggleLibraryExpanded();
-                }
-              },
-              child: Container(
-                constraints: const BoxConstraints(minHeight: TouchTargets.mobileRecommended),
-                padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-                decoration: BoxDecoration(
-                  color: hasSelectedBackground ? Theme.of(context).colorScheme.primaryContainer : Colors.transparent,
-                  borderRadius: BorderRadius.circular(AppRadius.md),
-                ),
-                child: Row(
-                  children: [
-                    Icon(
-                      isSelected ? item.selectedIcon ?? item.icon : item.icon,
-                      color: hasSelectedBackground
-                          ? Theme.of(context).colorScheme.onPrimaryContainer
-                          : Theme.of(context).colorScheme.onSurfaceVariant,
-                      size: IconSizes.navigation,
-                    ),
-                    const SizedBox(width: Spacing.md),
-                    Expanded(
-                      child: Text(
-                        item.label,
-                        style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: hasSelectedBackground
-                              ? Theme.of(context).colorScheme.onPrimaryContainer
-                              : Theme.of(context).colorScheme.onSurfaceVariant,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+              child: InkWell(
+                borderRadius: BorderRadius.circular(AppRadius.md),
+                onTap: () => sidebarProvider.toggleSection(item.path),
+                child: Container(
+                  constraints: const BoxConstraints(minHeight: TouchTargets.mobileRecommended),
+                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                  decoration: BoxDecoration(
+                    color: hasSelectedBackground ? Theme.of(context).colorScheme.primaryContainer : Colors.transparent,
+                    borderRadius: BorderRadius.circular(AppRadius.md),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        isSelected ? item.selectedIcon ?? item.icon : item.icon,
+                        color: hasSelectedBackground
+                            ? Theme.of(context).colorScheme.onPrimaryContainer
+                            : Theme.of(context).colorScheme.onSurfaceVariant,
+                        size: IconSizes.navigation,
+                      ),
+                      const SizedBox(width: Spacing.md),
+                      Expanded(
+                        child: Text(
+                          item.label,
+                          style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                            color: hasSelectedBackground
+                                ? Theme.of(context).colorScheme.onPrimaryContainer
+                                : Theme.of(context).colorScheme.onSurfaceVariant,
+                            fontWeight: isSelected ? FontWeight.w600 : FontWeight.normal,
+                          ),
                         ),
                       ),
-                    ),
-                    Transform.rotate(
-                      angle: isExpanded ? pi : 0,
-                      child: Icon(
-                        Icons.expand_more,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                        size: IconSizes.indicator,
+                      Transform.rotate(
+                        angle: isExpanded ? pi : 0,
+                        child: Icon(
+                          Icons.expand_more,
+                          color: Theme.of(context).colorScheme.onSurfaceVariant,
+                          size: IconSizes.indicator,
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
             ),

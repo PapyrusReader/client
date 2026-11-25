@@ -3,6 +3,12 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:papyrus/data/data_store.dart';
+import 'package:papyrus/opds/opds_catalog_store.dart';
+import 'package:papyrus/opds/opds_catalogs.dart';
+import 'package:papyrus/providers/sidebar_provider.dart';
+import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
@@ -26,6 +32,7 @@ Future<(AuthProvider, SyncSettingsProvider)> mount(
   Future<http.Response> Function(http.Request request) respond, {
   Size size = const Size(1280, 800),
   double scale = 1,
+  GoRouter? router,
 }) async {
   tester.view.devicePixelRatio = 1;
   tester.view.physicalSize = size;
@@ -79,16 +86,23 @@ Future<(AuthProvider, SyncSettingsProvider)> mount(
       providers: [
         ChangeNotifierProvider.value(value: auth),
         ChangeNotifierProvider.value(value: settings),
+        if (router != null) ...[
+          ChangeNotifierProvider(create: (_) => DataStore()),
+          ChangeNotifierProvider(create: (_) => SidebarProvider()),
+          ChangeNotifierProvider(create: (_) => OpdsCatalogs(OpdsCatalogStore(prefs))),
+        ],
       ],
-      child: MaterialApp(
-        theme: scale > 1 ? AppTheme.eink : AppTheme.light,
-        home: Builder(
-          builder: (context) => MediaQuery(
-            data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
-            child: const AdminUsersPage(),
-          ),
-        ),
-      ),
+      child: router != null
+          ? MaterialApp.router(routerConfig: router)
+          : MaterialApp(
+              theme: scale > 1 ? AppTheme.eink : AppTheme.light,
+              home: Builder(
+                builder: (context) => MediaQuery(
+                  data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
+                  child: const AdminUsersPage(),
+                ),
+              ),
+            ),
     ),
   );
 
@@ -127,6 +141,71 @@ void main() {
     expect(PapyrusUser.fromJson(user).isAdmin, isFalse);
     expect(PapyrusUser.fromJson({...user, 'role': 'operator'}).isAdmin, isFalse);
   });
+
+  for (final width in [390.0, 1280.0]) {
+    testWidgets('Administration expands in the main menu and opens Users at ${width}px', (tester) async {
+      final router = GoRouter(
+        initialLocation: '/library/books',
+        routes: [
+          ShellRoute(
+            builder: (_, _, child) => AdaptiveAppShell(child: child),
+            routes: [
+              GoRoute(path: '/library/books', builder: (_, _) => const Text('Library content')),
+              GoRoute(path: '/admin/users', builder: (_, _) => const AdminUsersPage()),
+            ],
+          ),
+        ],
+      );
+
+      addTearDown(router.dispose);
+      final (auth, _) = await mount(
+        tester,
+        (_) async => directory(1, total: 1),
+        size: Size(width, 1000),
+        router: router,
+      );
+      await tester.pumpAndSettle();
+
+      if (width < 840) {
+        tester.state<ScaffoldState>(find.byType(Scaffold).first).openDrawer();
+        await tester.pumpAndSettle();
+      } else {
+        await tester.tap(find.bySemanticsLabel('Collapse sidebar'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.bySemanticsLabel('Administration'));
+        await tester.pumpAndSettle();
+        expect(find.text('Users'), findsOneWidget);
+        await tester.tap(find.text('Administration'));
+        await tester.pumpAndSettle();
+      }
+
+      expect(find.text('Users'), findsNothing);
+      await tester.ensureVisible(find.text('Administration'));
+      await tester.tap(find.text('Administration'));
+      await tester.pumpAndSettle();
+      expect(router.routeInformationProvider.value.uri.path, '/library/books');
+      await tester.ensureVisible(find.text('Users'));
+      await tester.tap(find.text('Users'));
+      await tester.pumpAndSettle();
+      final usersPage = tester.element(find.byType(AdminUsersPage));
+      expect(GoRouterState.of(usersPage).uri.path, '/admin/users');
+      expect(find.text('Reader 1'), findsOneWidget);
+
+      if (width < 840) {
+        await tester.tap(find.byType(BackButton));
+        await tester.pumpAndSettle();
+        expect(find.text('Library content'), findsOneWidget);
+        tester.state<ScaffoldState>(find.byType(Scaffold).first).openDrawer();
+        await tester.pumpAndSettle();
+      }
+
+      auth.setOfflineMode(true);
+      await tester.pumpAndSettle();
+      expect(find.text('Administration'), findsNothing);
+      expect(find.text('Users'), findsNothing);
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('wide directory shows quota, averages and server-paginated results', (tester) async {
     await mount(tester, (request) async => directory(int.parse(request.url.queryParameters['page']!)));

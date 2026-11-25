@@ -1,33 +1,16 @@
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/admin/admin_navigation.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/utils/navigation_utils.dart';
 import 'package:papyrus/widgets/library/library_drawer.dart';
 import 'package:papyrus/widgets/shared/app_drawer.dart';
 import 'package:papyrus/widgets/shell/desktop_sidebar.dart';
 import 'package:papyrus/widgets/shell/mobile_bottom_nav.dart';
 import 'package:provider/provider.dart';
-
-/// Navigation item for the app shell.
-class AppShellNavItem {
-  final String path;
-  final String label;
-  final IconData icon;
-  final IconData? selectedIcon;
-  final List<AppShellNavItem>? children;
-  final int? count;
-
-  const AppShellNavItem({
-    required this.path,
-    required this.label,
-    required this.icon,
-    this.selectedIcon,
-    this.children,
-    this.count,
-  });
-}
 
 /// Main app shell that adapts to available screen width.
 /// - Desktop: Permanent collapsible sidebar
@@ -37,7 +20,11 @@ class AdaptiveAppShell extends StatelessWidget {
 
   const AdaptiveAppShell({super.key, required this.child});
 
-  static List<AppShellNavItem> buildNavItems(DataStore dataStore, {required int catalogCount}) {
+  static List<AppShellNavItem> buildNavItems(
+    DataStore dataStore, {
+    required int catalogCount,
+    required bool includeAdministration,
+  }) {
     return [
       const AppShellNavItem(
         path: '/dashboard',
@@ -119,6 +106,7 @@ class AdaptiveAppShell extends StatelessWidget {
         icon: Icons.bar_chart_outlined,
         selectedIcon: Icons.bar_chart,
       ),
+      if (includeAdministration) administrationNavItem,
       const AppShellNavItem(
         path: '/profile',
         label: 'Settings',
@@ -132,11 +120,15 @@ class AdaptiveAppShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final dataStore = context.watch<DataStore>();
     final catalogCount = context.select<OpdsCatalogs, int>((catalogs) => catalogs.catalogs.length);
-    final navItems = buildNavItems(dataStore, catalogCount: catalogCount);
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth >= Breakpoints.desktopSmall;
 
-    // Desktop uses sidebar, mobile uses bottom nav
+    final navItems = buildNavItems(
+      dataStore,
+      catalogCount: catalogCount,
+      includeAdministration: isDesktop && canShowAdministration(context),
+    );
+
     if (isDesktop) {
       return _buildDesktopShell(context, navItems);
     } else {
@@ -172,11 +164,13 @@ class AdaptiveAppShell extends StatelessWidget {
               )
             : child,
       ),
-      bottomNavigationBar: MobileBottomNav(
-        items: navItems,
-        currentPath: currentPath,
-        onNavigate: (path) => context.go(path),
-      ),
+      bottomNavigationBar: currentPath == adminUsersPath
+          ? null
+          : MobileBottomNav(
+              items: navItems,
+              currentPath: currentPath,
+              onNavigate: (path) => context.go(path),
+            ),
       drawerEnableOpenDragGesture: !AppMotion.disabled(context),
       drawer: isInLibrary ? LibraryDrawer(currentPath: currentPath) : null,
     );

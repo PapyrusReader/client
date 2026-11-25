@@ -18,6 +18,7 @@ import 'package:papyrus/pages/catalogs_page.dart';
 import 'package:papyrus/pages/catalog_book_page.dart';
 import 'package:papyrus/pages/forgot_password_page.dart';
 import 'package:papyrus/pages/login_page.dart';
+import 'package:papyrus/admin/admin_navigation.dart';
 import 'package:papyrus/pages/admin_users_page.dart';
 import 'package:papyrus/pages/profile_page.dart';
 import 'package:papyrus/pages/licenses_page.dart';
@@ -313,7 +314,7 @@ class AppRouter {
             pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const AcquisitionPage()),
           ),
           GoRoute(
-            path: '/admin/users',
+            path: adminUsersPath,
             pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const AdminUsersPage()),
           ),
           // Profile
@@ -424,7 +425,7 @@ class AppRouter {
       return '/library/books';
     }
 
-    if (location == '/admin/users' && !authProvider.canAdminister(syncSettingsProvider)) {
+    if (location == adminUsersPath && !authProvider.canAdminister(syncSettingsProvider)) {
       return '/profile';
     }
 
