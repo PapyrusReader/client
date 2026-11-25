@@ -8,10 +8,10 @@ double libraryPageHorizontalPadding(BuildContext context) =>
 
 /// Shared title placement for top-level Library collection pages.
 class LibraryCollectionHeader extends StatelessWidget {
-  const LibraryCollectionHeader({super.key, required this.title, required this.onMenuPressed, this.actions = const []});
+  const LibraryCollectionHeader({super.key, required this.title, this.onMenuPressed, this.actions = const []});
 
   final String title;
-  final VoidCallback onMenuPressed;
+  final VoidCallback? onMenuPressed;
   final List<Widget> actions;
 
   @override
@@ -26,7 +26,13 @@ class LibraryCollectionHeader extends StatelessWidget {
     );
 
     if (mobile) {
-      return LibraryMobileToolbar(search: heading, onMenuPressed: onMenuPressed, actions: actions);
+      final openMenu = onMenuPressed;
+
+      if (openMenu == null) {
+        return AppPageToolbar(content: heading, actions: actions);
+      }
+
+      return LibraryMobileToolbar(search: heading, onMenuPressed: openMenu, actions: actions);
     }
 
     return Padding(

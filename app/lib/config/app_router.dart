@@ -289,6 +289,16 @@ class AppRouter {
             name: 'GOALS',
             path: '/goals',
             pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const GoalsPage()),
+            routes: [
+              GoRoute(
+                name: 'GOAL_HISTORY',
+                path: 'history',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: GoalsPage.history(goalId: state.uri.queryParameters['goal']),
+                ),
+              ),
+            ],
           ),
           // Statistics
           GoRoute(

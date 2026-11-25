@@ -1,15 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:papyrus/data/data_store.dart';
-import 'package:papyrus/providers/statistics_provider.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
-import 'package:papyrus/widgets/library/library_page_header.dart';
+import 'package:papyrus/providers/statistics_provider.dart';
+import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
+import 'package:papyrus/widgets/goals/goal_controls.dart';
+import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/shared/app_date_picker.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/widgets/statistics/reading_charts.dart';
 import 'package:papyrus/widgets/statistics/stat_card.dart';
+import 'package:papyrus/widgets/statistics/statistics_activity_tab.dart';
 import 'package:papyrus/widgets/statistics/statistics_row.dart';
 import 'package:provider/provider.dart';
 
@@ -41,72 +44,53 @@ class _StatisticsPageState extends State<StatisticsPage> {
   @override
   Widget build(BuildContext context) {
     final centered = context.select<PreferencesProvider, bool>((preferences) => preferences.pageAlignment == 'center');
+    final padding = libraryPageHorizontalPadding(context);
+    final hasSidebar = MediaQuery.sizeOf(context).width >= Breakpoints.desktopSmall;
 
-    return ListenableBuilder(
-      listenable: _provider,
-      builder: (context, child) => Scaffold(
+    return DefaultTabController(
+      length: 2,
+      animationDuration: AppMotion.duration(context, kTabScrollDuration),
+      child: Scaffold(
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, constraints) {
-              final wide = constraints.maxWidth >= Breakpoints.desktopSmall;
-              final padding = libraryPageHorizontalPadding(context);
+              final maxWidth = 1120 + 2 * padding;
+              final inset = centered && constraints.maxWidth > maxWidth ? (constraints.maxWidth - maxWidth) / 2 : 0.0;
+              const tabs = TabBar(
+                isScrollable: true,
+                tabAlignment: TabAlignment.start,
+                indicatorSize: TabBarIndicatorSize.label,
+                tabs: [
+                  Tab(text: 'Overview'),
+                  Tab(text: 'Activity'),
+                ],
+              );
 
-              return RefreshIndicator(
-                onRefresh: _provider.refresh,
-                child: SingleChildScrollView(
-                  physics: const AlwaysScrollableScrollPhysics(),
-                  padding: EdgeInsets.all(padding),
-                  child: Align(
-                    alignment: centered ? Alignment.topCenter : Alignment.topLeft,
-                    child: ConstrainedBox(
-                      constraints: BoxConstraints(maxWidth: centered ? 1120 : double.infinity),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  if (hasSidebar)
+                    SizedBox(
+                      height: ComponentSizes.appBarHeight + BorderWidths.thin,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(horizontal: inset + padding),
+                        child: const Align(alignment: Alignment.bottomCenter, child: tabs),
+                      ),
+                    )
+                  else
+                    Padding(padding: EdgeInsets.fromLTRB(padding, padding, padding, 0), child: tabs),
+                  Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.symmetric(horizontal: inset),
+                      child: TabBarView(
                         children: [
-                          _periodControls(context),
-                          const SizedBox(height: Spacing.lg),
-                          if (_provider.isLoading) const AppLinearProgressIndicator(),
-                          if (_provider.error != null)
-                            Padding(
-                              padding: const EdgeInsets.only(bottom: Spacing.md),
-                              child: Text(
-                                _provider.error!,
-                                style: TextStyle(color: Theme.of(context).colorScheme.error),
-                              ),
-                            ),
-                          _overview(context),
-                          const SizedBox(height: Spacing.xl),
-                          _columns(context, _activity(context, wide), _sessions(context)),
-                          const SizedBox(height: Spacing.xl),
-                          _columns(context, _consistency(context), _genres(context)),
-                          if (_provider.selectedPeriod == StatsPeriod.year ||
-                              _provider.selectedPeriod == StatsPeriod.allTime) ...[
-                            const SizedBox(height: Spacing.xl),
-                            StatSectionCard(
-                              title: 'Books finished by month',
-                              subtitle: _periodTitle,
-                              child: _provider.monthlyStats.every((month) => month.booksRead == 0)
-                                  ? const EmptyState.compact(
-                                      icon: Icons.auto_stories_outlined,
-                                      title: 'No books finished in this range',
-                                    )
-                                  : SingleChildScrollView(
-                                      scrollDirection: Axis.horizontal,
-                                      child: SizedBox(
-                                        width: (_provider.monthlyStats.length * 64.0).clamp(280, 100000),
-                                        child: BooksPerMonthChart(
-                                          monthlyStats: _provider.monthlyStats,
-                                          isDesktop: wide,
-                                        ),
-                                      ),
-                                    ),
-                            ),
-                          ],
+                          _statisticsOverview(padding),
+                          StatisticsActivityTab(now: widget.now),
                         ],
                       ),
                     ),
                   ),
-                ),
+                ],
               );
             },
           ),
@@ -114,6 +98,43 @@ class _StatisticsPageState extends State<StatisticsPage> {
       ),
     );
   }
+
+  Widget _statisticsOverview(double padding) => ListenableBuilder(
+    listenable: _provider,
+    builder: (context, _) => LayoutBuilder(
+      builder: (context, constraints) {
+        final wide = constraints.maxWidth >= Breakpoints.desktopSmall;
+
+        return RefreshIndicator(
+          onRefresh: _provider.refresh,
+          child: SingleChildScrollView(
+            key: const PageStorageKey('statistics-overview-scroll'),
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: EdgeInsets.all(padding),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _periodControls(context),
+                const SizedBox(height: Spacing.lg),
+                if (_provider.isLoading) const AppLinearProgressIndicator(),
+                if (_provider.error != null)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: Spacing.md),
+                    child: Text(
+                      _provider.error!,
+                      style: TextStyle(color: Theme.of(context).colorScheme.error),
+                    ),
+                  ),
+                _overview(context),
+                const SizedBox(height: Spacing.xl),
+                _cards(wide),
+              ],
+            ),
+          ),
+        );
+      },
+    ),
+  );
 
   Widget _periodControls(BuildContext context) => LayoutBuilder(
     builder: (context, constraints) {
@@ -144,28 +165,43 @@ class _StatisticsPageState extends State<StatisticsPage> {
         ],
       );
 
+      final presets = SingleChildScrollView(scrollDirection: Axis.horizontal, child: controls);
+      final selected = _provider.hasCustomRange;
+      final picker = Semantics(
+        selected: selected,
+        child: compact && !selected
+            ? IconButton.outlined(
+                onPressed: _pickDates,
+                tooltip: 'Custom range',
+                icon: const Icon(Icons.date_range_outlined),
+              )
+            : GoalControls(
+                child: OutlinedButton.icon(
+                  onPressed: _pickDates,
+                  icon: const Icon(Icons.date_range_outlined),
+                  label: Text(
+                    selected
+                        ? formatDateRangeLabel(_provider.customStartDate!, _provider.customEndDate!)
+                        : 'Custom range',
+                  ),
+                ),
+              ),
+      );
+
+      if (selected) {
+        return OverflowBar(
+          alignment: MainAxisAlignment.spaceBetween,
+          spacing: Spacing.sm,
+          overflowSpacing: Spacing.sm,
+          children: [presets, picker],
+        );
+      }
+
       return Row(
         children: [
-          Expanded(
-            child: SingleChildScrollView(scrollDirection: Axis.horizontal, child: controls),
-          ),
+          Expanded(child: presets),
           const SizedBox(width: Spacing.sm),
-          Semantics(
-            selected: _provider.hasCustomRange,
-            child: compact
-                ? IconButton.outlined(
-                    onPressed: _pickDates,
-                    tooltip: 'Custom range',
-                    isSelected: _provider.hasCustomRange,
-                    icon: const Icon(Icons.date_range_outlined),
-                  )
-                : OutlinedButton.icon(
-                    style: OutlinedButton.styleFrom(minimumSize: const Size(48, 48)),
-                    onPressed: _pickDates,
-                    icon: const Icon(Icons.date_range_outlined, size: 18),
-                    label: const Text('Custom range'),
-                  ),
-          ),
+          picker,
         ],
       );
     },
@@ -175,74 +211,69 @@ class _StatisticsPageState extends State<StatisticsPage> {
     final textTheme = Theme.of(context).textTheme;
     final colors = Theme.of(context).colorScheme;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(_periodTitle, style: textTheme.headlineSmall),
-        const SizedBox(height: Spacing.sm),
-        Text('Your reading at a glance', style: textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
-        const SizedBox(height: Spacing.lg),
-        LayoutBuilder(
-          builder: (context, constraints) {
-            final minimumWidth = MediaQuery.textScalerOf(context).scale(140);
-            final columns = (constraints.maxWidth / minimumWidth).floor().clamp(1, 4);
-            final width = (constraints.maxWidth - Spacing.md * (columns - 1)) / columns;
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final minimumWidth = MediaQuery.textScalerOf(context).scale(140);
+        final columns = (constraints.maxWidth / minimumWidth).floor().clamp(1, 4);
+        final width = (constraints.maxWidth - Spacing.md * (columns - 1)) / columns;
 
-            return Wrap(
-              spacing: Spacing.md,
-              runSpacing: Spacing.lg,
-              children: [
-                for (final metric in [
-                  (_provider.totalReadingLabel, 'Reading time'),
-                  ('${_provider.pagesRead}', _provider.hasEstimatedPages ? 'Pages read (estimated)' : 'Pages read'),
-                  ('${_provider.totalBooks}', 'Books finished'),
-                  ('${_provider.daysRead}', 'Days read'),
-                ])
-                  SizedBox(
-                    width: width,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          metric.$1,
-                          style: textTheme.headlineMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
-                        ),
-                        const SizedBox(height: Spacing.xs),
-                        if (metric.$2 == 'Days read')
-                          Tooltip(
-                            message: 'Days with at least 5 minutes of reading',
-                            child: Text(
-                              metric.$2,
-                              style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-                            ),
-                          )
-                        else
-                          Text(metric.$2, style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
-                      ],
+        return Wrap(
+          spacing: Spacing.md,
+          runSpacing: Spacing.lg,
+          children: [
+            for (final metric in [
+              (_provider.totalReadingLabel, 'Reading time'),
+              ('${_provider.pagesRead}', _provider.hasEstimatedPages ? 'Pages read (estimated)' : 'Pages read'),
+              ('${_provider.totalBooks}', 'Books finished'),
+              ('${_provider.daysRead}', 'Days read'),
+            ])
+              SizedBox(
+                width: width,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      metric.$1,
+                      style: textTheme.headlineMedium?.copyWith(fontFeatures: const [FontFeature.tabularFigures()]),
                     ),
-                  ),
-              ],
-            );
-          },
-        ),
-      ],
+                    const SizedBox(height: Spacing.xs),
+                    if (metric.$2 == 'Days read')
+                      Tooltip(
+                        message: 'Days with at least 5 minutes of reading',
+                        child: Text(
+                          metric.$2,
+                          style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant),
+                        ),
+                      )
+                    else
+                      Text(metric.$2, style: textTheme.bodySmall?.copyWith(color: colors.onSurfaceVariant)),
+                  ],
+                ),
+              ),
+          ],
+        );
+      },
     );
   }
 
-  Widget _columns(BuildContext context, Widget main, Widget aside) => LayoutBuilder(
+  Widget _cards(bool wide) => LayoutBuilder(
     builder: (context, constraints) {
-      if (constraints.maxWidth < 800 || MediaQuery.textScalerOf(context).scale(16) > 24) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            main,
-            const SizedBox(height: Spacing.lg),
-            aside,
-          ],
-        );
-      }
+      final stacked = constraints.maxWidth < 800 || MediaQuery.textScalerOf(context).scale(16) > 24;
+      final activity = _activity(context, wide);
+      final sessions = _sessions(context);
+      final consistency = _consistency(context);
+      final genres = _genres(context);
 
-      return StatisticsRow(main: main, aside: aside);
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: stacked ? Spacing.lg : Spacing.xl,
+        children: stacked
+            ? [activity, sessions, consistency, genres]
+            : [
+                StatisticsRow(main: activity, aside: sessions),
+                StatisticsRow(main: consistency, aside: genres),
+              ],
+      );
     },
   );
 

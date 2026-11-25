@@ -219,7 +219,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                 isExpanded: true,
                 decoration: const InputDecoration(labelText: 'Measure'),
                 items: [
-                  for (final type in GoalType.values) DropdownMenuItem(value: type, child: Text(_metricLabel(type))),
+                  for (final type in GoalType.values) DropdownMenuItem(value: type, child: Text(type.label)),
                 ],
                 onChanged: _saving
                     ? null
@@ -267,13 +267,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                 children: [
                   for (final period in GoalPeriod.values)
                     ChoiceChip(
-                      label: Text(switch (period) {
-                        GoalPeriod.daily => 'Daily',
-                        GoalPeriod.weekly => 'Weekly',
-                        GoalPeriod.monthly => 'Monthly',
-                        GoalPeriod.yearly => 'Yearly',
-                        GoalPeriod.custom => 'By date',
-                      }),
+                      label: Text(period.label),
                       selected: _period == period,
                       showCheckmark: false,
                       onSelected: _saving
@@ -290,7 +284,7 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
               ),
               if (_period == GoalPeriod.custom)
                 Padding(
-                  padding: const EdgeInsets.only(top: Spacing.md),
+                  padding: const EdgeInsets.symmetric(vertical: Spacing.md),
                   child: Align(
                     alignment: AlignmentDirectional.centerStart,
                     child: OutlinedButton.icon(
@@ -312,16 +306,27 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
                       label: Text('Deadline: ${_deadline.day}/${_deadline.month}/${_deadline.year}'),
                     ),
                   ),
+                )
+              else
+                Theme(
+                  data: Theme.of(context).copyWith(
+                    splashFactory: NoSplash.splashFactory,
+                    highlightColor: Colors.transparent,
+                    hoverColor: Colors.transparent,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
+                    child: SwitchListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: const Text('Repeat each period'),
+                      value: _recurring,
+                      onChanged: _saving ? null : (value) => setState(() => _recurring = value),
+                      overlayColor: WidgetStateProperty.resolveWith(
+                        (states) => states.contains(WidgetState.focused) ? null : Colors.transparent,
+                      ),
+                    ),
+                  ),
                 ),
-              if (_period != GoalPeriod.custom)
-                SwitchListTile(
-                  hoverColor: Colors.transparent,
-                  contentPadding: EdgeInsets.zero,
-                  title: const Text('Repeat each period'),
-                  value: _recurring,
-                  onChanged: _saving ? null : (value) => setState(() => _recurring = value),
-                ),
-              const SizedBox(height: Spacing.md),
               DropdownButtonFormField<GoalScope>(
                 initialValue: _scope,
                 key: ValueKey('scope-$_scope'),
@@ -517,13 +522,6 @@ class _AddGoalSheetState extends State<AddGoalSheet> {
   }
 }
 
-String _metricLabel(GoalType type) => switch (type) {
-  GoalType.books => 'Books finished',
-  GoalType.pages => 'Pages read',
-  GoalType.minutes => 'Reading time',
-  GoalType.days => 'Reading days',
-};
-
 class _GoalMetricSheet extends StatelessWidget {
   const _GoalMetricSheet();
 
@@ -551,7 +549,7 @@ class _GoalMetricSheet extends StatelessWidget {
                   child: ListTile(
                     contentPadding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
                     leading: Icon(goalIcon(type), color: colors.primary),
-                    title: Text(_metricLabel(type)),
+                    title: Text(type.label),
                     subtitle: Text(switch (type) {
                       GoalType.books => 'Finish books from your library',
                       GoalType.pages => 'Read a set number of pages',

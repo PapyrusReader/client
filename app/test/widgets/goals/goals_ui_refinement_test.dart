@@ -10,6 +10,8 @@ import 'package:papyrus/providers/goals_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/goals/add_goal_sheet.dart';
 import 'package:papyrus/widgets/goals/goal_details_sheet.dart';
+import 'package:papyrus/widgets/goals/goal_controls.dart';
+import 'package:papyrus/widgets/goals/goal_history_filters.dart';
 import 'package:papyrus/widgets/goals/log_reading_sheet.dart';
 import 'package:papyrus/widgets/goals/reading_activity_heatmap.dart';
 import 'package:papyrus/widgets/goals/reading_activity_timeline.dart';
@@ -77,6 +79,27 @@ void main() {
     return value;
   }
 
+  testWidgets('clear dates aligns with the selected date range', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: AppTheme.dark.copyWith(materialTapTargetSize: MaterialTapTargetSize.shrinkWrap),
+        home: Scaffold(
+          body: GoalControls(
+            child: GoalDateFilter(
+              dates: DateTimeRange(start: DateTime(2026, 11, 24), end: DateTime(2026, 11, 25)),
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      ),
+    );
+
+    final dates = tester.getCenter(find.text('Nov 24 – Nov 25'));
+    final clear = tester.getCenter(find.text('Clear dates'));
+    expect(clear.dx, greaterThan(dates.dx));
+    expect(clear.dy, closeTo(dates.dy, 1));
+  });
+
   testWidgets('desktop rows align goal cards without reader launch controls', (tester) async {
     await size(tester);
     final store = DataStore()..loadData(books: [book], readingGoals: [short, days]);
@@ -93,15 +116,15 @@ void main() {
     final left = tester.getRect(find.byKey(const ValueKey('goal-card-short')));
     final right = tester.getRect(find.byKey(const ValueKey('goal-card-days')));
     expect(left.height, right.height);
+    expect(find.textContaining('to go'), findsNothing);
+    expect(find.textContaining('% complete'), findsNothing);
     expect(find.text('Continue reading'), findsNothing);
     final log = find.widgetWithText(OutlinedButton, 'Log reading');
     expect(tester.getSize(log).width, lessThan(300));
     final theme = Theme.of(tester.element(log));
     expect(theme.outlinedButtonTheme.style!.shape!.resolve({}), isA<StadiumBorder>());
     expect(theme.filledButtonTheme.style!.shape!.resolve({}), isA<StadiumBorder>());
-    await tester.tap(find.text('Activity'));
-    await tester.pumpAndSettle();
-    expect(tester.getSize(find.widgetWithText(OutlinedButton, 'Filter dates')).width, lessThan(300));
+    expect(find.text('Goal history'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -147,7 +170,12 @@ void main() {
 
     expect(find.text('Advanced settings'), findsNothing);
     expect(find.byKey(const Key('goal-timezone-button')), findsNothing);
-    expect(find.text('Repeat each period'), findsOneWidget);
+    final schedule = tester.getRect(
+      find.ancestor(of: find.widgetWithText(ChoiceChip, 'Daily'), matching: find.byType(Wrap)).first,
+    );
+    final repeat = tester.getRect(find.text('Repeat each period'));
+    final include = tester.getRect(find.widgetWithText(DropdownButtonFormField<GoalScope>, 'Include'));
+    expect(repeat.top - schedule.bottom, closeTo(include.top - repeat.bottom, 1));
 
     expect(
       tester.getTopLeft(find.widgetWithText(TextFormField, 'Name (optional)')).dy,
@@ -572,6 +600,7 @@ void main() {
         ReadingActivity(
           id: 'checkpoint-$i',
           sessionId: 'same-opening',
+          coverage: const [PageCoverage(key: 'page-1', start: 0, end: 1, pagesPerUnit: 1)],
           bookId: book.id,
           bookTitle: book.title,
           source: 'reader',
@@ -592,14 +621,85 @@ void main() {
 
     await tester.pumpAndSettle();
     expect(find.text(book.title), findsOneWidget);
-    expect(find.text('2m · Reader'), findsOneWidget);
+    expect(find.text('2m · 1 page'), findsOneWidget);
     await tester.tap(find.text(book.title));
     await tester.pumpAndSettle();
     expect(find.text(book.title), findsOneWidget);
-    await tester.tap(find.widgetWithText(ListTile, '2 min · Reader').last);
+    await tester.tap(find.widgetWithText(ListTile, '2 min').last);
     await tester.pumpAndSettle();
     expect(find.text('Undo this entry'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('a busy day pages by book and combines reader checkpoints without a session ID', (tester) async {
+    await size(tester);
+    final noon = DateTime.utc(2026, 10, 10, 12);
+    final store = DataStore()..loadData(books: [book]);
+    final goals = GoalsProvider(now: () => noon, watchClock: false)..attach(store);
+    addTearDown(store.dispose);
+    addTearDown(goals.dispose);
+
+    await store.commitTracking(
+      activities: [
+        for (var i = 0; i < 30; i++)
+          ReadingActivity(
+            id: 'page-$i',
+            bookId: book.id,
+            bookTitle: book.title,
+            source: 'reader',
+            startTime: noon.subtract(Duration(seconds: i * 3 + 1)),
+            endTime: noon.subtract(Duration(seconds: i * 3)),
+            createdAt: noon,
+          ),
+        for (var i = 1; i <= 11; i++)
+          ReadingActivity(
+            id: 'log-$i',
+            bookId: 'other-$i',
+            bookTitle: 'Book $i',
+            pages: 1,
+            startTime: noon.subtract(Duration(hours: i)),
+            endTime: noon.subtract(Duration(hours: i)),
+            createdAt: noon,
+          ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: Scaffold(
+          body: SingleChildScrollView(
+            child: ReadingActivityTimeline(activities: store.readingActivities, provider: goals, timezone: 'UTC'),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('Page 1 of 2'), findsOneWidget);
+    expect(find.byType(ExpansionTile), findsNWidgets(10));
+    expect(find.text('Book 11'), findsNothing);
+    await tester.tap(find.text(book.title));
+    await tester.pumpAndSettle();
+    final details = tester.widget<ReadingActivityTile>(find.byType(ReadingActivityTile));
+    expect(find.descendant(of: find.byType(ReadingActivityTile), matching: find.text('30 sec')), findsOneWidget);
+    expect(details.activity.seconds, 30);
+    expect(details.activity.constituentIds, hasLength(30));
+    expect(find.text('1 sec'), findsNothing);
+    expect(
+      tester.getTopLeft(find.text('Page 1 of 2')).dy,
+      greaterThan(tester.getBottomLeft(find.byType(ExpansionTile).last).dy),
+    );
+    await tester.ensureVisible(find.byTooltip('Older entries'));
+    await tester.tap(find.byTooltip('Older entries'));
+    await tester.pumpAndSettle();
+    expect(find.text('Page 2 of 2'), findsOneWidget);
+    expect(find.byType(ExpansionTile), findsNWidgets(2));
+    expect(find.text('Book 11'), findsOneWidget);
+    expect(find.text(book.title), findsNothing);
+    await tester.tap(find.byTooltip('Newer entries'));
+    await tester.pumpAndSettle();
+    expect(find.text(book.title), findsOneWidget);
+    expect(find.text(book.title).hitTestable(), findsOneWidget);
+    expect(store.readingActivities, hasLength(41));
   });
 
   testWidgets('activity groups repeated titles while preserving individual entries and audit actions', (tester) async {
@@ -625,15 +725,22 @@ void main() {
       MaterialApp(
         theme: AppTheme.dark,
         home: Scaffold(
-          body: ReadingActivityList(activities: entries, provider: goals, correctedIds: const {'1'}),
+          body: ReadingActivityTimeline(
+            activities: entries,
+            provider: goals,
+            timezone: 'UTC',
+            correctedIds: const {'1'},
+          ),
         ),
       ),
     );
 
     expect(find.text(book.title), findsOneWidget);
-    expect(find.text('1 min · Reader'), findsOneWidget);
-    expect(find.text('2 min · Reader · Corrected'), findsOneWidget);
-    await tester.tap(find.text('1 min · Reader'));
+    await tester.tap(find.text(book.title));
+    await tester.pumpAndSettle();
+    expect(find.text('1 min'), findsOneWidget);
+    expect(find.text('2 min · Corrected'), findsOneWidget);
+    await tester.tap(find.text('1 min'));
     await tester.pumpAndSettle();
     expect(find.text('Undo this entry'), findsOneWidget);
     expect(tester.takeException(), isNull);

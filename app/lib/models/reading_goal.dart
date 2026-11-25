@@ -9,9 +9,26 @@ String formatDuration(int minutes) {
   return m == 0 ? '${h}h' : '${h}h ${m}m';
 }
 
-enum GoalType { books, pages, minutes, days }
+enum GoalType {
+  books('Books finished'),
+  pages('Pages read'),
+  minutes('Reading time'),
+  days('Reading days');
 
-enum GoalPeriod { daily, weekly, monthly, yearly, custom }
+  const GoalType(this.label);
+  final String label;
+}
+
+enum GoalPeriod {
+  daily('Daily'),
+  weekly('Weekly'),
+  monthly('Monthly'),
+  yearly('Yearly'),
+  custom('By date');
+
+  const GoalPeriod(this.label);
+  final String label;
+}
 
 enum GoalScope { library, book, shelf }
 
@@ -138,12 +155,14 @@ class ReadingGoal {
   bool get isYearly => period == GoalPeriod.yearly;
   bool get isCustomPeriod => period == GoalPeriod.custom;
 
-  String get description =>
-      goalDescription ??
-      (type == GoalType.days
-          ? 'Read on $targetValue ${unitLabel(targetValue)} $periodLabel'
-          : 'Read ${type == GoalType.minutes ? formatDuration(targetValue) : '$targetValue ${unitLabel(targetValue)}'} $periodLabel');
+  String get _targetDescription => switch (type) {
+    GoalType.days => 'Read on $targetValue ${unitLabel(targetValue)}',
+    GoalType.minutes => 'Read ${formatDuration(targetValue)}',
+    _ => 'Read $targetValue ${unitLabel(targetValue)}',
+  };
 
+  String get description => goalDescription ?? '$_targetDescription $periodLabel';
+  String get cardTitle => title?.trim().isNotEmpty == true ? title! : goalDescription ?? _targetDescription;
   String get displayTitle => title?.trim().isNotEmpty == true ? title! : description;
 
   String get statusText => isCompleted

@@ -48,47 +48,6 @@ class StatisticsActivity extends DailyActivity {
   String get readingTimeLabel => seconds > 0 && seconds < 60 ? '${seconds}s' : super.readingTimeLabel;
 }
 
-/// Monthly reading statistics.
-class MonthlyStats {
-  final int month;
-  final int year;
-  final int booksRead;
-  final int pagesRead;
-  final int readingMinutes;
-
-  const MonthlyStats({
-    required this.month,
-    required this.year,
-    required this.booksRead,
-    required this.pagesRead,
-    required this.readingMinutes,
-  });
-
-  String get monthLabel {
-    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    return months[month - 1];
-  }
-
-  String get fullMonthLabel {
-    const months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
-
-    return months[month - 1];
-  }
-}
-
 /// Reading session statistics.
 class SessionStats {
   final int totalSessions;
@@ -160,7 +119,6 @@ class StatisticsProvider extends ChangeNotifier {
   // Chart data
   List<StatisticsActivity> _readingTimeData = [];
   List<StatisticsActivity> _pagesReadData = [];
-  List<MonthlyStats> _monthlyStats = [];
   List<GenreStats> _genreDistribution = [];
   ReadingStreak _streak = ReadingStreak.empty;
 
@@ -336,7 +294,6 @@ class StatisticsProvider extends ChangeNotifier {
 
   List<StatisticsActivity> get readingTimeData => _readingTimeData;
   List<StatisticsActivity> get pagesReadData => _pagesReadData;
-  List<MonthlyStats> get monthlyStats => _monthlyStats;
   List<GenreStats> get genreDistribution => _genreDistribution;
   ReadingStreak get streak => _streak;
 
@@ -570,7 +527,6 @@ class StatisticsProvider extends ChangeNotifier {
       totalDaysInMonth: DateTime(local.year, local.month + 1, 0).day,
     );
 
-    _monthlyStats = _generateMonthlyStats();
     _readingTimeData = _generateActivityData();
     _pagesReadData = _readingTimeData;
   }
@@ -614,32 +570,6 @@ class StatisticsProvider extends ChangeNotifier {
     }
 
     return activities;
-  }
-
-  List<MonthlyStats> _generateMonthlyStats() {
-    final range = _getDateRangeForPeriod();
-    final months = <MonthlyStats>[];
-    var cursor = range.start;
-
-    while (cursor.isBefore(range.end)) {
-      final boundary = DateTime(cursor.year, cursor.month + 1);
-      final end = boundary.isAfter(range.end) ? range.end : boundary;
-      final totals = _dataStore?.activityTotals(cursor, end);
-
-      months.add(
-        MonthlyStats(
-          month: cursor.month,
-          year: cursor.year,
-          booksRead: _completedBooks(cursor, end).length,
-          pagesRead: totals?.pages.floor() ?? 0,
-          readingMinutes: (totals?.seconds ?? 0) ~/ 60,
-        ),
-      );
-
-      cursor = end;
-    }
-
-    return months;
   }
 
   String _formatShortDate(DateTime date) {

@@ -83,7 +83,6 @@ void main() {
     'No reading goals set': ReadingGoalCard(goals: []),
     'No books added recently': RecentlyAddedSection(books: []),
     'No reading data for this period': ReadingActivityBarChart(activities: []),
-    'No books read data available': BooksPerMonthChart(monthlyStats: []),
   };
 
   for (final entry in states.entries) {

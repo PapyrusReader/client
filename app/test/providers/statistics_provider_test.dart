@@ -109,8 +109,6 @@ void main() {
     addTearDown(provider.dispose);
     provider.setPeriod(StatsPeriod.allTime);
     expect(provider.totalBooks, 3);
-    expect(provider.monthlyStats.last.booksRead, 2);
-    expect(provider.monthlyStats.first.booksRead, 1);
     expect(provider.readingTimeData.last.booksRead, unorderedEquals(['legacy-today', 'tracked']));
     provider.setCustomDateRange(previousMonth, previousMonth);
     expect(provider.totalBooks, 1);
@@ -151,7 +149,6 @@ void main() {
     expect(provider.pagesRead, 22);
     expect(provider.periodDays, 306);
     expect(provider.averageReadingLabel, '2s');
-    expect(provider.monthlyStats.length, 11);
 
     provider.setCustomDateRange(DateTime(2026, 10, 15), DateTime(2026, 11, 1));
     expect(provider.bucketSize, StatisticsBucketSize.day);

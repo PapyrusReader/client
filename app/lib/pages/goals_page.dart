@@ -1,122 +1,105 @@
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
-import 'package:provider/provider.dart';
+import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
-import 'package:papyrus/goals/goal_progress.dart';
 import 'package:papyrus/goals/goal_calendar.dart';
-import 'package:papyrus/models/reading_activity.dart';
+import 'package:papyrus/goals/goal_progress.dart';
 import 'package:papyrus/models/reading_goal.dart';
 import 'package:papyrus/providers/goals_provider.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/themes/app_motion.dart';
+import 'package:papyrus/widgets/goals/activity_pagination.dart';
 import 'package:papyrus/widgets/goals/add_goal_sheet.dart';
 import 'package:papyrus/widgets/goals/goal_card.dart';
-import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/goals/goal_controls.dart';
 import 'package:papyrus/widgets/goals/goal_details_sheet.dart';
+import 'package:papyrus/widgets/goals/goal_history_filters.dart';
 import 'package:papyrus/widgets/goals/log_reading_sheet.dart';
-import 'package:papyrus/widgets/goals/reading_activity_heatmap.dart';
-import 'package:papyrus/widgets/goals/reading_activity_timeline.dart';
-import 'package:papyrus/widgets/shared/app_date_picker.dart';
-import 'package:papyrus/widgets/shared/empty_state.dart';
+import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
+import 'package:provider/provider.dart';
+
+enum _GoalSection {
+  inProgress('In progress', 'No goals in progress', Icons.auto_stories_outlined),
+  notStarted('Not started', 'No goals pending', Icons.bookmark_border),
+  completed('Completed', 'No completed goals yet', Icons.task_alt),
+  paused('Paused', 'No paused goals', Icons.pause_circle_outline);
+
+  const _GoalSection(this.title, this.emptyMessage, this.icon);
+  final String title;
+  final String emptyMessage;
+  final IconData icon;
+}
 
 class GoalsPage extends StatefulWidget {
-  const GoalsPage({super.key, this.now});
+  const GoalsPage({super.key, this.now}) : history = false, goalId = null;
+  const GoalsPage.history({super.key, this.now, this.goalId}) : history = true;
+
+  final bool history;
+  final String? goalId;
   final DateTime Function()? now;
 
   @override
   State<GoalsPage> createState() => _GoalsPageState();
 }
 
-class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
+class _GoalsPageState extends State<GoalsPage> {
   late final _provider = GoalsProvider(now: widget.now);
-  bool _activity = false;
-  bool _hideCompleted = false;
-  late TabController _tabs;
-
-  @override
-  void initState() {
-    super.initState();
-    _tabs = TabController(length: 2, vsync: this);
-    _tabs.addListener(_onTabChanged);
-  }
-
-  void _onTabChanged() {
-    if (_activity != (_tabs.index == 1)) {
-      setState(() => _activity = _tabs.index == 1);
-    }
-  }
-
-  String? _filterGoal;
-  DateTimeRange? _filterDates;
-  int? _activityYear;
-  String _activityKind = 'all';
+  GoalType? _historyType;
+  DateTimeRange? _historyDates;
+  final _historyScroll = ScrollController();
+  static const _periodPageSize = 10;
+  int _periodPage = 0;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    final duration = AppMotion.duration(context, kTabScrollDuration);
-
-    if (_tabs.animationDuration != duration) {
-      final index = _tabs.index;
-      _tabs.removeListener(_onTabChanged);
-      _tabs.dispose();
-      _tabs = TabController(length: 2, vsync: this, initialIndex: index, animationDuration: duration);
-      _tabs.addListener(_onTabChanged);
-    }
-
-    _provider.attach(context.read<DataStore>());
+    _provider.attach(context.watch<DataStore>());
   }
 
   @override
   void dispose() {
-    _tabs.removeListener(_onTabChanged);
-    _tabs.dispose();
+    _historyScroll.dispose();
     _provider.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => AnimatedBuilder(
-    animation: _provider,
-    builder: (context, _) => GoalControls(
-      child: Scaffold(
-        floatingActionButton: _usesFab(context)
-            ? FloatingActionButton(
-                tooltip: 'New goal',
-                onPressed: () => AddGoalSheet.show(context, provider: _provider),
-                child: const Icon(Icons.add),
-              )
-            : null,
-        body: SafeArea(
-          child: LayoutBuilder(
-            builder: (context, constraints) {
-              final padding = libraryPageHorizontalPadding(context);
+  Widget build(BuildContext context) {
+    final padding = libraryPageHorizontalPadding(context);
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Padding(padding: EdgeInsets.fromLTRB(padding, padding, padding, 0), child: _viewTabs(context)),
-                  Expanded(
-                    child: TabBarView(
-                      controller: _tabs,
-                      children: [
-                        _tabContent(context, padding, activity: false),
-                        _tabContent(context, padding, activity: true),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            },
+    return ListenableBuilder(
+      listenable: _provider,
+      builder: (context, _) => GoalControls(
+        child: Scaffold(
+          floatingActionButton: !widget.history && _usesFab(context)
+              ? FloatingActionButton(
+                  tooltip: 'New goal',
+                  onPressed: () => AddGoalSheet.show(context, provider: _provider),
+                  child: const Icon(Icons.add),
+                )
+              : null,
+          body: SafeArea(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (widget.history)
+                  LibraryPageHeader(
+                    title: 'Goal history',
+                    leading: BackButton(onPressed: () => context.pop()),
+                    compact: _usesFab(context),
+                  )
+                else
+                  _toolbar(context),
+                Expanded(child: _content(context, padding)),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 
-  Widget _tabContent(BuildContext context, double padding, {required bool activity}) {
+  Widget _content(BuildContext context, double padding) {
     if (!_provider.store.isLoaded && _provider.error != null) {
       return EmptyState(
         icon: Icons.cloud_off_outlined,
@@ -125,199 +108,109 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
       );
     }
 
-    if (!activity && !_provider.isLoading && _provider.error == null) {
-      if (_provider.current.isEmpty) {
-        return EmptyState(
-          key: const Key('goals-empty-state'),
-          icon: Icons.emoji_events_outlined,
-          title: 'No goals yet',
-          subtitle: 'Create a goal to track your reading progress.',
-          action: EmptyStateAction(
-            label: 'New goal',
-            icon: Icons.add,
-            onPressed: () => AddGoalSheet.show(context, provider: _provider),
-          ),
-        );
-      }
+    final insets = EdgeInsets.fromLTRB(
+      padding,
+      Spacing.lg,
+      padding,
+      padding + (!widget.history && _usesFab(context) ? Spacing.fabClearance : 0),
+    );
 
-      if (_hideCompleted && _provider.current.every((progress) => progress.reached)) {
-        return const EmptyState.compact(icon: Icons.check_circle_outline, title: 'All goals completed');
-      }
+    final children = [
+      if (_provider.isLoading)
+        const Center(child: AppCircularProgressIndicator())
+      else if (widget.history)
+        ..._history(context)
+      else
+        ..._overview(context),
+      if (_provider.error != null) Text(_provider.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
+    ];
+
+    if (widget.history) {
+      return SingleChildScrollView(
+        controller: _historyScroll,
+        padding: insets,
+        child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: children),
+      );
     }
 
-    return ListView(
-      key: PageStorageKey(activity ? 'goals-activity-scroll' : 'goals-overview-scroll'),
-      padding: EdgeInsets.fromLTRB(
-        padding,
-        Spacing.lg,
-        padding,
-        // Let the final row scroll clear of the creation FAB.
-        padding + (_usesFab(context) ? Spacing.fabClearance : 0),
-      ),
-      children: [
-        if (_provider.isLoading)
-          const Center(child: AppCircularProgressIndicator())
-        else if (activity)
-          ..._activityContent(context)
-        else
-          ..._overview(context),
-        if (_provider.error != null)
-          Padding(
-            padding: const EdgeInsets.only(top: Spacing.md),
-            child: Text(_provider.error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          ),
-      ],
-    );
+    return ListView(padding: insets, children: children);
   }
 
   bool _usesFab(BuildContext context) => MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
 
-  Widget _pageActions(BuildContext context, {required bool compact}) => Wrap(
-    spacing: Spacing.sm,
-    crossAxisAlignment: WrapCrossAlignment.center,
-    children: [
-      if (compact)
-        IconButton(
-          tooltip: 'Log reading',
-          onPressed: () => LogReadingSheet.show(context, provider: _provider),
-          icon: const Icon(Icons.edit_outlined),
-        )
-      else
-        OutlinedButton.icon(
-          onPressed: () => LogReadingSheet.show(context, provider: _provider),
-          icon: const Icon(Icons.edit_outlined),
-          label: const Text('Log reading'),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size(0, TouchTargets.desktopRecommended),
-            padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
-            visualDensity: VisualDensity.standard,
-            textStyle: Theme.of(context).textTheme.labelLarge,
-            shape: const StadiumBorder(),
-          ),
-        ),
-      if (!_usesFab(context))
-        if (compact)
-          IconButton.filled(
-            tooltip: 'New goal',
-            onPressed: () => AddGoalSheet.show(context, provider: _provider),
-            icon: const Icon(Icons.add),
-          )
-        else
-          LibraryAddButton(
-            label: 'New goal',
-            onPressed: () => AddGoalSheet.show(context, provider: _provider),
-          ),
-    ],
-  );
+  Widget _toolbar(BuildContext context) => LayoutBuilder(
+    builder: (context, constraints) {
+      final theme = Theme.of(context);
+      final useFab = _usesFab(context);
+      final largeText = MediaQuery.textScalerOf(context).scale(1) > 1.4;
+      final compact = useFab || constraints.maxWidth < 640 || largeText;
 
-  Widget _viewTabs(BuildContext context) => Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      LayoutBuilder(
-        builder: (context, constraints) => Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Expanded(child: _tabControl(context)),
-            if (!_activity && _provider.current.isNotEmpty)
-              Semantics(
-                value: _hideCompleted ? 'Completed goals hidden' : 'Showing completed goals',
-                child: PopupMenuButton<bool>(
-                  tooltip: 'Goal filters',
-                  icon: Badge(
-                    isLabelVisible: _hideCompleted,
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                    child: const Icon(Icons.filter_list),
-                  ),
-                  onSelected: (value) => setState(() => _hideCompleted = value),
-                  itemBuilder: (_) => [
-                    CheckedPopupMenuItem<bool>(
-                      value: !_hideCompleted,
-                      checked: _hideCompleted,
-                      child: const Text('Hide completed'),
-                    ),
-                  ],
+      return Theme(
+        data: theme.copyWith(
+          materialTapTargetSize: useFab ? theme.materialTapTargetSize : MaterialTapTargetSize.shrinkWrap,
+        ),
+        child: LibraryCollectionHeader(
+          title: 'Goals',
+          actions: [
+            if (compact)
+              IconButton(
+                onPressed: () => context.pushNamed('GOAL_HISTORY'),
+                tooltip: 'Goal history',
+                icon: const Icon(Icons.history),
+              )
+            else
+              TextButton.icon(
+                onPressed: () => context.pushNamed('GOAL_HISTORY'),
+                icon: const Icon(Icons.history),
+                label: const Text('Goal history'),
+              ),
+            if (compact)
+              IconButton(
+                tooltip: 'Log reading',
+                onPressed: () => LogReadingSheet.show(context, provider: _provider),
+                icon: const Icon(Icons.edit_outlined),
+              )
+            else
+              OutlinedButton.icon(
+                onPressed: () => LogReadingSheet.show(context, provider: _provider),
+                icon: const Icon(Icons.edit_outlined),
+                label: const Text('Log reading'),
+                style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(0, TouchTargets.desktopRecommended),
+                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.sm),
+                  visualDensity: VisualDensity.standard,
+                  textStyle: Theme.of(context).textTheme.labelLarge,
+                  shape: const StadiumBorder(),
                 ),
               ),
-            const SizedBox(width: Spacing.sm),
-            // Desktop controls use the same 40px target as collection actions.
-            // Top-align their painted bounds in the standard 48px tab row.
-            Theme(
-              data: Theme.of(context).copyWith(
-                materialTapTargetSize: _usesFab(context)
-                    ? Theme.of(context).materialTapTargetSize
-                    : MaterialTapTargetSize.shrinkWrap,
-              ),
-              child: _pageActions(
-                context,
-                compact:
-                    _usesFab(context) || constraints.maxWidth < 640 || MediaQuery.textScalerOf(context).scale(1) > 1.4,
-              ),
-            ),
+            if (!useFab)
+              if (compact)
+                IconButton.filled(
+                  tooltip: 'New goal',
+                  onPressed: () => AddGoalSheet.show(context, provider: _provider),
+                  icon: const Icon(Icons.add),
+                )
+              else
+                LibraryAddButton(
+                  label: 'New goal',
+                  onPressed: () => AddGoalSheet.show(context, provider: _provider),
+                ),
           ],
         ),
-      ),
-      const Divider(height: 1),
-    ],
+      );
+    },
   );
 
-  Widget _tabControl(BuildContext context) {
-    if (MediaQuery.textScalerOf(context).scale(16) <= 24) {
-      return TabBar(
-        controller: _tabs,
-        isScrollable: true,
-        tabAlignment: TabAlignment.start,
-        indicatorSize: TabBarIndicatorSize.label,
-        dividerHeight: 0,
-        dividerColor: Theme.of(context).colorScheme.outlineVariant,
-        labelPadding: EdgeInsets.symmetric(horizontal: _usesFab(context) ? Spacing.sm : Spacing.md),
-        tabs: const [
-          Tab(text: 'Overview'),
-          Tab(text: 'Activity'),
-        ],
-      );
-    }
-
-    final colors = Theme.of(context).colorScheme;
-
-    return Wrap(
-      spacing: Spacing.sm,
-      children: [
-        for (var index = 0; index < 2; index++)
-          Semantics(
-            selected: _tabs.index == index,
-            child: TextButton(
-              onPressed: () => _tabs.index = index,
-              style: TextButton.styleFrom(foregroundColor: _tabs.index == index ? colors.primary : colors.onSurface),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: Spacing.xs),
-                decoration: BoxDecoration(
-                  border: Border(
-                    bottom: BorderSide(color: _tabs.index == index ? colors.primary : Colors.transparent, width: 2),
-                  ),
-                ),
-                child: Text(index == 0 ? 'Overview' : 'Activity'),
-              ),
-            ),
-          ),
-      ],
-    );
-  }
-
   List<Widget> _overview(BuildContext context) {
-    final current = _provider.current;
     // Recurrence describes a goal's schedule; activity determines its place here.
-    final groups = <String, List<GoalProgress>>{'In progress': [], 'Not started': [], 'Completed': [], 'Paused': []};
+    final groups = {for (final section in _GoalSection.values) section: <GoalProgress>[]};
 
-    for (final progress in current) {
-      if (_hideCompleted && progress.reached) {
-        continue;
-      }
-
+    for (final progress in _provider.current) {
       final status = switch (!progress.projected.isActive) {
-        true => 'Paused',
-        false when progress.reached => 'Completed',
-        false when progress.fraction > 0 => 'In progress',
-        false => 'Not started',
+        true => _GoalSection.paused,
+        false when progress.reached => _GoalSection.completed,
+        false when progress.fraction > 0 => _GoalSection.inProgress,
+        false => _GoalSection.notStarted,
       };
 
       groups[status]!.add(progress);
@@ -342,16 +235,49 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
       });
     }
 
-    final texts = Theme.of(context).textTheme;
+    final theme = Theme.of(context);
+    final colors = theme.colorScheme;
+    final sectionTitle = theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600);
+    final emptySurface = BoxDecoration(
+      color: Color.alphaBlend(colors.onSurface.withValues(alpha: 0.05), colors.surface),
+      borderRadius: BorderRadius.circular(AppRadius.card),
+    );
 
     return [
       for (final group in groups.entries)
-        if (group.value.isNotEmpty) ...[
-          Text(group.key, style: texts.titleLarge),
-          const SizedBox(height: Spacing.md),
-          _cards(context, group.value),
-          const SizedBox(height: Spacing.xl),
-        ],
+        Padding(
+          key: ValueKey('goal-section-${group.key.title}'),
+          padding: const EdgeInsets.only(bottom: Spacing.lg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Semantics(header: true, child: Text(group.key.title, style: sectionTitle)),
+              const SizedBox(height: Spacing.sm),
+              if (group.value.isNotEmpty)
+                _cards(context, group.value)
+              else
+                DecoratedBox(
+                  decoration: emptySurface,
+                  child: Padding(
+                    padding: const EdgeInsets.all(Spacing.md),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(group.key.icon, size: IconSizes.small, color: colors.onSurfaceVariant),
+                        const SizedBox(width: Spacing.sm),
+                        Flexible(
+                          child: Text(
+                            group.key.emptyMessage,
+                            style: theme.textTheme.bodyMedium?.copyWith(color: colors.onSurfaceVariant),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+            ],
+          ),
+        ),
     ];
   }
 
@@ -369,6 +295,7 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
         fillHeight: columns == 2,
         goal: progress.goal,
         progress: progress,
+        showPeriodDates: historical && !currentDetails,
         scopeLabel: _scopeLabel(progress.goal),
         onTap: () => GoalDetailsSheet.show(
           context,
@@ -412,283 +339,114 @@ class _GoalsPageState extends State<GoalsPage> with TickerProviderStateMixin {
     GoalScope.shelf => _provider.store.getShelf(goal.scopeId!)?.name ?? 'Removed shelf',
   };
 
-  List<Widget> _activityContent(BuildContext context) {
-    final periods = _provider.history;
+  List<Widget> _history(BuildContext context) {
+    final definitions = _provider.historyDefinitions;
+    final goalId = widget.goalId;
+    final selected = definitions[goalId];
+    final dates = goalDateRange(_historyDates, selected?.timezone ?? GoalCalendar.systemTimezone);
+    final periods = _provider.periodHistory(
+      goalId: goalId,
+      type: _historyType,
+      dates: dates,
+      includeArchived: goalId != null,
+    );
+    final archived = <({ReadingGoal goal, GoalRange range})>[];
 
-    final names = <String, String>{
-      for (final record in periods) record.goal.id: record.goal.displayTitle,
-      for (final goal in _provider.store.goalDefinitions) goal.id: goal.displayTitle,
-    };
+    if (goalId == null) {
+      for (final goal in _provider.completedGoals) {
+        if (_historyType != null && goal.type != _historyType) {
+          continue;
+        }
 
-    if (!names.containsKey(_filterGoal)) {
-      _filterGoal = null;
+        final range = GoalCalendar.currentPeriod(goal, _provider.now);
+
+        if (dates == null || range.start.isBefore(dates.end) && range.end.isAfter(dates.start)) {
+          archived.add((goal: goal, range: range));
+        }
+      }
     }
 
-    final selected = _filterGoal == null
-        ? null
-        : _provider.store.getReadingGoal(_filterGoal!) ??
-              periods.where((item) => item.goal.id == _filterGoal).first.goal;
+    archived.sort((left, right) {
+      final byDate = right.range.end.compareTo(left.range.end);
+      return byDate != 0 ? byDate : left.goal.id.compareTo(right.goal.id);
+    });
 
-    final timezone = selected?.timezone ?? GoalCalendar.systemTimezone;
-    final now = _provider.now;
-    final year = _activityYear ?? GoalCalendar.local(now, timezone).year;
-    final yearRange = GoalCalendar.calendarPeriod(GoalPeriod.yearly, DateTime.utc(year, 1, 2), timezone);
-
-    final dateRange = _filterDates == null
-        ? yearRange
-        : GoalRange(
-            GoalCalendar.dayOffset(GoalCalendar.deadline(_filterDates!.start, timezone), -1, timezone),
-            GoalCalendar.deadline(_filterDates!.end, timezone),
-          );
-
-    final range = dateRange;
-
-    final scoped = _provider.store.readingActivities
-        .where((activity) => selected == null || matchesGoal(selected, activity))
-        .toList();
-
-    final corrected = _provider.store.readingActivities
-        .where((activity) => activity.kind == 'reversal')
-        .map((activity) => activity.correctionOf)
-        .whereType<String>()
-        .toSet();
-
-    bool matchesKind(ReadingActivity a) => switch (_activityKind) {
-      'reader' => a.source == 'reader',
-      'manual' => a.source != 'reader',
-      'finished' => a.kind == 'completion',
-      'corrected' => corrected.contains(a.id),
-      _ => true,
-    };
-    // Apply reversals before source filters: a manual correction can undo reader activity.
-
-    final effective = effectiveActivities(
-      scoped,
-    ).where((activity) => _activityKind != 'corrected' && matchesKind(activity)).toList();
-
-    final visible =
-        (_activityKind == 'corrected'
-                ? scoped.where((activity) => activity.kind != 'reversal' && matchesKind(activity))
-                : effective)
-            .where(
-              (activity) => (activity.kind == 'reading' && activity.endTime.isAfter(activity.startTime)
-                  ? activity.endTime.isAfter(range.start) && activity.startTime.isBefore(range.end)
-                  : range.contains(activity.endTime)),
-            )
-            .toList();
-
-    final totals = projectGoal(
-      ReadingGoal(
-        id: 'activity-summary',
-        type: GoalType.minutes,
-        targetValue: 1,
-        period: GoalPeriod.custom,
-        createdAt: range.start,
-        startDate: range.start,
-        endDate: range.end,
-        timezone: timezone,
-        isRecurring: false,
-      ),
-      effective,
-      now,
-      period: range,
-    );
-
-    final archivedIds = _provider.store.goalDefinitions.where((goal) => goal.isArchived).map((goal) => goal.id).toSet();
-    // Archived goals have one summary below; their previous periods remain
-    // inspectable in goal details rather than appearing as duplicate cards.
-
-    final filtered = periods
-        .where(
-          (item) =>
-              !archivedIds.contains(item.goal.id) &&
-              (_filterGoal == null || item.goal.id == _filterGoal) &&
-              item.range.start.isBefore(range.end) &&
-              item.range.end.isAfter(range.start),
-        )
-        .toList();
-
-    final archived = _provider.store.goalDefinitions
-        .where((goal) => goal.isArchived && (_filterGoal == null || _filterGoal == goal.id))
-        .map(_provider.progress)
+    final periodCount = periods.length;
+    final pageCount = ((periodCount + archived.length) / _periodPageSize).ceil();
+    final page = _periodPage.clamp(0, pageCount > 0 ? pageCount - 1 : 0);
+    final offset = page * _periodPageSize;
+    final visiblePeriods = periods.skip(offset).take(_periodPageSize).toList();
+    final visibleArchived = archived
+        .skip((offset - periodCount).clamp(0, archived.length))
+        .take(_periodPageSize - visiblePeriods.length)
+        .map((entry) => _provider.progress(entry.goal))
         .toList();
 
     return [
-      ReadingActivityHeatmap(
-        activities: effective,
-        year: year,
-        timezone: timezone,
-        now: now,
-        selectedDay: _filterDates?.start == _filterDates?.end && _filterDates != null
-            ? GoalCalendar.dayOffset(GoalCalendar.deadline(_filterDates!.start, timezone), -1, timezone)
-            : null,
-        onYearChanged: (value) => setState(() {
-          _activityYear = value;
-          _filterDates = null;
-        }),
-        onDaySelected: (day) => setState(() {
-          final local = GoalCalendar.local(day, timezone);
-          final civil = DateTime(local.year, local.month, local.day);
-          _filterDates = DateTimeRange(start: civil, end: civil);
-        }),
-      ),
-      const SizedBox(height: Spacing.lg),
-      Wrap(
-        spacing: Spacing.sm,
-        runSpacing: Spacing.md,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          SizedBox(
-            width: (MediaQuery.sizeOf(context).width - Spacing.xl * 2).clamp(120, 220).toDouble(),
-            child: DropdownButtonFormField<String>(
-              initialValue: _activityKind,
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Activity'),
-              items: [
-                for (final value in {
-                  'all': 'All activity',
-                  'reader': 'Reader',
-                  'manual': 'Manual',
-                  'finished': 'Finished books',
-                  'corrected': 'Corrected entries',
-                }.entries)
-                  DropdownMenuItem(value: value.key, child: Text(value.value)),
-              ],
-              onChanged: (value) => setState(() => _activityKind = value!),
-            ),
-          ),
-          SizedBox(
-            width: (MediaQuery.sizeOf(context).width - Spacing.xl * 2).clamp(120, 280).toDouble(),
-            child: DropdownButtonFormField<String>(
-              key: ValueKey(_filterGoal),
-              initialValue: _filterGoal ?? '',
-              isExpanded: true,
-              decoration: const InputDecoration(labelText: 'Goal scope'),
-              items: [
-                const DropdownMenuItem(value: '', child: Text('Whole library')),
-                for (final name in names.entries)
-                  DropdownMenuItem(
-                    value: name.key,
-                    child: Text(name.value, overflow: TextOverflow.ellipsis),
-                  ),
-              ],
-              onChanged: (value) => setState(() => _filterGoal = value == '' ? null : value),
-            ),
-          ),
-          OutlinedButton.icon(
-            onPressed: () async {
-              final dates = await showAppDateRangePicker(
-                context: context,
-                firstDate: DateTime(1900),
-                lastDate: DateTime.now(),
-                initialDateRange: _filterDates,
-              );
-
-              if (dates != null && mounted) {
-                setState(() {
-                  _filterDates = dates;
-                  _activityYear = dates.end.year;
-                });
-              }
-            },
-            icon: const Icon(Icons.date_range_outlined),
-            label: Text(
-              switch (_filterDates == null) {
-                true => 'Filter dates',
-                false when _filterDates!.start == _filterDates!.end => DateFormat.MMMd().format(_filterDates!.start),
-                false =>
-                  '${DateFormat.MMMd().format(_filterDates!.start)} – ${DateFormat.MMMd().format(_filterDates!.end)}',
-              },
-            ),
-          ),
-          if (_filterDates != null)
-            TextButton(onPressed: () => setState(() => _filterDates = null), child: const Text('Clear dates')),
-        ],
-      ),
-      const SizedBox(height: Spacing.lg),
-      if (_activityKind != 'corrected')
-        Container(
-          padding: const EdgeInsets.all(Spacing.md),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerLow,
-            borderRadius: BorderRadius.circular(AppRadius.xl),
-          ),
-          child: Wrap(
-            spacing: Spacing.xl,
-            runSpacing: Spacing.md,
-            children: [
-              _activityTotal(context, '${totals.finishedBooks}', 'books finished'),
-              _activityTotal(
-                context,
-                '${totals.pages.floor()}',
-                totals.estimated ? 'pages (includes estimates)' : 'pages read',
-              ),
-              _activityTotal(
-                context,
-                totals.seconds < 60 ? '${totals.seconds} sec' : formatDuration(totals.seconds ~/ 60),
-                'reading time',
-              ),
-            ],
-          ),
-        ),
-      if (visible.isEmpty)
-        const Padding(
-          padding: EdgeInsets.only(top: Spacing.lg),
-          child: EmptyState.compact(
-            icon: Icons.history_outlined,
-            title: 'No reading activity',
-            subtitle: 'Reading and manual logs will appear here.',
-            alignment: Alignment.topCenter,
-          ),
-        )
-      else
-        ReadingActivityTimeline(
-          activities: visible,
-          provider: _provider,
-          timezone: timezone,
-          correctedIds: corrected,
-          range: range,
-        ),
-      const SizedBox(height: Spacing.lg),
-      if (filtered.isNotEmpty || archived.isNotEmpty)
-        ExpansionTile(
-          key: const PageStorageKey('goal-period-history'),
-          tilePadding: EdgeInsets.zero,
-          childrenPadding: const EdgeInsets.only(top: Spacing.xs),
-          shape: const Border(),
-          collapsedShape: const Border(),
-          textColor: Theme.of(context).colorScheme.onSurface,
-          collapsedTextColor: Theme.of(context).colorScheme.onSurface,
-          title: Text('Goal history', style: Theme.of(context).textTheme.titleLarge),
+      if (definitions.isNotEmpty || goalId != null) ...[
+        Wrap(
+          spacing: Spacing.sm,
+          runSpacing: Spacing.sm,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            if (filtered.isNotEmpty) _cards(context, filtered, historical: true),
-            if (archived.isNotEmpty) ...[
-              if (filtered.isNotEmpty) const SizedBox(height: Spacing.lg),
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: Text(
-                  'Archived goals',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleMedium?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
+            if (goalId != null)
+              InputChip(
+                label: Text(selected?.displayTitle ?? 'Removed goal', overflow: TextOverflow.ellipsis),
+                deleteButtonTooltipMessage: 'Show all goals',
+                onDeleted: () {
+                  setState(() => _periodPage = 0);
+                  context.replaceNamed('GOAL_HISTORY');
+                },
+              )
+            else
+              GoalTypeFilter(
+                selected: _historyType,
+                onChanged: (type) => setState(() {
+                  _historyType = type;
+                  _periodPage = 0;
+                }),
               ),
-              const SizedBox(height: Spacing.md),
-              _cards(context, archived, historical: true, currentDetails: true),
-            ],
+            GoalDateFilter(
+              dates: _historyDates,
+              emptyLabel: 'Custom range',
+              onChanged: (dates) => setState(() {
+                _historyDates = dates;
+                _periodPage = 0;
+              }),
+            ),
           ],
         ),
+        const SizedBox(height: Spacing.lg),
+      ],
+      if (pageCount == 0)
+        EmptyState.compact(
+          icon: Icons.history,
+          title: goalId == null && _historyType == null && dates == null
+              ? 'No goal history yet'
+              : 'No matching goal periods',
+        ),
+      if (visiblePeriods.isNotEmpty) _cards(context, visiblePeriods, historical: true),
+      if (visibleArchived.isNotEmpty) ...[
+        if (visiblePeriods.isNotEmpty) const SizedBox(height: Spacing.lg),
+        Text('Archived goals', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: Spacing.md),
+        _cards(context, visibleArchived, historical: true, currentDetails: true),
+      ],
+      if (pageCount > 1) ...[
+        const SizedBox(height: Spacing.md),
+        ActivityPagination(
+          page: page,
+          pageCount: pageCount,
+          previousLabel: 'Previous page',
+          nextLabel: 'Next page',
+          onChanged: (value) {
+            setState(() => _periodPage = value);
+            _historyScroll.jumpTo(0);
+          },
+        ),
+      ],
     ];
   }
-
-  Widget _activityTotal(BuildContext context, String value, String label) => Column(
-    crossAxisAlignment: CrossAxisAlignment.start,
-    children: [
-      Text(value, style: Theme.of(context).textTheme.titleLarge),
-      const SizedBox(height: Spacing.xs),
-      Text(label, style: Theme.of(context).textTheme.bodySmall),
-    ],
-  );
 
   Future<void> _goalAction(ReadingGoal goal, String action) async {
     if (action == 'edit') {

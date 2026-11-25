@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/intl.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/models/reading_activity.dart';
+import 'package:papyrus/widgets/statistics/statistics_activity_tab.dart';
 import 'package:papyrus/pages/statistics_page.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:papyrus/themes/app_theme.dart';
+import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/statistics/reading_charts.dart';
 import 'package:papyrus/widgets/statistics/stat_card.dart';
 import 'package:provider/provider.dart';
@@ -79,6 +82,127 @@ Future<void> pumpStatistics(
 }
 
 void main() {
+  for (final theme in [AppTheme.dark, AppTheme.light, AppTheme.eink]) {
+    testWidgets('statistics tabs swipe both ways and retain activity scroll in ${theme.brightness}', (tester) async {
+      await pumpStatistics(tester, size: const Size(390, 600), theme: theme);
+      final pages = find.byType(TabBarView);
+      final controller = DefaultTabController.of(tester.element(pages));
+      expect(controller.index, 0);
+      await tester.drag(pages, const Offset(-300, 0));
+      await tester.pumpAndSettle();
+      expect(controller.index, 1);
+      expect(find.text('Days read'), findsNothing);
+
+      final activityScroll = find
+          .descendant(
+            of: find.byKey(const PageStorageKey('statistics-activity-scroll')),
+            matching: find.byType(Scrollable),
+          )
+          .first;
+
+      await tester.ensureVisible(find.text('Filters'));
+      await tester.tap(find.text('Filters'));
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(find.text('Filter dates'), 180, scrollable: activityScroll);
+      await tester.pumpAndSettle();
+      final offset = tester.state<ScrollableState>(activityScroll).position.pixels;
+      expect(offset, greaterThan(0));
+      await tester.drag(pages, const Offset(300, 0));
+      await tester.pumpAndSettle();
+      expect(controller.index, 0);
+      expect(find.text('Days read'), findsOneWidget);
+      await tester.tap(find.widgetWithText(Tab, 'Activity'));
+      await tester.pumpAndSettle();
+      expect(controller.index, 1);
+      expect(tester.state<ScrollableState>(activityScroll).position.pixels, closeTo(offset, 1));
+      await tester.tap(find.text('Overview'));
+      await tester.pumpAndSettle();
+      expect(controller.index, 0);
+      expect(tester.takeException(), isNull);
+    });
+  }
+
+  testWidgets('activity restores scroll and expansion independently', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(600, 420);
+    addTearDown(tester.view.reset);
+    final yesterday = DateTime.now().toUtc().subtract(const Duration(days: 1));
+    final now = DateTime.utc(yesterday.year, yesterday.month, yesterday.day, 12);
+
+    final store = DataStore()..loadData();
+
+    await store.commitTracking(
+      activities: [
+        ReadingActivity(
+          id: 'manual',
+          bookId: 'alice',
+          bookTitle: 'Alice',
+          startTime: now.subtract(const Duration(minutes: 10)),
+          endTime: now,
+          createdAt: now,
+        ),
+      ],
+    );
+
+    addTearDown(store.dispose);
+    final bucket = PageStorageBucket();
+
+    Future<void> openPage(int revision) async {
+      await tester.pumpWidget(
+        ChangeNotifierProvider.value(
+          value: store,
+          child: MaterialApp(
+            theme: AppTheme.dark,
+            home: PageStorage(
+              bucket: bucket,
+              child: Scaffold(
+                body: StatisticsActivityTab(key: ValueKey(revision), now: () => now),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      await tester.pumpAndSettle();
+    }
+
+    await openPage(0);
+    final scrollKey = find.byKey(const PageStorageKey('statistics-activity-scroll'));
+    // Mimic the saved zero offset from the web failure. Expansion rows must
+    // never read a numeric scroll offset as their boolean state.
+    bucket.writeState(tester.element(scrollKey), 0.0);
+    await openPage(1);
+    expect(tester.takeException(), isNull);
+    final scrollable = find.descendant(of: scrollKey, matching: find.byType(Scrollable)).first;
+    final finished = find.text('books finished');
+    await tester.scrollUntilVisible(finished, 120, scrollable: scrollable);
+    final totals = find.ancestor(of: finished, matching: find.byType(Wrap)).first;
+    final filters = find.ancestor(of: find.text('Filters'), matching: find.byType(Wrap)).first;
+    expect(find.text('Log reading'), findsNothing);
+    expect(tester.getTopLeft(finished).dx, tester.getTopLeft(filters).dx);
+    expect(tester.getTopLeft(totals).dy - tester.getBottomLeft(filters).dy, Spacing.lg + Spacing.sm);
+    final bookRow = find.widgetWithText(ExpansionTile, 'Alice');
+    await tester.scrollUntilVisible(bookRow, 200, scrollable: scrollable);
+    await tester.ensureVisible(find.text('Alice'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Alice'));
+    await tester.pumpAndSettle();
+    final offset = tester.state<ScrollableState>(scrollable).position.pixels;
+    expect(offset, greaterThan(0));
+    await openPage(2);
+    expect(tester.takeException(), isNull);
+    expect(tester.state<ScrollableState>(scrollable).position.pixels, closeTo(offset, 1));
+    expect(find.text('Goal history'), findsNothing);
+    await tester.scrollUntilVisible(bookRow, -200, scrollable: scrollable);
+    expect(find.textContaining('10 min'), findsWidgets);
+    final tile = tester.widget<ExpansionTile>(bookRow);
+    final expandedChild = find.byWidget(tile.children.first);
+    await tester.ensureVisible(expandedChild);
+    await tester.pumpAndSettle();
+    expect(expandedChild.hitTestable(), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   for (final width in [390.0, 1440.0]) {
     testWidgets('page alignment updates statistics with standard margins at $width', (tester) async {
       SharedPreferences.setMockInitialValues({});
@@ -90,14 +214,31 @@ void main() {
       final custom = width < 600
           ? find.widgetWithIcon(IconButton, Icons.date_range_outlined)
           : find.widgetWithIcon(OutlinedButton, Icons.date_range_outlined);
+      Rect controlsBounds() => tester.getRect(period).expandToInclude(tester.getRect(custom));
+      final tabs = find.byType(TabBar);
+
+      if (width >= Breakpoints.desktopSmall) {
+        final bounds = tester.getRect(tabs);
+        expect(bounds.bottom, ComponentSizes.appBarHeight + BorderWidths.thin);
+        expect(bounds.left, margin);
+        expect(bounds.right, width - margin);
+      }
+
       expect(tester.getRect(period).left, margin);
-      expect(tester.getRect(period).top, margin);
+      expect(controlsBounds().top, tester.getRect(find.byType(TabBar)).bottom + margin);
+      expect(tester.getCenter(period).dy, tester.getCenter(custom).dy);
       expect(tester.getRect(custom).right, width - margin);
       preferences.pageAlignment = 'center';
       await tester.pumpAndSettle();
       final centeredMargin = width > 1168 ? (width - 1120) / 2 : margin;
+      if (width >= Breakpoints.desktopSmall) {
+        expect(tester.getRect(tabs).left, centeredMargin);
+        expect(tester.getRect(tabs).right, width - centeredMargin);
+        expect(tester.getRect(tabs).bottom, ComponentSizes.appBarHeight + BorderWidths.thin);
+      }
+
       expect(tester.getRect(period).left, centeredMargin);
-      expect(tester.getRect(period).top, margin);
+      expect(controlsBounds().top, tester.getRect(find.byType(TabBar)).bottom + margin);
       expect(tester.getRect(custom).right, width - centeredMargin);
       preferences.pageAlignment = 'left';
       await tester.pumpAndSettle();
@@ -148,7 +289,11 @@ void main() {
     );
     await tester.tap(find.text('All time'));
     await tester.pumpAndSettle();
+    expect(find.byType(StatSectionCard), findsNWidgets(4));
+    expect(find.text('Books finished'), findsOneWidget);
     expect(find.text('1.5h'), findsOneWidget);
+    final dateButton = find.widgetWithIcon(OutlinedButton, Icons.date_range_outlined);
+    expect(tester.getTopLeft(find.text('1.5h')).dy, tester.getBottomLeft(dateButton).dy + Spacing.lg);
     expect(find.textContaining('latest 60 days'), findsNothing);
     expect(find.text('Reading by genre'), findsOneWidget);
     expect(find.textContaining('Lifetime streaks'), findsOneWidget);
@@ -159,7 +304,10 @@ void main() {
 
   testWidgets('custom dates do not falsely select Week and cancelling preserves the range', (tester) async {
     await pumpStatistics(tester, size: const Size(1200, 900));
-    await tester.tap(find.text('Custom range'));
+    final dateButton = find.widgetWithIcon(OutlinedButton, Icons.date_range_outlined);
+    final material = tester.widget<Material>(find.descendant(of: dateButton, matching: find.byType(Material)));
+    expect(material.shape, isA<StadiumBorder>());
+    await tester.tap(dateButton);
     await tester.pumpAndSettle();
     await tester.tap(find.text('Apply').last);
     await tester.pumpAndSettle();
@@ -175,7 +323,6 @@ void main() {
       isFalse,
     );
     expect(find.text('This week'), findsNothing);
-    final dateButton = find.widgetWithIcon(OutlinedButton, Icons.date_range_outlined);
     await tester.tap(dateButton);
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('Close'));
@@ -194,6 +341,7 @@ void main() {
     await tester.tap(find.text('Week'));
     await tester.pumpAndSettle();
     expect(find.text('This week'), findsWidgets);
+    expect(find.widgetWithText(OutlinedButton, 'Custom range'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -226,7 +374,7 @@ void main() {
   });
 
   for (final size in [const Size(390, 844), const Size(1200, 900)]) {
-    testWidgets('period selection keeps button geometry fixed at ${size.width}', (tester) async {
+    testWidgets('presets keep their geometry and the picker shows the selected dates at ${size.width}', (tester) async {
       await pumpStatistics(tester, size: size);
       final keys = ['week', 'month', 'year', 'allTime'];
       Rect buttonRect(String key) => tester.getRect(find.byKey(ValueKey('statistics-period-$key')));
@@ -250,14 +398,14 @@ void main() {
 
       await tester.tap(custom);
       await tester.pumpAndSettle();
+      final dates = tester.widget<DateRangePickerDialog>(find.byType(DateRangePickerDialog)).initialDateRange!;
+      final format = DateFormat.MMMd();
+      final label = '${format.format(dates.start)} – ${format.format(dates.end)}';
       await tester.tap(find.text('Apply').last);
       await tester.pumpAndSettle();
 
-      for (final key in keys) {
-        expect(buttonRect(key), original[key]);
-      }
-
-      expect(tester.getRect(custom), customRect);
+      expect(find.widgetWithText(OutlinedButton, label).hitTestable(), findsOneWidget);
+      expect(find.byKey(const ValueKey('statistics-period-week')).hitTestable(), findsOneWidget);
       expect(find.textContaining('·'), findsNothing);
       expect(tester.takeException(), isNull);
     });
@@ -272,10 +420,26 @@ void main() {
     testWidgets('${scenario.name} keeps populated and empty content usable', (tester) async {
       await pumpStatistics(tester, size: scenario.size, scale: scenario.scale, theme: scenario.theme);
       expect(tester.takeException(), isNull);
+
+      if (scenario.size.width < Breakpoints.desktopSmall) {
+        final cards = find.byType(StatSectionCard);
+        expect(cards, findsNWidgets(4));
+
+        for (var index = 1; index < 4; index++) {
+          final gap = tester.getTopLeft(cards.at(index)).dy - tester.getBottomLeft(cards.at(index - 1)).dy;
+          expect(gap, closeTo(Spacing.lg, 0.01));
+        }
+      }
+
       await tester.scrollUntilVisible(
         find.text('Reading by genre'),
         300,
-        scrollable: find.byType(Scrollable).first,
+        scrollable: find
+            .descendant(
+              of: find.byKey(const PageStorageKey('statistics-overview-scroll')),
+              matching: find.byType(Scrollable),
+            )
+            .first,
       );
       expect(tester.takeException(), isNull);
       await tester.pumpWidget(const SizedBox());

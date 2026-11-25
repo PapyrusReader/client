@@ -332,71 +332,6 @@ class _ReadingBookHeader extends StatelessWidget {
 }
 
 /// Book titles and dates belong to groups; individual entries retain their audit actions.
-class ReadingActivityList extends StatelessWidget {
-  const ReadingActivityList({
-    super.key,
-    required this.activities,
-    required this.provider,
-    this.correctedIds = const {},
-    this.contributionLabel,
-  });
-
-  final String? Function(ReadingActivity)? contributionLabel;
-  final List<ReadingActivity> activities;
-  final GoalsProvider provider;
-  final Set<String> correctedIds;
-
-  @override
-  Widget build(BuildContext context) {
-    final entries = [...activities]..sort((left, right) => right.endTime.compareTo(left.endTime));
-    final groups = <String, List<ReadingActivity>>{};
-
-    for (final entry in entries) {
-      final day = DateFormat('yyyy-MM-dd').format(entry.endTime.toLocal());
-      groups.putIfAbsent('${entry.bookId}:$day', () => []).add(entry);
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (final (index, group) in groups.values.indexed) ...[
-          Padding(
-            padding: EdgeInsets.only(top: index == 0 ? 0 : Spacing.md, bottom: Spacing.xs),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Tooltip(
-                  message: group.first.bookTitle,
-                  child: Text(
-                    group.first.bookTitle,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall,
-                  ),
-                ),
-                Text(
-                  DateFormat.yMMMd().format(group.first.endTime.toLocal()),
-                  style: Theme.of(
-                    context,
-                  ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
-                ),
-              ],
-            ),
-          ),
-          for (final activity in group)
-            ReadingActivityTile(
-              activity: activity,
-              provider: provider,
-              corrected: correctedIds.contains(activity.id),
-              showBookTitle: false,
-              contributionLabel: contributionLabel?.call(activity),
-            ),
-        ],
-      ],
-    );
-  }
-}
-
 class ReadingActivityTile extends StatelessWidget {
   const ReadingActivityTile({
     super.key,
@@ -405,9 +340,11 @@ class ReadingActivityTile extends StatelessWidget {
     this.corrected = false,
     this.showBookTitle = true,
     this.contributionLabel,
+    this.metricSummary,
   });
 
   final String? contributionLabel;
+  final String? metricSummary;
   final ReadingActivity activity;
   final GoalsProvider provider;
   final bool corrected;
@@ -415,15 +352,25 @@ class ReadingActivityTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final label = switch (activity.kind == 'completion') {
-      true => 'Finished book',
-      false when activity.kind == 'reversal' => 'Correction',
-      false => [
-        if (activity.seconds > 0) activity.seconds < 60 ? '${activity.seconds} sec' : '${activity.seconds ~/ 60} min',
-        if (activity.pages > 0) '${activity.pages} pages',
-        if (activity.coverage.isNotEmpty) activity.isEstimated ? 'Estimated pages' : 'Reader pages',
-      ].join(' · '),
-    };
+    final summary = [
+      if (activity.kind == 'completion')
+        'Finished book'
+      else if (activity.kind == 'reversal')
+        'Correction'
+      else ...[
+        if (activity.seconds > 0)
+          activity.seconds < 60 ? '${activity.seconds} sec' : '${activity.seconds ~/ 60} min'
+        else if (activity.endTime.isAfter(activity.startTime))
+          '<1 sec',
+        if (activity.pages > 0) '${activity.pages} ${activity.pages == 1 ? 'page' : 'pages'}',
+      ],
+      if (corrected) 'Corrected',
+    ].join(' · ');
+
+    final time = DateFormat.Hm().format(activity.startTime.toLocal());
+    final dailyReaderTotal =
+        activity.source == 'reader' && activity.sessionId == null && activity.constituentIds.isNotEmpty;
+    final entryLabel = metricSummary ?? (summary.isEmpty ? time : summary);
 
     return ListTile(
       contentPadding: EdgeInsets.zero,
@@ -436,22 +383,23 @@ class ReadingActivityTile extends StatelessWidget {
       ),
       dense: !showBookTitle,
       title: Text(
-        showBookTitle
-            ? activity.bookTitle
-            : '$label · ${activity.source == 'reader' ? 'Reader' : 'Manual'}${corrected ? ' · Corrected' : ''}',
+        showBookTitle ? activity.bookTitle : entryLabel,
         maxLines: showBookTitle ? 2 : null,
         overflow: showBookTitle ? TextOverflow.ellipsis : null,
       ),
       subtitle: switch (showBookTitle) {
         true => Text(
-          '$label · ${activity.source == 'reader' ? 'Reader' : 'Manual'}${corrected ? ' · Corrected' : ''}\n${DateFormat.yMMMd().add_Hm().format(activity.startTime.toLocal())}',
+          [
+            if (summary.isNotEmpty) summary,
+            DateFormat.yMMMd().add_Hm().format(activity.startTime.toLocal()),
+          ].join('\n'),
         ),
         false when contributionLabel == null => null,
         false => Text(contributionLabel!),
       },
-      trailing: showBookTitle
+      trailing: showBookTitle || dailyReaderTotal || summary.isEmpty
           ? null
-          : Text(DateFormat.Hm().format(activity.startTime.toLocal()), style: Theme.of(context).textTheme.bodySmall),
+          : Text(time, style: Theme.of(context).textTheme.bodySmall),
       isThreeLine: showBookTitle,
       onTap: () => _details(context),
     );
@@ -505,11 +453,11 @@ class _ActivityDetailsState extends State<_ActivityDetails> {
                   _detailLine(context, Icons.check_circle_outline, 'Finished book')
                 else if (activity.kind == 'reversal')
                   _detailLine(context, Icons.undo, 'Entry undone')
-                else
+                else if (activity.seconds > 0 || activity.pages > 0 || activity.endTime.isAfter(activity.startTime))
                   Text(_readingSummary(activity), style: Theme.of(context).textTheme.bodyMedium),
                 const SizedBox(height: Spacing.xs),
                 Text(
-                  '${DateFormat.yMMMd().add_Hm().format(activity.endTime.toLocal())} · ${activity.source == 'reader' ? 'Reader' : 'Manual entry'}',
+                  DateFormat.yMMMd().add_Hm().format(activity.endTime.toLocal()),
                   style: Theme.of(
                     context,
                   ).textTheme.bodySmall?.copyWith(color: Theme.of(context).colorScheme.onSurfaceVariant),
@@ -579,12 +527,14 @@ class _ActivityDetailsState extends State<_ActivityDetails> {
 
   String _readingSummary(ReadingActivity activity) {
     final parts = [
-      if (activity.seconds > 0) _duration(activity.seconds),
+      if (activity.seconds > 0)
+        _duration(activity.seconds)
+      else if (activity.endTime.isAfter(activity.startTime))
+        '<1 sec',
       if (activity.pages > 0) '${activity.pages} ${activity.pages == 1 ? 'page' : 'pages'}',
-      if (activity.coverage.isNotEmpty) activity.isEstimated ? 'Estimated EPUB pages' : 'Reader pages',
     ];
 
-    return parts.isEmpty ? 'No reading time or pages recorded.' : parts.join(' · ');
+    return parts.join(' · ');
   }
 
   Widget _detailLine(BuildContext context, IconData icon, String label) => Row(
@@ -602,8 +552,10 @@ class _ActivityDetailsState extends State<_ActivityDetails> {
       animationStyle: AppMotion.animationStyle(context),
       builder: (context) => AlertDialog(
         title: const Text('Undo reading entry?'),
-        content: const Text(
-          'This removes its contribution from goals and statistics. The original entry stays in your history.',
+        content: Text(
+          widget.activity.constituentIds.length > 1
+              ? 'This removes all ${widget.activity.constituentIds.length} checkpoints in this entry from goals and statistics. The original entries stay in your history.'
+              : 'This removes its contribution from goals and statistics. The original entry stays in your history.',
         ),
         actions: [
           TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
