@@ -247,8 +247,14 @@ class AuthApiClient {
     });
   }
 
-  Future<UserDirectory> adminUsers(String accessToken, int page) async {
-    final uri = config.endpoint('/admin/users', {'page': '$page', 'limit': '20'});
+  Future<UserDirectory> adminUsers(String accessToken, int page, DirectoryColumn column, bool descending) async {
+    final uri = config.endpoint('/admin/users', {
+      'page': '$page',
+      'limit': '20',
+      'sort_by': column.sortField,
+      'descending': '$descending',
+    });
+
     return UserDirectory.fromJson(await _getJson(uri, accessToken: accessToken));
   }
 

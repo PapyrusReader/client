@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/admin/user_directory.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/opds/opds_catalog_store.dart';
 import 'package:papyrus/opds/opds_catalogs.dart';
@@ -208,30 +209,72 @@ void main() {
   }
 
   testWidgets('wide directory shows quota, averages and server-paginated results', (tester) async {
-    await mount(tester, (request) async => directory(int.parse(request.url.queryParameters['page']!)));
+    final requests = <Map<String, String>>[];
+
+    await mount(tester, (request) async {
+      requests.add(request.url.queryParameters);
+      return directory(int.parse(request.url.queryParameters['page']!));
+    });
     await tester.pumpAndSettle();
-    expect(find.byType(Table), findsOneWidget);
-    expect(find.text('256 MiB of 1 GiB · 25%'), findsOneWidget);
+    final table = tester.widget<DataTable>(find.byType(DataTable));
+    expect(table.columns.map((column) => (column.label as Text).data), [
+      'Name',
+      'Email',
+      'Role',
+      'Status',
+      'Joined',
+      'Last sign-in',
+      'Books',
+      'Storage used',
+      'Quota used',
+      'Average per book',
+    ]);
+    expect(table.rows.first.cells.take(4).map((cell) => (cell.child as Text).data), [
+      'Reader 1',
+      'reader1@example.test',
+      'User',
+      'Active',
+    ]);
+    expect(find.text('Storage quota per user: 1 GiB'), findsOneWidget);
+    expect(find.text('256 MiB'), findsOneWidget);
+    expect(find.text('25%'), findsOneWidget);
     expect(find.text('128 MiB'), findsOneWidget);
     expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator).first).value, .25);
-    await tester.tap(find.text('Next'));
+    await tester.scrollUntilVisible(find.byTooltip('Next page'), 500, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.byTooltip('Next page'));
     await tester.pumpAndSettle();
     expect(find.text('21 of 21 users'), findsOneWidget);
+    expect(find.text('Page 2 of 2'), findsOneWidget);
     expect(find.text('Reader 21'), findsOneWidget);
     expect(find.text('Reader 1'), findsNothing);
     expect(find.text('No sign-in recorded'), findsOneWidget);
     expect(find.text('—'), findsOneWidget);
-    await tester.tap(find.text('Previous'));
+    await tester.tap(find.text('Name'));
+    await tester.pumpAndSettle();
+    expect(requests.last, {'page': '1', 'limit': '20', 'sort_by': 'display_name', 'descending': 'false'});
+    expect(find.text('Reader 1'), findsOneWidget);
+    await tester.tap(find.text('Name'));
+    await tester.pumpAndSettle();
+    expect(requests.last['descending'], 'true');
+    await tester.scrollUntilVisible(find.byTooltip('Next page'), 500, scrollable: find.byType(Scrollable).first);
+    await tester.tap(find.byTooltip('Next page'));
+    await tester.pumpAndSettle();
+    expect(requests.last, {'page': '2', 'limit': '20', 'sort_by': 'display_name', 'descending': 'true'});
+    await tester.tap(find.byTooltip('Previous page'));
     await tester.pumpAndSettle();
     expect(find.text('Reader 1'), findsOneWidget);
   });
 
   testWidgets('compact e-ink layout handles large text and retry', (tester) async {
     var attempts = 0;
+    final requests = <Map<String, String>>[];
 
     await mount(
       tester,
-      (request) async => ++attempts == 1 ? http.Response('{}', 503) : directory(1, total: 1),
+      (request) async {
+        requests.add(request.url.queryParameters);
+        return ++attempts == 1 ? http.Response('{}', 503) : directory(1, total: 1);
+      },
       size: const Size(360, 900),
       scale: 1.6,
     );
@@ -239,8 +282,18 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
-    expect(find.byType(Table), findsNothing);
-    expect(find.text('256 MiB of 1 GiB · 25%'), findsOneWidget);
+    expect(find.byType(DataTable), findsNothing);
+    expect(find.byTooltip('Next page'), findsNothing);
+    await tester.tap(find.byTooltip('Sort users by'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(PopupMenuItem<DirectoryColumn>, 'Email'));
+    await tester.pumpAndSettle();
+    expect(requests.last['sort_by'], 'email');
+    await tester.tap(find.byTooltip('Sort descending'));
+    await tester.pumpAndSettle();
+    expect(requests.last['descending'], 'true');
+    expect(find.text('256 MiB'), findsOneWidget);
+    expect(find.text('25%'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

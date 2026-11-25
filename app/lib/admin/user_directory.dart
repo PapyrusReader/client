@@ -1,3 +1,21 @@
+enum DirectoryColumn {
+  name('Name', 'display_name'),
+  email('Email', 'email'),
+  role('Role', 'role'),
+  status('Status', 'status'),
+  joined('Joined', 'created_at'),
+  signIn('Last sign-in', 'last_sign_in_at'),
+  books('Books', 'book_count'),
+  storage('Storage used', 'used_bytes'),
+  quota('Quota used', 'used_bytes'),
+  average('Average per book', 'average_bytes');
+
+  const DirectoryColumn(this.label, this.sortField);
+
+  final String label;
+  final String sortField;
+}
+
 class UserDirectory {
   const UserDirectory({
     required this.users,
@@ -13,8 +31,18 @@ class UserDirectory {
   final int limit;
   final int total;
 
-  int get offset => (page - 1) * limit;
   int get lastPage => total == 0 ? 1 : (total + limit - 1) ~/ limit;
+
+  String get rangeLabel {
+    if (users.isEmpty) {
+      return '$total users';
+    }
+
+    final first = (page - 1) * limit + 1;
+    final last = first + users.length - 1;
+    final range = first == last ? '$first' : '$first–$last';
+    return '$range of $total ${total == 1 ? 'user' : 'users'}';
+  }
 
   factory UserDirectory.fromJson(Map<String, dynamic> json) {
     final pagination = json['pagination'] as Map<String, dynamic>;

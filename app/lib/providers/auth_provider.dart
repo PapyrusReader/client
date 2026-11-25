@@ -94,12 +94,12 @@ class AuthProvider extends ChangeNotifier {
       _profileKey == settings.activeProfileKey &&
       serverKey == settings.activeApiConfig.apiBaseUri.toString();
 
-  Future<UserDirectory> adminUsers(int page) async {
+  Future<UserDirectory> adminUsers(int page, DirectoryColumn column, bool descending) async {
     final api = _repository.apiClient;
     final operation = _operation;
 
     try {
-      final directory = await withFreshAccessToken((token) => api.adminUsers(token, page));
+      final directory = await withFreshAccessToken((token) => api.adminUsers(token, page, column, descending));
 
       if (operation != _operation || !isSignedIn || _user?.isAdmin != true) {
         throw StateError('The active account changed.');

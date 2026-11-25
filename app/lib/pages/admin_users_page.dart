@@ -4,8 +4,10 @@ import 'package:intl/intl.dart';
 import 'package:papyrus/admin/user_directory.dart';
 import 'package:papyrus/providers/auth_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
+import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/shared/app_page_bar.dart';
+import 'package:papyrus/widgets/goals/activity_pagination.dart';
+import 'package:papyrus/widgets/library/library_page_header.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 import 'package:provider/provider.dart';
 
@@ -21,19 +23,27 @@ class AdminUsersPage extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    final compact = MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall;
+
     return Scaffold(
-      appBar: AppPageBar(
-        context: context,
-        title: const Text('Users'),
-        automaticallyImplyLeading: false,
-        leading: MediaQuery.sizeOf(context).width < Breakpoints.desktopSmall
-            ? BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/library/books'))
-            : null,
-      ),
       body: SafeArea(
-        child: _Directory(
-          key: ValueKey((settings.activeProfileKey, auth.serverKey, auth.user!.userId)),
-          load: auth.adminUsers,
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            LibraryPageHeader(
+              title: 'Users',
+              compact: compact,
+              leading: compact
+                  ? BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/library/books'))
+                  : null,
+            ),
+            Expanded(
+              child: _Directory(
+                key: ValueKey((settings.activeProfileKey, auth.serverKey, auth.user!.userId)),
+                load: auth.adminUsers,
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -42,27 +52,55 @@ class AdminUsersPage extends StatelessWidget {
 
 class _Directory extends StatefulWidget {
   const _Directory({super.key, required this.load});
-  final Future<UserDirectory> Function(int) load;
+
+  final Future<UserDirectory> Function(int page, DirectoryColumn column, bool descending) load;
 
   @override
   State<_Directory> createState() => _DirectoryState();
 }
 
 class _DirectoryState extends State<_Directory> {
-  int page = 1;
-  late Future<UserDirectory> request = widget.load(page);
+  final _horizontal = ScrollController();
+  final _vertical = ScrollController(keepScrollOffset: false);
+  int _page = 1;
+  DirectoryColumn _column = DirectoryColumn.joined;
+  bool _descending = true;
+  late Future<UserDirectory> _request = _load(_page, _column, _descending);
 
-  void showPage(int next) {
+  @override
+  void dispose() {
+    _horizontal.dispose();
+    _vertical.dispose();
+    super.dispose();
+  }
+
+  Future<UserDirectory> _load(int page, DirectoryColumn column, bool descending) async {
+    final directory = await widget.load(page, column, descending);
+
+    if (mounted && page > directory.lastPage && column == _column && descending == _descending && page == _page) {
+      return widget.load(directory.lastPage, column, descending);
+    }
+
+    return directory;
+  }
+
+  void _showPage(int page, DirectoryColumn column, bool descending) {
+    if (_vertical.hasClients) {
+      _vertical.jumpTo(0);
+    }
+
     setState(() {
-      page = next;
-      request = widget.load(page);
+      _page = page;
+      _column = column;
+      _descending = descending;
+      _request = _load(page, column, descending);
     });
   }
 
   @override
   Widget build(BuildContext context) {
     return FutureBuilder<UserDirectory>(
-      future: request,
+      future: _request,
       builder: (context, snapshot) {
         if (snapshot.connectionState != ConnectionState.done) {
           return const Center(child: AppCircularProgressIndicator(semanticsLabel: 'Loading users'));
@@ -74,58 +112,52 @@ class _DirectoryState extends State<_Directory> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 const Text('Couldn’t load users.'),
-                TextButton(onPressed: () => showPage(page), child: const Text('Retry')),
+                TextButton(onPressed: () => _showPage(_page, _column, _descending), child: const Text('Retry')),
               ],
             ),
           );
         }
 
         final directory = snapshot.requireData;
+        final padding = libraryPageHorizontalPadding(context);
 
         return LayoutBuilder(
           builder: (context, constraints) {
-            final scale = MediaQuery.textScalerOf(context).scale(14) / 14;
-            final wide = constraints.maxWidth >= Breakpoints.desktopSmall * scale;
+            final wide =
+                MediaQuery.sizeOf(context).width >= Breakpoints.desktopSmall &&
+                constraints.maxWidth >= Breakpoints.tablet * MediaQuery.textScalerOf(context).scale(1);
 
-            return Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+            return ListView(
+              controller: _vertical,
+              padding: EdgeInsets.symmetric(horizontal: padding, vertical: Spacing.lg),
               children: [
-                Expanded(
-                  child: ListView(
-                    key: ValueKey(page),
-                    padding: const EdgeInsets.all(Spacing.md),
-                    children: [
-                      if (directory.users.isEmpty)
-                        const Text('No users on this page.')
-                      else if (wide)
-                        _directoryTable(context, directory)
-                      else
-                        for (final user in directory.users) _compactAccount(context, user, directory.quotaBytes),
-                    ],
-                  ),
+                Wrap(
+                  alignment: WrapAlignment.spaceBetween,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  spacing: Spacing.md,
+                  children: [
+                    Text(directory.rangeLabel),
+                    Text('Storage quota per user: ${_bytes(directory.quotaBytes)}'),
+                    if (!wide) _sortControls(context),
+                  ],
                 ),
-                const Divider(height: 1),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.xs),
-                  child: Wrap(
-                    alignment: WrapAlignment.end,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: Spacing.sm,
-                    children: [
-                      Text(
-                        directory.users.isEmpty ? '${directory.total} users' : rangeLabel(directory),
-                      ),
-                      TextButton(
-                        onPressed: page > 1 ? () => showPage((page - 1).clamp(1, directory.lastPage)) : null,
-                        child: const Text('Previous'),
-                      ),
-                      TextButton(
-                        onPressed: page < directory.lastPage ? () => showPage(page + 1) : null,
-                        child: const Text('Next'),
-                      ),
-                    ],
+                const SizedBox(height: Spacing.md),
+                if (directory.users.isEmpty)
+                  const Text('No users on this page.')
+                else if (wide)
+                  _table(directory, constraints.maxWidth - 2 * padding)
+                else
+                  for (final user in directory.users) _compactAccount(context, user, directory.quotaBytes),
+                if (directory.lastPage > 1) ...[
+                  const SizedBox(height: Spacing.md),
+                  ActivityPagination(
+                    page: directory.page - 1,
+                    pageCount: directory.lastPage,
+                    previousLabel: 'Previous page',
+                    nextLabel: 'Next page',
+                    onChanged: (index) => _showPage(index + 1, _column, _descending),
                   ),
-                ),
+                ],
               ],
             );
           },
@@ -134,93 +166,135 @@ class _DirectoryState extends State<_Directory> {
     );
   }
 
-  String rangeLabel(UserDirectory directory) {
-    final first = directory.offset + 1;
-    final last = directory.offset + directory.users.length;
-    final range = first == last ? '$first' : '$first–$last';
-    return '$range of ${directory.total} ${directory.total == 1 ? 'user' : 'users'}';
-  }
-
-  static const headings = ['Account', 'Joined', 'Last sign-in', 'Books', 'Server storage', 'Average per book'];
-
-  List<Widget> _cells(BuildContext context, DirectoryUser user, int quota) {
-    final signIn = user.lastSignIn;
-    final fraction = quota > 0 ? user.usedBytes / quota : 0.0;
-    final percentage = quota > 0 ? ' · ${(fraction * 100).round()}%' : '';
-    final label = '${_bytes(user.usedBytes)} of ${_bytes(quota)}$percentage';
-
-    return [
-      Column(
-        key: ValueKey(user.id),
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(user.name, style: Theme.of(context).textTheme.titleSmall),
-          if (user.email != null) Text(user.email!),
-          Text('${user.isAdmin ? 'Admin' : 'User'} · ${user.status}', style: Theme.of(context).textTheme.bodySmall),
+  Widget _sortControls(BuildContext context) => Wrap(
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: [
+      PopupMenuButton<DirectoryColumn>(
+        tooltip: 'Sort users by',
+        popUpAnimationStyle: AppMotion.animationStyle(context),
+        initialValue: _column,
+        onSelected: (column) => _showPage(1, column, column == _column && _descending),
+        itemBuilder: (_) => [
+          for (final column in DirectoryColumn.values) PopupMenuItem(value: column, child: Text(column.label)),
         ],
+        child: Padding(
+          padding: const EdgeInsets.all(Spacing.sm),
+          child: Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [Text('Sort by ${_column.label}'), const Icon(Icons.arrow_drop_down)],
+          ),
+        ),
       ),
-      Text(DateFormat.yMMMd().format(user.joined)),
-      Text(signIn == null ? 'No sign-in recorded' : DateFormat.yMMMd().add_jm().format(signIn)),
-      Text('${user.bookCount}'),
-      Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label),
-          const SizedBox(height: Spacing.xs),
-          ExcludeSemantics(child: LinearProgressIndicator(value: fraction.clamp(0, 1))),
-        ],
+      IconButton(
+        tooltip: _descending ? 'Sort ascending' : 'Sort descending',
+        onPressed: () => _showPage(1, _column, !_descending),
+        icon: Icon(_descending ? Icons.arrow_downward : Icons.arrow_upward),
       ),
-      Text(_bytes(user.averageBytes)),
-    ];
-  }
+    ],
+  );
 
-  Widget _directoryTable(BuildContext context, UserDirectory directory) {
-    TableRow row(List<Widget> cells) => TableRow(
-      children: [
-        for (final cell in cells) Padding(padding: const EdgeInsets.all(Spacing.sm), child: cell),
-      ],
-    );
-
-    return Table(
-      columnWidths: const {
-        0: FlexColumnWidth(2),
-        2: FlexColumnWidth(1.3),
-        3: FlexColumnWidth(.6),
-        4: FlexColumnWidth(1.7),
-      },
-      defaultVerticalAlignment: TableCellVerticalAlignment.middle,
-      border: TableBorder(horizontalInside: BorderSide(color: Theme.of(context).dividerColor)),
-      children: [
-        row([
-          for (final heading in headings)
-            Semantics(header: true, child: Text(heading, style: Theme.of(context).textTheme.labelLarge)),
-        ]),
-        for (final user in directory.users) row(_cells(context, user, directory.quotaBytes)),
-      ],
-    );
-  }
+  Widget _table(UserDirectory directory, double width) => Scrollbar(
+    controller: _horizontal,
+    thumbVisibility: true,
+    child: SingleChildScrollView(
+      key: const PageStorageKey('admin-users-columns'),
+      controller: _horizontal,
+      scrollDirection: Axis.horizontal,
+      padding: const EdgeInsets.only(bottom: Spacing.sm),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(minWidth: width),
+        child: DataTable(
+          sortColumnIndex: _column.index,
+          sortAscending: !_descending,
+          horizontalMargin: Spacing.sm,
+          columnSpacing: Spacing.lg,
+          columns: [
+            for (final column in DirectoryColumn.values)
+              DataColumn(
+                label: Text(column.label),
+                numeric:
+                    column == DirectoryColumn.books ||
+                    column == DirectoryColumn.storage ||
+                    column == DirectoryColumn.average,
+                onSort: (_, ascending) => _showPage(1, column, !ascending),
+              ),
+          ],
+          rows: [
+            for (final user in directory.users)
+              DataRow(
+                key: ValueKey(user.id),
+                cells: [
+                  for (final column in DirectoryColumn.values) DataCell(_value(column, user, directory.quotaBytes)),
+                ],
+              ),
+          ],
+        ),
+      ),
+    ),
+  );
 
   Widget _compactAccount(BuildContext context, DirectoryUser user, int quota) {
-    final cells = _cells(context, user, quota);
+    final textTheme = Theme.of(context).textTheme;
 
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      key: ValueKey(user.id),
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        cells.first,
-        for (var index = 1; index < cells.length; index++)
+        Semantics(header: true, child: Text(user.name, style: textTheme.titleMedium)),
+        for (final column in DirectoryColumn.values.where((column) => column != DirectoryColumn.name))
           Padding(
             padding: const EdgeInsets.only(top: Spacing.sm),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(flex: 2, child: Text(headings[index], style: Theme.of(context).textTheme.labelMedium)),
+                Expanded(flex: 2, child: Text(column.label, style: textTheme.labelMedium)),
                 const SizedBox(width: Spacing.sm),
-                Expanded(flex: 3, child: cells[index]),
+                Expanded(flex: 3, child: _value(column, user, quota)),
               ],
             ),
           ),
         const Divider(height: Spacing.xl),
       ],
+    );
+  }
+
+  Widget _value(DirectoryColumn column, DirectoryUser user, int quota) {
+    final signIn = user.lastSignIn;
+
+    return switch (column) {
+      DirectoryColumn.name => Text(user.name),
+      DirectoryColumn.email => Text(user.email ?? '—'),
+      DirectoryColumn.role => Text(user.isAdmin ? 'Admin' : 'User'),
+      DirectoryColumn.status => Text(user.status),
+      DirectoryColumn.joined => Text(DateFormat.yMMMd().format(user.joined)),
+      DirectoryColumn.signIn => Text(
+        signIn == null ? 'No sign-in recorded' : DateFormat.yMMMd().add_jm().format(signIn),
+      ),
+      DirectoryColumn.books => Text('${user.bookCount}'),
+      DirectoryColumn.storage => Text(_bytes(user.usedBytes)),
+      DirectoryColumn.quota => _quotaUsage(user.usedBytes, quota),
+      DirectoryColumn.average => Text(_bytes(user.averageBytes)),
+    };
+  }
+
+  Widget _quotaUsage(int bytes, int quota) {
+    if (quota <= 0) {
+      return const Text('—');
+    }
+
+    final fraction = bytes / quota;
+
+    return SizedBox(
+      width: 80,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${(fraction * 100).round()}%'),
+          const SizedBox(height: Spacing.xs),
+          ExcludeSemantics(child: LinearProgressIndicator(value: fraction.clamp(0, 1))),
+        ],
+      ),
     );
   }
 
