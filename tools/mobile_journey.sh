@@ -17,7 +17,15 @@ elif [[ "${JOURNEY_SUITE:-full}" == pr ]]; then
 fi
 if [[ "$device" == emulator-* ]]; then
   export ANDROID_SERIAL="$device"
-  adb -s "$device" push test/data/book1.epub /sdcard/Download/PapyrusJourney.epub
+  # A freshly booted emulator can report boot completion before Downloads is writable.
+  deadline=$((SECONDS + 90))
+  until adb -s "$device" shell 'mkdir -p /sdcard/Download && cat > /sdcard/Download/PapyrusJourney.epub' < test/data/book1.epub; do
+    if (( SECONDS >= deadline )); then
+      echo "Could not stage the EPUB in Downloads on $device" >&2
+      exit 1
+    fi
+    sleep 2
+  done
   adb -s "$device" shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE \
     -d file:///sdcard/Download/PapyrusJourney.epub
   args+=(--flavor direct --dart-define="EMULATOR_MODEL=$(adb -s "$device" shell getprop ro.product.model | tr -d '\r')")
