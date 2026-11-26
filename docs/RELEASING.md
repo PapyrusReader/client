@@ -10,32 +10,23 @@ Feature and fix PRs target the default `development` branch. Merge them without
 bumping the version. CI checks PRs and integration pushes; `development` does not
 build or publish releases.
 
-When ready to release the accumulated changes, prepare the coordinated version
-bump in a PR to `development`, then open `development` → `master`. Use **Create a
-merge commit** for this promotion and bring `master` back into `development`
-afterwards. The workspace release runbook describes the server/client merge
-order. Keep both branches; do not squash release promotions.
+Start the coordinated release in the workspace. Octopus records the development
+commits and opens one workspace manifest PR against workspace `master`. The
+approved manifest pins the versioned client and server commits.
 
 ## Versions and triggers
 
-`app/pubspec.yaml` owns `version: MAJOR.MINOR.PATCH+BUILD`. The semantic portion
-matches the server release; `BUILD` is a positive, globally increasing Android
-version code. Do not derive it from a workflow run number. Every new Play upload
-must use a higher code, including rebuilds of the same semantic release.
+`app/pubspec.yaml` records `MAJOR.MINOR.PATCH+BUILD`. Octopus increments the
+shared semantic version and Android build number. Client tags include both
+numbers, for example `v0.6.0+10`.
 
-The Release workflow considers changes to this file on `master`, then compares
-its version value with the previous push commit. Dependency-only edits skip all
-release builds. Normal PR CI continues independently. Manual dispatch on `master`
-is available for the first build or a retry of an unreleased commit. Tags are
-created after builds, not used as a second build trigger. A released tag cannot
-be reused for a different commit. Client tags include the build number, e.g.
-`v0.0.1+1`. Version changes build Android, web, Linux and Windows. Android
-produces a signed AAB for Play and a signed universal APK for direct installation.
-Both Android artifacts are available even if an unrelated desktop job fails.
-
-Use the workspace `tools/release.py bump` command to coordinate manifest changes
-with the server rather than editing each version separately. See the workspace
-release runbook for merge order.
+Octopus dispatches the client build workflow on `master` with the approved
+workspace manifest. Android, web, Linux and Windows build once. Their temporary
+Actions artifacts are retained for seven days. The build collects them into
+one sealed artifact retained for 30 days.
+After the production server passes verification, Octopus dispatches publication
+using the original build run ID. Web and Play internal delivery use the resulting
+GitHub Release assets. See the [workspace release guide](https://github.com/PapyrusReader/papyrus/blob/development/RELEASING.md).
 
 ## Configure GitHub before the first build
 
@@ -101,8 +92,8 @@ an actionable message; they cannot silently use the debug certificate.
    upload key. Keep the same upload key for later releases.
 3. Configure the public API, PowerSync, SMTP and Google OAuth settings using the
    server deployment runbook. Check the endpoints from outside your local network.
-4. Publish the prepared version (or dispatch Release on `master`), download the
-   `android-release` artifact, and upload the `*-android-universal.aab` to internal testing.
+4. For initial Play setup, download the signed `*-android-universal.aab` from the
+   published GitHub Release and upload it to internal testing.
    The local validation bundle uses a temporary certificate and placeholder
    URLs and must **never** be submitted to Play.
 5. Add testers and share Play's opt-in link. Install through Play on real devices
@@ -280,7 +271,7 @@ recorded by `previous` while holding `.deployment.lock`, then verify the app. Th
 
 ## Delivery retries and release immutability
 
-Use **Deliver published release** → **Run workflow** on `master`, enter the exact
+Use **Retry** on the affected Octopus delivery step. For a standalone redelivery, use **Deliver published release** → **Run workflow** on `master`, enter the exact
 published tag, and choose `web`, `play` or `all`. This downloads existing assets,
 resolves the tag to its commit, and verifies the release manifest and checksums.
 It never rebuilds the application. Historic releases without a manifest cannot
