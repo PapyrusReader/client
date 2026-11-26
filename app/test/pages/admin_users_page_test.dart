@@ -223,6 +223,9 @@ void main() {
     });
     await tester.pumpAndSettle();
     final table = tester.widget<DataTable>(find.byType(DataTable));
+    expect(requests.first, {'page': '1', 'limit': '20', 'sort_by': 'display_name', 'descending': 'false'});
+    expect(table.sortColumnIndex, DirectoryColumn.name.index);
+    expect(table.sortAscending, isTrue);
     expect(table.columns.map((column) => (column.label as Text).data), [
       'Name',
       'Email',
@@ -264,15 +267,15 @@ void main() {
     expect(find.text('—'), findsOneWidget);
     await tester.tap(find.text('Name'));
     await tester.pumpAndSettle();
-    expect(requests.last, {'page': '1', 'limit': '20', 'sort_by': 'display_name', 'descending': 'false'});
+    expect(requests.last, {'page': '1', 'limit': '20', 'sort_by': 'display_name', 'descending': 'true'});
     expect(find.text('Reader 1'), findsOneWidget);
     await tester.tap(find.text('Name'));
     await tester.pumpAndSettle();
-    expect(requests.last['descending'], 'true');
+    expect(requests.last['descending'], 'false');
     await tester.scrollUntilVisible(find.byTooltip('Next page'), 500, scrollable: find.byType(Scrollable).first);
     await tester.tap(find.byTooltip('Next page'));
     await tester.pumpAndSettle();
-    expect(requests.last, {'page': '2', 'limit': '20', 'sort_by': 'display_name', 'descending': 'true'});
+    expect(requests.last, {'page': '2', 'limit': '20', 'sort_by': 'display_name', 'descending': 'false'});
     await tester.tap(find.byTooltip('Previous page'));
     await tester.pumpAndSettle();
     expect(find.text('Reader 1'), findsOneWidget);
@@ -311,14 +314,14 @@ void main() {
   });
 
   testWidgets('sorting retains rows through failure and retry and ignores superseded responses', (tester) async {
-    final slowName = Completer<http.Response>();
+    final slowJoined = Completer<http.Response>();
     final failedEmail = Completer<http.Response>();
     var emailAttempts = 0;
 
     await mount(tester, (request) async {
       switch (request.url.queryParameters['sort_by']) {
-        case 'display_name':
-          return slowName.future;
+        case 'created_at':
+          return slowJoined.future;
         case 'email':
           if (++emailAttempts == 1) {
             return failedEmail.future;
@@ -331,7 +334,7 @@ void main() {
     });
 
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Name'));
+    await tester.tap(find.text('Joined'));
     await tester.pump();
     expect(find.text('Reader 1'), findsOneWidget);
     await tester.tap(find.text('Email'));
@@ -339,11 +342,11 @@ void main() {
     failedEmail.complete(http.Response('{}', 503));
     await tester.pumpAndSettle();
     expect(find.text('Reader 1'), findsOneWidget);
-    expect(tester.widget<DataTable>(find.byType(DataTable)).sortColumnIndex, DirectoryColumn.joined.index);
+    expect(tester.widget<DataTable>(find.byType(DataTable)).sortColumnIndex, DirectoryColumn.name.index);
     await tester.tap(find.text('Retry'));
     await tester.pumpAndSettle();
     expect(find.text('Reader 2'), findsOneWidget);
-    slowName.complete(directory(1, total: 1));
+    slowJoined.complete(directory(1, total: 1));
     await tester.pumpAndSettle();
     expect(find.text('Reader 2'), findsOneWidget);
     expect(tester.widget<DataTable>(find.byType(DataTable)).sortColumnIndex, DirectoryColumn.email.index);
@@ -352,11 +355,11 @@ void main() {
   testWidgets('switching server while loading discards the previous directory', (tester) async {
     final pending = Completer<http.Response>();
     final (_, settings) = await mount(tester, (request) async {
-      return request.url.queryParameters['sort_by'] == 'display_name' ? pending.future : directory(1, total: 1);
+      return request.url.queryParameters['sort_by'] == 'created_at' ? pending.future : directory(1, total: 1);
     });
 
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Name'));
+    await tester.tap(find.text('Joined'));
     await tester.pump();
     expect(find.text('Reader 1'), findsOneWidget);
     await settings.addCustomServer(config.serverBaseUri.toString());
@@ -369,14 +372,12 @@ void main() {
 
   testWidgets('server denial clears the directory and removes admin access', (tester) async {
     final (auth, settings) = await mount(tester, (request) async {
-      return request.url.queryParameters['sort_by'] == 'display_name'
-          ? http.Response('{}', 403)
-          : directory(1, total: 1);
+      return request.url.queryParameters['sort_by'] == 'created_at' ? http.Response('{}', 403) : directory(1, total: 1);
     });
 
     await tester.pumpAndSettle();
     expect(find.text('Reader 1'), findsOneWidget);
-    await tester.tap(find.text('Name'));
+    await tester.tap(find.text('Joined'));
     await tester.pumpAndSettle();
     expect(auth.canAdminister(settings), isFalse);
     expect(find.text('Users'), findsNothing);

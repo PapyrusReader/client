@@ -64,7 +64,7 @@ typedef _DirectoryQuery = ({int page, DirectoryColumn column, bool descending});
 class _DirectoryState extends State<_Directory> {
   final _horizontal = ScrollController();
   final _vertical = ScrollController(keepScrollOffset: false);
-  static const _initialQuery = (page: 1, column: DirectoryColumn.joined, descending: true);
+  static const _initialQuery = (page: 1, column: DirectoryColumn.name, descending: false);
   _DirectoryQuery _requested = _initialQuery;
   _DirectoryQuery _displayed = _initialQuery;
   UserDirectory? _directory;
