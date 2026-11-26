@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -34,7 +35,7 @@ class AdminUsersPage extends StatelessWidget {
               title: 'Users',
               compact: compact,
               leading: compact
-                  ? BackButton(onPressed: () => context.canPop() ? context.pop() : context.go('/library/books'))
+                  ? BackButton(onPressed: () => context.canPop() ? popAppPage(context) : context.go('/library/books'))
                   : null,
             ),
             Expanded(

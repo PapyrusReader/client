@@ -308,6 +308,7 @@ void main() {
         expect(shellRoute.transitionDuration, Duration.zero);
         expect(shellRoute.reverseTransitionDuration, Duration.zero);
         expect(auth.isOfflineMode, offline);
+        expect(appRouter.router.canPop(), isFalse, reason: 'Books is the library landing page.');
         expect(auth.isSignedIn, !offline);
         expect(tester.takeException(), isNull);
       });

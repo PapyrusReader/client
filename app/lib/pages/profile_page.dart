@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -127,7 +128,7 @@ class _ProfilePageState extends State<ProfilePage> {
 
   Widget _buildMobileDetail(BuildContext context) {
     return Scaffold(
-      appBar: AppPageBar(context: context, title: Text(_selectedSection.title), leading: const BackButton()),
+      appBar: AppPageBar(context: context, title: Text(_selectedSection.title), leading: const AppBackButton()),
       body: SafeArea(
         child: ListView(
           key: PageStorageKey('settings-${_selectedSection.path}'),

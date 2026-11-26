@@ -67,7 +67,7 @@ jobs:
       - name: Install JUnit converter
         run: dart pub global activate junitreport 2.0.2
 
-      - name: Check report normalization
+      - name: Test CI scripts
         run: python3 -m unittest discover -s ../.github/scripts -p 'test_*.py'
 
       - name: Run tests with coverage

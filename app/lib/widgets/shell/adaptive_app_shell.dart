@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -155,6 +156,10 @@ class AdaptiveAppShell extends StatelessWidget {
     final currentPath = GoRouterState.of(context).uri.path;
     final isInLibrary = currentPath.startsWith('/library');
 
+    final bookBackGesture =
+        usesBookBackGesture(context) &&
+        (currentPath.startsWith('/library/details/') || currentPath.startsWith('/library/edit/'));
+
     return Scaffold(
       body: Semantics(
         container: true,
@@ -171,7 +176,7 @@ class AdaptiveAppShell extends StatelessWidget {
               currentPath: currentPath,
               onNavigate: (path) => context.go(path),
             ),
-      drawerEnableOpenDragGesture: !AppMotion.disabled(context),
+      drawerEnableOpenDragGesture: !AppMotion.disabled(context) && !bookBackGesture,
       drawer: isInLibrary ? LibraryDrawer(currentPath: currentPath) : null,
     );
   }

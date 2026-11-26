@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:papyrus/pages/book_edit_page.dart';
@@ -18,6 +19,59 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../helpers/test_helpers.dart';
 
 void main() {
+  testWidgets('route history asks before discarding an edited title', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1400, 1000);
+    addTearDown(tester.view.reset);
+    final store = createTestDataStore(
+      books: [buildTestBook(id: 'guide', title: 'Guide')],
+    );
+
+    final router = GoRouter(
+      initialLocation: '/library',
+      routes: [
+        GoRoute(
+          path: '/library',
+          builder: (context, _) => Scaffold(
+            body: TextButton(onPressed: () => context.push('/library/edit/guide'), child: const Text('Open editor')),
+          ),
+          routes: [bookEditRoute(canStay: (_) => true)],
+        ),
+      ],
+    );
+
+    addTearDown(router.dispose);
+    addTearDown(store.dispose);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: store,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.tap(find.text('Open editor'));
+    await tester.pumpAndSettle();
+    final field = find.byWidgetPredicate((widget) => widget is TextField && widget.decoration?.labelText == 'Title*');
+    await tester.enterText(field, 'Unpublished title');
+
+    Future<void> browserBack() async {
+      await router.routeInformationProvider.didPushRouteInformation(RouteInformation(uri: Uri.parse('/library')));
+      await tester.pumpAndSettle();
+      expect(find.text('Discard changes?'), findsOneWidget);
+    }
+
+    await browserBack();
+    await tester.tap(find.text('Keep editing'));
+    await tester.pumpAndSettle();
+    expect(find.text('Unpublished title'), findsOneWidget);
+    await browserBack();
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open editor'), findsOneWidget);
+    expect(store.getBook('guide')?.title, 'Guide');
+  });
+
   group('BookEditPage layout', () {
     Future<void> pumpPage(
       WidgetTester tester, {
@@ -93,7 +147,7 @@ void main() {
       await pumpPage(tester, size: const Size(1400, 1000));
       expect(find.text('Edit book'), findsOneWidget);
       expect(find.widgetWithText(OutlinedButton, 'Back'), findsNothing);
-      expect(find.byTooltip('Back to book details'), findsOneWidget);
+      expect(find.byTooltip('Back'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
       expect(find.byIcon(Icons.save_outlined), findsNothing);
       final header = find.byKey(const Key('book-edit-desktop-header'));

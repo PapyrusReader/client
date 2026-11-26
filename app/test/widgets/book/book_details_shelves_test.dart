@@ -31,6 +31,10 @@ void main() {
       );
 
       final library = LibraryProvider();
+      final reflectsPushes = GoRouter.optionURLReflectsImperativeAPIs;
+      GoRouter.optionURLReflectsImperativeAPIs = true;
+      addTearDown(() => GoRouter.optionURLReflectsImperativeAPIs = reflectsPushes);
+
       final router = GoRouter(
         initialLocation: '/library/details/book',
         routes: [
@@ -70,6 +74,10 @@ void main() {
       expect(find.text('Second shelf'), findsOneWidget);
       expect(find.text('A book on both shelves'), findsWidgets);
       expect(find.text('Only on the first shelf'), findsNothing);
+      await tester.tap(find.byTooltip('Back'));
+      await tester.pumpAndSettle();
+      expect(router.routeInformationProvider.value.uri.path, '/library/details/book');
+      expect(chip, findsOneWidget);
       expect(tester.takeException(), isNull);
     });
   }

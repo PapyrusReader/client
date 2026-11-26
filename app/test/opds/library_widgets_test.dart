@@ -117,7 +117,7 @@ void main() {
       await tester.tap(sheetOpen);
       await tester.pumpAndSettle();
       expect(find.text('Local local'), findsOneWidget);
-      router.go('/catalog');
+      await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       // A completed job must not override a later deletion from the real library.
       await downloads.start(catalog, publication, epub);

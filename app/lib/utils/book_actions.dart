@@ -45,7 +45,7 @@ void showBookContextMenu({
       toggleBookFavorite(context, book.id, isFavorite);
     },
     onEdit: () {
-      context.goNamed('BOOK_EDIT', pathParameters: {'bookId': book.id});
+      context.pushNamed('BOOK_EDIT', pathParameters: {'bookId': book.id});
     },
     onMoveToShelf: () {
       _showMoveToShelfSheet(context, book);

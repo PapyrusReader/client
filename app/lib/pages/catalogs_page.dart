@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -153,7 +154,7 @@ class _CatalogsPageState extends State<CatalogsPage> {
     final router = GoRouter.of(context);
 
     if (router.routerDelegate.currentConfiguration.last is ImperativeRouteMatch && router.canPop()) {
-      router.pop();
+      popAppPage(context);
     } else if (catalog != null && widget.feedUri != null && widget.feedUri != catalog.uri) {
       // A refreshed/shared subsection has no earlier visit in its route stack.
       // Return to this catalog's root before leaving the catalog altogether.

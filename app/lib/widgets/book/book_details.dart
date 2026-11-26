@@ -171,7 +171,7 @@ class _BookDetailsState extends State<BookDetails> {
               label: Text(shelf.name),
               visualDensity: VisualDensity.compact,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-              onPressed: () => context.goNamed('SHELF_CONTENTS', pathParameters: {'shelfId': shelf.id}),
+              onPressed: () => context.pushNamed('SHELF_CONTENTS', pathParameters: {'shelfId': shelf.id}),
             ),
           );
         }),

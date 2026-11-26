@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'package:papyrus/widgets/book/private_book_cover.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/widgets/shared/app_page_bar.dart';
@@ -29,6 +30,35 @@ import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 import 'package:papyrus/widgets/settings/settings_row.dart';
 
+GoRoute bookEditRoute({required bool Function(String) canStay}) {
+  final editors = <(ValueKey<String>, String?), GlobalKey<_BookEditPageState>>{};
+
+  return GoRoute(
+    name: 'BOOK_EDIT',
+    path: 'edit/:bookId',
+    pageBuilder: (context, state) {
+      final id = state.pathParameters['bookId'];
+      final key = editors.putIfAbsent((state.pageKey, id), GlobalKey<_BookEditPageState>.new);
+      return bookNavigationPage(
+        context,
+        key: state.pageKey,
+        child: BookEditPage(key: key, id: id),
+      );
+    },
+    onExit: (context, state) async {
+      final entry = (state.pageKey, state.pathParameters['bookId']);
+      final editor = editors[entry]?.currentState;
+
+      if (editor != null && canStay(state.uri.toString()) && !await editor._confirmExit()) {
+        return false;
+      }
+
+      editors.remove(entry);
+      return true;
+    },
+  );
+}
+
 /// Page for editing book metadata.
 class BookEditPage extends StatefulWidget {
   final String? id;
@@ -50,6 +80,7 @@ class _BookEditPageState extends State<BookEditPage> {
       _desktopCoverPaneWidth + _desktopPaneGap + _minimumDesktopFormPaneWidth + (Spacing.lg * 2);
 
   late BookEditProvider _provider;
+  bool _confirmingExit = false;
   final _formKey = GlobalKey<FormState>();
   final _metadataResultsKey = GlobalKey();
 
@@ -191,43 +222,29 @@ class _BookEditPageState extends State<BookEditPage> {
             );
           }
 
-          return PopScope(
-            canPop: !provider.hasUnsavedChanges,
-            onPopInvokedWithResult: (didPop, result) async {
-              if (didPop) {
-                return;
-              }
-
-              final discard = await _showDiscardDialog();
-
-              if (discard && mounted && context.mounted) {
-                _navigateToBookDetails(context);
-              }
-            },
-            child: _isDesktop
-                ? _buildDesktopScaffold(context, provider)
-                : Scaffold(
-                    appBar: AppPageBar(
-                      context: context,
-                      title: const Text('Edit book'),
-                      leading: IconButton(
-                        tooltip: 'Back to book details',
-                        icon: const Icon(Icons.arrow_back),
-                        onPressed: () => _handleCancel(context),
-                      ),
-                      actions: [
-                        Padding(
-                          padding: const EdgeInsets.only(right: Spacing.sm),
-                          child: FilledButton(
-                            onPressed: provider.canSave ? () => _handleSave(context) : null,
-                            child: const Text('Save'),
-                          ),
-                        ),
-                      ],
+          return _isDesktop
+              ? _buildDesktopScaffold(context, provider)
+              : Scaffold(
+                  appBar: AppPageBar(
+                    context: context,
+                    title: const Text('Edit book'),
+                    leading: IconButton(
+                      tooltip: 'Back',
+                      icon: const Icon(Icons.arrow_back),
+                      onPressed: () => _closeEditor(context),
                     ),
-                    body: Form(key: _formKey, child: _buildMobileLayout(context, provider)),
+                    actions: [
+                      Padding(
+                        padding: const EdgeInsets.only(right: Spacing.sm),
+                        child: FilledButton(
+                          onPressed: provider.canSave ? () => _handleSave(context) : null,
+                          child: const Text('Save'),
+                        ),
+                      ),
+                    ],
                   ),
-          );
+                  body: Form(key: _formKey, child: _buildMobileLayout(context, provider)),
+                );
         },
       ),
     );
@@ -261,8 +278,8 @@ class _BookEditPageState extends State<BookEditPage> {
         child: Row(
           children: [
             IconButton(
-              tooltip: 'Back to book details',
-              onPressed: () => _handleCancel(context),
+              tooltip: 'Back',
+              onPressed: () => _closeEditor(context),
               icon: const Icon(Icons.arrow_back),
             ),
             const SizedBox(width: Spacing.sm),
@@ -851,25 +868,42 @@ class _BookEditPageState extends State<BookEditPage> {
     return result ?? false;
   }
 
-  void _navigateToBookDetails(BuildContext context) {
-    if (widget.id != null) {
-      context.goNamed('BOOK_DETAILS', pathParameters: {'bookId': widget.id!});
-    } else {
-      context.pop();
+  Future<void> _closeEditor(BuildContext context) async {
+    final router = GoRouter.of(context);
+    final id = widget.id;
+
+    // A direct editor link has no originating book page to pop back to.
+    if (id != null && router.routerDelegate.currentConfiguration.last is! ImperativeRouteMatch) {
+      if (_provider.hasUnsavedChanges) {
+        if (!await _confirmExit() || !context.mounted) {
+          return;
+        }
+
+        _provider.revertChanges();
+      }
+
+      Router.neglect(context, () => router.goNamed('BOOK_DETAILS', pathParameters: {'bookId': id}));
+      return;
     }
+
+    popAppPage(context);
   }
 
-  void _handleCancel(BuildContext context) async {
-    if (_provider.hasUnsavedChanges) {
-      final discard = await _showDiscardDialog();
-
-      if (!discard) {
-        return;
-      }
+  Future<bool> _confirmExit() async {
+    if (!_provider.hasUnsavedChanges) {
+      return true;
     }
 
-    if (mounted && context.mounted) {
-      _navigateToBookDetails(context);
+    if (_confirmingExit) {
+      return false;
+    }
+
+    _confirmingExit = true;
+
+    try {
+      return await _showDiscardDialog();
+    } finally {
+      _confirmingExit = false;
     }
   }
 
@@ -950,7 +984,7 @@ class _BookEditPageState extends State<BookEditPage> {
       return;
     }
 
-    _navigateToBookDetails(context);
+    _closeEditor(context);
   }
 
   void _showSaveError(BuildContext context, String message) {

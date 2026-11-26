@@ -201,6 +201,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.3.2"
+  dispose_scope:
+    dependency: transitive
+    description:
+      name: dispose_scope
+      sha256: "48ec38ca2631c53c4f8fa96b294c801e55c335db5e3fb9f82cede150cfe5a2af"
+      url: "https://pub.dev"
+    source: hosted
+    version: "2.1.0"
   epub_pro:
     dependency: "direct main"
     description:
@@ -479,6 +487,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.6.0"
+  http_multi_server:
+    dependency: transitive
+    description:
+      name: http_multi_server
+      sha256: "361668bdd71f0ae2dc6d17b75a593520f3c414af6534f9eed1aa72049dd71d18"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.2.3"
   http_parser:
     dependency: "direct main"
     description:
@@ -544,8 +560,8 @@ packages:
     dependency: transitive
     description:
       path: "third_party/kindle_unpack"
-      ref: "9b6edfc78671f6f7009f4b6dcde94d3094082733"
-      resolved-ref: "9b6edfc78671f6f7009f4b6dcde94d3094082733"
+      ref: "7246136624660d476234cfb15587a55a29bd53c7"
+      resolved-ref: "7246136624660d476234cfb15587a55a29bd53c7"
       url: "https://github.com/PapyrusReader/reader.git"
     source: git
     version: "0.2.0"
@@ -721,8 +737,8 @@ packages:
     dependency: "direct main"
     description:
       path: "."
-      ref: "9b6edfc78671f6f7009f4b6dcde94d3094082733"
-      resolved-ref: "9b6edfc78671f6f7009f4b6dcde94d3094082733"
+      ref: "7246136624660d476234cfb15587a55a29bd53c7"
+      resolved-ref: "7246136624660d476234cfb15587a55a29bd53c7"
       url: "https://github.com/PapyrusReader/reader.git"
     source: git
     version: "0.0.1"
@@ -790,6 +806,30 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.3.0"
+  patrol:
+    dependency: "direct dev"
+    description:
+      name: patrol
+      sha256: "502271abc5499663e38ba8f51da00d252f723fd3df1bf512dddf1b2626b1411a"
+      url: "https://pub.dev"
+    source: hosted
+    version: "4.12.0"
+  patrol_finders:
+    dependency: transitive
+    description:
+      name: patrol_finders
+      sha256: e8ea4cecb135e00e9a41b398384a8f9f963576fcd08b0808cc688807f4f2b391
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.7.1"
+  patrol_log:
+    dependency: transitive
+    description:
+      name: patrol_log
+      sha256: eb7dbb4c7e679410bd9f4b349bbf0da4a56e5a2efe718613e268fa26f4b7bf41
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.10.2"
   pdf:
     dependency: transitive
     description:
@@ -990,6 +1030,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "2.4.1"
+  shelf:
+    dependency: transitive
+    description:
+      name: shelf
+      sha256: e75e9cf311d7fd712048038cc17c25199c38536c20330d53e7db058b543d5a48
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.4.3"
   sky_engine:
     dependency: transitive
     description: flutter

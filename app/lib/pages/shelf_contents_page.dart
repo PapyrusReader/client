@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
@@ -35,14 +36,10 @@ class ShelfContentsPage extends StatelessWidget {
         shelf: shelf,
         selectBooksForShelf: selectBooks,
         onBack: () {
-          if (selectBooks) {
-            if (context.canPop()) {
-              context.pop();
-            } else {
-              context.go('/library/shelves/${shelf.id}');
-            }
+          if (context.canPop()) {
+            popAppPage(context);
           } else {
-            context.go('/library/shelves');
+            context.go(selectBooks ? '/library/shelves/${shelf.id}' : '/library/shelves');
           }
         },
         onEditShelf: () => _editShelf(context, dataStore, shelf),
