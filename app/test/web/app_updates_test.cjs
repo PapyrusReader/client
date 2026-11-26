@@ -33,7 +33,7 @@ function page({waiting = false, otherTabs = false} = {}) {
 
 test('explicit reload activates the waiting worker first', async () => {
   const app = page({waiting: true});
-  await app.apply();
+  assert.equal(await app.apply(), null);
   assert.ok(app.checked());
   assert.ok(app.reloaded());
 });
@@ -46,6 +46,6 @@ test('other reading tabs prevent activation and receive an actionable message', 
 
 test('no waiting worker reloads the current deployment', async () => {
   const app = page();
-  await app.apply();
+  assert.equal(await app.apply(), null);
   assert.ok(app.reloaded());
 });

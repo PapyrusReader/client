@@ -56,7 +56,7 @@ Check the actual Android bridge in both flavors:
 Use a disposable emulator: these commands install debug builds with the same
 application ID. Do not replace a user's signed release with a debug build.
 
-## Native acceptance matrix
+## Update acceptance matrix
 
 Use an older build with the revised updater and a newer, same-channel release.
 Seed an offline book, reading position, annotation, and setting before updating.
@@ -71,9 +71,9 @@ After reopening, verify the installed build increased and those items survived.
 | Linux AppImage | Update a writable original AppImage, close it, and reopen that same path. | A read-only destination, symlink, interrupted download, or bad hash must preserve the working image. |
 | Linux Debian/APT | Update using the system package manager or configured Papyrus repository. | Papyrus offers repository guidance and never launches a downloaded executable. |
 | Linux archive | Open Downloads and replace the complete extracted bundle while closed. | Papyrus offers manual instructions. |
-| Web | Deploy/download the offline web release, close all Papyrus tabs, and reopen. | No native update banner or App updates setting appears. Existing offline storage remains. An active reader must not be forcibly reloaded. |
+| Web | Deploy a newer web release while the old build is cached. Open View update → Reload and verify the new build and existing offline library after reload. | With another Papyrus tab open, Reload should explain how to retry. Close the other tab and retry. An active reader stays open until the user chooses to reload. |
 
-For all native channels, the update notice and its actions occupy one row.
+For all channels, the update notice and its actions occupy one row.
 View update opens a modal over the current screen without hiding the notice.
 The same backdrop must dim the banner and the rest of the screen, and prevent
 interaction with banner actions while any root modal is open.

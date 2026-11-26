@@ -67,11 +67,10 @@ class UpdateController extends ChangeNotifier with WidgetsBindingObserver {
     return timestamp == null ? null : DateTime.fromMillisecondsSinceEpoch(timestamp);
   }
 
-  bool get supported => channel != UpdateChannel.web && (channel != null || !kIsWeb);
   bool get automatic => preferences.getBool('updates.automatic') ?? true;
   bool get external => channel == UpdateChannel.apt || channel == UpdateChannel.manual;
   bool get skipped => _offeredBuild != null && preferences.getInt('updates.skippedBuild') == _offeredBuild;
-  bool get showNotice => supported && available && _noticeVisible;
+  bool get showNotice => available && _noticeVisible;
 
   void dismissNotice() {
     _noticeVisible = false;
@@ -106,7 +105,7 @@ class UpdateController extends ChangeNotifier with WidgetsBindingObserver {
   }
 
   void start() {
-    if (_started || _disposed || !supported) {
+    if (_started || _disposed) {
       return;
     }
 
@@ -119,7 +118,7 @@ class UpdateController extends ChangeNotifier with WidgetsBindingObserver {
     final noticeRevision = _noticeRevision;
     await initialize();
 
-    if (_disposed || !supported) {
+    if (_disposed) {
       return;
     }
 
@@ -142,11 +141,6 @@ class UpdateController extends ChangeNotifier with WidgetsBindingObserver {
   Future<void> _restore() async {
     try {
       channel = await channelProvider();
-
-      if (!supported) {
-        return;
-      }
-
       final info = await appInfo();
       final currentBuild = int.parse(info.buildNumber);
       _currentBuild = currentBuild;
@@ -169,8 +163,8 @@ class UpdateController extends ChangeNotifier with WidgetsBindingObserver {
           throw const FormatException('Invalid cached update');
         }
 
-        if (!external) {
-          release!.asset(_assetKey);
+        if (_assetKey case final key?) {
+          release!.asset(key);
         }
       }
 
@@ -188,7 +182,7 @@ class UpdateController extends ChangeNotifier with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.resumed && backgroundEnabled && supported) {
+    if (state == AppLifecycleState.resumed && backgroundEnabled) {
       // Returning from an installer or permission screen must refresh eligibility.
       if (status == UpdateStatus.handedOff) {
         unawaited(check());
@@ -213,7 +207,7 @@ class UpdateController extends ChangeNotifier with WidgetsBindingObserver {
         elapsed >= 0 &&
         elapsed < const Duration(days: 1).inMilliseconds;
 
-    if (!supported || viewingSettings || !automatic || (!startup && recentlyChecked)) {
+    if (viewingSettings || !automatic || (!startup && recentlyChecked)) {
       return;
     }
 
@@ -230,7 +224,7 @@ class UpdateController extends ChangeNotifier with WidgetsBindingObserver {
     final noticeRevision = _noticeRevision;
     await initialize();
 
-    if (!supported || busy || staged || _disposed) {
+    if (busy || staged || _disposed) {
       return;
     }
 
@@ -259,8 +253,8 @@ class UpdateController extends ChangeNotifier with WidgetsBindingObserver {
         offeredRelease = {...data, 'assets': data['assets'] ?? <String, dynamic>{}};
         final candidate = UpdateRelease.fromJson(offeredRelease);
 
-        if (candidate.buildNumber > currentBuild && !external) {
-          candidate.asset(_assetKey);
+        if (_assetKey case final key? when candidate.buildNumber > currentBuild) {
+          candidate.asset(key);
         }
 
         release = candidate;
@@ -302,15 +296,15 @@ class UpdateController extends ChangeNotifier with WidgetsBindingObserver {
     }
   }
 
-  String get _assetKey => switch (channel) {
+  String? get _assetKey => switch (channel) {
     UpdateChannel.apk => 'android_apk',
     UpdateChannel.windows => 'installer',
     UpdateChannel.appImage => 'appimage',
-    _ => throw StateError('No downloadable package for this channel'),
+    UpdateChannel.apt || UpdateChannel.manual || UpdateChannel.play || UpdateChannel.web || null => null,
   };
 
   Future<void> install() async {
-    if (!supported || busy || !available || staged || external || _disposed) {
+    if (busy || !available || staged || external || _disposed) {
       return;
     }
 
@@ -321,8 +315,8 @@ class UpdateController extends ChangeNotifier with WidgetsBindingObserver {
     _notify();
 
     try {
-      final asset = channel == UpdateChannel.play ? null : release!.asset(_assetKey);
-
+      final key = _assetKey;
+      final asset = key == null ? null : release!.asset(key);
       var previousPercent = -1;
 
       message = await installer(asset, (value) {

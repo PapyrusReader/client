@@ -72,7 +72,7 @@ class _AboutSettingsSectionState extends State<AboutSettingsSection> {
 
         final rows = [
           SettingsRow(label: 'Version', value: version, showChevron: false),
-          if (updates != null && updates.supported) ...[
+          if (updates != null) ...[
             SettingsRow(
               label: 'App updates',
               value: updates.available ? 'Update available' : 'Check for updates',

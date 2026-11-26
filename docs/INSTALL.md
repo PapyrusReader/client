@@ -27,9 +27,11 @@ switch sources without first exporting any local-only books and data.
 
 Open https://app.papyrus-reader.com. Web releases deploy automatically after
 GitHub publication. `/release.json` identifies the running release. Browser
-storage, offline libraries and accounts are not cleared by deployment. No native
-update notification is shown on web. Close all Papyrus tabs and reopen the site
-to let a downloaded offline web release activate.
+storage, offline libraries and accounts are not cleared by deployment. When an
+update is available, choose **View update** and then **Reload**. You can also
+check manually in **About → App updates**. If another Papyrus tab is open,
+close it before retrying. For older builds without the prompt, close all
+Papyrus tabs and reopen the site to activate a downloaded release.
 
 ## Windows x64
 

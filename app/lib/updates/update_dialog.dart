@@ -216,12 +216,17 @@ class _UpdateDialogState extends State<UpdateDialog> {
           : 'Version ${controller.release!.version} (${controller.release!.buildNumber}) is available',
     UpdateStatus.installing => 'Updating Papyrus',
     UpdateStatus.staged => 'Ready to finish updating',
+    UpdateStatus.handedOff when controller.channel == UpdateChannel.web => 'Reloading Papyrus',
     UpdateStatus.handedOff => 'Continue on your device',
     UpdateStatus.checkFailed => _checkFailedTitle,
     UpdateStatus.installFailed => 'Couldn’t finish the update',
   };
 
   String? _statusDetail(UpdateController controller) {
+    if (controller.status == UpdateStatus.handedOff && controller.channel == UpdateChannel.web) {
+      return null;
+    }
+
     if (controller.status == UpdateStatus.installFailed) {
       return controller.message;
     }

@@ -412,26 +412,31 @@ void main() {
     expect(updates.available, isTrue);
   });
 
-  test('web never checks the feed or invokes an installer', () async {
-    var requests = 0;
+  test('web restores the release notice and reloads without a native asset', () async {
     final updates = controller(
       channel: UpdateChannel.web,
-      manifest: () async {
-        requests++;
-        return metadata();
-      },
-      installer: (_, _) async {
-        requests++;
-        return 'Reload';
+      manifest: () async => metadata()..remove('assets'),
+    );
+
+    await updates.check(notifyUser: true);
+    expect(updates.showNotice, isTrue);
+    var reloads = 0;
+    final restarted = controller(
+      channel: UpdateChannel.web,
+      installer: (asset, _) async {
+        expect(asset, isNull);
+        reloads++;
+        return 'Reloading Papyrus…';
       },
     );
 
-    await updates.check();
-    await updates.install();
-    expect(updates.supported, isFalse);
-    expect(updates.available, isFalse);
-    expect(updates.status, UpdateStatus.unchecked);
-    expect(requests, 0);
+    restarted.start();
+    await Future<void>.delayed(Duration.zero);
+    expect(restarted.showNotice, isTrue);
+    expect(reloads, 0);
+    await restarted.install();
+    expect(reloads, 1);
+    expect(restarted.status, UpdateStatus.handedOff);
   });
 
   for (final (channel, key, suffix) in [
