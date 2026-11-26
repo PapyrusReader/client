@@ -124,6 +124,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: android-release
+          retention-days: 7
           path: |
             app/papyrus-${{ needs.version.outputs.tag }}-android-universal.aab
             app/papyrus-${{ needs.version.outputs.tag }}-android-universal.apk
@@ -183,6 +184,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: web-release
+          retention-days: 7
           path: app/papyrus-${{ needs.version.outputs.tag }}-web.zip
 
   build-linux:
@@ -240,6 +242,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: linux-release
+          retention-days: 7
           path: app/dist/*
           if-no-files-found: error
 
@@ -295,6 +298,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: windows-release
+          retention-days: 7
           path: app/dist/*
           if-no-files-found: error
 
@@ -303,11 +307,8 @@ jobs:
     needs: [version, build-android, build-web, build-linux, build-windows]
     if: needs.version.outputs.release == 'true'
     runs-on: ubuntu-24.04
-    permissions:
-      contents: write
     env:
       RELEASE_TAG: ${{ needs.version.outputs.tag }}
-      GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
         with:
@@ -315,7 +316,7 @@ jobs:
           fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
-          pattern: '*-release'
+          pattern: '{android,web,linux,windows}-release'
           merge-multiple: true
           path: artifacts
       - name: Build signed APT repository
