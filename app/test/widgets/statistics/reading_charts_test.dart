@@ -1,6 +1,9 @@
 import 'package:fl_chart/fl_chart.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:papyrus/models/daily_activity.dart';
 import 'package:papyrus/providers/statistics_provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/statistics/reading_charts.dart';
@@ -53,6 +56,66 @@ void main() {
     expect(data.barGroups.first.barRods.first.toY, closeTo(49 / 60, .0001));
     expect(tester.takeException(), isNull);
   });
+
+  for (final metric in ReadingActivityMetric.values) {
+    testWidgets('range transitions keep ${metric.name} bars below the top grid line', (tester) async {
+      List<DailyActivity> range(int days, int peak) => List.generate(days, (index) {
+        final value = index == days - 1 ? peak : 0;
+        return DailyActivity(date: DateTime(2026, 11, index + 1), readingMinutes: value, pagesRead: value);
+      });
+
+      final week = range(7, 1);
+      final month = range(30, 40);
+      final selected = ValueNotifier(week);
+      final boundaryKey = GlobalKey();
+      addTearDown(selected.dispose);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: AppTheme.dark,
+          home: Scaffold(
+            body: RepaintBoundary(
+              key: boundaryKey,
+              child: Padding(
+                padding: const EdgeInsets.only(top: 40),
+                child: ValueListenableBuilder<List<DailyActivity>>(
+                  valueListenable: selected,
+                  builder: (context, activities, _) => ReadingActivityBarChart(activities: activities, metric: metric),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+
+      // Capture only the space above the bars, excluding the Y-axis labels.
+      Future<Uint8List> pixelsAbovePlot() async {
+        final boundary = tester.renderObject<RenderRepaintBoundary>(find.byKey(boundaryKey));
+        final layer = boundary.debugLayer! as OffsetLayer;
+        return (await tester.runAsync(() async {
+          final image = await layer.toImage(Rect.fromLTRB(60, 0, boundary.size.width, 39));
+          final bytes = await image.toByteData();
+          image.dispose();
+          return bytes!.buffer.asUint8List();
+        }))!;
+      }
+
+      final clear = await pixelsAbovePlot();
+      for (final next in [month, week, month]) {
+        selected.value = next;
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 40));
+        expect(
+          listEquals(await pixelsAbovePlot(), clear),
+          isTrue,
+          reason: 'Bars painted above the plot mid-transition',
+        );
+      }
+
+      await tester.pumpAndSettle();
+      expect(find.text(metric == ReadingActivityMetric.time ? '40m' : '40'), findsOneWidget);
+    });
+  }
 
   testWidgets('wide daily charts label every day including both range boundaries', (tester) async {
     await pumpChart(tester, 1200);
