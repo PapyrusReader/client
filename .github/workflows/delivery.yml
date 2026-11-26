@@ -1,5 +1,6 @@
 name: Deliver published release
 
+run-name: Deliver ${{ inputs.tag }} to ${{ inputs.destination }}
 on:
   workflow_call:
     inputs:
