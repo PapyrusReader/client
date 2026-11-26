@@ -194,6 +194,8 @@ void main() {
 
     expect(find.byTooltip('Back'), findsOneWidget);
     expect(find.byType(AppBar), findsNothing);
+    final openingIcon = tester.getRect(find.byType(BackButtonIcon));
+    final openingTarget = tester.getRect(find.byType(BackButton));
     final loaderCenter = tester.getCenter(find.byType(CircularProgressIndicator));
     expect(loaderCenter, const Offset(400, 300));
     gate.complete();
@@ -205,6 +207,8 @@ void main() {
     expect(cache.loads, 1, reason: tester.widgetList<Text>(find.byType(Text)).map((text) => text.data).join(' / '));
     expect(find.byType(PapyrusReader), findsOneWidget);
     expect(find.byTooltip('Back'), findsOneWidget);
+    expect(tester.getRect(find.byType(BackButtonIcon)), openingIcon);
+    expect(tester.getRect(find.byType(BackButton)), openingTarget);
     expect(tester.getCenter(find.byType(CircularProgressIndicator)), loaderCenter);
     final before = tester.widget<PapyrusReader>(find.byType(PapyrusReader)).document;
     updateTheme(() => dark = true);
