@@ -20,6 +20,7 @@ import 'package:papyrus/auth/auth_repository.dart';
 import 'package:papyrus/auth/papyrus_api_config.dart';
 import 'package:papyrus/auth/token_store.dart';
 import 'package:papyrus/config/app_router.dart';
+import 'package:papyrus/updates/update_controller.dart';
 import 'package:papyrus/pages/login_page.dart';
 import 'package:papyrus/pages/welcome_page.dart';
 import 'package:papyrus/providers/acquisition_availability_provider.dart';
@@ -248,6 +249,7 @@ void main() {
         );
 
         final appRouter = AppRouter(
+          updateController: _updates(prefs),
           authProvider: auth,
           preferencesProvider: preferences,
           syncSettingsProvider: sync,
@@ -306,6 +308,7 @@ void main() {
         expect(shellRoute.transitionDuration, Duration.zero);
         expect(shellRoute.reverseTransitionDuration, Duration.zero);
         expect(auth.isOfflineMode, offline);
+        expect(appRouter.router.canPop(), isFalse, reason: 'Books is the library landing page.');
         expect(auth.isSignedIn, !offline);
         expect(tester.takeException(), isNull);
       });
@@ -419,6 +422,25 @@ void main() {
     expect(appRouter.router.namedLocation('BOOK_READER', pathParameters: {'bookId': 'book-1'}), '/library/read/book-1');
   });
 
+  test('admin deep links require an active admin session on the selected server', () async {
+    final prefs = await SharedPreferences.getInstance();
+    final repository = FakeAuthRepository();
+    final auth = AuthProvider(prefs, repository: repository, bootstrapOnCreate: false);
+    final router = await _buildRouter(authProvider: auth, prefs: prefs);
+    await auth.bootstrap();
+    expect(router.redirectForPath('/admin/users'), '/');
+
+    repository.bootstrapResult = _tokens();
+    await auth.bootstrap();
+    expect(router.redirectForPath('/admin/users'), '/profile');
+
+    repository.bootstrapResult = _tokens(isAdmin: true);
+    await auth.bootstrap();
+    expect(router.redirectForPath('/admin/users'), isNull);
+    auth.setOfflineMode(true);
+    expect(router.redirectForPath('/admin/users'), '/profile');
+  });
+
   test('acquisition route requires explicit opt-in', () async {
     final prefs = await SharedPreferences.getInstance();
     final repository = FakeAuthRepository()..bootstrapResult = _tokens();
@@ -440,6 +462,7 @@ void main() {
     await provider.bootstrap();
 
     final appRouter = AppRouter(
+      updateController: _updates(prefs),
       authProvider: provider,
       preferencesProvider: preferences,
       syncSettingsProvider: syncSettings,
@@ -458,6 +481,7 @@ Future<AppRouter> _buildRouter({required AuthProvider authProvider, required Sha
   final syncSettings = _syncSettings(prefs);
 
   return AppRouter(
+    updateController: _updates(prefs),
     authProvider: authProvider,
     preferencesProvider: PreferencesProvider(prefs),
     syncSettingsProvider: syncSettings,
@@ -478,13 +502,14 @@ SyncSettingsProvider _syncSettings(SharedPreferences prefs) {
   return SyncSettingsProvider(prefs, officialConfig: PapyrusApiConfig(serverBaseUri: Uri.parse('http://server.test')));
 }
 
-AuthTokens _tokens() {
+AuthTokens _tokens({bool isAdmin = false}) {
   return AuthTokens(
     accessToken: 'access-token',
     refreshToken: 'refresh-token',
     tokenType: 'Bearer',
     expiresIn: 3600,
     user: PapyrusUser(
+      isAdmin: isAdmin,
       userId: '11111111-1111-1111-1111-111111111111',
       email: 'reader@example.com',
       displayName: 'Reader',
@@ -494,4 +519,10 @@ AuthTokens _tokens() {
       lastLoginAt: null,
     ),
   );
+}
+
+UpdateController _updates(SharedPreferences prefs) {
+  final updates = UpdateController(preferences: prefs);
+  addTearDown(updates.dispose);
+  return updates;
 }

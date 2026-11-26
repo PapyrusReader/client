@@ -43,8 +43,8 @@ jobs:
           cache: true
       - name: Install locked dependencies
         run: flutter pub get --enforce-lockfile
-      - name: Validate watched folders on Linux
-        run: flutter test test/folders
+      - name: Validate watched folders and update flows on Linux
+        run: flutter test test/folders test/updates
       - name: Compile Linux release
         run: flutter build linux --release
       - name: Package Linux downloads

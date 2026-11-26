@@ -26,16 +26,73 @@ String goalTime(int seconds) {
   return remainder == 0 ? formatDuration(minutes) : '${formatDuration(minutes)} ${remainder}s';
 }
 
-String goalCount(GoalProgress progress) => progress.goal.type == GoalType.minutes && progress.seconds % 60 != 0
-    ? '${goalTime(progress.seconds)} / ${formatDuration(progress.goal.targetValue)}'
-    : '${progress.value} / ${progress.goal.targetValue} ${progress.goal.unitLabel(progress.goal.targetValue)}';
+String goalCount(GoalProgress progress) =>
+    progress.goal.type == GoalType.minutes && !progress.reached && progress.seconds % 60 != 0
+    ? '${goalTime(progress.seconds)} of ${formatDuration(progress.goal.targetValue)}'
+    : '${progress.value} of ${progress.goal.targetValue} ${progress.goal.unitLabel(progress.goal.targetValue)}';
 
-String goalRemaining(GoalProgress progress) => switch (progress.reached) {
-  true => 'Target reached',
-  false when progress.goal.type == GoalType.minutes =>
-    '${goalTime((progress.goal.targetValue * 60 - progress.seconds).clamp(0, progress.goal.targetValue * 60))} to go',
-  false => progress.projected.statusText,
-};
+class GoalProgressBar extends StatelessWidget {
+  const GoalProgressBar({
+    super.key,
+    required this.goal,
+    required this.progress,
+    required this.ended,
+    required this.countStyle,
+  });
+
+  final ReadingGoal goal;
+  final GoalProgress? progress;
+  final bool ended;
+  final TextStyle? countStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = progress == null
+        ? '${goal.currentValue.clamp(0, goal.targetValue)} of ${goal.targetValue} ${goal.unitLabel(goal.targetValue)}'
+        : goalCount(progress!);
+    final reached = progress?.reached ?? goal.isCompleted;
+
+    final status = switch (goal) {
+      _ when goal.isArchived => ('Archived', Icons.archive_outlined),
+      _ when !goal.isActive => ('Paused', Icons.pause_circle_outline),
+      _ when ended && reached => ('Achieved', Icons.check_circle_outline),
+      _ when ended => ('Missed', Icons.event_outlined),
+      _ when reached => ('Target reached', Icons.check_circle_outline),
+      _ => null,
+    };
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Wrap(
+          alignment: WrapAlignment.spaceBetween,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: Spacing.md,
+          runSpacing: Spacing.xs,
+          children: [
+            ExcludeSemantics(child: Text(count, style: countStyle)),
+            if (status != null)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(status.$2, size: IconSizes.small),
+                  const SizedBox(width: Spacing.xs),
+                  Flexible(child: Text(status.$1, style: Theme.of(context).textTheme.bodySmall)),
+                ],
+              ),
+          ],
+        ),
+        const SizedBox(height: Spacing.sm),
+        LinearProgressIndicator(
+          value: progress?.fraction ?? goal.progress,
+          minHeight: 6,
+          borderRadius: BorderRadius.circular(AppRadius.full),
+          semanticsLabel: '${goal.displayTitle}, $count',
+        ),
+      ],
+    );
+  }
+}
 
 class GoalCard extends StatelessWidget {
   const GoalCard({
@@ -48,6 +105,7 @@ class GoalCard extends StatelessWidget {
     this.isDesktop = false,
     this.fillHeight = false,
     this.showReadingDays = false,
+    this.showPeriodDates = false,
   });
 
   final ReadingGoal goal;
@@ -58,6 +116,7 @@ class GoalCard extends StatelessWidget {
   final bool isDesktop;
   final bool fillHeight;
   final bool showReadingDays;
+  final bool showPeriodDates;
 
   @override
   Widget build(BuildContext context) {
@@ -66,15 +125,6 @@ class GoalCard extends StatelessWidget {
     final projected = progress?.projected ?? goal;
     final today = GoalCalendar.midnight(DateTime.now(), goal.timezone);
     final expired = progress?.range.end.isAfter(DateTime.now().toUtc()) == false;
-
-    final state = switch (projected) {
-      _ when projected.isArchived => 'Archived',
-      _ when !projected.isActive => 'Paused',
-      _ when expired && projected.isCompleted => 'Achieved',
-      _ when expired => 'Missed',
-      _ when projected.isCompleted => 'Target reached',
-      _ => null,
-    };
 
     return Card(
       semanticContainer: false,
@@ -108,10 +158,10 @@ class GoalCard extends StatelessWidget {
                   const SizedBox(width: Spacing.sm),
                   Expanded(
                     child: Tooltip(
-                      message: projected.displayTitle,
+                      message: projected.cardTitle,
                       excludeFromSemantics: true,
                       child: Text(
-                        projected.displayTitle,
+                        projected.cardTitle,
                         maxLines: 2,
                         overflow: TextOverflow.ellipsis,
                         style: texts.titleMedium,
@@ -132,72 +182,31 @@ class GoalCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: Spacing.md),
-              Text(
-                progress == null
-                    ? '${projected.currentValue} / ${projected.targetValue} ${projected.unitLabel(projected.targetValue)}'
-                    : goalCount(progress!),
-                style: texts.titleMedium,
-              ),
-              const SizedBox(height: Spacing.xs),
-              Text(
-                goal.isRecurring
-                    ? projected.periodLabel
-                    : 'Until ${DateFormat.yMMMd().format(GoalCalendar.local(projected.endDate.subtract(const Duration(microseconds: 1)), goal.timezone))}',
-                style: texts.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-              ),
-              const SizedBox(height: Spacing.md),
-              Semantics(
-                container: true,
-                label:
-                    '${projected.displayTitle}, ${progress == null ? '${projected.currentValue} of ${projected.targetValue} ${projected.unitLabel(projected.targetValue)}' : goalCount(progress!)}',
-                child: LinearProgressIndicator(
-                  value: progress?.fraction ?? projected.progress,
-                  minHeight: 6,
-                  borderRadius: BorderRadius.circular(AppRadius.full),
-                ),
-              ),
+              GoalProgressBar(goal: projected, progress: progress, ended: expired, countStyle: texts.titleMedium),
               const SizedBox(height: Spacing.md),
               Wrap(
-                alignment: WrapAlignment.spaceBetween,
-                spacing: Spacing.sm,
-                runSpacing: Spacing.xs,
-                crossAxisAlignment: WrapCrossAlignment.center,
+                spacing: Spacing.lg,
+                runSpacing: Spacing.sm,
                 children: [
-                  if (state != null)
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          switch (projected.isCompleted) {
-                            true => Icons.check_circle_outline,
-                            false when goal.isActive => Icons.event_outlined,
-                            false => Icons.pause_circle_outline,
-                          },
-                          size: 16,
-                        ),
-                        const SizedBox(width: Spacing.xs),
-                        Flexible(child: Text(state, style: texts.bodySmall)),
-                      ],
-                    )
-                  else
-                    Text(
-                      '${((progress?.fraction ?? projected.progress) * 100).round()}% complete',
-                      style: texts.bodySmall,
-                    ),
-                  if (!projected.isCompleted)
-                    Text(progress == null ? projected.statusText : goalRemaining(progress!), style: texts.bodySmall),
+                  _metadata(
+                    context,
+                    icon: projected.isRecurring && !showPeriodDates && !projected.isCustomPeriod
+                        ? Icons.repeat
+                        : Icons.event_outlined,
+                    category: 'Schedule',
+                    value: _schedule(projected),
+                  ),
+                  _metadata(
+                    context,
+                    icon: switch (goal.scope) {
+                      GoalScope.library => Icons.local_library_outlined,
+                      GoalScope.book => Icons.menu_book_outlined,
+                      GoalScope.shelf => Icons.shelves,
+                    },
+                    category: 'Scope',
+                    value: scopeLabel ?? 'Whole library',
+                  ),
                 ],
-              ),
-              const SizedBox(height: Spacing.xs),
-              Tooltip(
-                message: scopeLabel ?? 'Whole library',
-                excludeFromSemantics: true,
-                child: Text(
-                  scopeLabel ?? 'Whole library',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: texts.bodySmall?.copyWith(color: colors.onSurfaceVariant),
-                ),
               ),
               if (progress?.estimated == true && goal.type == GoalType.pages)
                 Text('Estimated pages included', style: texts.bodySmall),
@@ -220,10 +229,56 @@ class GoalCard extends StatelessWidget {
     );
   }
 
+  String _schedule(ReadingGoal projected) {
+    if (!showPeriodDates && projected.isRecurring && !projected.isCustomPeriod) {
+      return projected.period.label;
+    }
+
+    final format = DateFormat.yMMMd();
+    final end = format.format(
+      GoalCalendar.local(projected.endDate.subtract(const Duration(microseconds: 1)), goal.timezone),
+    );
+
+    if (!showPeriodDates) {
+      return 'Due $end';
+    }
+
+    final start = format.format(GoalCalendar.local(projected.startDate, goal.timezone));
+    return start == end ? start : '$start – $end';
+  }
+
+  Widget _metadata(BuildContext context, {required IconData icon, required String category, required String value}) {
+    final theme = Theme.of(context);
+    final color = theme.colorScheme.onSurfaceVariant;
+
+    return Semantics(
+      label: '$category, $value',
+      excludeSemantics: true,
+      child: Tooltip(
+        message: value,
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: IconSizes.small, color: color),
+            const SizedBox(width: Spacing.xs),
+            Flexible(
+              child: Text(
+                value,
+                style: theme.textTheme.bodySmall?.copyWith(color: color),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _day(BuildContext context, int index, DateTime today) {
     final start = GoalCalendar.local(progress!.range.start, goal.timezone);
     final localDate = GoalCalendar.dayOffset(start, index, goal.timezone);
-    final done = progress!.qualifiedDays.contains(localDate);
+    final done = progress!.creditedDays.contains(localDate);
     final colors = Theme.of(context).colorScheme;
 
     return Tooltip(

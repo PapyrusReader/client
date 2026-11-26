@@ -5,11 +5,18 @@ import 'package:papyrus/widgets/book_details/annotation_dialog.dart';
 
 void main() {
   for (final size in [const Size(390, 844), const Size(1200, 900)]) {
-    testWidgets('long selected passage scrolls independently at $size', (tester) async {
+    testWidgets('long selected passage and scrollbar reach the end independently at $size', (tester) async {
+      final bottomInset = size.width < 600 ? 48.0 : 0.0;
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = size;
+      tester.view.padding = FakeViewPadding(bottom: bottomInset);
       addTearDown(tester.view.reset);
-      final passage = List.generate(50, (index) => 'Selected paragraph $index.').join('\n');
+
+      final passage = List.generate(
+        50,
+        (index) => 'Selected paragraph $index with enough words to wrap over several lines.',
+      ).join(' ');
+
       Annotation? saved;
 
       await tester.pumpWidget(
@@ -46,7 +53,50 @@ void main() {
       await tester.drag(quote, const Offset(0, -120));
       await tester.pumpAndSettle();
       expect(scroll.offset, greaterThan(0));
+
+      for (var swipe = 0; swipe < 30 && scroll.offset < scroll.position.maxScrollExtent; swipe++) {
+        await tester.drag(quote, const Offset(0, -160));
+        await tester.pumpAndSettle();
+      }
+
+      expect(scroll.offset, closeTo(scroll.position.maxScrollExtent, 1));
+      final scrollbarPaint = tester.widget<CustomPaint>(
+        find.descendant(
+          of: find.ancestor(of: quote, matching: find.byType(Scrollbar)),
+          matching: find.byWidgetPredicate(
+            (widget) => widget is CustomPaint && widget.foregroundPainter is ScrollbarPainter,
+          ),
+        ),
+      );
+
+      final quoteSize = tester.getSize(quote);
+
+      expect(
+        (Canvas canvas) => scrollbarPaint.foregroundPainter!.paint(canvas, quoteSize),
+        paints..something((method, arguments) {
+          final Rect bounds;
+
+          if (method == #drawRect) {
+            bounds = arguments.first as Rect;
+          } else if (method == #drawRRect) {
+            bounds = (arguments.first as RRect).outerRect;
+          } else {
+            return false;
+          }
+
+          final paint = arguments.last as Paint;
+          return paint.color.a > 0 && (bounds.bottom - quoteSize.height).abs() < 1;
+        }),
+        reason: 'The thumb must reach the quote viewport edge, without reserving the phone navigation inset.',
+      );
+
       expect(tester.getRect(note), noteBounds);
+
+      expect(
+        tester.getBottomRight(find.widgetWithText(FilledButton, 'Save')).dy,
+        lessThanOrEqualTo(size.height - bottomInset),
+      );
+
       await tester.tap(find.text('Save'));
       await tester.pumpAndSettle();
       expect(saved?.selectedText, passage);

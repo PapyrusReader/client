@@ -6,9 +6,12 @@ import 'package:papyrus/providers/enums/library_reading_status.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/themes/card_overlay_colors.dart';
 import 'package:papyrus/utils/book_actions.dart';
-import 'package:papyrus/widgets/book/private_book_cover.dart';
+import 'package:papyrus/widgets/library/collection_cover_preview.dart';
 import 'package:papyrus/widgets/library/acquisition_status_text.dart';
 import 'package:papyrus/widgets/library/book_account_status_badge.dart';
+import 'package:papyrus/widgets/library/collection_grid_layout.dart';
+import 'package:papyrus/widgets/library/collection_grid_card.dart';
+import 'package:papyrus/widgets/library/collection_grid_card_body.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
@@ -31,6 +34,7 @@ class BookCard extends StatefulWidget {
   final BookAccountStatus? accountStatus;
   final BookDeviceStatus? deviceStatus;
   final bool compact;
+  final double? transferDetailsLineHeight;
 
   const BookCard({
     super.key,
@@ -48,6 +52,7 @@ class BookCard extends StatefulWidget {
     this.accountStatus,
     this.deviceStatus,
     this.compact = false,
+    this.transferDetailsLineHeight,
   });
 
   @override
@@ -57,6 +62,7 @@ class BookCard extends StatefulWidget {
 class _BookCardState extends State<BookCard> {
   bool _isHovered = false;
   bool _hasFocus = false;
+  bool _titleFocused = false;
 
   @override
   void initState() {
@@ -76,11 +82,22 @@ class _BookCardState extends State<BookCard> {
 
   @override
   Widget build(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
+    final theme = Theme.of(context);
+    final colorScheme = theme.colorScheme;
     final inSelection = widget.isSelectionMode;
     final hoverDuration = AppMotion.duration(context, const Duration(milliseconds: 150));
     final effectiveTap = inSelection ? widget.onSelectToggle : widget.onTap;
     final effectiveLongPress = inSelection ? null : widget.onEnterSelectionMode;
+    final job = widget.acquisitionJob;
+    final transferDetails = job == null ? null : acquisitionTransferDetails(job);
+    final readingProgress = widget.showProgress && widget.book.currentPosition > 0 ? widget.book.currentPosition : null;
+    final progress = job == null ? readingProgress : job.progress;
+
+    final progressColor = switch (job) {
+      final job? when job.requiresAttention => colorScheme.error,
+      null when widget.book.readingStatus == LibraryReadingStatus.completed => colorScheme.tertiary,
+      _ => colorScheme.primary,
+    };
 
     final isUnavailable =
         widget.acquisitionJob == null && !widget.book.isPhysical && widget.deviceStatus == BookDeviceStatus.missing;
@@ -104,219 +121,172 @@ class _BookCardState extends State<BookCard> {
                   onRemoveFromShelf: widget.onRemoveFromShelf,
                 );
               },
-        child: Card(
-          // The collection owns page gutters and spacing between cards.
-          margin: EdgeInsets.zero,
-          clipBehavior: Clip.antiAlias,
+        child: CollectionGridCard(
           color: isUnavailable ? colorScheme.surfaceContainerLow : null,
-          shadowColor: colorScheme.brightness == Brightness.dark ? colorScheme.outline : null,
           child: InkWell(
             onTap: effectiveTap,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Cover image
-                Expanded(
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      ExcludeSemantics(child: _buildCover(context)),
-                      // Selection tint overlay
-                      if (inSelection && widget.isSelected)
-                        Container(color: colorScheme.primary.withValues(alpha: 0.15)),
-                      if (!inSelection && widget.acquisitionJob == null)
-                        Positioned(
-                          top: Spacing.xs,
-                          left: Spacing.xs,
-                          child: AnimatedOpacity(
-                            key: ValueKey(AppMotion.disabled(context)),
-                            duration: hoverDuration,
-                            opacity:
-                                widget.isFavorite ||
-                                    _isHovered ||
-                                    _hasFocus ||
-                                    !WidgetsBinding.instance.mouseTracker.mouseIsConnected
-                                ? 1
-                                : 0,
-                            alwaysIncludeSemantics: true,
-                            child: _CardIconButton(
-                              tooltip: widget.isFavorite ? 'Remove from favorites' : 'Add to favorites',
-                              icon: widget.isFavorite ? Icons.favorite : Icons.favorite_border,
-                              color: widget.isFavorite ? CardOverlayColors.favorite(colorScheme) : Colors.white,
-                              onTap: widget.onToggleFavorite != null
-                                  ? () => widget.onToggleFavorite!(widget.isFavorite)
-                                  : null,
-                            ),
-                          ),
-                        ),
-                      // Selection mode: checkbox overlay (top-right)
-                      if (inSelection)
-                        Positioned(
-                          top: Spacing.xs,
-                          right: Spacing.xs,
-                          child: _CardIconButton(
-                            tooltip: widget.isSelected
-                                ? 'Deselect ${widget.book.title}'
-                                : 'Select ${widget.book.title}',
-                            icon: widget.isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
-                            color: widget.isSelected ? CardOverlayColors.selection(colorScheme) : Colors.white,
-                            onTap: widget.onSelectToggle,
-                          ),
-                        ),
-                      // Desktop hover: checkbox to enter selection mode
-                      if (!inSelection && _isDesktop)
-                        Positioned(
-                          top: Spacing.xs,
-                          right: Spacing.xs,
-                          child: AnimatedOpacity(
-                            key: ValueKey(AppMotion.disabled(context)),
-                            opacity: _isHovered || _hasFocus ? 1.0 : 0.0,
-                            alwaysIncludeSemantics: true,
-                            duration: hoverDuration,
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                _CardIconButton(
-                                  tooltip: 'Select ${widget.book.title}',
-                                  icon: Icons.radio_button_unchecked,
-                                  onTap: widget.onEnterSelectionMode,
-                                ),
-                                if (widget.acquisitionJob == null) ...[
-                                  const SizedBox(width: Spacing.xs),
-                                  _CardIconButton(
-                                    tooltip: 'More options for ${widget.book.title}',
-                                    icon: Icons.more_vert,
-                                    onTap: () => showBookContextMenu(
-                                      context: context,
-                                      book: widget.book,
-                                      onRemoveFromShelf: widget.onRemoveFromShelf,
-                                    ),
-                                  ),
-                                ],
-                              ],
-                            ),
-                          ),
-                        ),
-                      // Format badge
-                      if (widget.acquisitionJob == null)
-                        Positioned(
-                          bottom: Spacing.xs,
-                          left: Spacing.xs,
-                          child: Container(
-                            // Icon badges match the account badge's 24px footprint.
-                            padding: widget.compact
-                                ? const EdgeInsets.all(5)
-                                : const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
-                              borderRadius: BorderRadius.circular(AppRadius.sm),
-                            ),
-                            child: widget.compact
-                                ? Tooltip(
-                                    message: widget.book.formatLabel,
-                                    child: Icon(
-                                      widget.book.isPhysical ? Icons.menu_book_outlined : Icons.description_outlined,
-                                      size: 14,
-                                      color: colorScheme.onSurfaceVariant,
-                                    ),
-                                  )
-                                : Text(
-                                    widget.book.formatLabel,
-                                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                      color: colorScheme.onSurfaceVariant,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                          ),
-                        ),
-                      if (widget.acquisitionJob == null)
-                        if (widget.accountStatus case final status?)
-                          Positioned(
-                            bottom: Spacing.xs,
-                            right: Spacing.xs,
-                            child: BookAccountStatusBadge(status: status),
-                          ),
-                      if (widget.acquisitionJob case final job?)
-                        Positioned(
-                          bottom: Spacing.xs,
-                          left: Spacing.xs,
-                          right: Spacing.xs,
-                          child: Align(
-                            alignment: Alignment.bottomRight,
-                            child: Container(
-                              padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: colorScheme.surface.withValues(alpha: 0.92),
-                                borderRadius: BorderRadius.circular(AppRadius.sm),
-                              ),
-                              child: Text(
-                                acquisitionStatusLabel(job),
-                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                                  color: job.requiresAttention ? colorScheme.error : colorScheme.primary,
-                                  fontWeight: FontWeight.w600,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                        ),
-                    ],
-                  ),
-                ),
-                // Progress bar
-                if (widget.acquisitionJob case final job?) ...[
-                  if (job.progress case final progress?)
-                    AppLinearProgressIndicator(
+            onFocusChange: (focused) => setState(() => _titleFocused = focused),
+            child: CollectionGridCardBody(
+              title: widget.book.title,
+              subtitle: widget.book.author,
+              compact: widget.compact,
+              titleFocused: _titleFocused,
+              transferDetails: transferDetails,
+              transferDetailsLineHeight: widget.transferDetailsLineHeight,
+              progress: progress == null
+                  ? null
+                  : AppLinearProgressIndicator(
                       value: progress,
                       backgroundColor: colorScheme.surfaceContainerHighest,
-                      color: job.requiresAttention ? colorScheme.error : colorScheme.primary,
-                      minHeight: 3,
+                      color: progressColor,
+                      minHeight: collectionGridProgressHeight,
                     ),
-                ] else if (widget.showProgress && widget.book.currentPosition > 0)
-                  AppLinearProgressIndicator(
-                    value: widget.book.currentPosition,
-                    backgroundColor: colorScheme.surfaceContainerHighest,
-                    color: widget.book.readingStatus == LibraryReadingStatus.completed
-                        ? colorScheme.tertiary
-                        : colorScheme.primary,
-                    minHeight: 3,
-                  ),
-                // Title and author
-                Padding(
-                  padding: EdgeInsets.all(widget.compact ? Spacing.xs : Spacing.sm),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        widget.book.title,
-                        style: Theme.of(context).textTheme.titleSmall,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
+              preview: Stack(
+                fit: StackFit.expand,
+                children: [
+                  ExcludeSemantics(child: _buildCover()),
+                  // Selection tint overlay
+                  if (inSelection && widget.isSelected) Container(color: colorScheme.primary.withValues(alpha: 0.15)),
+                  if (!inSelection && widget.acquisitionJob == null)
+                    Positioned(
+                      top: Spacing.xs,
+                      left: Spacing.xs,
+                      child: AnimatedOpacity(
+                        key: ValueKey(AppMotion.disabled(context)),
+                        duration: hoverDuration,
+                        opacity:
+                            widget.isFavorite ||
+                                _isHovered ||
+                                _hasFocus ||
+                                !WidgetsBinding.instance.mouseTracker.mouseIsConnected
+                            ? 1
+                            : 0,
+                        alwaysIncludeSemantics: true,
+                        child: _CardIconButton(
+                          tooltip: widget.isFavorite ? 'Remove from favorites' : 'Add to favorites',
+                          icon: widget.isFavorite ? Icons.favorite : Icons.favorite_border,
+                          color: widget.isFavorite ? CardOverlayColors.favorite(colorScheme) : Colors.white,
+                          onTap: widget.onToggleFavorite != null
+                              ? () => widget.onToggleFavorite!(widget.isFavorite)
+                              : null,
+                        ),
                       ),
-                      const SizedBox(height: 2),
-                      Text(
-                        widget.book.author,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
+                    ),
+                  // Selection mode: checkbox overlay (top-right)
+                  if (inSelection)
+                    Positioned(
+                      top: Spacing.xs,
+                      right: Spacing.xs,
+                      child: _CardIconButton(
+                        tooltip: widget.isSelected ? 'Deselect' : 'Select',
+                        semanticLabel: '${widget.isSelected ? 'Deselect' : 'Select'} ${widget.book.title}',
+                        icon: widget.isSelected ? Icons.check_circle : Icons.radio_button_unchecked,
+                        color: widget.isSelected ? CardOverlayColors.selection(colorScheme) : Colors.white,
+                        onTap: widget.onSelectToggle,
                       ),
-                      if (widget.acquisitionJob case final job?)
-                        if (acquisitionTransferDetails(job) case final details?) ...[
-                          const SizedBox(height: 2),
-                          Text(
-                            details,
-                            style: Theme.of(
-                              context,
-                            ).textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
+                    ),
+                  // Desktop hover: checkbox to enter selection mode
+                  if (!inSelection && _isDesktop)
+                    Positioned(
+                      top: Spacing.xs,
+                      right: Spacing.xs,
+                      child: AnimatedOpacity(
+                        key: ValueKey(AppMotion.disabled(context)),
+                        opacity: _isHovered || _hasFocus ? 1.0 : 0.0,
+                        alwaysIncludeSemantics: true,
+                        duration: hoverDuration,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            _CardIconButton(
+                              tooltip: 'Select',
+                              semanticLabel: 'Select ${widget.book.title}',
+                              icon: Icons.radio_button_unchecked,
+                              onTap: widget.onEnterSelectionMode,
+                            ),
+                            if (widget.acquisitionJob == null) ...[
+                              const SizedBox(width: Spacing.xs),
+                              _CardIconButton(
+                                tooltip: 'More options',
+                                semanticLabel: 'More options for ${widget.book.title}',
+                                icon: Icons.more_vert,
+                                onTap: () => showBookContextMenu(
+                                  context: context,
+                                  book: widget.book,
+                                  onRemoveFromShelf: widget.onRemoveFromShelf,
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                    ),
+                  // Format badge
+                  if (widget.acquisitionJob == null)
+                    Positioned(
+                      bottom: Spacing.xs,
+                      left: Spacing.xs,
+                      child: Container(
+                        // Icon badges match the account badge's 24px footprint.
+                        padding: widget.compact
+                            ? const EdgeInsets.all(5)
+                            : const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: colorScheme.surfaceContainerHighest.withValues(alpha: 0.9),
+                          borderRadius: BorderRadius.circular(AppRadius.sm),
+                        ),
+                        child: widget.compact
+                            ? Tooltip(
+                                message: widget.book.formatLabel,
+                                child: Icon(
+                                  widget.book.isPhysical ? Icons.menu_book_outlined : Icons.description_outlined,
+                                  size: 14,
+                                  color: colorScheme.onSurfaceVariant,
+                                ),
+                              )
+                            : Text(
+                                widget.book.formatLabel,
+                                style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                                  color: colorScheme.onSurfaceVariant,
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                      ),
+                    ),
+                  if (widget.acquisitionJob == null)
+                    if (widget.accountStatus case final status?)
+                      Positioned(
+                        bottom: Spacing.xs,
+                        right: Spacing.xs,
+                        child: BookAccountStatusBadge(status: status),
+                      ),
+                  if (widget.acquisitionJob case final job?)
+                    Positioned(
+                      bottom: Spacing.xs,
+                      left: Spacing.xs,
+                      right: Spacing.xs,
+                      child: Align(
+                        alignment: Alignment.bottomRight,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: colorScheme.surface.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(AppRadius.sm),
+                          ),
+                          child: Text(
+                            acquisitionStatusLabel(job),
+                            style: Theme.of(context).textTheme.labelSmall?.copyWith(
+                              color: job.requiresAttention ? colorScheme.error : colorScheme.primary,
+                              fontWeight: FontWeight.w600,
+                            ),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                    ],
-                  ),
-                ),
-              ],
+                        ),
+                      ),
+                    ),
+                ],
+              ),
             ),
           ),
         ),
@@ -329,14 +299,11 @@ class _BookCardState extends State<BookCard> {
       child: visualCard,
     );
 
-    final job = widget.acquisitionJob;
-
     if (job == null) {
       return card;
     }
 
-    final details = acquisitionTransferDetails(job);
-    final semanticLabel = <String>[widget.book.title, acquisitionStatusLabel(job), ?details].join('. ');
+    final semanticLabel = <String>[widget.book.title, acquisitionStatusLabel(job), ?transferDetails].join('. ');
     final hasInteraction = effectiveTap != null || effectiveLongPress != null;
 
     return Semantics(
@@ -368,12 +335,13 @@ class _BookCardState extends State<BookCard> {
     );
   }
 
-  Widget _buildCover(BuildContext context) {
-    final cover = CoverImage(
+  Widget _buildCover() {
+    final cover = CollectionCoverPreview(
       bookId: widget.book.id,
       imageUrl: widget.book.coverUrl,
       mediaId: widget.book.coverMediaId,
-      placeholder: _buildPlaceholder(context),
+      title: widget.book.title,
+      reserveOverlaySpace: true,
     );
 
     if (widget.book.isPhysical || widget.deviceStatus != BookDeviceStatus.missing) {
@@ -407,56 +375,17 @@ class _BookCardState extends State<BookCard> {
       child: cover,
     );
   }
-
-  Widget _buildPlaceholder(BuildContext context) {
-    final colorScheme = Theme.of(context).colorScheme;
-
-    if (widget.compact) {
-      return ColoredBox(
-        color: colorScheme.surfaceContainerHighest,
-        child: Center(
-          child: Icon(
-            Icons.menu_book,
-            size: IconSizes.medium,
-            color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5),
-          ),
-        ),
-      );
-    }
-
-    return Container(
-      color: colorScheme.surfaceContainerHighest,
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Icon(Icons.menu_book, size: IconSizes.display, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
-          const SizedBox(height: Spacing.xs),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
-            child: Text(
-              widget.book.title,
-              style: Theme.of(
-                context,
-              ).textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
 }
 
 /// Icon button overlay for book card.
 class _CardIconButton extends StatelessWidget {
   final IconData icon;
   final String tooltip;
+  final String? semanticLabel;
   final Color? color;
   final VoidCallback? onTap;
 
-  const _CardIconButton({required this.icon, required this.tooltip, this.color, this.onTap});
+  const _CardIconButton({required this.icon, required this.tooltip, this.semanticLabel, this.color, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -464,7 +393,7 @@ class _CardIconButton extends StatelessWidget {
       message: tooltip,
       excludeFromSemantics: true,
       child: Semantics(
-        label: tooltip,
+        label: semanticLabel ?? tooltip,
         container: true,
         button: true,
         child: Material(

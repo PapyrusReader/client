@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:papyrus/models/book_grid_size.dart';
+import 'package:papyrus/models/collection_grid_size.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 /// Provider for user preferences persisted via SharedPreferences.
@@ -32,7 +32,8 @@ class PreferencesProvider extends ChangeNotifier {
 
   // Library
   static const _keyDefaultViewMode = 'default_view_mode';
-  static const _keyGridItemWidth = 'library_grid_item_width';
+  static const _keyBooksGridItemWidth = 'library_grid_item_width';
+  static const _keyShelvesGridItemWidth = 'shelves_grid_item_width';
   static const _keyDefaultSortOrder = 'default_sort_order';
   static const _keyMetadataSource = 'metadata_source';
   static const _keyAnnotationExportFormat = 'annotation_export_format';
@@ -204,16 +205,22 @@ class PreferencesProvider extends ChangeNotifier {
 
   // -- Library --------------------------------------------------------------
 
-  double get gridItemWidth => BookGridSize.normalize(_prefs.getDouble(_keyGridItemWidth) ?? BookGridSize.defaultWidth);
+  String _gridItemWidthKey(CollectionGridSection section) => switch (section) {
+    CollectionGridSection.books => _keyBooksGridItemWidth,
+    CollectionGridSection.shelves => _keyShelvesGridItemWidth,
+  };
 
-  set gridItemWidth(double value) {
-    final normalized = BookGridSize.normalize(value);
+  double gridItemWidth(CollectionGridSection section) =>
+      CollectionGridSize.normalize(_prefs.getDouble(_gridItemWidthKey(section)) ?? CollectionGridSize.defaultWidth);
 
-    if (gridItemWidth == normalized) {
+  void setGridItemWidth(CollectionGridSection section, double value) {
+    final normalized = CollectionGridSize.normalize(value);
+
+    if (gridItemWidth(section) == normalized) {
       return;
     }
 
-    _prefs.setDouble(_keyGridItemWidth, normalized);
+    _prefs.setDouble(_gridItemWidthKey(section), normalized);
     notifyListeners();
   }
 

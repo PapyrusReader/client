@@ -67,7 +67,7 @@ jobs:
       - name: Install JUnit converter
         run: dart pub global activate junitreport 2.0.2
 
-      - name: Check report normalization
+      - name: Test CI scripts
         run: python3 -m unittest discover -s ../.github/scripts -p 'test_*.py'
 
       - name: Run tests with coverage
@@ -151,11 +151,15 @@ jobs:
       - name: Check browser bootstrap and cover worker
         run: node --test test/web/*.cjs
 
-      - name: Check browser cover transport and drag-and-drop
+      - name: Check browser cover transport, drag-and-drop and update suppression
         run: |
           mkdir -p build/test-results
           flutter test --platform chrome --file-reporter json:build/test-results/browser.json \
-            test/services/book_cover_storage_web_test.dart test/platform/book_import_drop_registration_web_test.dart
+            test/services/book_cover_storage_web_test.dart test/platform/book_import_drop_registration_web_test.dart \
+            test/updates/update_web_test.dart
+
+      - name: Check public covers without CORS headers
+        run: python3 ../tools/test_public_covers.py
 
       - name: Summarize browser test durations
         if: ${{ !cancelled() && hashFiles('app/build/test-results/browser.json') != '' }}

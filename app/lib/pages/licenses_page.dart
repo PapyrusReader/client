@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
@@ -174,7 +175,7 @@ class _LicenseScaffold extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            LibraryPageHeader(title: title, leading: const BackButton(), compact: compact),
+            LibraryPageHeader(title: title, leading: const AppBackButton(), compact: compact),
             Expanded(child: child),
           ],
         ),

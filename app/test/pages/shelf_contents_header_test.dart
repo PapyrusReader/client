@@ -37,7 +37,7 @@ void main() {
 
         await tester.pumpAndSettle();
         final options = width < 840 ? find.byTooltip('Shelf options') : find.widgetWithText(TextButton, 'Edit');
-        final back = find.byTooltip('Back to shelves');
+        final back = find.byTooltip('Back');
         final search = find.byType(LibrarySearchBar);
         expect(find.text(description), findsNothing);
         expect(find.text('Add a description'), findsNothing);

@@ -148,6 +148,10 @@ class _LibraryPageState extends State<LibraryPage> {
     final books = _getFilteredBooks(libraryProvider, dataStore, sourceBooks);
     final isLoading = !dataStore.isLoaded;
 
+    final savingShelf = _isAddingToShelf || _isRemovingFromShelf;
+    final dismissMode = _dismissMode(libraryProvider, downloadsProvider);
+    final onEscape = widget.selectBooksForShelf ? widget.onBack : dismissMode;
+
     final layout = isDesktop
         ? _buildDesktopLayout(
             context,
@@ -157,6 +161,7 @@ class _LibraryPageState extends State<LibraryPage> {
             libraryProvider,
             downloadsProvider,
             isLoading,
+            savingShelf ? null : onEscape,
           )
         : _buildMobileLayout(
             context,
@@ -168,7 +173,29 @@ class _LibraryPageState extends State<LibraryPage> {
             isLoading,
           );
 
-    return AbsorbPointer(absorbing: _isAddingToShelf || _isRemovingFromShelf, child: layout);
+    return PopScope(
+      canPop: !savingShelf && dismissMode == null,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && !savingShelf) {
+          dismissMode?.call();
+        }
+      },
+      child: AbsorbPointer(absorbing: savingShelf, child: layout),
+    );
+  }
+
+  VoidCallback? _dismissMode(LibraryProvider library, AcquisitionDownloadsProvider? downloads) {
+    if (_presentationMode == _BooksPresentationMode.online && downloads != null) {
+      return downloads.selectedReleaseTokens.isEmpty
+          ? () => _leaveOnlineMode(downloads)
+          : downloads.clearReleaseSelection;
+    }
+
+    if (downloads != null && downloads.selectedJobIds.isNotEmpty) {
+      return downloads.clearJobSelection;
+    }
+
+    return library.isSelectionMode && !widget.selectBooksForShelf ? library.exitSelectionMode : null;
   }
 
   List<Book> _sourceBooks(DataStore dataStore) {
@@ -826,6 +853,7 @@ class _LibraryPageState extends State<LibraryPage> {
     LibraryProvider libraryProvider,
     AcquisitionDownloadsProvider? downloadsProvider,
     bool isLoading,
+    VoidCallback? onEscape,
   ) {
     final isOnline =
         !widget.isShelfView && _presentationMode == _BooksPresentationMode.online && downloadsProvider != null;
@@ -852,25 +880,7 @@ class _LibraryPageState extends State<LibraryPage> {
     _clearUnavailableDownloadingFilter(localItems);
 
     return CallbackShortcuts(
-      bindings: {
-        const SingleActivator(LogicalKeyboardKey.escape): () {
-          if (widget.selectBooksForShelf) {
-            if (!_isAddingToShelf) {
-              widget.onBack?.call();
-            }
-          } else if (isOnline) {
-            if (downloadsProvider.selectedReleaseTokens.isNotEmpty) {
-              downloadsProvider.clearReleaseSelection();
-            } else {
-              _leaveOnlineMode(downloadsProvider);
-            }
-          } else if (hasJobSelection) {
-            downloadsProvider?.clearJobSelection();
-          } else if (libraryProvider.isSelectionMode) {
-            libraryProvider.exitSelectionMode();
-          }
-        },
-      },
+      bindings: {const SingleActivator(LogicalKeyboardKey.escape): ?onEscape},
       child: Focus(
         autofocus: true,
         child: Scaffold(
@@ -1010,7 +1020,7 @@ class _LibraryPageState extends State<LibraryPage> {
   }) {
     return _buildShelfHeader(
       title: widget.shelf!.name,
-      backTooltip: provider.isSelectionMode ? 'Exit selection' : 'Back to shelves',
+      backTooltip: provider.isSelectionMode ? 'Exit selection' : 'Back',
       compact: compact,
       onBack: provider.isSelectionMode ? provider.exitSelectionMode : widget.onBack,
       isSelectionMode: provider.isSelectionMode,
@@ -1309,7 +1319,7 @@ class _LibraryPageState extends State<LibraryPage> {
   }
 
   void _navigateToBookDetails(BuildContext context, Book book) {
-    context.go('/library/details/${book.id}');
+    context.pushNamed('BOOK_DETAILS', pathParameters: {'bookId': book.id});
   }
 
   Widget _buildEmptyState(

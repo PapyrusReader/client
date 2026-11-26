@@ -64,3 +64,9 @@ class UpdateAsset {
 }
 
 enum UpdateChannel { play, apk, windows, appImage, apt, web, manual }
+
+class UpdateInstallException implements Exception {
+  final String message;
+
+  const UpdateInstallException(this.message);
+}

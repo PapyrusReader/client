@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import 'package:papyrus/data/repositories/tracking_repository.dart';
 import 'package:papyrus/goals/goal_calendar.dart';
 import 'package:papyrus/goals/goal_progress.dart';
-import 'package:papyrus/models/reading_activity.dart';
 import 'package:papyrus/models/reading_goal.dart';
 import 'package:papyrus/providers/goals_provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
@@ -11,8 +11,9 @@ import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/goals/add_goal_sheet.dart';
 import 'package:papyrus/widgets/goals/goal_card.dart';
 import 'package:papyrus/widgets/goals/goal_controls.dart';
-import 'package:papyrus/widgets/goals/log_reading_sheet.dart';
+import 'package:papyrus/widgets/goals/reading_activity_timeline.dart';
 import 'package:papyrus/widgets/shared/app_bottom_sheet.dart';
+import 'package:papyrus/widgets/shared/empty_state.dart';
 
 class GoalDetailsSheet extends StatefulWidget {
   const GoalDetailsSheet({super.key, required this.goal, required this.provider, this.historical});
@@ -51,17 +52,17 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
       final goal = widget.provider.store.getReadingGoal(widget.goal.id) ?? widget.goal;
       final history = widget.historical;
 
-      final progress = history == null
-          ? widget.provider.progress(goal)
-          : projectGoal(
-              history.goal,
-              widget.provider.store.readingActivities,
-              widget.provider.now,
-              period: history.range,
-            );
+      final progress = projectGoal(
+        history?.goal ?? goal,
+        widget.provider.store.readingActivities,
+        widget.provider.now,
+        period: history?.range,
+        collectContributions: true,
+      );
 
-      final periods = widget.provider.history.where((period) => period.goal.id == goal.id).toList();
+      final hasPreviousPeriods = history == null && widget.provider.periodHistory(goalId: goal.id).isNotEmpty;
       final canRestore = goal.isArchived && widget.provider.store.getReadingGoal(goal.id) != null;
+      final colors = Theme.of(context).colorScheme;
 
       return GoalControls(
         child: AppBottomSheet(
@@ -115,11 +116,28 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
                   ],
                 ),
               ],
-              const SizedBox(height: Spacing.sm),
-              Text('Reading activity', style: Theme.of(context).textTheme.titleMedium),
-              const SizedBox(height: Spacing.sm),
-              if (progress.activities.isEmpty)
-                const Text('No reading activity for this goal yet.')
+              SizedBox(height: progress.contributionsByDay.isEmpty ? Spacing.md : Spacing.sm),
+              if (progress.contributionsByDay.isEmpty)
+                Card.outlined(
+                  margin: EdgeInsets.zero,
+                  elevation: 0,
+                  color: colors.surfaceContainerLow,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(AppRadius.xl),
+                    side: BorderSide(color: colors.outlineVariant),
+                  ),
+                  child: EmptyState.compact(
+                    icon: Icons.auto_stories_outlined,
+                    iconSize: IconSizes.medium,
+                    padding: const EdgeInsets.symmetric(horizontal: Spacing.md, vertical: Spacing.lg),
+                    title: switch (progress.goal.type) {
+                      GoalType.books => 'No books finished yet',
+                      GoalType.pages => 'No pages counted yet',
+                      GoalType.minutes => 'No reading time yet',
+                      GoalType.days => 'No qualifying reading days yet',
+                    },
+                  ),
+                )
               else ...[
                 if (goal.type == GoalType.minutes || goal.type == GoalType.days) ...[
                   if (progress.hasCreationCutoff || progress.hasOverlappingTime)
@@ -131,36 +149,27 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
                       style: Theme.of(context).textTheme.bodySmall,
                     ),
                 ],
-                ReadingActivityList(
-                  activities: groupReadingActivities(progress.activities),
+                ReadingActivityTimeline(
+                  activities: progress.activities,
                   provider: widget.provider,
-                  contributionLabel: goal.type == GoalType.minutes || goal.type == GoalType.days
-                      ? (activity) =>
-                            activity.kind == 'reading' && progress.eligibleSecondsFor(activity) != activity.seconds
-                            ? '${goalTime(progress.eligibleSecondsFor(activity))} for this goal'
-                            : null
-                      : null,
+                  timezone: goal.timezone,
+                  range: progress.range,
+                  goalProgress: progress,
                 ),
               ],
-              if (periods.isNotEmpty && widget.historical == null) ...[
-                const SizedBox(height: Spacing.lg),
-                Text('Previous periods', style: Theme.of(context).textTheme.titleMedium),
-                for (final period in periods)
-                  ListTile(
-                    contentPadding: EdgeInsets.zero,
-                    leading: Icon(period.reached ? Icons.check_circle_outline : Icons.event_outlined),
-                    title: Text(
-                      '${DateFormat.yMMMd().format(GoalCalendar.local(period.range.start, goal.timezone))} – ${DateFormat.yMMMd().format(GoalCalendar.local(period.range.end.subtract(const Duration(microseconds: 1)), goal.timezone))}',
-                    ),
-                    subtitle: Text('${goalCount(period)} · ${period.reached ? 'Achieved' : 'Missed'}'),
-                    onTap: () => GoalDetailsSheet.show(
-                      context,
-                      goal: period.goal,
-                      provider: widget.provider,
-                      historical: period,
-                    ),
+              if (hasPreviousPeriods)
+                Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: TextButton.icon(
+                    icon: const Icon(Icons.history),
+                    label: const Text('Previous periods'),
+                    onPressed: () {
+                      final router = GoRouter.of(context);
+                      Navigator.pop(context);
+                      router.pushNamed('GOAL_HISTORY', queryParameters: {'goal': goal.id});
+                    },
                   ),
-              ],
+                ),
               if (_error != null) Text(_error!, style: TextStyle(color: Theme.of(context).colorScheme.error)),
             ],
           ),
@@ -181,13 +190,6 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
     final texts = Theme.of(context).textTheme;
     final colors = Theme.of(context).colorScheme;
     final ended = !progress.range.end.isAfter(widget.provider.now);
-
-    final status = switch (goal.isArchived) {
-      true => 'Archived',
-      false when !goal.isActive => 'Paused',
-      false when ended => (progress.reached ? 'Achieved' : 'Missed'),
-      false => goalRemaining(progress),
-    };
 
     final scope = switch (goal.scope) {
       GoalScope.library => 'Whole library',
@@ -213,41 +215,7 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
           ],
         ),
         const SizedBox(height: Spacing.md),
-        Wrap(
-          alignment: WrapAlignment.spaceBetween,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          spacing: Spacing.md,
-          runSpacing: Spacing.sm,
-          children: [
-            Text(goalCount(progress), style: texts.headlineSmall),
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (progress.reached || !goal.isActive || goal.isArchived || ended) ...[
-                  Icon(
-                    switch (goal.isArchived) {
-                      true => Icons.archive_outlined,
-                      false when !goal.isActive => Icons.pause_circle_outline,
-                      false when progress.reached => Icons.check_circle_outline,
-                      false => Icons.event_outlined,
-                    },
-                    size: IconSizes.small,
-                  ),
-                  const SizedBox(width: Spacing.xs),
-                ],
-                Flexible(child: Text(status, style: texts.bodyMedium)),
-              ],
-            ),
-          ],
-        ),
-        const SizedBox(height: Spacing.sm),
-        LinearProgressIndicator(
-          value: progress.fraction,
-          minHeight: 6,
-          borderRadius: BorderRadius.circular(AppRadius.full),
-          semanticsLabel: goal.displayTitle,
-          semanticsValue: '${(progress.fraction * 100).round()}',
-        ),
+        GoalProgressBar(goal: goal, progress: progress, ended: ended, countStyle: texts.headlineSmall),
         const SizedBox(height: Spacing.md),
         Text(scope, style: texts.bodyMedium?.copyWith(color: colors.onSurfaceVariant)),
         const SizedBox(height: Spacing.xs),
@@ -279,7 +247,7 @@ class _GoalDetailsSheetState extends State<GoalDetailsSheet> {
 
   Widget _readingDay(BuildContext context, GoalProgress progress, DateTime day) {
     final date = GoalCalendar.local(day, progress.goal.timezone);
-    final qualified = progress.qualifiedDays.contains(day);
+    final qualified = progress.creditedDays.contains(day);
 
     return Semantics(
       label: '${DateFormat.yMMMd().format(date)}: ${qualified ? 'Reading day' : 'Daily minimum not reached'}',

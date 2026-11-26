@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -15,6 +16,10 @@ void main() {
   final binding = IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('update settings navigation and states on mobile', (tester) async {
+    if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+      await binding.convertFlutterSurfaceToImage();
+    }
+
     for (final (name, theme, scale) in [
       ('light', AppTheme.light, 1.0),
       ('dark', AppTheme.dark, 1.0),
@@ -36,6 +41,7 @@ void main() {
         },
       );
 
+      await updates.initialize();
       await tester.pumpWidget(
         ChangeNotifierProvider.value(
           value: updates,
@@ -47,7 +53,9 @@ void main() {
               data: MediaQuery.of(context).copyWith(textScaler: TextScaler.linear(scale)),
               child: child!,
             ),
-            home: const Scaffold(body: SafeArea(child: AboutSettingsSection())),
+            home: const Scaffold(
+              body: SafeArea(child: SingleChildScrollView(child: AboutSettingsSection())),
+            ),
           ),
         ),
       );
@@ -55,15 +63,11 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.text('App updates'));
       await tester.pumpAndSettle();
-      expect(find.byType(AlertDialog), findsNothing);
+      expect(find.byType(AlertDialog), findsOneWidget);
       expect(find.text('Not checked yet'), findsOneWidget);
       await binding.takeScreenshot('updates-$name-unchecked');
-      await tester.tap(find.text('Check automatically'));
-      await tester.pumpAndSettle();
-      expect(updates.automatic, isFalse);
-
       if (name == 'dark') {
-        await tester.tap(find.text('Check for updates'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Check for updates'));
         await tester.pump(const Duration(milliseconds: 300));
         await binding.takeScreenshot('updates-dark-checking');
         result.completeError(StateError('Offline'));
@@ -73,15 +77,13 @@ void main() {
         await binding.takeScreenshot('updates-dark-error');
         final retryButton = find.byKey(const ValueKey('check-updates'));
         final retryBounds = tester.getRect(retryButton);
-        final toggleBounds = tester.getRect(find.byType(Switch));
         result = Completer<Map<String, dynamic>>();
-        await tester.tap(find.text('Retry'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Retry'));
         await tester.pump(const Duration(milliseconds: 100));
         expect(find.text('Retry'), findsOneWidget);
         expect(find.text('Please try again.'), findsNothing);
         expect(find.byType(LinearProgressIndicator), findsNothing);
         expect(tester.getRect(retryButton), retryBounds);
-        expect(tester.getRect(find.byType(Switch)), toggleBounds);
         result.completeError(StateError('Still offline'));
         await tester.pumpAndSettle();
         await tester.pump(const Duration(milliseconds: 350));
@@ -89,29 +91,30 @@ void main() {
         expect(tester.getRect(retryButton), retryBounds);
         await binding.takeScreenshot('updates-dark-quick-retry');
         result = Completer<Map<String, dynamic>>();
-        await tester.tap(find.text('Retry'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Retry'));
         await tester.pump();
         result.complete(_release(7));
         await tester.pumpAndSettle();
         expect(find.text('You’re up to date'), findsOneWidget);
         await binding.takeScreenshot('updates-dark-current');
         result = Completer<Map<String, dynamic>>();
-        await tester.tap(find.text('Check for updates'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Check for updates'));
         await tester.pump();
         result.complete(_release(8));
         await tester.pumpAndSettle();
         await binding.takeScreenshot('updates-dark-available');
-        await tester.tap(find.text('Update'));
+        await tester.tap(find.widgetWithText(FilledButton, 'Update'));
         await tester.pump(const Duration(milliseconds: 300));
         await binding.takeScreenshot('updates-dark-progress');
-        installation.complete('Close Papyrus normally to install the update.');
+        installation.complete('Restart Papyrus to finish updating.');
         await tester.pumpAndSettle();
         await binding.takeScreenshot('updates-dark-staged');
       }
 
       expect(tester.takeException(), isNull);
 
-      await tester.tap(find.byType(BackButton));
+      final close = find.byKey(const ValueKey('close-update-dialog'));
+      await tester.tap(close.evaluate().isNotEmpty ? close : find.text('Dismiss'));
       await tester.pumpAndSettle();
       expect(find.text('Version'), findsOneWidget);
       expect(updates.viewingSettings, isFalse);

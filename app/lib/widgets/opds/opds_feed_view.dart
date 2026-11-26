@@ -3,7 +3,7 @@ import 'package:papyrus/widgets/shared/empty_state.dart';
 import 'package:papyrus/opds/opds_http_client.dart';
 import 'package:papyrus/opds/opds_models.dart';
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/library/book_grid_layout.dart';
+import 'package:papyrus/widgets/library/collection_grid_layout.dart';
 import 'package:papyrus/widgets/opds/opds_publication_tile.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
 
@@ -53,7 +53,7 @@ class OpdsFeedView extends StatelessWidget {
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final layout = bookGridLayout(constraints.maxWidth);
+        final layout = collectionGridLayout(constraints.maxWidth);
 
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -216,7 +216,7 @@ class OpdsFeedView extends StatelessWidget {
     BuildContext context,
     List<OpdsLink> navigation,
     List<OpdsPublication> publications,
-    BookGridLayout layout,
+    CollectionGridLayout layout,
     double width,
   ) => [
     if (navigation.isNotEmpty)

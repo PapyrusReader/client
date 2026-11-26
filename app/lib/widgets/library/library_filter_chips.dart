@@ -13,7 +13,8 @@ import 'package:papyrus/utils/book_language.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/widgets/shared/app_motion_control.dart';
-import 'package:papyrus/widgets/library/library_view_sheet.dart';
+import 'package:papyrus/widgets/library/collection_filter_row.dart';
+import 'package:papyrus/widgets/library/collection_view_sheet.dart';
 
 class _ChipEntry {
   final String id;
@@ -291,10 +292,7 @@ class LibraryFilterChips extends StatelessWidget {
   ];
 
   @override
-  Widget build(BuildContext context) =>
-      LayoutBuilder(builder: (context, constraints) => _buildChips(context, constraints.maxWidth));
-
-  Widget _buildChips(BuildContext context, double availableWidth) {
+  Widget build(BuildContext context) {
     final provider = context.watch<LibraryProvider>();
     final dataStore = context.watch<DataStore>();
     final filterOptions = this.filterOptions ?? LibraryFilterOptions.fromDataStore(dataStore);
@@ -356,6 +354,7 @@ class LibraryFilterChips extends StatelessWidget {
     );
 
     final selectedSort = _sortOptions.firstWhere((option) => option.value == provider.sortOption);
+    final hasCustomSort = provider.sortOption != LibraryProvider.defaultSortOption;
     final selectedFavorite = _favoriteOptions.firstWhere((option) => option.value == provider.favoriteFilter);
 
     final chips = <_ChipEntry>[
@@ -381,12 +380,12 @@ class LibraryFilterChips extends StatelessWidget {
       _ChipEntry(
         id: 'sort',
         defaultOrder: 1,
-        isActive: provider.sortOption != LibrarySortOption.dateAddedNewest,
+        isActive: hasCustomSort,
         child: _DropdownFilterChip(
           label: selectedSort.label,
           semanticLabel: 'Book sorting',
           icon: Icons.sort_rounded,
-          isSelected: provider.sortOption != LibrarySortOption.dateAddedNewest,
+          isSelected: hasCustomSort,
           tooltip: 'Sort books',
           onPressed: () => _selectSingle<LibrarySortOption>(
             context: context,
@@ -525,10 +524,9 @@ class LibraryFilterChips extends StatelessWidget {
           icon: provider.viewMode == LibraryViewMode.grid ? Icons.grid_view : Icons.view_list,
           isSelected: provider.viewMode != LibraryViewMode.grid,
           tooltip: 'Change view mode',
-          onPressed: () => showLibraryViewSheet(
+          onPressed: () => showCollectionViewSheet(
             context,
             provider,
-            availableWidth: availableWidth - 2 * (horizontalPadding ?? 16),
             onChanged: onLibraryFilterTapped,
           ),
         ),
@@ -549,8 +547,6 @@ class LibraryFilterChips extends StatelessWidget {
       return activeComparison != 0 ? activeComparison : left.defaultOrder.compareTo(right.defaultOrder);
     });
 
-    final orderKey = [...chips.map((chip) => chip.id), if (hasActiveSelections) 'clear-all'].join('-');
-
     final labelPainter = TextPainter(
       text: TextSpan(text: 'Filter', style: Theme.of(context).textTheme.labelLarge),
       textScaler: MediaQuery.textScalerOf(context),
@@ -560,61 +556,22 @@ class LibraryFilterChips extends StatelessWidget {
     final chipHeight = (labelPainter.height + 24).clamp(48.0, double.infinity);
     labelPainter.dispose();
 
-    return SizedBox(
+    return CollectionFilterRow(
+      chips: [for (final chip in chips) (id: chip.id, child: chip.child)],
       height: chipHeight,
-      child: AnimatedSwitcher(
-        key: ValueKey(AppMotion.disabled(context)),
-        duration: AppMotion.duration(context, const Duration(milliseconds: 200)),
-        switchInCurve: Curves.easeOutCubic,
-        switchOutCurve: Curves.easeInCubic,
-        transitionBuilder: (child, animation) {
-          final offsetAnimation = Tween<Offset>(begin: const Offset(0.03, 0), end: Offset.zero).animate(animation);
+      gridAvailableWidth: provider.gridAvailableWidth,
+      horizontalPadding: horizontalPadding,
+      onClear: hasActiveSelections
+          ? () {
+              provider.resetQuickFilters();
 
-          return FadeTransition(
-            opacity: animation,
-            child: SlideTransition(position: offsetAnimation, child: child),
-          );
-        },
-        layoutBuilder: (currentChild, previousChildren) {
-          return Stack(alignment: Alignment.centerLeft, children: [...previousChildren, ?currentChild]);
-        },
-        child: ListView.separated(
-          key: ValueKey(orderKey),
-          scrollDirection: Axis.horizontal,
-          padding: EdgeInsets.symmetric(horizontal: horizontalPadding ?? 16),
-          itemCount: chips.length + (hasActiveSelections ? 1 : 0),
-          separatorBuilder: (_, _) => const SizedBox(width: 8),
-          itemBuilder: (context, index) {
-            if (index < chips.length) {
-              final chip = chips[index];
-              return KeyedSubtree(key: ValueKey(chip.id), child: chip.child);
+              if (isDownloadingSelected) {
+                onDownloadingTapped?.call();
+              }
+
+              onLibraryFilterTapped?.call();
             }
-
-            return Align(
-              alignment: Alignment.center,
-              child: TextButton(
-                key: const ValueKey('clear-all'),
-                onPressed: () {
-                  provider.resetQuickFilters();
-
-                  if (isDownloadingSelected) {
-                    onDownloadingTapped?.call();
-                  }
-
-                  onLibraryFilterTapped?.call();
-                },
-                style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 12),
-                  minimumSize: const Size(0, 40),
-                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                  visualDensity: VisualDensity.compact,
-                ),
-                child: const Text('Clear all'),
-              ),
-            );
-          },
-        ),
-      ),
+          : null,
     );
   }
 

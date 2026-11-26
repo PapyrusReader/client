@@ -1,18 +1,86 @@
+import 'dart:async';
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:go_router/go_router.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:papyrus/pages/book_edit_page.dart';
 import 'package:papyrus/providers/book_edit_provider.dart';
+import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/widgets/book_details/book_info_grid.dart';
 import 'package:provider/provider.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/book_edit/cover_image_picker.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import '../helpers/test_helpers.dart';
 
 void main() {
+  testWidgets('route history asks before discarding an edited title', (tester) async {
+    tester.view.devicePixelRatio = 1;
+    tester.view.physicalSize = const Size(1400, 1000);
+    addTearDown(tester.view.reset);
+    final store = createTestDataStore(
+      books: [buildTestBook(id: 'guide', title: 'Guide')],
+    );
+
+    final router = GoRouter(
+      initialLocation: '/library',
+      routes: [
+        GoRoute(
+          path: '/library',
+          builder: (context, _) => Scaffold(
+            body: TextButton(onPressed: () => context.push('/library/edit/guide'), child: const Text('Open editor')),
+          ),
+          routes: [bookEditRoute(canStay: (_) => true)],
+        ),
+      ],
+    );
+
+    addTearDown(router.dispose);
+    addTearDown(store.dispose);
+
+    await tester.pumpWidget(
+      ChangeNotifierProvider.value(
+        value: store,
+        child: MaterialApp.router(routerConfig: router),
+      ),
+    );
+
+    await tester.tap(find.text('Open editor'));
+    await tester.pumpAndSettle();
+    final field = find.byWidgetPredicate((widget) => widget is TextField && widget.decoration?.labelText == 'Title*');
+    await tester.enterText(field, 'Unpublished title');
+
+    Future<void> browserBack() async {
+      await router.routeInformationProvider.didPushRouteInformation(RouteInformation(uri: Uri.parse('/library')));
+      await tester.pumpAndSettle();
+      expect(find.text('Discard changes?'), findsOneWidget);
+    }
+
+    await browserBack();
+    await tester.tap(find.text('Keep editing'));
+    await tester.pumpAndSettle();
+    expect(find.text('Unpublished title'), findsOneWidget);
+    await browserBack();
+    await tester.tap(find.text('Discard'));
+    await tester.pumpAndSettle();
+    expect(find.text('Open editor'), findsOneWidget);
+    expect(store.getBook('guide')?.title, 'Guide');
+  });
+
   group('BookEditPage layout', () {
-    Future<void> pumpPage(WidgetTester tester, {required Size size, double? contentWidth}) async {
+    Future<void> pumpPage(
+      WidgetTester tester, {
+      required Size size,
+      double? contentWidth,
+      PreferencesProvider? preferences,
+      ThemeData? theme,
+      double textScale = 1,
+    }) async {
       tester.view.devicePixelRatio = 1;
       tester.view.physicalSize = size;
       addTearDown(tester.view.reset);
@@ -23,9 +91,12 @@ void main() {
         author: 'Mary Shelley',
       );
 
-      Widget page = Theme(
-        data: AppTheme.dark,
-        child: const BookEditPage(id: 'book-1'),
+      Widget page = MediaQuery(
+        data: MediaQueryData(size: size, textScaler: TextScaler.linear(textScale)),
+        child: Theme(
+          data: theme ?? AppTheme.dark,
+          child: const BookEditPage(id: 'book-1'),
+        ),
       );
 
       if (contentWidth != null) {
@@ -37,9 +108,12 @@ void main() {
 
       await tester.pumpWidget(
         createTestPage(
-          page: page,
+          page: Scaffold(body: page),
           dataStore: createTestDataStore(books: [book]),
           screenSize: size,
+          additionalProviders: [
+            if (preferences != null) ChangeNotifierProvider<PreferencesProvider>.value(value: preferences),
+          ],
         ),
       );
 
@@ -73,7 +147,7 @@ void main() {
       await pumpPage(tester, size: const Size(1400, 1000));
       expect(find.text('Edit book'), findsOneWidget);
       expect(find.widgetWithText(OutlinedButton, 'Back'), findsNothing);
-      expect(find.byTooltip('Back to book details'), findsOneWidget);
+      expect(find.byTooltip('Back'), findsOneWidget);
       expect(find.widgetWithText(FilledButton, 'Save'), findsOneWidget);
       expect(find.byIcon(Icons.save_outlined), findsNothing);
       final header = find.byKey(const Key('book-edit-desktop-header'));
@@ -126,21 +200,167 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('metadata search precedes a compact visible source selector', (tester) async {
+    testWidgets('metadata search leaves source configuration in Settings', (tester) async {
       await pumpPage(tester, size: const Size(1000, 1200), contentWidth: 640);
       final searchField = find.ancestor(of: find.text('Search'), matching: find.byType(TextFormField)).first;
-      final selector = find.byWidgetPredicate((widget) => widget is SegmentedButton);
-      final sourceLabel = find.text('Source');
-      expect(sourceLabel, findsOneWidget);
-      expect(tester.getTopLeft(sourceLabel).dy, greaterThan(tester.getTopLeft(searchField).dy));
-      expect((tester.getCenter(selector).dy - tester.getCenter(sourceLabel).dy).abs(), lessThan(1));
+      expect(searchField, findsOneWidget);
+      expect(find.text('Source'), findsNothing);
+      expect(find.text('Open Library'), findsNothing);
+      expect(find.text('Google Books'), findsNothing);
     });
 
-    testWidgets('metadata source selector does not reserve width for a selected icon', (tester) async {
-      await pumpPage(tester, size: const Size(1000, 1200), contentWidth: 640);
-      final selector = find.byWidgetPredicate((widget) => widget is SegmentedButton);
-      expect(find.descendant(of: selector, matching: find.byIcon(Icons.check)), findsNothing);
+    testWidgets('metadata searches use the current saved source and results remain applicable', (tester) async {
+      SharedPreferences.setMockInitialValues({'metadata_source': 'Google Books'});
+      final preferences = PreferencesProvider(await SharedPreferences.getInstance());
+      addTearDown(preferences.dispose);
+      final requests = <Uri>[];
+
+      final client = MockClient((request) async {
+        requests.add(request.url);
+
+        if (request.url.host == 'localhost') {
+          return http.Response(
+            '{"results":[{"title":"Google result","authors":["Author"],"cover_url":"https://books.google.com/cover.jpg"}]}',
+            200,
+          );
+        }
+
+        return http.Response('{"docs":[{"title":"Open Library result","author_name":["Author"]}]}', 200);
+      });
+
+      addTearDown(client.close);
+
+      await http.runWithClient(
+        () => pumpPage(tester, size: const Size(1400, 1200), preferences: preferences),
+        () => client,
+      );
+
+      final search = find.widgetWithText(TextFormField, 'Search');
+
+      for (final (source, query, host, result) in [
+        ('Google Books', 'Alice', 'localhost', 'Google result'),
+        ('Open Library', '9780141439518', 'openlibrary.org', 'Open Library result'),
+        ('Open Library', 'Alice', 'openlibrary.org', 'Open Library result'),
+        ('Google Books', '9780141439518', 'localhost', 'Google result'),
+      ]) {
+        preferences.metadataSource = source;
+        await tester.enterText(search, query);
+        await tester.tap(find.byTooltip('Search book metadata'));
+        await tester.pumpAndSettle();
+        expect(requests.last.host, host);
+
+        final parameter = host == 'openlibrary.org' && query == '9780141439518' ? 'isbn' : 'q';
+        final expectedQuery = query;
+        expect(requests.last.queryParameters[parameter], expectedQuery);
+        expect(find.text(result), findsOneWidget);
+        expect(find.text('Tap to apply'), findsNothing);
+      }
+
+      await tester.tap(find.text('Google result'));
+      await tester.pumpAndSettle();
+      final provider = tester.element(find.byType(Form)).read<BookEditProvider>();
+      expect(provider.editedBook!.title, 'Google result');
+      expect(provider.editedBook!.coverUrl, 'https://books.google.com/cover.jpg');
+      expect(provider.fetchedResults, isEmpty);
+      expect(tester.takeException(), isNull);
     });
+
+    for (final width in [320.0, 400.0, 1400.0]) {
+      testWidgets('metadata pagination keeps results on failure and navigates at $width', (tester) async {
+        SharedPreferences.setMockInitialValues({});
+        final preferences = PreferencesProvider(await SharedPreferences.getInstance());
+        addTearDown(preferences.dispose);
+        final requests = <Uri>[];
+        final delayedPage = Completer<http.Response>();
+        var failNextPage = true;
+
+        final client = MockClient((request) async {
+          requests.add(request.url);
+          final offset = int.parse(request.url.queryParameters['offset']!);
+
+          if (offset == 10 && failNextPage) {
+            failNextPage = false;
+            return delayedPage.future;
+          }
+
+          return http.Response(
+            jsonEncode({
+              'numFound': 12,
+              'docs': List.generate(offset == 0 ? 10 : 2, (index) => {'title': 'Result ${offset + index + 1}'}),
+            }),
+            200,
+          );
+        });
+
+        addTearDown(client.close);
+
+        await http.runWithClient(
+          () => pumpPage(
+            tester,
+            size: Size(width, 1200),
+            preferences: preferences,
+            theme: width == 320 ? AppTheme.eink : AppTheme.dark,
+            textScale: width == 320 ? 2 : 1,
+          ),
+          () => client,
+        );
+
+        final search = find.widgetWithText(TextFormField, 'Search');
+
+        if (width < 840) {
+          await tester.scrollUntilVisible(search, 500, scrollable: find.byType(Scrollable).first);
+        }
+
+        await tester.ensureVisible(search);
+        await tester.pumpAndSettle();
+        await tester.enterText(search, 'Alice');
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Search book metadata'));
+        await tester.pumpAndSettle();
+        expect(find.text('Results 1–10 of 12'), findsOneWidget);
+        final next = find.widgetWithText(TextButton, 'Next');
+        final previous = find.widgetWithText(TextButton, 'Previous');
+        expect(tester.widget<TextButton>(previous).onPressed, isNull);
+
+        // Unsubmitted edits must not change the query used by pagination.
+        await tester.enterText(search, 'Dune');
+        await tester.pumpAndSettle();
+        await tester.ensureVisible(next);
+        await tester.pumpAndSettle();
+        await tester.tap(next);
+        await tester.pump();
+        expect(find.text('Loading…'), findsOneWidget);
+        expect(tester.widget<TextButton>(next).onPressed, isNull);
+        delayedPage.complete(http.Response('Unavailable', 503));
+        await tester.pumpAndSettle();
+        expect(find.text('Result 1'), findsOneWidget);
+        expect(find.textContaining('Could not load this page'), findsOneWidget);
+        expect(find.text('Page 1'), findsOneWidget);
+        await tester.ensureVisible(next);
+        await tester.pumpAndSettle();
+        await tester.tap(next);
+        await tester.pumpAndSettle();
+        expect(find.text('Results 11–12 of 12'), findsOneWidget);
+        expect(find.text('Result 11'), findsOneWidget);
+        expect(find.text('Result 1'), findsNothing);
+        expect(find.text('Page 2'), findsOneWidget);
+        expect(tester.widget<TextButton>(next).onPressed, isNull);
+        expect(requests.last.queryParameters['q'], 'Alice');
+        await tester.ensureVisible(previous);
+        await tester.pumpAndSettle();
+        await tester.tap(previous);
+        await tester.pumpAndSettle();
+        expect(find.text('Results 1–10 of 12'), findsOneWidget);
+        expect(requests.last.queryParameters['offset'], '0');
+        await tester.ensureVisible(search);
+        await tester.pumpAndSettle();
+        await tester.tap(find.byTooltip('Search book metadata'));
+        await tester.pumpAndSettle();
+        expect(requests.last.queryParameters['q'], 'Dune');
+        expect(requests.last.queryParameters['offset'], '0');
+        expect(tester.takeException(), isNull);
+      });
+    }
 
     testWidgets('narrow layouts stack the cover above the form without overflow', (tester) async {
       await pumpPage(tester, size: const Size(600, 1600));

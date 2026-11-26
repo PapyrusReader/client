@@ -96,7 +96,7 @@ class OpdsPublicationDetails extends StatelessWidget {
                 FilledButton.icon(
                   style: actionStyle,
                   onPressed: switch (bookId) {
-                    final bookId? => () => context.go('/library/details/${Uri.encodeComponent(bookId)}'),
+                    final bookId? => () => context.push('/library/details/${Uri.encodeComponent(bookId)}'),
                     null when resolving => null,
                     null => showOptions,
                   },
@@ -311,8 +311,9 @@ class _DownloadOptionsState extends State<_DownloadOptions> {
                   onPressed: switch (active) {
                     true => null,
                     false when complete => () {
+                      final router = GoRouter.of(context);
                       Navigator.of(context).pop();
-                      context.go('/library/details/${Uri.encodeComponent(bookId)}');
+                      router.push('/library/details/${Uri.encodeComponent(bookId)}');
                     },
                     false => () => widget.onDownload(link),
                   },

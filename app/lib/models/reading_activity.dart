@@ -146,17 +146,19 @@ List<ReadingActivity> effectiveActivities(Iterable<ReadingActivity> activities) 
 }
 
 /// Checkpoints remain immutable records; presentation groups a reading session.
-List<ReadingActivity> groupReadingActivities(Iterable<ReadingActivity> ledger) {
-  final groups = <String, List<ReadingActivity>>{};
+List<ReadingActivity> groupReadingActivities(
+  Iterable<ReadingActivity> ledger, {
+  bool groupUnidentifiedReaderEntries = false,
+}) {
+  final groups = <(String, String?, String?), List<ReadingActivity>>{};
 
   for (final entry in ledger) {
-    final key =
-        (entry.source == 'reader' || entry.deviceType == 'physical_timer') &&
-            entry.kind == 'reading' &&
-            entry.sessionId != null
-        ? '${entry.bookId}:${entry.sessionId}'
-        : entry.id;
-
+    final reader = entry.source == 'reader' && entry.kind == 'reading';
+    final timer = entry.deviceType == 'physical_timer' && entry.kind == 'reading';
+    final hasSession = (reader || timer) && entry.sessionId != null;
+    // The timeline supplies a single civil day when combining unidentified reader entries.
+    final byBook = groupUnidentifiedReaderEntries && reader && !hasSession;
+    final key = (entry.bookId, hasSession ? entry.sessionId : null, hasSession || byBook ? null : entry.id);
     groups.putIfAbsent(key, () => []).add(entry);
   }
 

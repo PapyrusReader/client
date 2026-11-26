@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:papyrus/acquisition/acquisition_models.dart';
 import 'package:papyrus/themes/app_theme.dart';
+import 'package:papyrus/themes/design_tokens.dart';
 import 'package:papyrus/widgets/library/acquisition_placeholder_card.dart';
 import 'package:papyrus/widgets/library/book_card.dart';
+import 'package:papyrus/widgets/shelves/shelf_card.dart';
 
 import '../../helpers/test_helpers.dart';
 
@@ -36,6 +38,48 @@ void main() {
   };
 
   for (final theme in themes.entries) {
+    testWidgets('grid cards share a visible border in ${theme.key}', (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme.value,
+          home: Scaffold(
+            body: Row(
+              children: [
+                SizedBox(width: 160, height: 240, child: BookCard(book: buildTestBook(), isFavorite: false)),
+                SizedBox(width: 160, height: 240, child: ShelfCard(shelf: buildTestShelf())),
+                SizedBox(width: 160, height: 240, child: AcquisitionPlaceholderCard(job: job)),
+              ],
+            ),
+          ),
+        ),
+      );
+
+      final materials = tester.widgetList<Material>(
+        find.byWidgetPredicate((widget) => widget is Material && widget.type == MaterialType.card),
+      );
+
+      expect(materials, hasLength(3));
+      expect(materials.map((material) => material.elevation), everyElement(0));
+      expect(materials.map((material) => material.borderOnForeground), everyElement(isTrue));
+      final shape = materials.first.shape! as RoundedRectangleBorder;
+      expect(materials.map((material) => material.shape), everyElement(shape));
+
+      final eink = theme.key == 'e-ink';
+      expect(shape.side.style, BorderStyle.solid);
+      expect(shape.side.width, eink ? BorderWidths.einkDefault : BorderWidths.thin);
+      expect(shape.borderRadius, eink ? BorderRadius.zero : BorderRadius.circular(AppRadius.card));
+
+      if (eink) {
+        expect(shape.side.color, Colors.black);
+      }
+
+      final luminances = [shape.side.color.computeLuminance(), theme.value.scaffoldBackgroundColor.computeLuminance()]
+        ..sort();
+      final contrast = (luminances.last + 0.05) / (luminances.first + 0.05);
+      expect(contrast, greaterThanOrEqualTo(eink || theme.key.startsWith('high contrast') ? 3 : 1.8));
+      expect(tester.takeException(), isNull);
+    });
+
     for (final card in cards.entries) {
       testWidgets('${card.key} stays visible over cover colors in ${theme.key}', (tester) async {
         await tester.pumpWidget(

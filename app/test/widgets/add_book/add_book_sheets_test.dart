@@ -3,6 +3,8 @@ import 'dart:typed_data';
 import 'package:desktop_drop/desktop_drop.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:http/testing.dart';
 import 'package:papyrus/services/book_import_result.dart';
 import 'package:papyrus/themes/app_theme.dart';
 import 'package:papyrus/widgets/add_book/add_book_choice_sheet.dart';
@@ -218,6 +220,45 @@ void main() {
     expect(find.byKey(const Key('add-book-sheet-header')), findsOneWidget);
     expect(find.text('Add book'), findsNothing);
     expect(observer.pushCount, initialPushCount + 1);
+  });
+
+  testWidgets('physical ISBN lookup still falls back when Open Library is unavailable', (tester) async {
+    final hosts = <String>[];
+
+    final client = MockClient((request) async {
+      hosts.add(request.url.host);
+
+      if (request.url.host == 'openlibrary.org') {
+        return http.Response('Unavailable', 503);
+      }
+
+      return http.Response(
+        '{"total_results":1,"results":[{"title":"Found book","authors":["Author"]}]}',
+        200,
+      );
+    });
+
+    addTearDown(client.close);
+
+    await http.runWithClient(() async {
+      await pumpLauncher(
+        tester,
+        (context) =>
+            () => AddPhysicalBookSheet.show(context),
+      );
+      await tester.tap(find.text('Open'));
+      await tester.pumpAndSettle();
+    }, () => client);
+
+    final isbn = find.widgetWithText(TextFormField, 'ISBN').first;
+    await tester.ensureVisible(isbn);
+    await tester.pumpAndSettle();
+    await tester.enterText(isbn, '9780141439518');
+    await tester.tap(find.byIcon(Icons.search));
+    await tester.pumpAndSettle();
+    expect(hosts, ['openlibrary.org', 'localhost']);
+    expect(find.text('Found book'), findsOneWidget);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('physical import places Add in the fixed footer', (tester) async {

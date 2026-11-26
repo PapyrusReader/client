@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:io';
+import 'dart:isolate';
 
 import 'package:crypto/crypto.dart';
 import 'package:http/http.dart' as http;
@@ -49,9 +50,9 @@ Future<void> downloadUpdate(
       throw const HttpException('Incomplete update download');
     }
 
-    final digest = await sha256.bind(destination.openRead()).first;
+    final digest = await _checksum(destination.path);
 
-    if (digest.toString() != asset.sha256) {
+    if (digest != asset.sha256) {
       throw const FormatException('Update checksum mismatch');
     }
   } catch (_) {
@@ -72,3 +73,8 @@ Future<void> downloadUpdate(
     }
   }
 }
+
+Future<String> _checksum(String filePath) => Isolate.run(() async {
+  final digest = await sha256.bind(File(filePath).openRead()).first;
+  return digest.toString();
+});

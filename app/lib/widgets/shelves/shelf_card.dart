@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/models/shelf.dart' show CoverPreview, Shelf;
 import 'package:papyrus/themes/design_tokens.dart';
-import 'package:papyrus/widgets/book/private_book_cover.dart';
+import 'package:papyrus/widgets/library/collection_cover_preview.dart';
+import 'package:papyrus/widgets/library/collection_grid_card.dart';
+import 'package:papyrus/widgets/library/collection_grid_card_body.dart';
 import 'package:papyrus/themes/app_motion.dart';
 
 /// Card widget for displaying a shelf in grid or list view.
@@ -22,6 +24,7 @@ class ShelfCard extends StatefulWidget {
 
   /// Whether to show as list item (vs grid card).
   final bool isListItem;
+  final bool compact;
 
   const ShelfCard({
     super.key,
@@ -30,6 +33,7 @@ class ShelfCard extends StatefulWidget {
     this.onMoreTap,
     this.onLongPress,
     this.isListItem = false,
+    this.compact = false,
   });
 
   @override
@@ -38,6 +42,7 @@ class ShelfCard extends StatefulWidget {
 
 class _ShelfCardState extends State<ShelfCard> {
   bool _isHovered = false;
+  bool _titleFocused = false;
 
   bool get _isDesktop => MediaQuery.of(context).size.width >= Breakpoints.desktopSmall;
 
@@ -52,73 +57,36 @@ class _ShelfCardState extends State<ShelfCard> {
 
   Widget _buildGridCard(BuildContext context) {
     final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
     final shelfColor = widget.shelf.color ?? colorScheme.primary;
 
-    return Card(
-      margin: EdgeInsets.zero,
-      clipBehavior: Clip.antiAlias,
-      elevation: AppElevation.level1,
-      shadowColor: colorScheme.brightness == Brightness.dark ? colorScheme.outline : null,
+    return CollectionGridCard(
       child: InkWell(
         onTap: widget.onTap,
         onLongPress: widget.onLongPress,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Cover preview area
-            Expanded(
-              child: Stack(
-                fit: StackFit.expand,
-                children: [
-                  _buildCoverMosaic(context, shelfColor),
-                  // More button (desktop hover)
-                  if (_isDesktop && widget.onMoreTap != null)
-                    Positioned(
-                      top: Spacing.xs,
-                      right: Spacing.xs,
-                      child: AnimatedOpacity(
-                        key: ValueKey(AppMotion.disabled(context)),
-                        opacity: _isHovered ? 1.0 : 0.0,
-                        duration: AppMotion.duration(context, const Duration(milliseconds: 150)),
-                        child: _buildMoreButton(context),
-                      ),
-                    ),
-                ],
-              ),
-            ),
-            // Shelf info
-            Padding(
-              padding: const EdgeInsets.all(Spacing.sm),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Icon and title row
-                  Row(
-                    children: [
-                      Icon(widget.shelf.displayIcon, size: IconSizes.small, color: shelfColor),
-                      const SizedBox(width: Spacing.xs),
-                      Expanded(
-                        child: Text(
-                          widget.shelf.name,
-                          style: textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
+        onFocusChange: (focused) => setState(() => _titleFocused = focused),
+        child: CollectionGridCardBody(
+          title: widget.shelf.name,
+          subtitle: widget.shelf.bookCountLabel,
+          compact: widget.compact,
+          titleFocused: _titleFocused,
+          leading: Icon(widget.shelf.displayIcon, size: IconSizes.small, color: shelfColor),
+          preview: Stack(
+            fit: StackFit.expand,
+            children: [
+              _buildCoverMosaic(context, shelfColor),
+              if (_isDesktop && widget.onMoreTap != null)
+                Positioned(
+                  top: Spacing.xs,
+                  right: Spacing.xs,
+                  child: AnimatedOpacity(
+                    key: ValueKey(AppMotion.disabled(context)),
+                    opacity: _isHovered ? 1.0 : 0.0,
+                    duration: AppMotion.duration(context, const Duration(milliseconds: 150)),
+                    child: _buildMoreButton(context),
                   ),
-                  const SizedBox(height: 2),
-                  Text(
-                    widget.shelf.bookCountLabel,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.bodySmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                  ),
-                ],
-              ),
-            ),
-          ],
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -146,12 +114,18 @@ class _ShelfCardState extends State<ShelfCard> {
             colors: [shelfColor.withValues(alpha: 0.3), shelfColor.withValues(alpha: 0.15)],
           ),
         ),
-        child: Center(child: Icon(widget.shelf.displayIcon, size: 48, color: shelfColor.withValues(alpha: 0.6))),
+        child: Center(
+          child: Icon(
+            widget.shelf.displayIcon,
+            size: widget.compact ? IconSizes.medium : IconSizes.display,
+            color: shelfColor.withValues(alpha: 0.6),
+          ),
+        ),
       );
     }
 
     if (covers.length == 1) {
-      return _buildCoverImage(covers[0], colorScheme);
+      return _buildCoverImage(covers[0]);
     }
 
     if (covers.length == 2) {
@@ -159,9 +133,9 @@ class _ShelfCardState extends State<ShelfCard> {
         color: colorScheme.surfaceContainerHighest,
         child: Row(
           children: [
-            Expanded(child: _buildCoverImage(covers[0], colorScheme)),
+            Expanded(child: _buildCoverImage(covers[0])),
             const SizedBox(width: gap),
-            Expanded(child: _buildCoverImage(covers[1], colorScheme)),
+            Expanded(child: _buildCoverImage(covers[1])),
           ],
         ),
       );
@@ -175,14 +149,14 @@ class _ShelfCardState extends State<ShelfCard> {
             Expanded(
               child: Row(
                 children: [
-                  Expanded(child: _buildCoverImage(covers[0], colorScheme)),
+                  Expanded(child: _buildCoverImage(covers[0])),
                   const SizedBox(width: gap),
-                  Expanded(child: _buildCoverImage(covers[1], colorScheme)),
+                  Expanded(child: _buildCoverImage(covers[1])),
                 ],
               ),
             ),
             const SizedBox(height: gap),
-            Expanded(child: _buildCoverImage(covers[2], colorScheme)),
+            Expanded(child: _buildCoverImage(covers[2])),
           ],
         ),
       );
@@ -196,9 +170,9 @@ class _ShelfCardState extends State<ShelfCard> {
           Expanded(
             child: Row(
               children: [
-                Expanded(child: _buildCoverImage(covers[0], colorScheme)),
+                Expanded(child: _buildCoverImage(covers[0])),
                 const SizedBox(width: gap),
-                Expanded(child: _buildCoverImage(covers[1], colorScheme)),
+                Expanded(child: _buildCoverImage(covers[1])),
               ],
             ),
           ),
@@ -206,9 +180,9 @@ class _ShelfCardState extends State<ShelfCard> {
           Expanded(
             child: Row(
               children: [
-                Expanded(child: _buildCoverImage(covers[2], colorScheme)),
+                Expanded(child: _buildCoverImage(covers[2])),
                 const SizedBox(width: gap),
-                Expanded(child: _buildCoverImage(covers[3], colorScheme)),
+                Expanded(child: _buildCoverImage(covers[3])),
               ],
             ),
           ),
@@ -217,44 +191,12 @@ class _ShelfCardState extends State<ShelfCard> {
     );
   }
 
-  Widget _buildCoverImage(CoverPreview cover, ColorScheme colorScheme) {
-    return CoverImage(
+  Widget _buildCoverImage(CoverPreview cover) {
+    return CollectionCoverPreview(
       bookId: cover.bookId,
       imageUrl: cover.url,
       mediaId: cover.mediaId,
-      placeholder: _buildCoverPlaceholder(colorScheme, cover.title),
-    );
-  }
-
-  Widget _buildCoverPlaceholder(ColorScheme colorScheme, String title) {
-    return Container(
-      color: colorScheme.surfaceContainerHighest,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final showTitle = constraints.maxWidth >= 120 && constraints.maxHeight >= 160;
-          final iconSize = (constraints.biggest.shortestSide * 0.5).clamp(0.0, IconSizes.display);
-
-          return Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.menu_book, size: iconSize, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.5)),
-              if (showTitle) ...[
-                const SizedBox(height: Spacing.xs),
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: Spacing.sm),
-                  child: Text(
-                    title,
-                    style: TextStyle(fontSize: 11, color: colorScheme.onSurfaceVariant.withValues(alpha: 0.7)),
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                ),
-              ],
-            ],
-          );
-        },
-      ),
+      title: cover.title,
     );
   }
 

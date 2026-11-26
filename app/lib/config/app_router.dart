@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'package:papyrus/pages/reading_timer_page.dart';
 import 'package:papyrus/pages/watched_folders_page.dart';
 import 'package:flutter/foundation.dart';
@@ -18,6 +19,8 @@ import 'package:papyrus/pages/catalogs_page.dart';
 import 'package:papyrus/pages/catalog_book_page.dart';
 import 'package:papyrus/pages/forgot_password_page.dart';
 import 'package:papyrus/pages/login_page.dart';
+import 'package:papyrus/admin/admin_navigation.dart';
+import 'package:papyrus/pages/admin_users_page.dart';
 import 'package:papyrus/pages/profile_page.dart';
 import 'package:papyrus/pages/licenses_page.dart';
 import 'package:papyrus/pages/support_page.dart';
@@ -38,17 +41,22 @@ import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
 import 'package:papyrus/providers/preferences_provider.dart';
 import 'package:papyrus/providers/sync_settings_provider.dart';
 import 'package:papyrus/widgets/shared/app_progress_indicator.dart';
+import 'package:papyrus/updates/update_controller.dart';
+import 'package:papyrus/updates/update_settings.dart';
 
 class AppRouter {
   final AuthProvider authProvider;
+  final UpdateController updateController;
   final PreferencesProvider preferencesProvider;
   final SyncSettingsProvider syncSettingsProvider;
   final AcquisitionAvailabilityProvider acquisitionAvailabilityProvider;
   final rootNavigatorKey = GlobalKey<NavigatorState>();
   final shellNavigatorKey = GlobalKey<NavigatorState>();
+  final _updateNavigatorKey = GlobalKey<NavigatorState>();
 
   AppRouter({
     required this.authProvider,
+    required this.updateController,
     required this.preferencesProvider,
     required this.syncSettingsProvider,
     required this.acquisitionAvailabilityProvider,
@@ -67,7 +75,7 @@ class AppRouter {
       syncSettingsProvider,
       acquisitionAvailabilityProvider,
     ]),
-    routes: [
+    routes: _withUpdateNotice([
       GoRoute(
         path: '/verify-email',
         pageBuilder: (context, state) => NoTransitionPage(
@@ -130,7 +138,10 @@ class AppRouter {
         navigatorKey: shellNavigatorKey,
         pageBuilder: (context, state, child) => NoTransitionPage(
           key: state.pageKey,
-          child: AdaptiveAppShell(child: child),
+          child: NavigatorPopHandler<Object?>(
+            onPopWithResult: (_) => shellNavigatorKey.currentState?.maybePop(),
+            child: AdaptiveAppShell(child: child),
+          ),
         ),
         routes: [
           // Dashboard
@@ -139,23 +150,20 @@ class AppRouter {
             path: '/dashboard',
             pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const DashboardPage()),
           ),
-          // Library and sub-routes
+          // Books is a landing page. Other direct library links use /library as their parent.
+          GoRoute(
+            name: 'BOOKS',
+            path: '/library/books',
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const LibraryPage()),
+          ),
           GoRoute(
             name: 'LIBRARY',
             path: '/library',
             redirect: (context, state) {
-              return state.uri.toString() == '/library' ? '/library/books' : null;
+              return state.uri.path == '/library' ? state.uri.replace(path: '/library/books').toString() : null;
             },
             pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const LibraryPage()),
             routes: [
-              GoRoute(
-                name: 'BOOKS',
-                path: 'books',
-                pageBuilder: (context, state) => NoTransitionPage(
-                  key: state.pageKey,
-                  child: const LibraryPage(),
-                ),
-              ),
               GoRoute(
                 path: 'folders',
                 pageBuilder: (context, state) =>
@@ -243,9 +251,10 @@ class AppRouter {
                 pageBuilder: (context, state) {
                   var bookId = state.pathParameters['bookId'];
 
-                  return NoTransitionPage(
+                  return bookNavigationPage(
+                    context,
                     key: state.pageKey,
-                    child: BookDetailsPage(id: bookId),
+                    child: BookDetailsPage(key: ValueKey(bookId), id: bookId),
                   );
                 },
               ),
@@ -266,18 +275,7 @@ class AppRouter {
                   );
                 },
               ),
-              GoRoute(
-                name: 'BOOK_EDIT',
-                path: 'edit/:bookId',
-                pageBuilder: (context, state) {
-                  var bookId = state.pathParameters['bookId'];
-
-                  return NoTransitionPage(
-                    key: state.pageKey,
-                    child: BookEditPage(id: bookId),
-                  );
-                },
-              ),
+              bookEditRoute(canStay: (destination) => redirectForPath(destination) == null),
             ],
           ),
           // Goals
@@ -285,6 +283,16 @@ class AppRouter {
             name: 'GOALS',
             path: '/goals',
             pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const GoalsPage()),
+            routes: [
+              GoRoute(
+                name: 'GOAL_HISTORY',
+                path: 'history',
+                pageBuilder: (context, state) => NoTransitionPage(
+                  key: state.pageKey,
+                  child: GoalsPage.history(goalId: state.uri.queryParameters['goal']),
+                ),
+              ),
+            ],
           ),
           // Statistics
           GoRoute(
@@ -296,6 +304,10 @@ class AppRouter {
             name: 'ACQUISITION',
             path: '/acquisition',
             pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const AcquisitionPage()),
+          ),
+          GoRoute(
+            path: adminUsersPath,
+            pageBuilder: (context, state) => NoTransitionPage(key: state.pageKey, child: const AdminUsersPage()),
           ),
           // Profile
           GoRoute(
@@ -337,11 +349,25 @@ class AppRouter {
             ),
         ],
       ),
-    ],
+    ]),
     redirect: (BuildContext context, GoRouterState state) {
       return redirectForPath(state.uri.toString());
     },
   );
+
+  List<RouteBase> _withUpdateNotice(List<RouteBase> routes) => [
+    ShellRoute(
+      navigatorKey: _updateNavigatorKey,
+      pageBuilder: (context, state, child) => NoTransitionPage(
+        key: state.pageKey,
+        child: NavigatorPopHandler<Object?>(
+          onPopWithResult: (_) => _updateNavigatorKey.currentState?.maybePop(),
+          child: UpdateNotice(controller: updateController, router: router, child: child),
+        ),
+      ),
+      routes: routes,
+    ),
+  ];
 
   String? redirectForPath(String destination) {
     var uri = Uri.parse(destination);
@@ -393,6 +419,10 @@ class AppRouter {
     if (!authProvider.hasOfflineAccount &&
         (location == '/' || location == '/login' || location == '/register' || location == '/reset-password')) {
       return '/library/books';
+    }
+
+    if (location == adminUsersPath && !authProvider.canAdminister(syncSettingsProvider)) {
+      return '/profile';
     }
 
     final acquisitionAvailable = acquisitionAvailabilityProvider.isAvailableFor(

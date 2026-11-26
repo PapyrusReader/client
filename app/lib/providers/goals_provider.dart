@@ -75,26 +75,55 @@ class GoalsProvider extends ChangeNotifier {
   bool get hasCompletedGoals => store.goalPeriods.isNotEmpty || completedGoals.isNotEmpty;
   GoalProgress progress(ReadingGoal goal) => projectGoal(goal, store.readingActivities, now);
 
-  List<GoalProgress> get history {
-    final all = <String, GoalProgress>{};
+  Map<String, ReadingGoal> get historyDefinitions => {
+    for (final record in store.goalPeriods) record.goalId: record.definition,
+    for (final goal in store.goalDefinitions) goal.id: goal,
+  };
 
-    for (final goal in store.goalDefinitions) {
-      for (final period in GoalCalendar.pastPeriods(goal, now)) {
-        all['${goal.id}:${period.start}'] = projectGoal(goal, store.readingActivities, now, period: period);
+  List<GoalProgress> get history => periodHistory().toList();
+
+  Iterable<GoalProgress> periodHistory({
+    String? goalId,
+    GoalType? type,
+    GoalRange? dates,
+    bool includeArchived = true,
+  }) {
+    final periods = <(String, DateTime), ({ReadingGoal goal, GoalRange range})>{};
+    final instant = now;
+
+    bool includes(ReadingGoal goal) =>
+        (goalId == null || goal.id == goalId) &&
+        (type == null || goal.type == type) &&
+        (includeArchived || store.getReadingGoal(goal.id)?.isArchived != true);
+
+    void add(ReadingGoal goal, GoalRange range) {
+      if (dates == null || range.start.isBefore(dates.end) && range.end.isAfter(dates.start)) {
+        periods[(goal.id, range.start)] = (goal: goal, range: range);
+      }
+    }
+
+    for (final goal in store.goalDefinitions.where(includes)) {
+      for (final period in GoalCalendar.pastPeriods(goal, instant)) {
+        add(goal, period);
       }
     }
 
     for (final record in store.goalPeriods) {
-      all['${record.goalId}:${record.definition.startDate}'] = projectGoal(
-        store.getReadingGoal(record.goalId) ?? record.definition,
-        store.readingActivities,
-        now,
-        period: GoalRange(record.definition.startDate, record.definition.endDate),
-      );
+      final goal = store.getReadingGoal(record.goalId) ?? record.definition;
+
+      if (includes(goal)) {
+        add(goal, GoalRange(record.definition.startDate, record.definition.endDate));
+      }
     }
 
-    final values = all.values.toList()..sort((left, right) => right.range.end.compareTo(left.range.end));
-    return values;
+    final sorted = periods.values.toList()
+      ..sort((left, right) {
+        final byDate = right.range.end.compareTo(left.range.end);
+        return byDate != 0 ? byDate : left.goal.id.compareTo(right.goal.id);
+      });
+
+    final activities = store.readingActivities;
+    return sorted.map((period) => projectGoal(period.goal, activities, instant, period: period.range));
   }
 
   Future<void> _sealPeriods() async {

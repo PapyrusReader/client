@@ -232,8 +232,11 @@ class ReadingActivityBarChart extends StatelessWidget {
           final barWidth = (availableWidth / activities.length * 0.6).clamp(4.0, isDesktop ? 20.0 : 16.0);
           final labelStep = _bottomLabelStep(context, constraints.maxWidth, activities);
 
-          return BarChart(
-            key: ValueKey((AppMotion.disabled(context), metric)),
+          final duration = AppMotion.duration(context, AnimationDurations.standard);
+
+          // A new range has different buckets. Interpolating by index can put a new bar above the old scale.
+          final chart = BarChart(
+            key: ValueKey((activities.first.date, activities.last.date, activities.length)),
             BarChartData(
               alignment: BarChartAlignment.spaceAround,
               minY: 0,
@@ -316,7 +319,15 @@ class ReadingActivityBarChart extends StatelessWidget {
                 );
               }).toList(),
             ),
-            duration: AppMotion.duration(context, AnimationDurations.standard),
+            duration: duration,
+          );
+
+          return AnimatedSwitcher(
+            key: ValueKey((AppMotion.disabled(context), metric)),
+            duration: duration,
+            // Let the switcher distinguish repeated visits to a range while its previous chart is fading out.
+            transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+            child: chart,
           );
         },
       ),
@@ -327,151 +338,6 @@ class ReadingActivityBarChart extends StatelessWidget {
     return SizedBox(
       height: isDesktop ? 200 : 160,
       child: const EmptyState.compact(icon: Icons.bar_chart_outlined, title: 'No reading data for this period'),
-    );
-  }
-}
-
-/// A bar chart displaying books read per month using fl_chart.
-class BooksPerMonthChart extends StatelessWidget {
-  final List<MonthlyStats> monthlyStats;
-  final bool isDesktop;
-
-  const BooksPerMonthChart({super.key, required this.monthlyStats, this.isDesktop = false});
-
-  @override
-  Widget build(BuildContext context) {
-    if (monthlyStats.isEmpty) {
-      return _buildEmptyState(context);
-    }
-
-    final colorScheme = Theme.of(context).colorScheme;
-    final textTheme = Theme.of(context).textTheme;
-
-    final maxBooks = monthlyStats
-        .map((item) => item.booksRead)
-        .reduce((total, value) => math.max(total, value))
-        .toDouble();
-
-    final chartHeight = isDesktop ? 200.0 : 160.0;
-
-    final displayStats = monthlyStats;
-
-    return SizedBox(
-      height: chartHeight,
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final availableWidth = constraints.maxWidth - 50;
-          final barWidth = (availableWidth / displayStats.length * 0.5).clamp(8.0, isDesktop ? 28.0 : 22.0);
-
-          return BarChart(
-            key: ValueKey(AppMotion.disabled(context)),
-            BarChartData(
-              alignment: BarChartAlignment.spaceAround,
-              maxY: maxBooks > 0 ? maxBooks * 1.2 : 5,
-              barTouchData: BarTouchData(
-                enabled: true,
-                touchTooltipData: BarTouchTooltipData(
-                  getTooltipColor: (group) => colorScheme.inverseSurface,
-                  tooltipBorderRadius: BorderRadius.circular(AppRadius.md),
-                  getTooltipItem: (group, groupIndex, rod, rodIndex) {
-                    final stats = displayStats[groupIndex];
-
-                    return BarTooltipItem(
-                      '${stats.fullMonthLabel} ${stats.year}\n${stats.booksRead} books',
-                      textTheme.bodySmall!.copyWith(color: colorScheme.onInverseSurface),
-                    );
-                  },
-                ),
-              ),
-              titlesData: FlTitlesData(
-                show: true,
-                rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-                bottomTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    getTitlesWidget: (value, meta) {
-                      if (value < 0 || value >= displayStats.length) {
-                        return const SizedBox.shrink();
-                      }
-
-                      final stats = displayStats[value.toInt()];
-
-                      return Padding(
-                        padding: const EdgeInsets.only(top: 8),
-                        child: Text(
-                          '${stats.monthLabel} ${stats.year % 100}',
-                          style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                        ),
-                      );
-                    },
-                    reservedSize: MediaQuery.textScalerOf(context).scale(28),
-                  ),
-                ),
-                leftTitles: AxisTitles(
-                  sideTitles: SideTitles(
-                    showTitles: true,
-                    reservedSize: 32,
-                    interval: 1,
-                    getTitlesWidget: (value, meta) {
-                      if (value == value.truncateToDouble() && value >= 0 && value <= meta.max * 0.95) {
-                        return Padding(
-                          padding: const EdgeInsets.only(right: 4),
-                          child: Text(
-                            '${value.toInt()}',
-                            style: textTheme.labelSmall?.copyWith(color: colorScheme.onSurfaceVariant),
-                          ),
-                        );
-                      }
-
-                      return const SizedBox.shrink();
-                    },
-                  ),
-                ),
-              ),
-              gridData: FlGridData(
-                show: true,
-                drawVerticalLine: false,
-                horizontalInterval: 1,
-                getDrawingHorizontalLine: (value) =>
-                    FlLine(color: colorScheme.outline.withValues(alpha: 0.7), strokeWidth: 1),
-              ),
-              borderData: FlBorderData(
-                show: true,
-                border: Border(bottom: BorderSide(color: colorScheme.outline)),
-              ),
-              barGroups: displayStats.asMap().entries.map((entry) {
-                final index = entry.key;
-                final stats = entry.value;
-
-                return BarChartGroupData(
-                  x: index,
-                  barRods: [
-                    BarChartRodData(
-                      toY: stats.booksRead.toDouble(),
-                      gradient: LinearGradient(
-                        begin: Alignment.bottomCenter,
-                        end: Alignment.topCenter,
-                        colors: [colorScheme.secondary, colorScheme.secondary.withValues(alpha: 0.7)],
-                      ),
-                      width: barWidth,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(4)),
-                    ),
-                  ],
-                );
-              }).toList(),
-            ),
-            duration: AppMotion.duration(context, AnimationDurations.standard),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildEmptyState(BuildContext context) {
-    return SizedBox(
-      height: isDesktop ? 200 : 160,
-      child: const EmptyState.compact(icon: Icons.bar_chart_outlined, title: 'No books read data available'),
     );
   }
 }

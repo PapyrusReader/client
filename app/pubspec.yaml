@@ -1,7 +1,7 @@
 name: papyrus
 description: "Digital library management application."
 publish_to: 'none'
-version: 0.5.0+9
+version: 0.6.0+10
 
 environment:
   sdk: ^3.9.2
@@ -27,7 +27,7 @@ dependencies:
   papyrus_reader:
     git:
       url: https://github.com/PapyrusReader/reader.git
-      ref: 2456b81131f83b802115066cdf65be6ac73d4699
+      ref: 6f51c2b47887f5753ebe3d75610813cdea698230
   epub_pro: ^5.6.0
   syncfusion_flutter_pdf: ^33.2.13
   dart_mobi: ^1.0.2
@@ -64,6 +64,14 @@ dev_dependencies:
   plugin_platform_interface: ^2.1.8
 
   shared_preferences_platform_interface: ^2.4.1
+  patrol: 4.12.0
+patrol:
+  app_name: Papyrus
+  android:
+    package_name: com.papyrus.reader
+  ios:
+    bundle_id: com.papyrus.papyrus
+
 flutter:
   config:
     enable-swift-package-manager: false
@@ -71,7 +79,6 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/updates/install_windows.ps1
     - assets/images/google_logo.png
     - assets/images/logo.png
     - assets/images/logo-icon-light.svg

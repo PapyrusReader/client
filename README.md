@@ -194,6 +194,8 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 
 4. Open a pull request
 
+For device journeys, Monkey runs, and interrupted sync uploads, see [Journey testing](docs/JOURNEY_TESTING.md).
+
 ## Resources
 
 | Repository | Description |
@@ -209,3 +211,10 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 See [the release guide](docs/RELEASING.md) for signed Android App Bundles,
 version-triggered GitHub builds, required endpoint/signing settings and the first
 internal testing upload.
+
+
+For public cover rendering in Chrome, including image hosts without CORS headers,
+run `python3 tools/test_public_covers.py` from the client repository. The runner
+starts a temporary local image server and cleans it up after the test. In the
+workspace, use `--flutter /absolute/path/to/papyrus/tools/flutter` to select the
+pinned SDK. This check also runs in the browser CI job.

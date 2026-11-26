@@ -40,8 +40,13 @@ jobs:
           flutter-version: '3.47.9'
           cache: true
       - run: flutter pub get --enforce-lockfile
-      - name: Validate watched folders on Windows
-        run: flutter test test/folders
+      - name: Compile update process fixture
+        run: |
+          New-Item -ItemType Directory -Force build | Out-Null
+          dart compile exe test/fixtures/update_installer.dart -o build/update-installer-fixture.exe
+          "PAPYRUS_TEST_INSTALLER=$PWD/build/update-installer-fixture.exe" >> $env:GITHUB_ENV
+      - name: Validate watched folders and update flows on Windows
+        run: flutter test test/folders test/updates
       - name: Prepare preview version and endpoints
         run: |
           python ../tools/release_gate.py client --endpoints

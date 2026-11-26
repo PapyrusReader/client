@@ -72,12 +72,18 @@ class _AboutSettingsSectionState extends State<AboutSettingsSection> {
 
         final rows = [
           SettingsRow(label: 'Version', value: version, showChevron: false),
-          if (updates != null)
+          if (updates != null && updates.supported) ...[
             SettingsRow(
               label: 'App updates',
               value: updates.available ? 'Update available' : 'Check for updates',
               onTap: () => showUpdateSettings(context, updates),
             ),
+            SettingsToggleRow(
+              label: 'Check for updates automatically',
+              value: updates.automatic,
+              onChanged: updates.setAutomatic,
+            ),
+          ],
           SettingsRow(label: 'Licenses', onTap: _openLicenses),
           SettingsRow(label: 'Support', onTap: () => context.push('/profile/support')),
           SettingsRow(

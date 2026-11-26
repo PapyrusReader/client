@@ -12,6 +12,7 @@ class BookEditProvider extends ChangeNotifier {
   DataStore? _dataStore;
   BookRepository? _repository;
   final MetadataService _metadataService;
+  final bool _ownsMetadataService;
 
   // Book state
   Book? _originalBook;
@@ -24,12 +25,18 @@ class BookEditProvider extends ChangeNotifier {
   MetadataFetchState _fetchState = MetadataFetchState.idle;
   List<BookMetadataResult> _fetchedResults = [];
   String? _fetchError;
-  MetadataSource _selectedSource = MetadataSource.openLibrary;
+  ({String query, MetadataSource source, bool isIsbn})? _metadataSearch;
+  int _metadataPage = 1;
+  int? _metadataTotalResults;
+  bool _hasNextMetadataPage = false;
+  int _metadataRequest = 0;
 
   // Cover image state (for uploaded files)
   Uint8List? _coverImageBytes;
 
-  BookEditProvider({MetadataService? metadataService}) : _metadataService = metadataService ?? MetadataService();
+  BookEditProvider({MetadataService? metadataService})
+    : _metadataService = metadataService ?? MetadataService(),
+      _ownsMetadataService = metadataService == null;
 
   Book? get originalBook => _originalBook;
   Book? get editedBook => _editedBook;
@@ -41,7 +48,12 @@ class BookEditProvider extends ChangeNotifier {
   MetadataFetchState get fetchState => _fetchState;
   List<BookMetadataResult> get fetchedResults => _fetchedResults;
   String? get fetchError => _fetchError;
-  MetadataSource get selectedSource => _selectedSource;
+  int get metadataPage => _metadataPage;
+  int? get metadataTotalResults => _metadataTotalResults;
+  int get metadataResultStart => (_metadataPage - 1) * MetadataService.pageSize + 1;
+  int get metadataResultEnd => metadataResultStart + _fetchedResults.length - 1;
+  bool get hasPreviousMetadataPage => _metadataPage > 1;
+  bool get hasNextMetadataPage => _hasNextMetadataPage;
   bool get isFetching => _fetchState == MetadataFetchState.loading;
   Uint8List? get coverImageBytes => _coverImageBytes;
   bool get hasLocalCoverImage => _coverImageBytes != null;
@@ -82,14 +94,17 @@ class BookEditProvider extends ChangeNotifier {
 
     try {
       final dataStore = _dataStore!;
-      final repository = dataStore.requireBookRepository();
-      _repository = repository;
+      var repository = dataStore.requireBookRepository();
       var book = dataStore.getBook(bookId) ?? await repository.getById(bookId);
 
-      if (book == null && !dataStore.isLoaded) {
+      if (book == null && (!dataStore.isLoaded || !dataStore.isBookRepositoryCurrent(repository))) {
         await dataStore.waitUntilLoaded();
+        // Startup may have replaced the temporary store with the persisted library.
+        repository = dataStore.requireBookRepository();
         book = dataStore.getBook(bookId) ?? await repository.getById(bookId);
       }
+
+      _repository = repository;
 
       if (book == null) {
         _error = 'Book not found';
@@ -135,6 +150,7 @@ class BookEditProvider extends ChangeNotifier {
   void revertChanges() {
     if (_originalBook != null) {
       _editedBook = _originalBook;
+      _coverImageBytes = null;
       notifyListeners();
     }
   }
@@ -363,61 +379,93 @@ class BookEditProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Set the metadata source for searches.
-  void setMetadataSource(MetadataSource source) {
-    _selectedSource = source;
-    notifyListeners();
+  Future<void> searchMetadata(String query, {required MetadataSource source}) {
+    return _startMetadataSearch(query, source: source, isIsbn: false);
   }
 
-  /// Search for book metadata by query.
-  Future<void> searchMetadata(String query) async {
+  Future<void> searchMetadataByIsbn(String isbn, {required MetadataSource source}) {
+    return _startMetadataSearch(isbn, source: source, isIsbn: true);
+  }
+
+  Future<void> _startMetadataSearch(String query, {required MetadataSource source, required bool isIsbn}) async {
     if (query.trim().isEmpty) {
       return;
     }
 
-    _fetchState = MetadataFetchState.loading;
-    _fetchError = null;
+    _metadataSearch = (query: query.trim(), source: source, isIsbn: isIsbn);
+    _metadataPage = 1;
+    _metadataTotalResults = null;
+    _hasNextMetadataPage = false;
     _fetchedResults = [];
-    notifyListeners();
-
-    try {
-      final results = await _metadataService.search(query, _selectedSource);
-      _fetchedResults = results;
-      _fetchState = results.isEmpty ? MetadataFetchState.error : MetadataFetchState.success;
-
-      if (results.isEmpty) {
-        _fetchError = 'No results found';
-      }
-    } catch (e) {
-      _fetchState = MetadataFetchState.error;
-      _fetchError = 'Search failed: $e';
-    }
-
-    notifyListeners();
+    await _fetchMetadataPage(1);
   }
 
-  /// Search for book metadata by ISBN.
-  Future<void> searchMetadataByIsbn(String isbn) async {
-    if (isbn.trim().isEmpty) {
+  Future<void> loadMetadataPage(int page) async {
+    if (isFetching || page < 1 || page == _metadataPage || page > _metadataPage + 1) {
       return;
     }
 
+    if (page > _metadataPage && !_hasNextMetadataPage) {
+      return;
+    }
+
+    await _fetchMetadataPage(page);
+  }
+
+  Future<void> _fetchMetadataPage(int page) async {
+    final search = _metadataSearch;
+
+    if (search == null) {
+      return;
+    }
+
+    final request = ++_metadataRequest;
     _fetchState = MetadataFetchState.loading;
     _fetchError = null;
-    _fetchedResults = [];
     notifyListeners();
 
     try {
-      final results = await _metadataService.searchByIsbn(isbn, _selectedSource);
-      _fetchedResults = results;
-      _fetchState = results.isEmpty ? MetadataFetchState.error : MetadataFetchState.success;
+      final result = search.isIsbn
+          ? await _metadataService.searchByIsbn(search.query, search.source, page: page)
+          : await _metadataService.search(search.query, search.source, page: page);
 
-      if (results.isEmpty) {
-        _fetchError = 'No results found for ISBN';
+      if (request != _metadataRequest) {
+        return;
       }
-    } catch (e) {
+
+      if (result.results.isEmpty && page > _metadataPage) {
+        // Providers can overestimate totals. Keep the last non-empty page available.
+        _hasNextMetadataPage = false;
+        _metadataTotalResults = metadataResultEnd;
+        _fetchState = MetadataFetchState.success;
+      } else {
+        _fetchedResults = result.results;
+        _metadataPage = page;
+        _metadataTotalResults = result.totalResults;
+        final total = result.totalResults;
+
+        _hasNextMetadataPage =
+            result.results.length == MetadataService.pageSize && (total == null || metadataResultEnd < total);
+
+        _fetchState = result.results.isEmpty ? MetadataFetchState.error : MetadataFetchState.success;
+
+        if (result.results.isEmpty) {
+          _fetchError = search.isIsbn ? 'No results found for ISBN' : 'No results found';
+        }
+      }
+    } catch (error) {
+      if (request != _metadataRequest) {
+        return;
+      }
+
       _fetchState = MetadataFetchState.error;
-      _fetchError = 'Search failed: $e';
+      if (error is MetadataSearchException) {
+        _fetchError = error.message;
+      } else {
+        _fetchError = _fetchedResults.isEmpty
+            ? 'Could not fetch metadata. Check your connection and try again.'
+            : 'Could not load this page. Your current results are still available; try again.';
+      }
     }
 
     notifyListeners();
@@ -481,9 +529,25 @@ class BookEditProvider extends ChangeNotifier {
 
   /// Clear fetched metadata results.
   void clearFetchedResults() {
+    _metadataRequest++;
+    _metadataSearch = null;
+    _metadataPage = 1;
+    _metadataTotalResults = null;
+    _hasNextMetadataPage = false;
     _fetchState = MetadataFetchState.idle;
     _fetchedResults = [];
     _fetchError = null;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _metadataRequest++;
+
+    if (_ownsMetadataService) {
+      _metadataService.close();
+    }
+
+    super.dispose();
   }
 }

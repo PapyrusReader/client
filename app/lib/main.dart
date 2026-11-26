@@ -1,10 +1,10 @@
+import 'package:papyrus/services/metadata_service.dart';
 import 'package:papyrus/services/reading_timer_notifications.dart';
 import 'package:papyrus/providers/reading_timer_provider.dart';
 import 'package:papyrus/folders/directory_access_factory.dart';
 import 'package:papyrus/folders/folder_import_target.dart';
 import 'package:papyrus/folders/watched_folders.dart';
 import 'package:papyrus/updates/update_controller.dart';
-import 'package:papyrus/updates/update_settings.dart';
 import 'package:papyrus/services/reading_device_identity.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -55,12 +55,13 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config/app_router.dart';
+import 'config/page_history.dart';
 import 'package:papyrus/goals/goal_calendar.dart';
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ensureBookImportDropPluginRegistered();
-  usePathUrlStrategy();
+  setUrlStrategy(AppPageHistory());
 
   LicenseRegistry.addLicense(() async* {
     final license = await rootBundle.loadString('fonts/OpenDyslexic/OFL.txt');
@@ -264,7 +265,7 @@ class _PapyrusState extends State<Papyrus> {
     _updateController = UpdateController(preferences: widget.prefs)..start();
     _mediaUploadQueue = widget._uploads ?? MediaUploadQueue(widget.prefs, onWorkAvailable: _processMediaUploads);
     _bookImportService = widget._importer ?? BookImportService();
-    _authProvider = AuthProvider(widget.prefs, repository: _authRepository);
+    _authProvider = AuthProvider(widget.prefs, repository: _authRepository, profileKey: _activeProfileKey);
     _acquisitionAvailabilityProvider = AcquisitionAvailabilityProvider(authProvider: _authProvider);
 
     _acquisitionDownloadsComposition = AcquisitionDownloadsComposition(
@@ -342,6 +343,7 @@ class _PapyrusState extends State<Papyrus> {
     unawaited(_dataStore.attachBookRepository(_powerSyncService));
 
     _appRouter = AppRouter(
+      updateController: _updateController,
       authProvider: _authProvider,
       preferencesProvider: _preferencesProvider,
       syncSettingsProvider: _syncSettingsProvider,
@@ -547,7 +549,11 @@ class _PapyrusState extends State<Papyrus> {
       _authSyncSuspended = false;
       _authRepository = _buildAuthRepository(nextConfig, nextProfileKey);
       _activeProfileKey = nextProfileKey;
-      await _authProvider.replaceRepository(_authRepository, bootstrapNewRepository: !_authProvider.isOfflineMode);
+      await _authProvider.replaceRepository(
+        _authRepository,
+        profileKey: nextProfileKey,
+        bootstrapNewRepository: !_authProvider.isOfflineMode,
+      );
       unawaited(_refreshMediaUsage());
     } finally {
       _switchingSyncProfile = false;
@@ -647,6 +653,40 @@ class _PapyrusState extends State<Papyrus> {
     }
   }
 
+  MetadataServer _metadataServer() {
+    final profileKey = _activeProfileKey;
+    final config = _syncSettingsProvider.activeApiConfig;
+
+    void requireActiveProfile() {
+      if (_switchingSyncProfile ||
+          profileKey != _activeProfileKey ||
+          profileKey != _syncSettingsProvider.activeProfileKey) {
+        throw const MetadataSearchException('The active server changed. Please search again.');
+      }
+    }
+
+    requireActiveProfile();
+
+    if (!_authProvider.isSignedIn) {
+      return MetadataServer(config: config);
+    }
+
+    return MetadataServer(
+      config: config,
+      authorize: (request) async {
+        requireActiveProfile();
+
+        final response = await _authProvider.withFreshAccessToken((token) {
+          requireActiveProfile();
+          return request(token);
+        });
+
+        requireActiveProfile();
+        return response;
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -660,6 +700,10 @@ class _PapyrusState extends State<Papyrus> {
         ChangeNotifierProvider.value(value: _bookStorageStatusController),
         Provider.value(value: _powerSyncService),
         Provider.value(value: _bookImportService),
+        Provider(
+          create: (_) => MetadataService(server: _metadataServer),
+          dispose: (_, service) => service.close(),
+        ),
         Provider(
           create: (_) => GuestAccountDeletionService(
             auth: _authProvider,
@@ -721,7 +765,7 @@ class _PapyrusState extends State<Papyrus> {
                     : kThemeAnimationDuration,
                 builder: (context, child) => AppAccessibilityScope(
                   preferences: preferencesProvider,
-                  child: UpdateNotice(controller: _updateController, router: _appRouter.router, child: child!),
+                  child: child!,
                 ),
                 routerConfig: _appRouter.router,
               );

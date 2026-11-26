@@ -2,6 +2,7 @@ import 'dart:typed_data';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:papyrus/widgets/book/cover_loading_placeholder.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/media/cover_storage_bucket.dart';
@@ -336,6 +337,16 @@ class _PrivateBookCoverState extends State<CoverImage> {
     }
 
     if (_hasPublicUrl) {
+      if (kIsWeb) {
+        return Image.network(
+          widget.imageUrl!,
+          fit: widget.fit,
+          webHtmlElementStrategy: WebHtmlElementStrategy.fallback,
+          loadingBuilder: (context, child, progress) => progress == null ? child : const CoverLoadingPlaceholder(),
+          errorBuilder: (_, _, _) => widget.placeholder,
+        );
+      }
+
       return CachedNetworkImage(
         fadeInDuration: AppMotion.duration(context, const Duration(milliseconds: 500)),
         fadeOutDuration: AppMotion.duration(context, const Duration(milliseconds: 1000)),
