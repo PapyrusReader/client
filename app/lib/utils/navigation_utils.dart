@@ -1,4 +1,23 @@
-import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
+import 'package:flutter/widgets.dart';
+
+/// Navigation item for the app shell.
+class AppShellNavItem {
+  final String path;
+  final String label;
+  final IconData icon;
+  final IconData? selectedIcon;
+  final List<AppShellNavItem>? children;
+  final int? count;
+
+  const AppShellNavItem({
+    required this.path,
+    required this.label,
+    required this.icon,
+    this.selectedIcon,
+    this.children,
+    this.count,
+  });
+}
 
 /// Check if a navigation item is selected based on the current path.
 ///

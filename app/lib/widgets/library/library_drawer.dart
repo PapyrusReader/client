@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:papyrus/admin/admin_navigation.dart';
+import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/data/data_store.dart';
 import 'package:papyrus/opds/opds_catalogs.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -119,6 +121,29 @@ class LibraryDrawer extends StatelessWidget {
                       context.go('/library/timer');
                     },
                   ),
+                  if (canShowAdministration(context)) ...[
+                    const Divider(),
+                    ExpansionTile(
+                      key: const PageStorageKey('drawer-administration'),
+                      expansionAnimationStyle: AppMotion.animationStyle(context),
+                      leading: Icon(administrationNavItem.icon),
+                      title: Text(administrationNavItem.label),
+                      childrenPadding: const EdgeInsetsDirectional.only(start: Spacing.lg),
+                      children: [
+                        for (final item in administrationNavItem.children!)
+                          _DrawerNavItem(
+                            icon: item.icon,
+                            label: item.label,
+                            isSelected: currentPath == item.path,
+                            onTap: () {
+                              final router = GoRouter.of(context);
+                              Navigator.of(context).pop();
+                              router.push(item.path);
+                            },
+                          ),
+                      ],
+                    ),
+                  ],
                 ],
               ),
             ),

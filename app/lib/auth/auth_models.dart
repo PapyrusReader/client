@@ -5,6 +5,7 @@ class PapyrusUser {
   final String? email;
   final String displayName;
   final String? avatarUrl;
+  final bool isAdmin;
   final bool emailVerified;
   final DateTime? createdAt;
   final DateTime? lastLoginAt;
@@ -15,11 +16,23 @@ class PapyrusUser {
     required this.email,
     required this.displayName,
     required this.avatarUrl,
+    this.isAdmin = false,
     required this.emailVerified,
     required this.createdAt,
     required this.lastLoginAt,
     this.connectedProviders = const [],
   });
+
+  PapyrusUser withoutAdminAccess() => PapyrusUser(
+    userId: userId,
+    email: email,
+    displayName: displayName,
+    avatarUrl: avatarUrl,
+    emailVerified: emailVerified,
+    createdAt: createdAt,
+    lastLoginAt: lastLoginAt,
+    connectedProviders: connectedProviders,
+  );
 
   factory PapyrusUser.fromJson(Map<String, dynamic> json) {
     return PapyrusUser(
@@ -27,6 +40,7 @@ class PapyrusUser {
       email: json['email'] as String?,
       displayName: json['display_name'] as String? ?? 'Papyrus User',
       avatarUrl: json['avatar_url'] as String?,
+      isAdmin: json['role'] == 'admin',
       emailVerified: json['email_verified'] as bool? ?? false,
       createdAt: _parseDateTime(json['created_at']),
       lastLoginAt: _parseDateTime(json['last_login_at']),

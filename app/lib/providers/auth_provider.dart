@@ -1,14 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:papyrus/admin/user_directory.dart';
 import 'package:papyrus/auth/auth_api_client.dart';
 import 'package:papyrus/auth/auth_models.dart';
 import 'package:papyrus/auth/auth_repository.dart';
+import 'package:papyrus/providers/sync_settings_provider.dart';
 import 'package:papyrus/services/guest_profile_store.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class AuthProvider extends ChangeNotifier {
   AuthRepository _repository;
+  String _profileKey;
   final SharedPreferences _prefs;
   final GuestProfileStore _guestProfile;
   Future<bool>? _guestProfileWrite;
@@ -84,6 +87,35 @@ class AuthProvider extends ChangeNotifier {
 
   bool get isSignedIn => _user != null && _status == AuthStatus.signedIn;
 
+  bool canAdminister(SyncSettingsProvider settings) =>
+      isSignedIn &&
+      !isOfflineMode &&
+      _user!.isAdmin &&
+      _profileKey == settings.activeProfileKey &&
+      serverKey == settings.activeApiConfig.apiBaseUri.toString();
+
+  Future<UserDirectory> adminUsers(int page, DirectoryColumn column, bool descending) async {
+    final api = _repository.apiClient;
+    final operation = _operation;
+
+    try {
+      final directory = await withFreshAccessToken((token) => api.adminUsers(token, page, column, descending));
+
+      if (operation != _operation || !isSignedIn || _user?.isAdmin != true) {
+        throw StateError('The active account changed.');
+      }
+
+      return directory;
+    } on AuthApiException catch (error) {
+      if (operation == _operation && error.statusCode == 403 && _user?.isAdmin == true) {
+        _user = _user!.withoutAdminAccess();
+        notifyListeners();
+      }
+
+      rethrow;
+    }
+  }
+
   bool get canEditProfile => !_isDeletingGuestAccount && (isSignedIn || (_isOfflineMode && _user == null));
 
   String get profileDisplayName =>
@@ -111,9 +143,11 @@ class AuthProvider extends ChangeNotifier {
   AuthProvider(
     this._prefs, {
     required AuthRepository repository,
+    String profileKey = SyncSettingsProvider.officialServerId,
     bool bootstrapOnCreate = true,
     GuestProfileStore? guestProfileStore,
-  }) : _repository = repository,
+  }) : _profileKey = profileKey,
+       _repository = repository,
        _guestProfile = guestProfileStore ?? GuestProfileStore(_prefs) {
     _bindRepository();
     _isOfflineMode = _prefs.getBool(_keyOfflineMode) ?? false;
@@ -123,9 +157,14 @@ class AuthProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> replaceRepository(AuthRepository repository, {bool bootstrapNewRepository = true}) async {
+  Future<void> replaceRepository(
+    AuthRepository repository, {
+    String profileKey = SyncSettingsProvider.officialServerId,
+    bool bootstrapNewRepository = true,
+  }) async {
     cancelAuthentication();
     _repository.onVerificationRequired = null;
+    _profileKey = profileKey;
     _repository = repository;
     _bindRepository();
     _pendingRecovery = null;

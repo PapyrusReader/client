@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/utils/navigation_utils.dart';
-import 'package:papyrus/widgets/shell/adaptive_app_shell.dart';
 
 /// Mobile bottom navigation bar with Material 3 styling.
 class MobileBottomNav extends StatelessWidget {
