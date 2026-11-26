@@ -210,9 +210,15 @@ void main() {
 
   testWidgets('wide directory shows quota, averages and server-paginated results', (tester) async {
     final requests = <Map<String, String>>[];
+    final nextPage = Completer<http.Response>();
 
     await mount(tester, (request) async {
       requests.add(request.url.queryParameters);
+
+      if (requests.length == 2) {
+        return nextPage.future;
+      }
+
       return directory(int.parse(request.url.queryParameters['page']!));
     });
     await tester.pumpAndSettle();
@@ -220,7 +226,6 @@ void main() {
     expect(table.columns.map((column) => (column.label as Text).data), [
       'Name',
       'Email',
-      'Role',
       'Status',
       'Joined',
       'Last sign-in',
@@ -229,19 +234,27 @@ void main() {
       'Quota used',
       'Average per book',
     ]);
-    expect(table.rows.first.cells.take(4).map((cell) => (cell.child as Text).data), [
+    expect(table.rows.first.cells.take(3).map((cell) => (cell.child as Text).data), [
       'Reader 1',
       'reader1@example.test',
-      'User',
       'Active',
     ]);
-    expect(find.text('Storage quota per user: 1 GiB'), findsOneWidget);
+    expect(find.textContaining('Storage quota per user'), findsNothing);
     expect(find.text('256 MiB'), findsOneWidget);
     expect(find.text('25%'), findsOneWidget);
     expect(find.text('128 MiB'), findsOneWidget);
     expect(tester.widget<LinearProgressIndicator>(find.byType(LinearProgressIndicator).first).value, .25);
     await tester.scrollUntilVisible(find.byTooltip('Next page'), 500, scrollable: find.byType(Scrollable).first);
+    await tester.pumpAndSettle();
+    final tableElement = tester.element(find.byType(DataTable));
+    final pagerPosition = tester.getTopLeft(find.byTooltip('Next page'));
     await tester.tap(find.byTooltip('Next page'));
+    await tester.pump();
+    expect(tester.element(find.byType(DataTable)), same(tableElement));
+    expect(tester.getTopLeft(find.byTooltip('Next page')), pagerPosition);
+    expect(find.text('Page 1 of 2'), findsOneWidget);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
+    nextPage.complete(directory(2));
     await tester.pumpAndSettle();
     expect(find.text('21 of 21 users'), findsOneWidget);
     expect(find.text('Page 2 of 2'), findsOneWidget);
@@ -297,9 +310,55 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('sorting retains rows through failure and retry and ignores superseded responses', (tester) async {
+    final slowName = Completer<http.Response>();
+    final failedEmail = Completer<http.Response>();
+    var emailAttempts = 0;
+
+    await mount(tester, (request) async {
+      switch (request.url.queryParameters['sort_by']) {
+        case 'display_name':
+          return slowName.future;
+        case 'email':
+          if (++emailAttempts == 1) {
+            return failedEmail.future;
+          }
+
+          return directory(1, total: 2);
+        default:
+          return directory(1, total: 1);
+      }
+    });
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Name'));
+    await tester.pump();
+    expect(find.text('Reader 1'), findsOneWidget);
+    await tester.tap(find.text('Email'));
+    await tester.pump();
+    failedEmail.complete(http.Response('{}', 503));
+    await tester.pumpAndSettle();
+    expect(find.text('Reader 1'), findsOneWidget);
+    expect(tester.widget<DataTable>(find.byType(DataTable)).sortColumnIndex, DirectoryColumn.joined.index);
+    await tester.tap(find.text('Retry'));
+    await tester.pumpAndSettle();
+    expect(find.text('Reader 2'), findsOneWidget);
+    slowName.complete(directory(1, total: 1));
+    await tester.pumpAndSettle();
+    expect(find.text('Reader 2'), findsOneWidget);
+    expect(tester.widget<DataTable>(find.byType(DataTable)).sortColumnIndex, DirectoryColumn.email.index);
+  });
+
   testWidgets('switching server while loading discards the previous directory', (tester) async {
     final pending = Completer<http.Response>();
-    final (_, settings) = await mount(tester, (_) => pending.future);
+    final (_, settings) = await mount(tester, (request) async {
+      return request.url.queryParameters['sort_by'] == 'display_name' ? pending.future : directory(1, total: 1);
+    });
+
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Name'));
+    await tester.pump();
+    expect(find.text('Reader 1'), findsOneWidget);
     await settings.addCustomServer(config.serverBaseUri.toString());
     await tester.pump();
     pending.complete(directory(1, total: 1));
@@ -309,7 +368,15 @@ void main() {
   });
 
   testWidgets('server denial clears the directory and removes admin access', (tester) async {
-    final (auth, settings) = await mount(tester, (_) async => http.Response('{}', 403));
+    final (auth, settings) = await mount(tester, (request) async {
+      return request.url.queryParameters['sort_by'] == 'display_name'
+          ? http.Response('{}', 403)
+          : directory(1, total: 1);
+    });
+
+    await tester.pumpAndSettle();
+    expect(find.text('Reader 1'), findsOneWidget);
+    await tester.tap(find.text('Name'));
     await tester.pumpAndSettle();
     expect(auth.canAdminister(settings), isFalse);
     expect(find.text('Users'), findsNothing);

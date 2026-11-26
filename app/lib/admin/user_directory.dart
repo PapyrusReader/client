@@ -1,7 +1,6 @@
 enum DirectoryColumn {
   name('Name', 'display_name'),
   email('Email', 'email'),
-  role('Role', 'role'),
   status('Status', 'status'),
   joined('Joined', 'created_at'),
   signIn('Last sign-in', 'last_sign_in_at'),
@@ -62,7 +61,6 @@ class DirectoryUser {
     required this.id,
     required this.name,
     required this.email,
-    required this.isAdmin,
     required this.status,
     required this.joined,
     required this.lastSignIn,
@@ -73,7 +71,6 @@ class DirectoryUser {
   final String id;
   final String name;
   final String? email;
-  final bool isAdmin;
   final String status;
   final DateTime joined;
   final DateTime? lastSignIn;
@@ -89,7 +86,6 @@ class DirectoryUser {
       id: json['user_id'] as String,
       name: json['display_name'] as String,
       email: json['email'] as String?,
-      isAdmin: json['role'] == 'admin',
       status: switch (json['status']) {
         'active' => 'Active',
         'unverified' => 'Awaiting verification',

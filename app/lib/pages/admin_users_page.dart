@@ -59,13 +59,27 @@ class _Directory extends StatefulWidget {
   State<_Directory> createState() => _DirectoryState();
 }
 
+typedef _DirectoryQuery = ({int page, DirectoryColumn column, bool descending});
+
 class _DirectoryState extends State<_Directory> {
   final _horizontal = ScrollController();
   final _vertical = ScrollController(keepScrollOffset: false);
-  int _page = 1;
-  DirectoryColumn _column = DirectoryColumn.joined;
-  bool _descending = true;
-  late Future<UserDirectory> _request = _load(_page, _column, _descending);
+  static const _initialQuery = (page: 1, column: DirectoryColumn.joined, descending: true);
+  _DirectoryQuery _requested = _initialQuery;
+  _DirectoryQuery _displayed = _initialQuery;
+  UserDirectory? _directory;
+  int _requestId = 0;
+  bool _loading = true;
+  bool _failed = false;
+
+  DirectoryColumn get _column => (_loading ? _requested : _displayed).column;
+  bool get _descending => (_loading ? _requested : _displayed).descending;
+
+  @override
+  void initState() {
+    super.initState();
+    _load(_initialQuery);
+  }
 
   @override
   void dispose() {
@@ -74,95 +88,128 @@ class _DirectoryState extends State<_Directory> {
     super.dispose();
   }
 
-  Future<UserDirectory> _load(int page, DirectoryColumn column, bool descending) async {
-    final directory = await widget.load(page, column, descending);
+  Future<void> _load(_DirectoryQuery query) async {
+    final requestId = ++_requestId;
+    UserDirectory directory;
 
-    if (mounted && page > directory.lastPage && column == _column && descending == _descending && page == _page) {
-      return widget.load(directory.lastPage, column, descending);
+    try {
+      directory = await widget.load(query.page, query.column, query.descending);
+
+      if (mounted && requestId == _requestId && query.page > directory.lastPage) {
+        directory = await widget.load(directory.lastPage, query.column, query.descending);
+      }
+    } catch (_) {
+      if (mounted && requestId == _requestId) {
+        setState(() {
+          _loading = false;
+          _failed = true;
+        });
+      }
+
+      return;
     }
 
-    return directory;
-  }
-
-  void _showPage(int page, DirectoryColumn column, bool descending) {
-    if (_vertical.hasClients) {
-      _vertical.jumpTo(0);
+    if (!mounted || requestId != _requestId) {
+      return;
     }
 
     setState(() {
-      _page = page;
-      _column = column;
-      _descending = descending;
-      _request = _load(page, column, descending);
+      _directory = directory;
+      _displayed = query;
+      _loading = false;
     });
+
+    if (_vertical.hasClients) {
+      _vertical.jumpTo(0);
+    }
   }
+
+  void _showPage(int page, DirectoryColumn column, bool descending) {
+    final query = (page: page, column: column, descending: descending);
+
+    setState(() {
+      _requested = query;
+      _loading = true;
+      _failed = false;
+    });
+
+    _load(query);
+  }
+
+  Widget _retry() => Wrap(
+    alignment: WrapAlignment.center,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    spacing: Spacing.sm,
+    children: [
+      const Text('Couldn’t load users.'),
+      TextButton(
+        onPressed: () => _showPage(_requested.page, _requested.column, _requested.descending),
+        child: const Text('Retry'),
+      ),
+    ],
+  );
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder<UserDirectory>(
-      future: _request,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const Center(child: AppCircularProgressIndicator(semanticsLabel: 'Loading users'));
-        }
+    final directory = _directory;
 
-        if (snapshot.hasError) {
-          return Center(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text('Couldn’t load users.'),
-                TextButton(onPressed: () => _showPage(_page, _column, _descending), child: const Text('Retry')),
-              ],
-            ),
-          );
-        }
+    if (directory == null) {
+      return Center(child: _failed ? _retry() : const AppCircularProgressIndicator(semanticsLabel: 'Loading users'));
+    }
 
-        final directory = snapshot.requireData;
-        final padding = libraryPageHorizontalPadding(context);
+    final padding = libraryPageHorizontalPadding(context);
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final wide =
-                MediaQuery.sizeOf(context).width >= Breakpoints.desktopSmall &&
-                constraints.maxWidth >= Breakpoints.tablet * MediaQuery.textScalerOf(context).scale(1);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        if (_failed) _retry(),
+        SizedBox(
+          height: 2,
+          child: _loading ? const AppLinearProgressIndicator(semanticsLabel: 'Updating users') : null,
+        ),
+        Expanded(
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              final wide =
+                  MediaQuery.sizeOf(context).width >= Breakpoints.desktopSmall &&
+                  constraints.maxWidth >= Breakpoints.tablet * MediaQuery.textScalerOf(context).scale(1);
 
-            return ListView(
-              controller: _vertical,
-              padding: EdgeInsets.symmetric(horizontal: padding, vertical: Spacing.lg),
-              children: [
-                Wrap(
-                  alignment: WrapAlignment.spaceBetween,
-                  crossAxisAlignment: WrapCrossAlignment.center,
-                  spacing: Spacing.md,
-                  children: [
-                    Text(directory.rangeLabel),
-                    Text('Storage quota per user: ${_bytes(directory.quotaBytes)}'),
-                    if (!wide) _sortControls(context),
-                  ],
-                ),
-                const SizedBox(height: Spacing.md),
-                if (directory.users.isEmpty)
-                  const Text('No users on this page.')
-                else if (wide)
-                  _table(directory, constraints.maxWidth - 2 * padding)
-                else
-                  for (final user in directory.users) _compactAccount(context, user, directory.quotaBytes),
-                if (directory.lastPage > 1) ...[
-                  const SizedBox(height: Spacing.md),
-                  ActivityPagination(
-                    page: directory.page - 1,
-                    pageCount: directory.lastPage,
-                    previousLabel: 'Previous page',
-                    nextLabel: 'Next page',
-                    onChanged: (index) => _showPage(index + 1, _column, _descending),
+              return ListView(
+                controller: _vertical,
+                padding: EdgeInsets.symmetric(horizontal: padding, vertical: Spacing.lg),
+                children: [
+                  Wrap(
+                    alignment: WrapAlignment.spaceBetween,
+                    crossAxisAlignment: WrapCrossAlignment.center,
+                    spacing: Spacing.md,
+                    children: [
+                      Text(directory.rangeLabel),
+                      if (!wide) _sortControls(context),
+                    ],
                   ),
+                  const SizedBox(height: Spacing.md),
+                  if (directory.users.isEmpty)
+                    const Text('No users on this page.')
+                  else if (wide)
+                    _table(directory, constraints.maxWidth - 2 * padding)
+                  else
+                    for (final user in directory.users) _compactAccount(context, user, directory.quotaBytes),
+                  if (directory.lastPage > 1) ...[
+                    const SizedBox(height: Spacing.md),
+                    ActivityPagination(
+                      page: directory.page - 1,
+                      pageCount: directory.lastPage,
+                      previousLabel: 'Previous page',
+                      nextLabel: 'Next page',
+                      onChanged: (index) => _showPage(index + 1, _column, _descending),
+                    ),
+                  ],
                 ],
-              ],
-            );
-          },
-        );
-      },
+              );
+            },
+          ),
+        ),
+      ],
     );
   }
 
@@ -264,7 +311,6 @@ class _DirectoryState extends State<_Directory> {
     return switch (column) {
       DirectoryColumn.name => Text(user.name),
       DirectoryColumn.email => Text(user.email ?? '—'),
-      DirectoryColumn.role => Text(user.isAdmin ? 'Admin' : 'User'),
       DirectoryColumn.status => Text(user.status),
       DirectoryColumn.joined => Text(DateFormat.yMMMd().format(user.joined)),
       DirectoryColumn.signIn => Text(
