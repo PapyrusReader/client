@@ -1,0 +1,61 @@
+name: Publish signed client downloads
+run-name: Publish ${{ inputs.manifest }}
+on:
+  workflow_dispatch:
+    inputs:
+      manifest:
+        required: true
+        type: string
+      build_run:
+        required: true
+        type: string
+permissions:
+  actions: read
+  contents: write
+concurrency:
+  group: publish-client-downloads
+  cancel-in-progress: false
+jobs:
+  publish:
+    if: github.ref == 'refs/heads/master'
+    environment: release
+    runs-on: ubuntu-24.04
+    env:
+      GH_TOKEN: ${{ github.token }}
+      MANIFEST: ${{ inputs.manifest }}
+      BUILD_RUN: ${{ inputs.build_run }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Check out the protected workspace release branch
+        uses: actions/checkout@v4
+        with:
+          repository: PapyrusReader/papyrus
+          ref: master
+          fetch-depth: 0
+          path: workspace
+      - name: Resolve approved component revision
+        id: source
+        working-directory: workspace
+        env:
+          MANIFEST: ${{ inputs.manifest }}
+        run: python3 tools/octopus/source.py client "$MANIFEST"
+      - name: Verify authorized workspace and build provenance
+        id: release
+        run: |
+          set -euo pipefail
+          [[ "$MANIFEST" =~ ^[0-9a-f]{40}$ && "$BUILD_RUN" =~ ^[1-9][0-9]*$ ]]
+          run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN")
+          jq -e --arg title "Build client $MANIFEST" '.path == ".github/workflows/release.yml" and .head_branch == "master" and .event == "workflow_dispatch" and .conclusion == "success" and .display_title == $title' <<< "$run" >/dev/null
+      - uses: actions/download-artifact@v4
+        with:
+          github-token: ${{ github.token }}
+          run-id: ${{ inputs.build_run }}
+          name: sealed-release
+          path: artifacts
+      - name: Verify and publish original signed artifacts
+        env:
+          TAG: ${{ steps.source.outputs.tag }}
+          REVISION: ${{ steps.source.outputs.revision }}
+        run: python3 tools/release_assets.py publish artifacts --tag "$TAG" --revision "$REVISION"

@@ -1,16 +1,19 @@
 name: Release
 
+run-name: Build client ${{ inputs.manifest }}
 on:
-  push:
-    branches: [master]
-    paths: ['app/pubspec.yaml']
   workflow_dispatch:
+    inputs:
+      manifest:
+        description: 'Approved Papyrus workspace master commit'
+        required: true
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: release-${{ github.ref }}
+  group: release-${{ inputs.manifest }}
   cancel-in-progress: false
 
 env:
@@ -21,13 +24,28 @@ jobs:
     if: github.ref == 'refs/heads/master'
     runs-on: ubuntu-latest
     outputs:
+      revision: ${{ steps.source.outputs.revision }}
       release: ${{ steps.version.outputs.release }}
       version: ${{ steps.version.outputs.version }}
       build_number: ${{ steps.version.outputs.build_number }}
       tag: ${{ steps.version.outputs.tag }}
     steps:
+      - name: Check out the protected workspace release branch
+        uses: actions/checkout@v4
+        with:
+          repository: PapyrusReader/papyrus
+          ref: master
+          fetch-depth: 0
+          path: workspace
+      - name: Resolve approved component revision
+        id: source
+        working-directory: workspace
+        env:
+          MANIFEST: ${{ inputs.manifest }}
+        run: python3 tools/octopus/source.py client "$MANIFEST"
       - uses: actions/checkout@v4
         with:
+          ref: ${{ steps.source.outputs.revision }}
           fetch-depth: 0
       - uses: actions/setup-python@v5
         with:
@@ -35,15 +53,7 @@ jobs:
       - run: python -m unittest discover -s tools/tests -v
       - name: Check committed version
         id: version
-        env:
-          BEFORE: ${{ github.event.before }}
-          EVENT_NAME: ${{ github.event_name }}
-        run: |
-          if [ "$EVENT_NAME" = workflow_dispatch ]; then
-            python tools/release_gate.py client --manual
-          else
-            python tools/release_gate.py client --base "$BEFORE"
-          fi
+        run: python tools/release_gate.py client --manual
 
   build-android:
     needs: version
@@ -62,6 +72,8 @@ jobs:
         working-directory: app
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.revision }}
       - name: Set temporary keystore path
         run: printf 'ANDROID_KEYSTORE_PATH=%s/upload.jks\n' "$RUNNER_TEMP" >> "$GITHUB_ENV"
       - uses: actions/setup-java@v4
@@ -137,6 +149,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.revision }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -161,7 +175,7 @@ jobs:
 
       - name: Create archive
         run: |
-          python ../tools/release_assets.py stamp-web build/web --tag "$RELEASE_TAG"
+          python ../tools/release_assets.py stamp-web build/web --tag "$RELEASE_TAG" --revision "${{ needs.version.outputs.revision }}"
           cd build/web
           zip -r "../../papyrus-${RELEASE_TAG}-web.zip" .
 
@@ -187,6 +201,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.revision }}
 
       - name: Install Linux dependencies
         run: bash ../tools/install_linux_build_dependencies.sh
@@ -243,6 +259,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.version.outputs.revision }}
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2
@@ -280,7 +298,7 @@ jobs:
           path: app/dist/*
           if-no-files-found: error
 
-  release:
+  seal:
     environment: release
     needs: [version, build-android, build-web, build-linux, build-windows]
     if: needs.version.outputs.release == 'true'
@@ -293,6 +311,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ needs.version.outputs.revision }}
           fetch-depth: 0
       - uses: actions/download-artifact@v4
         with:
@@ -306,32 +325,11 @@ jobs:
           APT_SIGNING_FINGERPRINT: ${{ vars.APT_SIGNING_FINGERPRINT }}
         run: python3 tools/apt_repository.py artifacts --tag "$RELEASE_TAG"
       - name: Verify and seal release
-        run: python3 tools/release_assets.py seal artifacts --tag "$RELEASE_TAG"
-      - name: Publish immutable downloads
-        run: python3 tools/release_assets.py publish artifacts --tag "$RELEASE_TAG"
-
-  deliver:
-    needs: [version, release]
-    if: needs.version.outputs.release == 'true'
-    uses: ./.github/workflows/delivery.yml
-    with:
-      tag: ${{ needs.version.outputs.tag }}
-      destination: all
-    secrets: inherit
-
-  summary:
-    if: always()
-    needs: [version, build-android, build-web, build-linux, build-windows, release, deliver]
-    runs-on: ubuntu-24.04
-    steps:
-      - name: Report release stages
-        env:
-          RESULTS: ${{ toJSON(needs) }}
-        run: |
-          python3 - <<'PYTHON'
-          import json, os
-          with open(os.environ['GITHUB_STEP_SUMMARY'], 'a') as output:
-              output.write('## Release stages\n\n| Stage | Result |\n| --- | --- |\n')
-              for name, stage in json.loads(os.environ['RESULTS']).items():
-                  output.write(f"| {name} | {stage['result']} |\n")
-          PYTHON
+        run: python3 tools/release_assets.py seal artifacts --tag "$RELEASE_TAG" --revision "${{ needs.version.outputs.revision }}"
+      - name: Retain the verified, signed downloads for publication
+        uses: actions/upload-artifact@v4
+        with:
+          name: sealed-release
+          path: artifacts/*
+          retention-days: 30
+          if-no-files-found: error
