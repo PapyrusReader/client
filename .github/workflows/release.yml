@@ -30,19 +30,19 @@ jobs:
       build_number: ${{ steps.version.outputs.build_number }}
       tag: ${{ steps.version.outputs.tag }}
     steps:
-      - name: Resolve source from protected workspace master
+      - name: Check out the protected workspace release branch
+        uses: actions/checkout@v4
+        with:
+          repository: PapyrusReader/papyrus
+          ref: master
+          fetch-depth: 0
+          path: workspace
+      - name: Resolve approved component revision
         id: source
+        working-directory: workspace
         env:
           MANIFEST: ${{ inputs.manifest }}
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          [[ "$MANIFEST" =~ ^[0-9a-f]{40}$ ]]
-          test "$(gh api repos/PapyrusReader/papyrus/git/ref/heads/master --jq .object.sha)" = "$MANIFEST"
-          gh api -H 'Accept: application/vnd.github.raw+json' "repos/PapyrusReader/papyrus/contents/release.json?ref=$MANIFEST" | jq -e '.orchestrator == "octopus"' >/dev/null
-          revision=$(gh api "repos/PapyrusReader/papyrus/git/trees/$MANIFEST" --jq '.tree[] | select(.path == "client" and .mode == "160000") | .sha')
-          [[ "$revision" =~ ^[0-9a-f]{40}$ ]]
-          echo "revision=$revision" >> "$GITHUB_OUTPUT"
+        run: python3 tools/octopus/source.py client "$MANIFEST"
       - uses: actions/checkout@v4
         with:
           ref: ${{ steps.source.outputs.revision }}

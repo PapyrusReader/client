@@ -28,20 +28,26 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Check out the protected workspace release branch
+        uses: actions/checkout@v4
+        with:
+          repository: PapyrusReader/papyrus
+          ref: master
+          fetch-depth: 0
+          path: workspace
+      - name: Resolve approved component revision
+        id: source
+        working-directory: workspace
+        env:
+          MANIFEST: ${{ inputs.manifest }}
+        run: python3 tools/octopus/source.py client "$MANIFEST"
       - name: Verify authorized workspace and build provenance
         id: release
         run: |
           set -euo pipefail
           [[ "$MANIFEST" =~ ^[0-9a-f]{40}$ && "$BUILD_RUN" =~ ^[1-9][0-9]*$ ]]
-          test "$(gh api repos/PapyrusReader/papyrus/git/ref/heads/master --jq .object.sha)" = "$MANIFEST"
           run=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$BUILD_RUN")
           jq -e --arg title "Build client $MANIFEST" '.path == ".github/workflows/release.yml" and .head_branch == "master" and .event == "workflow_dispatch" and .conclusion == "success" and .display_title == $title' <<< "$run" >/dev/null
-          gh api -H 'Accept: application/vnd.github.raw+json' "repos/PapyrusReader/papyrus/contents/release.json?ref=$MANIFEST" > "$RUNNER_TEMP/manifest.json"
-          tag=$(jq -er 'select(.orchestrator == "octopus") | "v\(.version)+\(.android_build_number)"' "$RUNNER_TEMP/manifest.json")
-          revision=$(gh api "repos/PapyrusReader/papyrus/git/trees/$MANIFEST" --jq '.tree[] | select(.path == "client" and .mode == "160000") | .sha')
-          [[ "$revision" =~ ^[0-9a-f]{40}$ ]]
-          echo "TAG=$tag" >> "$GITHUB_ENV"
-          echo "REVISION=$revision" >> "$GITHUB_ENV"
       - uses: actions/download-artifact@v4
         with:
           github-token: ${{ github.token }}
@@ -49,4 +55,7 @@ jobs:
           name: sealed-release
           path: artifacts
       - name: Verify and publish original signed artifacts
+        env:
+          TAG: ${{ steps.source.outputs.tag }}
+          REVISION: ${{ steps.source.outputs.revision }}
         run: python3 tools/release_assets.py publish artifacts --tag "$TAG" --revision "$REVISION"
