@@ -79,8 +79,11 @@ void main() {
       await $(find.byTooltip('Back')).tap();
     }
 
+    final confirmation = ModalRoute.of($.tester.element(find.text('Keep editing')))!;
     await $('Keep editing').tap();
-    await $(selectedRating).waitUntilVisible();
+    await $.tester.pumpAndSettle();
+    await confirmation.completed.timeout(const Duration(seconds: 10));
+    await $(selectedRating).waitUntilExists();
     await systemBack();
     await $('Discard').tap();
     await $('No notes yet').waitUntilVisible();
