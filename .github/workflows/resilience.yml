@@ -146,6 +146,11 @@ jobs:
           path: |
             app/build/resilience
             app/build/app/reports/androidTests
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: android-journey-logcat-${{ github.run_attempt }}
+          path: app/build/app/outputs/androidTest-results/**/logcat-*.txt
 
   ios:
     if: github.event_name != 'pull_request'

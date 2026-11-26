@@ -49,7 +49,13 @@ void main() {
     await $.tester.pumpAndSettle();
     final edit = find.widgetWithIcon(OutlinedButton, Icons.edit_outlined);
     await $(edit).tap();
-    await $.fill('Title*', 'Unsaved field guide');
+    // Keep native Back scoped to navigation while the editor has unsaved changes.
+    final rating = find.byTooltip('Rate 4 out of 5 stars');
+    final selectedRating = find.byTooltip('Clear 4 star rating');
+    await $(rating).waitUntilExists();
+    await $.tester.ensureVisible(rating);
+    await $(rating).tap();
+    await $(selectedRating).waitUntilVisible();
 
     if (Platform.isIOS) {
       final navigator = Navigator.of($.tester.element(find.byTooltip('Back')));
@@ -67,17 +73,18 @@ void main() {
 
       expect(started, isTrue, reason: 'The short edge swipe must start an interactive Back gesture.');
       expect(router.routeInformationProvider.value.uri.path, '/library/edit/${book.id}');
-      await $('Unsaved field guide').waitUntilVisible();
+      await $(selectedRating).waitUntilVisible();
       await $.platform.ios.swipeBack();
     } else {
       await $(find.byTooltip('Back')).tap();
     }
 
     await $('Keep editing').tap();
-    await $('Unsaved field guide').waitUntilExists();
+    await $(selectedRating).waitUntilVisible();
     await systemBack();
     await $('Discard').tap();
     await $('No notes yet').waitUntilVisible();
+    expect($.store.getBook(book.id)!.rating, book.rating);
     await $(find.byTooltip('Back')).tap();
     await $(find.byType(ShelfContentsPage)).waitUntilExists();
     await $(book.title).tap();
