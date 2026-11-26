@@ -6,7 +6,7 @@ import 'package:papyrus/updates/update_dialog.dart';
 import 'package:papyrus/updates/update_controller.dart';
 
 Future<void> showUpdateSettings(BuildContext context, UpdateController controller) async {
-  if (!controller.supported || controller.viewingSettings) {
+  if (controller.viewingSettings) {
     return;
   }
 
@@ -15,7 +15,7 @@ Future<void> showUpdateSettings(BuildContext context, UpdateController controlle
   try {
     await controller.initialize();
 
-    if (!context.mounted || !controller.supported) {
+    if (!context.mounted) {
       return;
     }
 

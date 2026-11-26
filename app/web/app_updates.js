@@ -3,12 +3,12 @@
 window.papyrusApplyUpdate = async () => {
   if (!('serviceWorker' in navigator)) {
     window.location.reload();
-    return 'Reloading Papyrus…';
+    return null;
   }
   const registration = await navigator.serviceWorker.getRegistration(document.baseURI);
   if (!registration) {
     window.location.reload();
-    return 'Reloading Papyrus…';
+    return null;
   }
   await registration.update();
   const installing = registration.installing;
@@ -30,7 +30,7 @@ window.papyrusApplyUpdate = async () => {
   }
   if (!registration.waiting) {
     window.location.reload();
-    return 'Reloading Papyrus…';
+    return null;
   }
   return new Promise(resolve => {
     const channel = new MessageChannel();
@@ -41,7 +41,7 @@ window.papyrusApplyUpdate = async () => {
       resolve(message);
     };
     const activated = () => {
-      finish('Reloading Papyrus…');
+      finish(null);
       window.location.reload();
     };
     const timeout = setTimeout(() => finish('The update is not ready. Please try again.'), 30000);
