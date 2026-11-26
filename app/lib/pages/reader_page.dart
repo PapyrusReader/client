@@ -291,7 +291,11 @@ class _ReaderPageState extends State<ReaderPage> {
     if (book == null || document == null || preferences == null) {
       return Scaffold(
         backgroundColor: Theme.of(context).colorScheme.surface,
-        body: SafeArea(child: _ReaderLoading(onBack: _close)),
+        body: ReaderSystemTextScope(
+          child: SafeArea(
+            child: ReaderOpeningView(onBack: _close, child: _openingIndicator),
+          ),
+        ),
       );
     }
 
@@ -341,7 +345,7 @@ class _ReaderPageState extends State<ReaderPage> {
               title: 'No results found',
               subtitle: 'Try a different word or phrase.',
             ),
-            loading: (context, state) => const _ReaderLoading(),
+            loading: (context, state) => _openingIndicator,
             tableOfContents: (context, panel) => ReaderLibraryPanel(
               library: _library!,
               panel: panel,
@@ -544,25 +548,4 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 }
 
-class _ReaderLoading extends StatelessWidget {
-  const _ReaderLoading({this.onBack});
-
-  final VoidCallback? onBack;
-
-  @override
-  Widget build(BuildContext context) {
-    const indicator = Center(child: AppCircularProgressIndicator(semanticsLabel: 'Opening book'));
-
-    if (onBack == null) {
-      return indicator;
-    }
-
-    return Stack(
-      fit: StackFit.expand,
-      children: [
-        indicator,
-        PositionedDirectional(top: 0, start: 0, child: BackButton(onPressed: onBack)),
-      ],
-    );
-  }
-}
+const _openingIndicator = Center(child: AppCircularProgressIndicator(semanticsLabel: 'Opening book'));
