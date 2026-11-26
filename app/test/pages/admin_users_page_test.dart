@@ -302,14 +302,20 @@ void main() {
     expect(find.byTooltip('Next page'), findsNothing);
     await tester.tap(find.byTooltip('Sort users by'));
     await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(PopupMenuItem<DirectoryColumn>, 'Email'));
+    await tester.tap(find.widgetWithText(PopupMenuItem<DirectoryColumn>, 'Average per book'));
     await tester.pumpAndSettle();
-    expect(requests.last['sort_by'], 'email');
+    expect(requests.last['sort_by'], 'average_bytes');
+    final label = find.text('Sort by Average per book');
+    final direction = find.widgetWithIcon(IconButton, Icons.arrow_upward);
+    expect(tester.widget<Text>(label).overflow, TextOverflow.ellipsis);
+    expect(tester.getCenter(direction).dy, closeTo(tester.getCenter(find.text('1 of 1 user')).dy, 1));
+    expect(tester.getTopRight(direction).dx, tester.getTopRight(find.byType(Divider).last).dx);
     await tester.tap(find.byTooltip('Sort descending'));
     await tester.pumpAndSettle();
     expect(requests.last['descending'], 'true');
     expect(find.text('256 MiB'), findsOneWidget);
     expect(find.text('25%'), findsOneWidget);
+    expect(find.byType(LinearProgressIndicator), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

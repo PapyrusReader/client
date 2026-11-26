@@ -173,25 +173,21 @@ class _DirectoryState extends State<_Directory> {
               final wide =
                   MediaQuery.sizeOf(context).width >= Breakpoints.desktopSmall &&
                   constraints.maxWidth >= Breakpoints.tablet * MediaQuery.textScalerOf(context).scale(1);
+              final contentWidth = constraints.maxWidth - 2 * padding;
 
               return ListView(
                 controller: _vertical,
-                padding: EdgeInsets.symmetric(horizontal: padding, vertical: Spacing.lg),
+                padding: EdgeInsets.fromLTRB(padding, wide ? Spacing.lg : Spacing.xs, padding, Spacing.lg),
                 children: [
-                  Wrap(
-                    alignment: WrapAlignment.spaceBetween,
-                    crossAxisAlignment: WrapCrossAlignment.center,
-                    spacing: Spacing.md,
-                    children: [
-                      Text(directory.rangeLabel),
-                      if (!wide) _sortControls(context),
-                    ],
-                  ),
-                  const SizedBox(height: Spacing.md),
+                  if (wide)
+                    Text(directory.rangeLabel)
+                  else
+                    _compactToolbar(context, directory.rangeLabel, contentWidth),
+                  SizedBox(height: wide ? Spacing.md : Spacing.sm),
                   if (directory.users.isEmpty)
                     const Text('No users on this page.')
                   else if (wide)
-                    _table(directory, constraints.maxWidth - 2 * padding)
+                    _table(directory, contentWidth)
                   else
                     for (final user in directory.users) _compactAccount(context, user, directory.quotaBytes),
                   if (directory.lastPage > 1) ...[
@@ -213,22 +209,34 @@ class _DirectoryState extends State<_Directory> {
     );
   }
 
-  Widget _sortControls(BuildContext context) => Wrap(
-    crossAxisAlignment: WrapCrossAlignment.center,
+  Widget _compactToolbar(BuildContext context, String rangeLabel, double width) => Row(
     children: [
-      PopupMenuButton<DirectoryColumn>(
-        tooltip: 'Sort users by',
-        popUpAnimationStyle: AppMotion.animationStyle(context),
-        initialValue: _column,
-        onSelected: (column) => _showPage(1, column, column == _column && _descending),
-        itemBuilder: (_) => [
-          for (final column in DirectoryColumn.values) PopupMenuItem(value: column, child: Text(column.label)),
-        ],
-        child: Padding(
-          padding: const EdgeInsets.all(Spacing.sm),
-          child: Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [Text('Sort by ${_column.label}'), const Icon(Icons.arrow_drop_down)],
+      ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: width * 0.4),
+        child: Text(rangeLabel),
+      ),
+      const SizedBox(width: Spacing.sm),
+      Expanded(
+        child: Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: PopupMenuButton<DirectoryColumn>(
+            tooltip: 'Sort users by',
+            popUpAnimationStyle: AppMotion.animationStyle(context),
+            initialValue: _column,
+            onSelected: (column) => _showPage(1, column, column == _column && _descending),
+            itemBuilder: (_) => [
+              for (final column in DirectoryColumn.values) PopupMenuItem(value: column, child: Text(column.label)),
+            ],
+            child: Padding(
+              padding: const EdgeInsets.all(Spacing.sm),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(child: Text('Sort by ${_column.label}', maxLines: 1, overflow: TextOverflow.ellipsis)),
+                  const Icon(Icons.arrow_drop_down),
+                ],
+              ),
+            ),
           ),
         ),
       ),
@@ -271,7 +279,8 @@ class _DirectoryState extends State<_Directory> {
               DataRow(
                 key: ValueKey(user.id),
                 cells: [
-                  for (final column in DirectoryColumn.values) DataCell(_value(column, user, directory.quotaBytes)),
+                  for (final column in DirectoryColumn.values)
+                    DataCell(_value(column, user, directory.quotaBytes, showQuotaBar: true)),
                 ],
               ),
           ],
@@ -305,7 +314,7 @@ class _DirectoryState extends State<_Directory> {
     );
   }
 
-  Widget _value(DirectoryColumn column, DirectoryUser user, int quota) {
+  Widget _value(DirectoryColumn column, DirectoryUser user, int quota, {bool showQuotaBar = false}) {
     final signIn = user.lastSignIn;
 
     return switch (column) {
@@ -318,17 +327,22 @@ class _DirectoryState extends State<_Directory> {
       ),
       DirectoryColumn.books => Text('${user.bookCount}'),
       DirectoryColumn.storage => Text(_bytes(user.usedBytes)),
-      DirectoryColumn.quota => _quotaUsage(user.usedBytes, quota),
+      DirectoryColumn.quota => _quotaUsage(user.usedBytes, quota, showBar: showQuotaBar),
       DirectoryColumn.average => Text(_bytes(user.averageBytes)),
     };
   }
 
-  Widget _quotaUsage(int bytes, int quota) {
+  Widget _quotaUsage(int bytes, int quota, {required bool showBar}) {
     if (quota <= 0) {
       return const Text('—');
     }
 
     final fraction = bytes / quota;
+    final percentage = Text('${(fraction * 100).round()}%');
+
+    if (!showBar) {
+      return percentage;
+    }
 
     return SizedBox(
       width: 80,
@@ -336,7 +350,7 @@ class _DirectoryState extends State<_Directory> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${(fraction * 100).round()}%'),
+          percentage,
           const SizedBox(height: Spacing.xs),
           ExcludeSemantics(child: LinearProgressIndicator(value: fraction.clamp(0, 1))),
         ],
