@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'package:flutter/material.dart';
 import 'package:papyrus/themes/app_motion.dart';
 import 'package:papyrus/themes/design_tokens.dart';
@@ -164,19 +165,19 @@ class AppPageBar extends StatelessWidget implements PreferredSizeWidget {
   Widget build(BuildContext context) {
     Widget? navigation = leading;
 
-    if (compact && navigation == null && automaticallyImplyLeading) {
+    if (navigation == null && automaticallyImplyLeading) {
       final route = ModalRoute.of(context);
 
       if (Scaffold.maybeOf(context)?.hasDrawer == true) {
         navigation = const DrawerButton();
       } else if (route?.impliesAppBarDismissal == true) {
-        navigation = route is PageRoute && route.fullscreenDialog ? const CloseButton() : const BackButton();
+        navigation = route is PageRoute && route.fullscreenDialog ? const CloseButton() : const AppBackButton();
       }
     }
 
     return AppBar(
       primary: primary,
-      automaticallyImplyLeading: compact ? false : automaticallyImplyLeading,
+      automaticallyImplyLeading: false,
       backgroundColor: backgroundColor,
       foregroundColor: foregroundColor,
       toolbarHeight: toolbarHeight,

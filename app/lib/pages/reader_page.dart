@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'package:papyrus/services/reading_device_identity.dart';
 import 'dart:async';
 import 'dart:convert';
@@ -55,6 +56,7 @@ class _ReaderPageState extends State<ReaderPage> {
   Timer? _finishTimer;
   bool _finishPrompted = false;
   bool _promptOpen = false;
+  bool _closing = false;
   bool _foreground = true;
   String? _trackingError;
   late final AppLifecycleListener _lifecycle;
@@ -272,7 +274,7 @@ class _ReaderPageState extends State<ReaderPage> {
 
     if (error != null) {
       return Scaffold(
-        appBar: AppPageBar(context: context, leading: const BackButton()),
+        appBar: AppPageBar(context: context, leading: const AppBackButton()),
         body: Center(
           child: Padding(
             padding: const EdgeInsets.all(24),
@@ -293,7 +295,7 @@ class _ReaderPageState extends State<ReaderPage> {
       );
     }
 
-    return Scaffold(
+    final readerPage = Scaffold(
       body: ReaderSystemTextScope(
         child: PapyrusReader(
           document: document,
@@ -350,7 +352,8 @@ class _ReaderPageState extends State<ReaderPage> {
                 library: _library!,
                 snapshot: state.snapshot,
                 isBusy: state.isBusy,
-                inMenu: state.actionsInMenu,
+                // Flutter invokes the menu command after dismissing its overlay.
+                onMenuToggle: state.actionsInMenu ? () => _library!.toggleBookmark(context, state.snapshot) : null,
               ),
               if (state.actionsInMenu)
                 MenuItemButton(
@@ -386,6 +389,16 @@ class _ReaderPageState extends State<ReaderPage> {
           onBack: _close,
         ),
       ),
+    );
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) {
+          _close();
+        }
+      },
+      child: readerPage,
     );
   }
 
@@ -445,7 +458,7 @@ class _ReaderPageState extends State<ReaderPage> {
   Future<void> _confirmFinished() async {
     _finishTimer = null;
 
-    if (!mounted || !_foreground || _tracker?.repository.isCurrent == false) {
+    if (!mounted || _closing || !_foreground || _tracker?.repository.isCurrent == false) {
       return;
     }
 
@@ -496,12 +509,19 @@ class _ReaderPageState extends State<ReaderPage> {
   }
 
   Future<void> _close() async {
+    if (_closing) {
+      return;
+    }
+
+    _closing = true;
     _finishTimer?.cancel();
 
     try {
       await _tracker?.close();
       await _session?.flush();
     } catch (_) {
+      _closing = false;
+
       if (mounted) {
         ScaffoldMessenger.maybeOf(
           context,
@@ -516,7 +536,7 @@ class _ReaderPageState extends State<ReaderPage> {
     }
 
     if (context.canPop()) {
-      context.pop();
+      popAppPage(context);
       return;
     }
 

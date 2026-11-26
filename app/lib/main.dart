@@ -55,12 +55,13 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'config/app_router.dart';
+import 'config/page_history.dart';
 import 'package:papyrus/goals/goal_calendar.dart';
 
 Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
   ensureBookImportDropPluginRegistered();
-  usePathUrlStrategy();
+  setUrlStrategy(AppPageHistory());
 
   LicenseRegistry.addLicense(() async* {
     final license = await rootBundle.loadString('fonts/OpenDyslexic/OFL.txt');

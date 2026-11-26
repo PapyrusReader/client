@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:papyrus/data/data_store.dart';
@@ -85,7 +86,7 @@ class _GoalsPageState extends State<GoalsPage> {
                 if (widget.history)
                   LibraryPageHeader(
                     title: 'Goal history',
-                    leading: BackButton(onPressed: () => context.pop()),
+                    leading: BackButton(onPressed: () => popAppPage(context)),
                     compact: _usesFab(context),
                   )
                 else

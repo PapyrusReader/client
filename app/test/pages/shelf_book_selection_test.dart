@@ -354,7 +354,7 @@ void main() {
         expect(selection.selectedBookIds, isEmpty);
         expect(find.byTooltip('Select all').hitTestable(), findsNothing);
         expect(find.byTooltip('Deselect all').hitTestable(), findsNothing);
-        expect(find.byTooltip('Back to shelves'), findsOneWidget);
+        expect(find.byTooltip('Back'), findsOneWidget);
         expect(find.byTooltip('Remove from shelf'), findsNothing);
         expect(tester.getRect(find.text('Weekend reading')), titleRect);
         expect(tester.getRect(find.byType(TextField)), searchRect);

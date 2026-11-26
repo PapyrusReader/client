@@ -286,7 +286,7 @@ class _ShelvesPageState extends State<ShelvesPage> {
   }
 
   void _showShelfDetail(BuildContext context, Shelf shelf) {
-    context.go('/library/shelves/${shelf.id}');
+    context.pushNamed('SHELF_CONTENTS', pathParameters: {'shelfId': shelf.id});
   }
 
   void _showShelfOptions(BuildContext context, Shelf shelf) {

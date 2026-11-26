@@ -194,6 +194,8 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 
 4. Open a pull request
 
+For device journeys, Monkey runs, and interrupted sync uploads, see [Journey testing](docs/JOURNEY_TESTING.md).
+
 ## Resources
 
 | Repository | Description |

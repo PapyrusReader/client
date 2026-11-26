@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'dart:convert';
 import 'package:papyrus_reader/papyrus_reader.dart';
 import 'dart:async';
@@ -142,14 +143,14 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
   Widget _buildLoadingState(BuildContext context) {
     return Scaffold(
-      appBar: AppPageBar(context: context, leading: const BackButton(), title: const Text('Loading...')),
+      appBar: AppPageBar(context: context, leading: const AppBackButton(), title: const Text('Loading...')),
       body: const Center(child: AppCircularProgressIndicator()),
     );
   }
 
   Widget _buildErrorState(BuildContext context, String error) {
     return Scaffold(
-      appBar: AppPageBar(context: context, leading: const BackButton(), title: const Text('Error')),
+      appBar: AppPageBar(context: context, leading: const AppBackButton(), title: const Text('Error')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -176,7 +177,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
   Widget _buildNotFoundState(BuildContext context) {
     return Scaffold(
-      appBar: AppPageBar(context: context, leading: const BackButton(), title: const Text('Not found')),
+      appBar: AppPageBar(context: context, leading: const AppBackButton(), title: const Text('Not found')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -210,7 +211,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
                   tooltip: 'Back',
                   onPressed: () {
                     if (context.canPop()) {
-                      context.pop();
+                      popAppPage(context);
                     } else {
                       context.go('/library/books');
                     }
@@ -284,7 +285,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
     return Scaffold(
       appBar: AppPageBar(
         context: context,
-        leading: const BackButton(),
+        leading: const AppBackButton(),
         title: Text(provider.book!.title, overflow: TextOverflow.ellipsis),
         actions: [
           PopupMenuButton<String>(
@@ -558,7 +559,7 @@ class _BookDetailsPageState extends State<BookDetailsPage> with TickerProviderSt
 
   void _onEdit() {
     if (_provider.book != null) {
-      context.goNamed('BOOK_EDIT', pathParameters: {'bookId': _provider.book!.id});
+      context.pushNamed('BOOK_EDIT', pathParameters: {'bookId': _provider.book!.id});
     }
   }
 

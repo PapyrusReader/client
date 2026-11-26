@@ -50,3 +50,4 @@ google-services.json
 
 # Tests.
 test/data/files
+/patrol_test/test_bundle.dart

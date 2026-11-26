@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
@@ -155,7 +156,7 @@ class _SupportPageState extends State<SupportPage> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            LibraryPageHeader(title: 'Support', leading: const BackButton(), compact: compact),
+            LibraryPageHeader(title: 'Support', leading: const AppBackButton(), compact: compact),
             Expanded(
               child: SingleChildScrollView(
                 controller: _scrollController,

@@ -159,7 +159,7 @@ class _DownloadsList extends StatelessWidget {
                 : () {
                     final router = GoRouter.of(context);
                     Navigator.of(context).pop();
-                    router.go('/library/details/${job.bookId}');
+                    router.push('/library/details/${Uri.encodeComponent(job.bookId!)}');
                   },
             child: const Text('Open book'),
           )

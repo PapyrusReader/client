@@ -1,3 +1,4 @@
+import 'package:papyrus/config/page_history.dart';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -294,7 +295,7 @@ class _CatalogBookPageState extends State<CatalogBookPage> {
 
   void _back() {
     if (context.canPop()) {
-      context.pop();
+      popAppPage(context);
     } else {
       _navigate(widget.source, replace: true);
     }

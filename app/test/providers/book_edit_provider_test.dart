@@ -36,6 +36,24 @@ void main() {
     await repository.controller.close();
   });
 
+  test('an editor opened during startup saves to the library that supplied the book', () async {
+    final startup = _DelayedSnapshotBookRepository();
+    final dataStore = DataStore(bookRepository: startup);
+    final provider = BookEditProvider()..setDataStore(dataStore);
+    final stored = buildTestBook(id: 'guide', title: 'Field guide');
+    final library = InMemoryBookRepository()..replaceAll([stored]);
+    final load = provider.loadBook(stored.id);
+    await Future<void>.delayed(Duration.zero);
+    await dataStore.attachBookRepository(library);
+    await load;
+    provider.updateTitle('Updated guide');
+    expect(await provider.save(), isTrue);
+    expect((await library.getById(stored.id))?.title, 'Updated guide');
+    await dataStore.disposeBookRepository();
+    await startup.controller.close();
+    provider.dispose();
+  });
+
   test('saving a picked cover keeps image bytes out of synced book metadata', () async {
     final dataStore = DataStore();
 

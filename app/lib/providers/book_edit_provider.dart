@@ -94,14 +94,17 @@ class BookEditProvider extends ChangeNotifier {
 
     try {
       final dataStore = _dataStore!;
-      final repository = dataStore.requireBookRepository();
-      _repository = repository;
+      var repository = dataStore.requireBookRepository();
       var book = dataStore.getBook(bookId) ?? await repository.getById(bookId);
 
-      if (book == null && !dataStore.isLoaded) {
+      if (book == null && (!dataStore.isLoaded || !dataStore.isBookRepositoryCurrent(repository))) {
         await dataStore.waitUntilLoaded();
+        // Startup may have replaced the temporary store with the persisted library.
+        repository = dataStore.requireBookRepository();
         book = dataStore.getBook(bookId) ?? await repository.getById(bookId);
       }
+
+      _repository = repository;
 
       if (book == null) {
         _error = 'Book not found';
@@ -147,6 +150,7 @@ class BookEditProvider extends ChangeNotifier {
   void revertChanges() {
     if (_originalBook != null) {
       _editedBook = _originalBook;
+      _coverImageBytes = null;
       notifyListeners();
     }
   }

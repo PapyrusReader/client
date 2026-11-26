@@ -42,11 +42,15 @@ android {
 
     defaultConfig {
         applicationId = "com.papyrus.reader"
+        testInstrumentationRunner = "pl.leancode.patrol.PatrolJUnitRunner"
+        testInstrumentationRunnerArguments["clearPackageData"] = "true"
         minSdk = flutter.minSdkVersion
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
+
+    testOptions { execution = "ANDROIDX_TEST_ORCHESTRATOR" }
 
     buildFeatures { buildConfig = true }
     flavorDimensions += "distribution"
@@ -78,6 +82,7 @@ flutter {
 }
 
 dependencies {
+    androidTestUtil("androidx.test:orchestrator:1.5.1")
     implementation("com.google.android.play:app-update:2.1.0")
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("org.slf4j:slf4j-nop:1.7.36")

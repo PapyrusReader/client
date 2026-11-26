@@ -97,8 +97,8 @@ void main() {
           );
 
           await tester.pumpAndSettle();
-          expect(tester.getCenter(find.byTooltip('Back to shelves')), menuCenter);
-          await tester.tap(find.byTooltip('Back to shelves'));
+          expect(tester.getCenter(find.byTooltip('Back')), menuCenter);
+          await tester.tap(find.byTooltip('Back'));
           expect(backCalls, 1);
           expect(tester.takeException(), isNull);
           var closeCalls = 0;
