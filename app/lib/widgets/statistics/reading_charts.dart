@@ -232,8 +232,11 @@ class ReadingActivityBarChart extends StatelessWidget {
           final barWidth = (availableWidth / activities.length * 0.6).clamp(4.0, isDesktop ? 20.0 : 16.0);
           final labelStep = _bottomLabelStep(context, constraints.maxWidth, activities);
 
-          return BarChart(
-            key: ValueKey((AppMotion.disabled(context), metric)),
+          final duration = AppMotion.duration(context, AnimationDurations.standard);
+
+          // A new range has different buckets. Interpolating by index can put a new bar above the old scale.
+          final chart = BarChart(
+            key: ValueKey((activities.first.date, activities.last.date, activities.length)),
             BarChartData(
               alignment: BarChartAlignment.spaceAround,
               minY: 0,
@@ -316,7 +319,15 @@ class ReadingActivityBarChart extends StatelessWidget {
                 );
               }).toList(),
             ),
-            duration: AppMotion.duration(context, AnimationDurations.standard),
+            duration: duration,
+          );
+
+          return AnimatedSwitcher(
+            key: ValueKey((AppMotion.disabled(context), metric)),
+            duration: duration,
+            // Let the switcher distinguish repeated visits to a range while its previous chart is fading out.
+            transitionBuilder: (child, animation) => FadeTransition(opacity: animation, child: child),
+            child: chart,
           );
         },
       ),
