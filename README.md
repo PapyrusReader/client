@@ -17,7 +17,7 @@
 
 ## Overview
 
-Papyrus is an open-source, cross-platform application for managing and reading books. It supports both physical and digital book collections across Android, iOS, Web, Windows and Linux. The application features an integrated book reader, flexible organization tools, reading statistics, progress tracking, uses local media caches and optional Papyrus server storage and cross-device synchronization via a self-hostable server.
+Papyrus is an open-source, cross-platform application for managing and reading books. It supports both physical and digital book collections across Android, iOS, Web, Windows and Linux. The application features an integrated book reader, flexible organization tools, reading statistics, progress tracking, and cross-device synchronization.
 
 <div align="center">
   <img src="/public/img/library.png" alt="Papyrus library view" />
@@ -25,7 +25,7 @@ Papyrus is an open-source, cross-platform application for managing and reading b
 
 ### Why Papyrus?
 
-Many reading applications offer partial solutions but fall short on essential features, platform availability or user experience. Papyrus aims to deliver a comprehensive, privacy oriented solution that:
+Many reading applications offer partial solutions but fall short on essential features, platform availability or user experience. Papyrus aims to deliver a comprehensive, well-rounded, and privacy oriented solution that:
 
 - Works offline-first with optional cloud synchronization
 - Supports self-hosting for complete data ownership
@@ -36,25 +36,18 @@ Many reading applications offer partial solutions but fall short on essential fe
 
 | Category | Features |
 |----------|----------|
-| **Reading** | EPUB, PDF, MOBI, AZW3, TXT, CBZ and CBR reader with pagination/scrolling and saved positions |
+| **Reading** | EPUB, PDF, MOBI, AZW3, TXT, CBZ and CBR reader |
 | **Organization** | Shelves, tags/topics and library filters |
-| **Annotations** | Book-level bookmarks, notes and annotations; reader text selection/export is future work |
+| **Annotations** | Book-level bookmarks, notes and annotations |
 | **Progress** | Saved progress, reading sessions and statistics |
 | **Goals** | Reading goals and progress views |
-| **Sync** | Offline-first local library and optional self-hosted PowerSync synchronization |
-| **Storage** | Local media caches and Papyrus-managed server uploads |
-| **Catalogs** | OPDS 1.2/2.0 browsing, search and imports through the backend relay |
-| **Accessibility** | E-ink, light/dark themes and reader typography controls |
+| **Sync** | Offline-first local library and optional synchronization across devices |
+| **Storage** | Papyrus-managed uploads by default with ability to connect your own storage solutions  |
+| **Catalogs** | OPDS 1.2/2.0 browsing, search and imports |
+| **Accessibility** | E-ink, light/dark/high-contrast themes and typography controls |
 
 The built-in reader and native/web file pickers accept EPUB, PDF, MOBI, AZW3,
-TXT, CBR and CBZ. Text and Kindle books support reflow and typography controls;
-comic archives support page navigation, zoom and scrolling. Files must be
-DRM-free; encrypted archives and fixed-layout EPUBs are unsupported. Web imports
-of TXT, Kindle and comic files initially use the filename as the library title.
-
-Book parsing runs in native isolates or browser workers. Integrity checks use a
-native isolate or Web Crypto, and local book reads are asynchronous. Original
-book files remain unchanged; the client persists the reader's saved position.
+TXT, CBR and CBZ, but DRM protected files are currently not supported.
 
 ## Supported platforms
 
@@ -70,13 +63,6 @@ book files remain unchanged; the client persists the reader's saved position.
 ### Prerequisites
 
 - Flutter 3.47.9, matching the CI SDK: [installation guide](https://docs.flutter.dev/get-started/install)
-
-### Patched dependencies
-
-`unrar_file` is maintained in the [Papyrus compatibility fork](https://github.com/PapyrusReader/unrar_file)
-and pinned to a full commit SHA in `app/pubspec.yaml`. Its build fixes and upstream
-provenance are documented in that repository's `PAPYRUS_PATCHES.md`. Update the
-manifest and lockfile together after validating metadata tests and Android builds.
 
 ### Installation
 
@@ -112,7 +98,7 @@ manifest and lockfile together after validating metadata tests and Android build
 
 ### Running with the back-end
 
-When the user signs in, the Flutter client communicates with the Papyrus server for auth and asks the server for PowerSync credentials.
+When the user signs in, the Flutter client communicates with the Papyrus server for authentication and asks the server for PowerSync credentials.
 
 Run the server and PowerSync locally, then start Flutter with:
 
@@ -123,7 +109,7 @@ cd ../client/app
 flutter run -d chrome --web-hostname papyrus.localhost --web-port 3000 --dart-define-from-file=.dart_defines
 ```
 
-For local web auth links, add these entries to `/etc/hosts`:
+For local web authentication links, add these entries to `/etc/hosts`:
 
 ```text
 127.0.0.1 papyrus.localhost
@@ -133,19 +119,17 @@ For local web auth links, add these entries to `/etc/hosts`:
 ## Documentation
 
 See [PapyrusReader/docs](https://github.com/PapyrusReader/docs) for the user manual
-and specification. This repository keeps [installation instructions](docs/INSTALL.md),
-[release setup](docs/RELEASING.md) and [Windows acceptance checks](docs/WINDOWS_TESTING.md)
-with the packaging tools that consume them.
+and specification.
 
 ## Technology stack
 
-| Layer        | Technology         |
-|--------------|--------------------|
-| Frontend     | Flutter / Dart     |
-| Backend      | FastAPI / Python   |
-| Database     | PostgreSQL         |
-| Local database | SQLite / PowerSync |
-| File storage | Device cache (OPFS on web) and Papyrus server |
+| Layer          | Technology                    |
+|----------------|-------------------------------|
+| Frontend       | Flutter, Dart                 |
+| Backend        | FastAPI, Python               |
+| Database       | PostgreSQL                    |
+| Local database | SQLite, PowerSync             |
+| File storage   | OPFS (Web) or Papyrus server  |
 
 ## Contributing
 
@@ -182,7 +166,6 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
    dart format --output=none --set-exit-if-changed .
    flutter analyze --no-fatal-warnings --no-fatal-infos
    flutter test
-   node --test test/web/flutter_bootstrap_test.cjs
    ```
 
 3. Commit your changes and push:
@@ -194,8 +177,6 @@ Keep actionable bug reports and technical decisions in GitHub issues and pull re
 
 4. Open a pull request
 
-For device journeys, Monkey runs, and interrupted sync uploads, see [Journey testing](docs/JOURNEY_TESTING.md).
-
 ## Resources
 
 | Repository | Description |
@@ -205,16 +186,3 @@ For device journeys, Monkey runs, and interrupted sync uploads, see [Journey tes
 | [website](https://github.com/PapyrusReader/website) | Landing page |
 | [docs](https://github.com/PapyrusReader/docs) | Documentation |
 | [papyrus](https://github.com/PapyrusReader/papyrus) | Development workspace |
-
-## Google Play testing builds
-
-See [the release guide](docs/RELEASING.md) for signed Android App Bundles,
-version-triggered GitHub builds, required endpoint/signing settings and the first
-internal testing upload.
-
-
-For public cover rendering in Chrome, including image hosts without CORS headers,
-run `python3 tools/test_public_covers.py` from the client repository. The runner
-starts a temporary local image server and cleans it up after the test. In the
-workspace, use `--flutter /absolute/path/to/papyrus/tools/flutter` to select the
-pinned SDK. This check also runs in the browser CI job.
